@@ -1,6 +1,6 @@
 import m, {ComponentTypes, VnodeDOM} from "mithril";
 import {ComponentContainer, GoldenLayout, Tab} from "golden-layout";
-import {VNodeChild} from "./components";
+import {VNodeChild} from "./components/dataview";
 import {NDropdown, NInput, NSelect, NButton,} from "./components/input";
 import {NModal, NScrollbar, NSpace, NTabs} from "./components/layout";
 import {TreeOption, NTree, NList, NListItem, NIcon, NTag, NEmpty, NResult} from "./components/dataview";
@@ -410,38 +410,39 @@ type Panelka = {
 
 type panelkaState = {id: string};
 
+const f = {
+  [database.Kind.HTTP ]: RequestHTTP,
+  [database.Kind.SQL  ]: RequestSQL,
+  [database.Kind.GRPC ]: RequestGRPC,
+  [database.Kind.JQ   ]: RequestJQ,
+  [database.Kind.REDIS]: RequestRedis,
+  [database.Kind.MD   ]: RequestMD,
+} as {[key in database.Kind]: (id: string, show: () => boolean) => ComponentTypes};
 const panelkaFactory = (
   container: ComponentContainer,
   {id}: panelkaState,
 ): Panelka => {
- const el = container.element;
- let show_request = true;
- container.on("tab", (tab: Tab): void => {
-   const eye = document.createElement("span");
-   m.mount(eye, {view: () => m(NIcon, {
-     component: show_request ? m(Eye) : m(EyeClosed),
-     color: "grey",
-   })});
-   eye.onmouseover = () => eye.style.color = "#ff0000";
-   eye.onmouseout = () => eye.style.color = "grey";
-   eye.title = "Hide request";
-   eye.onclick = () => {
-     show_request = !show_request;
-     eye.title = show_request ? "Hide request" : "Show request";
-     m.redraw();
-   };
-   tab.element.prepend(eye);
- });
- type fn = (id: string, show: () => boolean) => ComponentTypes;
-  const f = {
-    [database.Kind.HTTP ]: RequestHTTP as fn,
-    [database.Kind.SQL  ]: RequestSQL as fn,
-    [database.Kind.GRPC ]: RequestGRPC as fn,
-    [database.Kind.JQ   ]: RequestJQ as fn,
-    [database.Kind.REDIS]: RequestRedis as fn,
-    [database.Kind.MD   ]: RequestMD as fn,
-  } as {[key in database.Kind]: fn};
- m.mount(el, f[store.requests[id].Kind](id, () => show_request));
+  const el = container.element;
+  let show_request = true;
+  container.on("tab", (tab: Tab): void => {
+    const eye = document.createElement("span");
+    m.mount(eye, {view: () => m(NIcon, {
+      component: show_request ? m(Eye) : m(EyeClosed),
+      color: "grey",
+    })});
+    eye.onmouseover = () => eye.style.color = "#ff0000";
+    eye.onmouseout = () => eye.style.color = "grey";
+    eye.title = "Hide request";
+    eye.onclick = () => {
+      show_request = !show_request;
+      eye.title = show_request ? "Hide request" : "Show request";
+      m.redraw();
+    };
+    tab.element.prepend(eye);
+  });
+  if (store.requests[id]) {
+    m.mount(el, f[store.requests[id].Kind](id, () => show_request));
+  }
   return {el};
 }
 

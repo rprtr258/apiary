@@ -1,6 +1,6 @@
 import m, {Vnode} from "mithril";
 
-type VNodeChild = any;
+export type VNodeChild = any;
 
 export const Json = {
   view(vnode: Vnode<any, any>) {
