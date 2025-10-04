@@ -3,12 +3,15 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"iter"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/redis/go-redis/v9"
+	redis "github.com/redis/go-redis/v9"
+	iter2 "github.com/rprtr258/fun/iter"
 )
 
 const KindRedis Kind = "redis"
@@ -64,10 +67,7 @@ func sendRedis(ctx context.Context, request EntryData) (EntryData, error) {
 	defer rdb.Close() // TODO: keep connections pool
 
 	// TODO: breaks on something like SET key "barabem barabum"
-	args := []any{}
-	for arg := range strings.FieldsSeq(req.Query) {
-		args = append(args, arg)
-	}
+	args := slices.Collect(iter.Seq[any](iter2.Map(iter2.Seq[string](strings.FieldsSeq(req.Query)), func(arg string) any { return arg })))
 
 	val, err := rdb.Do(ctx, args...).Result()
 	if err != nil {
