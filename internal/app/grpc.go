@@ -23,7 +23,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
-	"github.com/rprtr258/impulse/internal/database"
+	"github.com/rprtr258/apiary/internal/database"
 )
 
 func connect(

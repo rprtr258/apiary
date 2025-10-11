@@ -15,7 +15,7 @@ import (
 	"go.abhg.dev/goldmark/mermaid"
 	"go.abhg.dev/goldmark/toc"
 
-	"github.com/rprtr258/impulse/internal/database"
+	"github.com/rprtr258/apiary/internal/database"
 )
 
 var m = goldmark.New(

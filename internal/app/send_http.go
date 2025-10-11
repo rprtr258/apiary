@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/rprtr258/impulse/internal/database"
+	"github.com/rprtr258/apiary/internal/database"
 )
 
 func (a *App) sendHTTP(req database.HTTPRequest) (database.HTTPResponse, error) {

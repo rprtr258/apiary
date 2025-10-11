@@ -47,6 +47,7 @@ export default function() {
 
   return {
     oncreate(vnode: VnodeDOM<Props, any>) {
+      localTransform(vnode.attrs.value);
       const props = vnode.attrs;
       const state = EditorState.create({
         doc: props.value ?? "",

@@ -1,6 +1,6 @@
-# Welcome to impulse!
+# Welcome to apiary!
 
-Hi! I'm your first Markdown file in **impulse**.
+Hi! I'm your first Markdown file in **apiary**.
 
 ## Export a file
 

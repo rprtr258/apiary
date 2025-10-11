@@ -1,11 +1,70 @@
-import m from "mithril";
-import {NEmpty} from "./components/dataview";
-import EditorJSON from "./components/EditorJSON";
+import m, {VnodeDOM} from "mithril";
+import {ChangeSpec, EditorState} from "@codemirror/state";
+import {EditorView} from "@codemirror/view";
+import {markdown} from "@codemirror/lang-markdown";
 import {database} from "../wailsjs/go/models";
+import {NEmpty} from "./components/dataview";
+import {defaultEditorExtensions, defaultExtensions} from "./components/editor";
 import {use_request} from "./store";
 import {api} from "./api";
 
 type Request = {kind: database.Kind.MD} & database.MarkdownRequest;
+
+type Props = {
+  value: string | null,
+  on: {
+    update: (value: string) => void,
+  },
+  class?: string,
+  style?: any,
+};
+
+function EditorMD() {
+  let editor: EditorView | null = null;
+  return {
+    oncreate(vnode: VnodeDOM<Props, any>) {
+      const props = vnode.attrs;
+
+      if (editor) {
+        if (props.value !== editor.state.doc.toString()) {
+          editor.dispatch({
+            changes: {
+              from: 0,
+              to: editor.state.doc.length,
+              insert: props.value,
+            } as ChangeSpec,
+          });
+        }
+
+        return;
+      }
+
+      const state = EditorState.create({
+        doc: props.value ?? "",
+        extensions: [
+          ...defaultExtensions,
+          ...defaultEditorExtensions(props.on.update),
+          markdown(),
+        ],
+      });
+
+      editor = new EditorView({
+        parent: vnode.dom,
+        state: state,
+      });
+    },
+    onremove() {
+      editor?.destroy();
+    },
+    view(vnode: VnodeDOM<Props, any>) {
+      const props = vnode.attrs;
+      return m("div", {
+        class: props.class,
+        style: props.style ?? {},
+      });
+    },
+  };
+}
 
 export default function(
   id: string,
@@ -48,7 +107,7 @@ export default function(
           "grid-column-gap": ".5em",
         },
       }, [
-        show_request() && m(EditorJSON, { // TODO: editor for markdown
+        show_request() && m(EditorMD, {
           value: r.request.data,
           on: {update: (data: string) => update_request(data)},
           class: "h100",

@@ -10,9 +10,10 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 
-	"github.com/rprtr258/impulse/internal/app"
-	"github.com/rprtr258/impulse/internal/database"
+	"github.com/rprtr258/apiary/internal/app"
+	"github.com/rprtr258/apiary/internal/database"
 )
 
 //go:embed all:frontend/dist
@@ -39,7 +40,7 @@ func run() error {
 
 	// Create application with options
 	return wails.Run(&options.App{
-		Title:  "impulse",
+		Title:  "apiary",
 		Width:  1024,
 		Height: 768,
 		AssetServer: &assetserver.Options{
@@ -54,6 +55,9 @@ func run() error {
 			database.AllColumnTypes,
 		},
 		StartHidden: true,
+		Windows: &windows.Options{
+			WebviewDisableRendererCodeIntegrity: true,
+		},
 	})
 }
 

@@ -9,10 +9,10 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
+	"github.com/rprtr258/fun"
 	_ "modernc.org/sqlite"
 
-	"github.com/rprtr258/fun"
-	"github.com/rprtr258/impulse/internal/database"
+	"github.com/rprtr258/apiary/internal/database"
 )
 
 func convertTypes(columns int, rows [][]any) []database.ColumnType {

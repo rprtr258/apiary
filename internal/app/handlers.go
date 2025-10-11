@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rprtr258/fun"
 
-	"github.com/rprtr258/impulse/internal/database"
+	"github.com/rprtr258/apiary/internal/database"
 )
 
 type requestPreview struct {

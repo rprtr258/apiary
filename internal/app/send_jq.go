@@ -9,7 +9,7 @@ import (
 	"github.com/itchyny/gojq"
 	"github.com/pkg/errors"
 
-	"github.com/rprtr258/impulse/internal/database"
+	"github.com/rprtr258/apiary/internal/database"
 )
 
 func jq(ctx context.Context, input any, query string) ([]string, error) {

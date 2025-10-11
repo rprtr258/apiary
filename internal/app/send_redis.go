@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/rprtr258/impulse/internal/database"
+	"github.com/rprtr258/apiary/internal/database"
 )
 
 func sendRedis(ctx context.Context, request database.RedisRequest) (database.RedisResponse, error) {
