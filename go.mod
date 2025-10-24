@@ -1,8 +1,6 @@
 module github.com/rprtr258/apiary
 
-go 1.24.4
-
-toolchain go1.24.5
+go 1.24.5
 
 // tool github.com/wailsapp/wails/v2/cmd/wails // TODO: shit not working
 
@@ -14,13 +12,14 @@ require (
 	github.com/itchyny/gojq v0.12.17
 	github.com/jchenry/goldmark-pikchr v0.1.0
 	github.com/jhump/protoreflect v1.17.0
+	github.com/jmoiron/sqlx v1.4.0
 	github.com/kr/pretty v0.3.1
 	github.com/lib/pq v1.10.9
 	github.com/pkg/errors v0.9.1
+	github.com/pressly/goose/v3 v3.26.0
 	github.com/redis/go-redis/v9 v9.14.1
 	github.com/rprtr258/fun v0.0.31
 	github.com/rs/zerolog v1.34.0
-	github.com/spf13/afero v1.15.0
 	github.com/tenkoh/goldmark-img64 v0.1.2
 	github.com/wailsapp/wails/v2 v2.10.2
 	github.com/wyatt915/goldmark-treeblood v0.0.1
@@ -29,7 +28,6 @@ require (
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
 	go.abhg.dev/goldmark/mermaid v0.6.0
 	go.abhg.dev/goldmark/toc v0.12.0
-	go.nhat.io/aferocopy/v2 v2.0.3
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
 	modernc.org/sqlite v1.39.1
@@ -70,6 +68,7 @@ require (
 	github.com/leaanthony/u v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
@@ -80,6 +79,7 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/samber/lo v1.52.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
+	github.com/sethvargo/go-retry v0.3.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
 	github.com/tkrajina/go-reflector v0.5.8 // indirect
@@ -90,6 +90,7 @@ require (
 	github.com/wyatt915/treeblood v0.1.16 // indirect
 	go.opentelemetry.io/otel v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/exp v0.0.0-20251017212417-90e834f514db // indirect

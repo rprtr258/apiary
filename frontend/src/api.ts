@@ -49,7 +49,7 @@ export type RequestData =
   | {kind: database.Kind.GRPC } & database.GRPCRequest
   | {kind: database.Kind.JQ   } & database.JQRequest
   | {kind: database.Kind.REDIS} & database.RedisRequest
-  | {kind: database.Kind.MD   } & database.MarkdownRequest
+  | {kind: database.Kind.MD   } & database.MDRequest
 ;
 
 export type Request = {
@@ -63,19 +63,19 @@ export type ResponseData =
   | {kind: database.Kind.GRPC } & database.GRPCResponse
   | {kind: database.Kind.JQ   } & database.JQResponse
   | {kind: database.Kind.REDIS} & database.RedisResponse
-  | {kind: database.Kind.MD   } & database.MarkdownResponse
+  | {kind: database.Kind.MD   } & database.MDResponse
 ;
 
 export type HistoryEntry = {
   sent_at: Date,
   received_at: Date,
 } & (
-  {kind: database.Kind.HTTP,  request: database.    HTTPRequest, response: database.    HTTPResponse} |
-  {kind: database.Kind.SQL,   request: database.     SQLRequest, response: database.     SQLResponse} |
-  {kind: database.Kind.GRPC,  request: database.    GRPCRequest, response: database.    GRPCResponse} |
-  {kind: database.Kind.JQ,    request: database.      JQRequest, response: database.      JQResponse} |
-  {kind: database.Kind.REDIS, request: database.   RedisRequest, response: database.   RedisResponse} |
-  {kind: database.Kind.MD,    request: database.MarkdownRequest, response: database.MarkdownResponse} |
+  {kind: database.Kind.HTTP,  request: database. HTTPRequest, response: database. HTTPResponse} |
+  {kind: database.Kind.SQL,   request: database.  SQLRequest, response: database.  SQLResponse} |
+  {kind: database.Kind.GRPC,  request: database. GRPCRequest, response: database. GRPCResponse} |
+  {kind: database.Kind.JQ,    request: database.   JQRequest, response: database.   JQResponse} |
+  {kind: database.Kind.REDIS, request: database.RedisRequest, response: database.RedisResponse} |
+  {kind: database.Kind.MD,    request: database.   MDRequest, response: database.   MDResponse} |
   never
 )
 
@@ -85,10 +85,10 @@ function parseTime(s: string): Date {
   return d;
 };
 
-async function wrap<T>(f: () => Promise<T>): Promise<Result<T>> {
+async function wrap<T>(f: () => Promise<T>, args: any): Promise<Result<T>> {
   try {
     const res = await f();
-    console.log("FETCH", f, res);
+    console.log("FETCH", f, args, res);
     return ok(res);
   } catch (e) {
     return err(String(e));
@@ -97,11 +97,11 @@ async function wrap<T>(f: () => Promise<T>): Promise<Result<T>> {
 
 export const api = {
   async collectionRequests(): Promise<Result<app.ListResponse>> {
-    return await wrap(async () => App.List());
+    return await wrap(async () => App.List(), {});
   },
 
   async get(id: string): Promise<Result<app.GetResponse>> {
-    const y = await wrap(async () => App.Get(id));
+    const y = await wrap(async () => App.Get(id), {id});
     // TODO: it seems that is not needed, remove if so
     return y.map((y: app.GetResponse) => {
       // NOTE: BEWARE, DIRTY TYPESCRIPT HACKS HERE
@@ -117,13 +117,13 @@ export const api = {
     name: string,
     kind: database.Kind,
   ): Promise<Result<app.ResponseNewRequest>> {
-    return await wrap(() => App.Create(name, kind));
+    return await wrap(() => App.Create(name, kind), {name, kind});
   },
 
   async requestDuplicate(
     name: string,
   ): Promise<Result<void>> {
-    return await wrap(() => App.Duplicate(name));
+    return await wrap(() => App.Duplicate(name), {name});
   },
 
   async request_update(
@@ -131,36 +131,36 @@ export const api = {
     kind: database.Kind,
     req: Omit<RequestData, "kind">,
   ): Promise<Result<void>> {
-    return await wrap(() => App.Update(reqId, kind, req));
+    return await wrap(() => App.Update(reqId, kind, req), {reqId, kind, req});
   },
 
   async rename(
     reqId: string,
     newID: string,
   ): Promise<Result<void>> {
-    return await wrap(() => App.Rename(reqId, newID));
+    return await wrap(() => App.Rename(reqId, newID), {reqId, newID});
   },
 
   async requestPerform(
     reqId: string,
   ): Promise<Result<HistoryEntry>> {
-    return await wrap(() => App.Perform(reqId)) as Result<HistoryEntry>;
+    return await wrap(() => App.Perform(reqId), {reqId}) as Result<HistoryEntry>;
   },
 
   async requestDelete(
     reqId: string,
   ): Promise<Result<void>> {
-    return await wrap(() => App.Delete(reqId));
+    return await wrap(() => App.Delete(reqId), {reqId});
   },
 
   async jq(
     data: string,
     query: string,
   ): Promise<Result<string[]>> {
-    return await wrap(() => App.JQ(data, query));
+    return await wrap(() => App.JQ(data, query), {data, query});
   },
 
   async grpcMethods(target: string): Promise<Result<app.grpcServiceMethods[]>> {
-    return await wrap(() => App.GRPCMethods(target));
+    return await wrap(() => App.GRPCMethods(target), {target});
   },
 };

@@ -114,8 +114,7 @@ export function useStore() {
           }
         }
       }
-      const found = dfs(this.layout?.layoutConfig.root!).find((tabID) => tabID === id);
-      if (found) {
+      if (this.layout?.layoutConfig.root && dfs(this.layout?.layoutConfig.root).find((tabID) => tabID === id)) {
         return;
       }
       this.layout?.addItem(panelka(id));

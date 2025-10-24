@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"github.com/spf13/afero"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/rprtr258/apiary/internal/database"
 )
@@ -13,8 +13,8 @@ type App struct {
 	DB  *database.DB
 }
 
-func New(dbFs afero.Fs) (*App, func(context.Context), func()) {
-	db := database.New(dbFs)
+func New(sqldb *sqlx.DB) (*App, func(context.Context), func()) {
+	db := database.New(sqldb)
 	s := &App{DB: db}
 	return s,
 		func(ctx context.Context) { s.ctx = ctx },

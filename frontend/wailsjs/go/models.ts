@@ -149,12 +149,12 @@ export namespace database {
 	    BOOLEAN = "boolean",
 	}
 	export enum Kind {
-	    REDIS = "redis",
+	    HTTP = "http",
 	    SQL = "sql",
 	    JQ = "jq",
-	    GRPC = "grpc",
-	    HTTP = "http",
 	    MD = "md",
+	    REDIS = "redis",
+	    GRPC = "grpc",
 	}
 	export enum Database {
 	    POSTGRES = "postgres",
@@ -381,11 +381,11 @@ export namespace database {
 	    }
 	}
 	
-	export class MarkdownRequest {
+	export class MDRequest {
 	    data: string;
 	
 	    static createFrom(source: any = {}) {
-	        return new MarkdownRequest(source);
+	        return new MDRequest(source);
 	    }
 	
 	    constructor(source: any = {}) {
@@ -393,11 +393,11 @@ export namespace database {
 	        this.data = source["data"];
 	    }
 	}
-	export class MarkdownResponse {
+	export class MDResponse {
 	    data: string;
 	
 	    static createFrom(source: any = {}) {
-	        return new MarkdownResponse(source);
+	        return new MDResponse(source);
 	    }
 	
 	    constructor(source: any = {}) {

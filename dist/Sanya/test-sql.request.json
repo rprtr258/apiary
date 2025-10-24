@@ -1,6 +1,0 @@
-{
-  "database": "postgres",
-  "dsn": "host=localhost user=postgres password=a port=5432 dbname=infrastructure-api-team sslmode=disable",
-  "kind": "sql",
-  "query": "SELECT *\nFROM environment\nORDER BY id"
-}

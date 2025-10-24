@@ -187,7 +187,7 @@ type grpcServiceMethods struct {
 }
 
 func (a *App) GRPCMethods(id string) ([]grpcServiceMethods, error) {
-	request, err := database.Get(a.ctx, a.DB, database.RequestID(id))
+	request, err := a.DB.Get(a.ctx, database.RequestID(id))
 	if err != nil {
 		return nil, errors.Wrapf(err, "get request id=%q", id)
 	}

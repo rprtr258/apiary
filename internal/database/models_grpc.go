@@ -1,33 +1,16 @@
 package database
 
-import json2 "github.com/rprtr258/fun/exp/json"
+import (
+	"context"
+	"encoding/json"
+	"time"
+
+	"github.com/pkg/errors"
+)
 
 const KindGRPC Kind = "grpc"
 
-var pluginGRPC = plugin[GRPCRequest, GRPCResponse]{
-	enumElem[Kind]{KindGRPC, "GRPC"},
-	decoderRequestGRPC,
-	decoderResponseGRPC,
-}
-
-var decoderRequestGRPC = json2.Map4(
-	func(target, method, payload string, metadata []KV) GRPCRequest {
-		return GRPCRequest{target, method, payload, metadata}
-	},
-	json2.Optional("target", json2.String, ""),
-	json2.Optional("method", json2.String, ""),
-	json2.Optional("payload", json2.String, "{}"),
-	json2.Optional("metadata", decoderKVs, nil),
-)
-
-var decoderResponseGRPC = json2.Map3(
-	func(response string, code int, metadata []KV) GRPCResponse {
-		return GRPCResponse{response, code, metadata}
-	},
-	json2.Required("response", json2.String),
-	json2.Required("code", json2.Int),
-	json2.Optional("metadata", decoderKVs, nil),
-)
+var elemGRPC = enumElem[Kind]{KindGRPC, "GRPC"}
 
 type GRPCRequest struct {
 	Target   string `json:"target"`
@@ -45,4 +28,116 @@ type GRPCResponse struct { // TODO: last inserted id on insert
 	Metadata []KV `json:"metadata"`
 }
 
-func (GRPCResponse) isResponseData() Kind { return KindGRPC }
+func (GRPCResponse) Kind() Kind { return KindGRPC }
+
+var GRPCEmptyRequest = GRPCRequest{
+	"",  // Target
+	"",  // Method
+	"",  // Payload
+	nil, // Metadata
+}
+
+func (db *DB) createGRPC(ctx context.Context, id RequestID, request EntryData) error {
+	req := request.(GRPCRequest)
+	metadata, err := json.Marshal(req.Metadata)
+	if err != nil {
+		return errors.Wrap(err, "marshal grpc request")
+	}
+	_, err = db.db.ExecContext(ctx, `INSERT INTO request_grpc (id, target, method, payload, metadata) VALUES ($1, $2, $3, $4, $5)`, id, req.Target, req.Method, req.Payload, metadata)
+	return errors.Wrap(err, "insert grpc request")
+}
+
+func (db *DB) updateGRPC(ctx context.Context, id RequestID, request EntryData) error {
+	req := request.(GRPCRequest)
+	metadata, err := json.Marshal(req.Metadata)
+	if err != nil {
+		return err
+	}
+	_, err = db.db.ExecContext(ctx,
+		`UPDATE request_grpc
+			SET target = $2, method = $3, payload = $4, metadata = $5
+			WHERE id = $1`,
+		id,
+		req.Target, req.Method, req.Payload, metadata,
+	)
+	return err
+}
+
+func (db *DB) listGRPCRequests(ctx context.Context) ([]Request, error) {
+	var reqs []struct {
+		ID       string          `db:"id"`
+		Target   string          `db:"target"`
+		Method   string          `db:"method"`
+		Payload  string          `db:"payload"`
+		Metadata json.RawMessage `db:"metadata"`
+	}
+	if err := db.db.SelectContext(ctx, &reqs, `SELECT * FROM request_grpc`); err != nil {
+		return nil, errors.Wrapf(err, "query grpc requests")
+	}
+
+	var resps []struct {
+		ID         string          `db:"id"`
+		Pos        int             `db:"pos"` // TODO: remove?
+		SentAt     time.Time       `db:"sent_at"`
+		ReceivedAt time.Time       `db:"received_at"`
+		Code       int             `db:"code"`
+		Response   string          `db:"response"`
+		Metadata   json.RawMessage `db:"metadata"`
+	}
+	if err := db.db.SelectContext(ctx, &resps, `SELECT
+	r.sent_at, r.received_at,
+	rg.*
+FROM response r
+JOIN response_grpc rg ON r.id = rg.id AND r.pos = rg.pos
+ORDER BY r.id, r.pos`); err != nil {
+		return nil, errors.Wrapf(err, "query grpc requests")
+	}
+
+	res := make([]Request, 0, len(reqs))
+	for _, req := range reqs {
+		var metadata []KV
+		if err := json.Unmarshal(req.Metadata, &metadata); err != nil {
+			return nil, errors.Wrapf(err, "unmarshal grpc metadata")
+		}
+		request := GRPCRequest{req.Target, req.Method, req.Payload, metadata}
+		history := make([]HistoryEntry, 0) // TODO: single slice
+		for _, resp := range resps {
+			if resp.ID != req.ID {
+				continue
+			}
+			var metadata []KV
+			if err := json.Unmarshal(resp.Metadata, &metadata); err != nil {
+				return nil, errors.Wrapf(err, "unmarshal grpc metadata")
+			}
+			history = append(history, HistoryEntry{
+				resp.SentAt, resp.ReceivedAt, request,
+				GRPCResponse{resp.Response, resp.Code, metadata},
+			})
+		}
+
+		res = append(res, Request{
+			ID:      RequestID(req.ID),
+			Data:    request,
+			History: history,
+		})
+	}
+	return res, nil
+}
+
+func (db *DB) createHistoryEntryGRPC(
+	ctx context.Context,
+	id RequestID, newPos int,
+	response EntryData,
+) error {
+	resp := response.(GRPCResponse)
+	metadata, err := json.Marshal(resp.Metadata)
+	if err != nil {
+		return errors.Wrap(err, "marshal grpc metadata")
+	}
+
+	_, err = db.db.ExecContext(ctx,
+		`INSERT INTO response_grpc (id, pos, code, response, metadata) VALUES ($1, $2, $3, $4, $5)`,
+		id, newPos, resp.Code, resp.Response, metadata,
+	)
+	return errors.Wrap(err, "insert grpc response")
+}

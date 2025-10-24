@@ -1,8 +1,9 @@
 package app
 
 import (
-	_ "embed"
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -19,41 +20,6 @@ type requestPreview struct {
 	SubKind string
 }
 
-func (a *App) list(
-	node database.Tree,
-	requests map[string]requestPreview,
-) error {
-	for _, requestID := range node.RequestIDs {
-		request, err := database.Get(a.ctx, a.DB, requestID)
-		if err != nil {
-			return errors.Wrapf(err, "get request id=%q", requestID)
-		}
-		requests[string(requestID)] = requestPreview{
-			Kind: request.Data.Kind(),
-			SubKind: func() string {
-				switch v := request.Data.(type) {
-				case database.HTTPRequest:
-					return v.Method
-				case database.SQLRequest:
-					return string(v.Database)
-				case database.GRPCRequest:
-					return "GRPC"
-				case database.JQRequest:
-					return "JQ"
-				default:
-					return ""
-				}
-			}(),
-		}
-	}
-	for _, subtree := range node.Dirs {
-		if err := a.list(subtree, requests); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 type Tree struct {
 	IDs  []string
 	Dirs map[string]Tree
@@ -64,32 +30,52 @@ type ListResponse struct {
 	Requests map[string]requestPreview
 }
 
+func add(t Tree, parts []string, id string) Tree {
+	if len(parts) == 1 {
+		t.IDs = append(t.IDs, id)
+		return t
+	}
+
+	part := parts[0]
+	if _, ok := t.Dirs[part]; !ok {
+		t.Dirs[part] = Tree{[]string{}, map[string]Tree{}}
+	}
+	t.Dirs[part] = add(t.Dirs[part], parts[1:], id)
+	return t
+}
+
 func (a *App) List() (ListResponse, error) {
-	tree, err := database.List(a.ctx, a.DB)
+	requests, err := a.DB.List(a.ctx)
 	if err != nil {
 		return ListResponse{}, errors.Wrap(err, "list requests")
 	}
 
-	requests := make(map[string]requestPreview)
-	if err := a.list(tree, requests); err != nil { // TODO: batch
-		return ListResponse{}, errors.Wrap(err, "get requests info")
+	previews := make(map[string]requestPreview, len(requests))
+	for _, request := range requests {
+		previews[string(request.ID)] = requestPreview{
+			Kind: request.Data.Kind(),
+			SubKind: func() string {
+				switch v := request.Data.(type) {
+				case database.HTTPRequest:
+					return v.Method
+				case database.SQLRequest:
+					return string(v.Database)
+				default:
+					return ""
+				}
+			}(),
+		}
 	}
 
-	var mapper func(database.Tree) Tree
-	mapper = func(tree database.Tree) Tree {
-		result := make(map[string]Tree, len(tree.Dirs))
-		for k, dir := range tree.Dirs {
-			result[k] = mapper(dir)
-		}
-
-		return Tree{
-			IDs:  fun.Map[string](func(id database.RequestID) string { return string(id) }, tree.RequestIDs...),
-			Dirs: result,
-		}
+	tree := Tree{[]string{}, map[string]Tree{}}
+	for _, req := range requests {
+		parts := strings.Split(string(req.ID), "/")
+		tree = add(tree, parts, string(req.ID))
 	}
+
 	return ListResponse{
-		Tree:     mapper(tree),
-		Requests: requests,
+		Tree:     tree,
+		Requests: previews,
 	}, nil
 }
 
@@ -101,7 +87,7 @@ type GetResponse struct {
 }
 
 func (a *App) Get(id string) (GetResponse, error) {
-	request, err := database.Get(a.ctx, a.DB, database.RequestID(id))
+	request, err := a.DB.Get(a.ctx, database.RequestID(id))
 	if err != nil {
 		return GetResponse{}, errors.Wrapf(err, "get request id=%q", id)
 	}
@@ -125,80 +111,45 @@ type ResponseNewRequest struct {
 	ID database.RequestID `json:"id"`
 }
 
-//go:embed default.md
-var defaultMarkdown string
-
 func (a *App) Create(
 	id string,
 	kind database.Kind,
 ) (ResponseNewRequest, error) {
-	var req database.RequestData
-	switch kind {
-	case database.KindHTTP:
-		req = database.HTTPRequest{
-			"",             // URL // TODO: insert last url used
-			http.MethodGet, // Method
-			"",             // Body
-			nil,            // Headers
-		}
-	case database.KindSQL:
-		req = database.SQLRequest{
-			"",                // DSN // TODO: insert last dsn used
-			database.Postgres, // Database
-			"",                // Query
-		}
-	case database.KindGRPC:
-		req = database.GRPCRequest{
-			"",  // Target
-			"",  // Method
-			"",  // Payload
-			nil, // Metadata
-		}
-	case database.KindJQ:
-		req = database.JQRequest{
-			".", // Query
-			`{
-	"string": "string",
-	"number": 42,
-	"bool": true,
-	"list": [1, 2, 3],
-	"null": null
-}`, // JSON
-		}
-	case database.KindRedis:
-		req = database.RedisRequest{
-			"localhost:6379",
-			`KEYS`,
-		}
-	case database.KindMarkdown:
-		req = database.MarkdownRequest{defaultMarkdown}
-	default:
+	req, ok := database.EmptyRequests[kind]
+	if !ok {
 		return ResponseNewRequest{}, errors.Errorf("unknown request kind %q", kind)
 	}
 
-	requestID, err := database.Create(a.ctx, a.DB, database.PayloadRequestCreate{database.RequestID(id), req})
+	err := a.DB.Create(a.ctx, database.RequestID(id), req)
 	if err != nil {
 		return ResponseNewRequest{}, errors.Wrap(err, "error while creating request")
 	}
 
 	return ResponseNewRequest{
-		ID: requestID,
+		ID: database.RequestID(id), // TODO: remove
 	}, nil
 }
 
 func (a *App) Duplicate(id string) error {
-	if err := database.Duplicate(a.ctx, a.DB, id); err != nil {
-		return errors.Wrap(err, "error while duplicating")
+	request, err := a.DB.Get(a.ctx, database.RequestID(id))
+	if err != nil {
+		return errors.Wrapf(err, "get original request id=%q", id)
 	}
 
-	return nil
+	n := 1
+	for {
+		newID := database.RequestID(fmt.Sprintf("%s (%d)", id, n))
+		if _, err := a.DB.Get(a.ctx, newID); errors.Is(err, sql.ErrNoRows) {
+			break
+		}
+	}
+
+	newID := database.RequestID(fmt.Sprintf("%s (%d)", id, n))
+	return a.DB.Create(a.ctx, newID, request.Data)
 }
 
 func (a *App) Read(requestID string) (database.Request, error) {
-	request, err := database.Get(
-		a.ctx, a.DB,
-		database.RequestID(requestID),
-	)
+	request, err := a.DB.Get(a.ctx, database.RequestID(requestID))
 	if err != nil {
 		return database.Request{}, errors.Wrapf(err, "get request id=%q", requestID)
 	}
@@ -206,18 +157,20 @@ func (a *App) Read(requestID string) (database.Request, error) {
 	return request, nil
 }
 
-func (a *App) Rename(
-	requestID, newRequestID string,
-) error {
-	if err := database.Rename(
-		a.ctx, a.DB,
-		database.RequestID(requestID),
-		database.RequestID(newRequestID),
-	); err != nil {
+func (a *App) Rename(requestID, newRequestID string) error {
+	if err := a.DB.Rename(a.ctx, database.RequestID(requestID), database.RequestID(newRequestID)); err != nil {
 		return errors.Wrap(err, "rename request")
 	}
 
 	return nil
+}
+
+func parse[T database.EntryData](b []byte) (database.EntryData, error) {
+	var res T
+	if err := json.Unmarshal(b, &res); err != nil {
+		return res, errors.Wrapf(err, "unmarshal %T request", res)
+	}
+	return res, nil
 }
 
 func (a *App) Update(
@@ -230,52 +183,26 @@ func (a *App) Update(
 		return errors.Wrap(err, "huita request")
 	}
 
-	var requestt database.RequestData
-	switch kind {
-	case database.KindHTTP:
-		var req database.HTTPRequest
-		if err := json.Unmarshal(b, &req); err != nil {
-			return errors.Wrap(err, "huita 2 request")
-		}
-		requestt = req
-	case database.KindSQL:
-		var req database.SQLRequest
-		if err := json.Unmarshal(b, &req); err != nil {
-			return errors.Wrap(err, "huita 3 request")
-		}
-		requestt = req
-	case database.KindGRPC:
-		var req database.GRPCRequest
-		if err := json.Unmarshal(b, &req); err != nil {
-			return errors.Wrap(err, "huita 4 request")
-		}
-		requestt = req
-	case database.KindJQ:
-		var req database.JQRequest
-		if err := json.Unmarshal(b, &req); err != nil {
-			return errors.Wrap(err, "huita 5 request")
-		}
-		requestt = req
-	case database.KindRedis:
-		var req database.RedisRequest
-		if err := json.Unmarshal(b, &req); err != nil {
-			return errors.Wrap(err, "huita 6 request")
-		}
-		requestt = req
-	case database.KindMarkdown:
-		var req database.MarkdownRequest
-		if err := json.Unmarshal(b, &req); err != nil {
-			return errors.Wrap(err, "huita 7 request")
-		}
-		requestt = req
-	default:
+	parseRequestt, ok := map[database.Kind]func([]byte) (database.EntryData, error){
+		database.KindHTTP:  parse[database.HTTPRequest],
+		database.KindSQL:   parse[database.SQLRequest],
+		database.KindGRPC:  parse[database.GRPCRequest],
+		database.KindJQ:    parse[database.JQRequest],
+		database.KindRedis: parse[database.RedisRequest],
+		database.KindMD:    parse[database.MDRequest],
+	}[kind]
+	if !ok {
 		return errors.Errorf("unknown request kind %q", kind)
 	}
 
-	if err := database.Update(
-		a.ctx, a.DB,
+	requestt, err := parseRequestt(b)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal request")
+	}
+
+	if err := a.DB.Update(
+		a.ctx,
 		database.RequestID(requestID),
-		database.Kind(kind),
 		requestt,
 	); err != nil {
 		return errors.Wrap(err, "update request")
@@ -285,10 +212,7 @@ func (a *App) Update(
 }
 
 func (a *App) Delete(requestID string) error {
-	if err := database.Delete(
-		a.ctx, a.DB,
-		database.RequestID(requestID),
-	); err != nil {
+	if err := a.DB.Delete(a.ctx, database.RequestID(requestID)); err != nil {
 		return errors.Wrap(err, "delete request")
 	}
 
@@ -319,17 +243,14 @@ func toKV(headers http.Header) []database.KV {
 
 // Perform create a handler that performs call and save result to history
 func (a *App) Perform(requestID string) (historyEntry, error) {
-	request, err := database.Get(
-		a.ctx, a.DB,
-		database.RequestID(requestID),
-	)
+	request, err := a.DB.Get(a.ctx, database.RequestID(requestID))
 	if err != nil {
 		return nil, errors.Wrapf(err, "get request id=%q", requestID)
 	}
 
 	sentAt := time.Now()
 
-	var response database.ResponseData
+	var response database.EntryData
 	switch request := request.Data.(type) {
 	case database.HTTPRequest:
 		response, err = a.sendHTTP(request)
@@ -356,7 +277,7 @@ func (a *App) Perform(requestID string) (historyEntry, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "send redis request id=%q", requestID)
 		}
-	case database.MarkdownRequest:
+	case database.MDRequest:
 		response, err = sendMarkdown(request)
 		if err != nil {
 			return nil, errors.Wrapf(err, "send redis request id=%q", requestID)
@@ -366,10 +287,9 @@ func (a *App) Perform(requestID string) (historyEntry, error) {
 	}
 
 	receivedAt := time.Now()
-	if err := database.CreateHistoryEntry(
-		a.ctx, a.DB, database.RequestID(requestID),
-		sentAt, receivedAt,
-		request.Data, response,
+	if err := a.DB.CreateHistoryEntry(
+		a.ctx, database.RequestID(requestID),
+		database.HistoryEntry{sentAt, receivedAt, request.Data, response},
 	); err != nil {
 		return nil, errors.Wrap(err, "insert into database")
 	}

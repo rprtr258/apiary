@@ -1,7 +1,0 @@
-{
-  "kind": "grpc",
-  "metadata": null,
-  "method": "helloworld.Greeter.SayHello",
-  "payload": "{\n  \"mast\": 2,\n  \"name\": \"+++++++++++++++++++++++++++\",\n  \"z1a1l1u1p1a\": \"ODIN\",\n  \"z2a2l2u2p2a\": \"DWA\"\n}",
-  "target": "localhost:50051"
-}

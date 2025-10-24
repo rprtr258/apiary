@@ -1,7 +1,0 @@
-{
-  "body": "",
-  "headers": null,
-  "kind": "http",
-  "method": "GET",
-  "url": "http://localhost:8080/dice"
-}

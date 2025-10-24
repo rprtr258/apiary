@@ -1,7 +1,0 @@
-{
-  "body": "",
-  "headers": null,
-  "kind": "http",
-  "method": "GET",
-  "url": "https://postman-echo.com/get?k=v\u0026arg=1\u0026arg=b"
-}

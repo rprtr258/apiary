@@ -1,7 +1,0 @@
-{
-  "body": "",
-  "headers": null,
-  "kind": "http",
-  "method": "GET",
-  "url": "https://pokeapi.co/api/v2/pokemon/beedrill"
-}

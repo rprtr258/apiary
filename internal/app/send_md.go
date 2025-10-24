@@ -40,11 +40,11 @@ var m = goldmark.New(
 	),
 )
 
-func sendMarkdown(req database.MarkdownRequest) (database.MarkdownResponse, error) {
+func sendMarkdown(req database.MDRequest) (database.MDResponse, error) {
 	var b bytes.Buffer
 	if err := m.Convert([]byte(req.Data), &b); err != nil {
-		return database.MarkdownResponse{}, errors.Wrap(err, "convert")
+		return database.MDResponse{}, errors.Wrap(err, "convert")
 	}
 
-	return database.MarkdownResponse{b.String()}, nil
+	return database.MDResponse{b.String()}, nil
 }
