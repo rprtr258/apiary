@@ -32,8 +32,8 @@ func (db *DB) list(ctx context.Context, ids []RequestID) ([]Request, error) {
 	}
 
 	res := make([]Request, 0, len(rows))
-	for kind, list := range listers {
-		requests, err := list(db, ctx)
+	for kind, plugin := range Plugins {
+		requests, err := plugin.list(db, ctx)
 		if err != nil {
 			return nil, errors.Wrapf(err, "list %s requests", kind)
 		}
@@ -74,12 +74,12 @@ func (db *DB) Create(
 		return errors.Wrap(err, "insert request")
 	}
 
-	create, ok := creates[kind]
+	plugin, ok := Plugins[kind]
 	if !ok {
 		return errors.Errorf("unknown request kind %s", kind)
 	}
 
-	return create(db, ctx, id, request)
+	return plugin.create(db, ctx, id, request)
 }
 
 func (db *DB) Delete(ctx context.Context, id RequestID) error {
@@ -124,12 +124,12 @@ func (db *DB) Update(
 	request EntryData,
 ) error {
 	kind := request.Kind()
-	update, ok := updates[kind]
+	plugin, ok := Plugins[kind]
 	if !ok {
 		return errors.Errorf("unknown request kind %s", kind)
 	}
 
-	return update(db, ctx, id, request)
+	return plugin.update(db, ctx, id, request)
 }
 
 func (db *DB) CreateHistoryEntry(
@@ -149,10 +149,10 @@ func (db *DB) CreateHistoryEntry(
 		return errors.Wrap(err, "insert response")
 	}
 
-	createHistoryEntry, ok := createHistoryEntrys[entry.Request.Kind()]
+	plugin, ok := Plugins[entry.Request.Kind()]
 	if !ok {
 		return errors.Errorf("unknown response kind %s", entry.Request.Kind())
 	}
 
-	return createHistoryEntry(db, ctx, id, newPos, entry.Response)
+	return plugin.createHistoryEntry(db, ctx, id, newPos, entry.Response)
 }

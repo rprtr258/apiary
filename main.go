@@ -32,6 +32,7 @@ func (export) ExportTypes(
 	database.JQRequest, database.JQResponse,
 	database.RedisRequest, database.RedisResponse,
 	database.MDRequest, database.MDResponse,
+	database.SQLSourceRequest,
 ) {
 }
 

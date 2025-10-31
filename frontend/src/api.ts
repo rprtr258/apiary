@@ -44,12 +44,13 @@ export const Database: Record<database.Database, string> = {
 export type Database = keyof typeof Database;
 
 export type RequestData =
-  | {kind: database.Kind.HTTP } & database.HTTPRequest
-  | {kind: database.Kind.SQL  } & database.SQLRequest
-  | {kind: database.Kind.GRPC } & database.GRPCRequest
-  | {kind: database.Kind.JQ   } & database.JQRequest
-  | {kind: database.Kind.REDIS} & database.RedisRequest
-  | {kind: database.Kind.MD   } & database.MDRequest
+  | {kind: database.Kind.HTTP }     & database.HTTPRequest
+  | {kind: database.Kind.SQL  }     & database.SQLRequest
+  | {kind: database.Kind.GRPC }     & database.GRPCRequest
+  | {kind: database.Kind.JQ   }     & database.JQRequest
+  | {kind: database.Kind.REDIS}     & database.RedisRequest
+  | {kind: database.Kind.MD   }     & database.MDRequest
+  | {kind: database.Kind.SQLSource} & database.SQLSourceRequest
 ;
 
 export type Request = {

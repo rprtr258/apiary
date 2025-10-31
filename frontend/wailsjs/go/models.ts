@@ -143,12 +143,13 @@ export namespace app {
 export namespace database {
 	
 	export enum Kind {
+	    GRPC = "grpc",
+	    SQLSource = "sql-source",
 	    HTTP = "http",
 	    SQL = "sql",
 	    JQ = "jq",
 	    MD = "md",
 	    REDIS = "redis",
-	    GRPC = "grpc",
 	}
 	export enum Database {
 	    POSTGRES = "postgres",
@@ -495,6 +496,20 @@ export namespace database {
 	        this.columns = source["columns"];
 	        this.types = source["types"];
 	        this.rows = source["rows"];
+	    }
+	}
+	export class SQLSourceRequest {
+	    database: Database;
+	    dsn: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SQLSourceRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.database = source["database"];
+	        this.dsn = source["dsn"];
 	    }
 	}
 

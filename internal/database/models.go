@@ -1,7 +1,6 @@
 package database
 
 import (
-	"context"
 	"encoding/json"
 	"time"
 )
@@ -15,62 +14,6 @@ type enumElem[T any] struct {
 	Value  T
 	TSName string
 }
-
-var AllKinds = []enumElem[Kind]{
-	elemHTTP,
-	elemSQL,
-	elemJQ,
-	elemMD,
-	elemRedis,
-	elemGRPC,
-}
-
-var EmptyRequests = map[Kind]EntryData{
-	KindHTTP:  HTTPEmptyRequest,
-	KindSQL:   SQLEmptyRequest,
-	KindJQ:    JQEmptyRequest,
-	KindMD:    MDEmptyRequest,
-	KindRedis: RedisEmptyRequest,
-	KindGRPC:  GRPCEmptyRequest,
-}
-
-var creates = map[Kind]func(*DB, context.Context, RequestID, EntryData) error{
-	KindHTTP:  (*DB).createHTTP,
-	KindSQL:   (*DB).createSQL,
-	KindJQ:    (*DB).createJQ,
-	KindMD:    (*DB).createMD,
-	KindRedis: (*DB).createRedis,
-	KindGRPC:  (*DB).createGRPC,
-}
-
-var listers = map[Kind]func(*DB, context.Context) ([]Request, error){
-	KindHTTP:  (*DB).listHTTPRequests,
-	KindSQL:   (*DB).listSQLRequests,
-	KindJQ:    (*DB).listJQRequests,
-	KindMD:    (*DB).listMDRequests,
-	KindRedis: (*DB).listRedisRequests,
-	KindGRPC:  (*DB).listGRPCRequests,
-}
-
-var updates = map[Kind]func(*DB, context.Context, RequestID, EntryData) error{
-	KindHTTP:  (*DB).updateHTTP,
-	KindSQL:   (*DB).updateSQL,
-	KindJQ:    (*DB).updateJQ,
-	KindMD:    (*DB).updateMD,
-	KindRedis: (*DB).updateRedis,
-	KindGRPC:  (*DB).updateGRPC,
-}
-
-var createHistoryEntrys = map[Kind]func(*DB, context.Context, RequestID, int, EntryData) error{
-	KindHTTP:  (*DB).createHistoryEntryHTTP,
-	KindSQL:   (*DB).createHistoryEntrySQL,
-	KindJQ:    (*DB).createHistoryEntryJQ,
-	KindMD:    (*DB).createHistoryEntryMD,
-	KindRedis: (*DB).createHistoryEntryRedis,
-	KindGRPC:  (*DB).createHistoryEntryGRPC,
-}
-
-type Kind string
 
 type EntryData interface {
 	Kind() Kind

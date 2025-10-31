@@ -149,12 +149,13 @@ function drag({node, dragNode, dropPosition}: {
 }
 function badge(req: app.requestPreview): [string, string] {
   switch (req.Kind) {
-  case database.Kind.HTTP:  return [Method[req.SubKind as keyof typeof Method], "lime"];
-  case database.Kind.SQL:   return [Database[req.SubKind as keyof typeof Database], "bluewhite"];
-  case database.Kind.GRPC:  return ["GRPC", "cyan"];
-  case database.Kind.JQ:    return ["JQ", "violet"];
-  case database.Kind.REDIS: return ["REDIS", "red"];
-  case database.Kind.MD:    return ["MD", "blue"];
+  case database.Kind.HTTP:      return [Method[req.SubKind as keyof typeof Method], "lime"];
+  case database.Kind.SQL:       return [Database[req.SubKind as keyof typeof Database], "bluewhite"];
+  case database.Kind.GRPC:      return ["GRPC", "cyan"];
+  case database.Kind.JQ:        return ["JQ", "violet"];
+  case database.Kind.REDIS:     return ["REDIS", "red"];
+  case database.Kind.MD:        return ["MD", "blue"];
+  case database.Kind.SQLSource: return ["SQL Source", "blue"];
   }
 }
 function renderSuffix(info: {option: TreeOption}): VNodeChild {
@@ -417,6 +418,7 @@ const f = {
   [database.Kind.JQ   ]: RequestJQ,
   [database.Kind.REDIS]: RequestRedis,
   [database.Kind.MD   ]: RequestMD,
+  [database.Kind.SQLSource]: RequestSQL,
 } as {[key in database.Kind]: (id: string, show: () => boolean) => ComponentTypes};
 const panelkaFactory = (
   container: ComponentContainer,

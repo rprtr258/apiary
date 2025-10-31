@@ -10,8 +10,6 @@ import (
 
 const KindJQ Kind = "jq"
 
-var elemJQ = enumElem[Kind]{KindJQ, "JQ"}
-
 type JQRequest struct {
 	Query string `json:"query"`
 	JSON  string `json:"json"`
@@ -24,6 +22,15 @@ type JQResponse struct {
 }
 
 func (JQResponse) Kind() Kind { return KindJQ }
+
+var pluginJQ = plugin{
+	EmptyRequest:       JQEmptyRequest,
+	enum:               enumElem[Kind]{KindJQ, "JQ"},
+	create:             (*DB).createJQ,
+	list:               (*DB).listJQRequests,
+	update:             (*DB).updateJQ,
+	createHistoryEntry: (*DB).createHistoryEntryJQ,
+}
 
 var JQEmptyRequest = JQRequest{
 	".", // Query

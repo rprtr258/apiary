@@ -4,13 +4,18 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"math/rand"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/fullstorydev/grpcurl"
+	"github.com/jhump/protoreflect/desc"
 	"github.com/pkg/errors"
 	"github.com/rprtr258/fun"
+	"github.com/rprtr258/fun/exp/zun"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/dynamicpb"
 
 	"github.com/rprtr258/apiary/internal/database"
 )
@@ -115,12 +120,12 @@ func (a *App) Create(
 	id string,
 	kind database.Kind,
 ) (ResponseNewRequest, error) {
-	req, ok := database.EmptyRequests[kind]
+	plugin, ok := database.Plugins[kind]
 	if !ok {
 		return ResponseNewRequest{}, errors.Errorf("unknown request kind %q", kind)
 	}
 
-	err := a.DB.Create(a.ctx, database.RequestID(id), req)
+	err := a.DB.Create(a.ctx, database.RequestID(id), plugin.EmptyRequest)
 	if err != nil {
 		return ResponseNewRequest{}, errors.Wrap(err, "error while creating request")
 	}
@@ -184,12 +189,13 @@ func (a *App) Update(
 	}
 
 	parseRequestt, ok := map[database.Kind]func([]byte) (database.EntryData, error){
-		database.KindHTTP:  parse[database.HTTPRequest],
-		database.KindSQL:   parse[database.SQLRequest],
-		database.KindGRPC:  parse[database.GRPCRequest],
-		database.KindJQ:    parse[database.JQRequest],
-		database.KindRedis: parse[database.RedisRequest],
-		database.KindMD:    parse[database.MDRequest],
+		database.KindHTTP:      parse[database.HTTPRequest],
+		database.KindSQL:       parse[database.SQLRequest],
+		database.KindGRPC:      parse[database.GRPCRequest],
+		database.KindJQ:        parse[database.JQRequest],
+		database.KindRedis:     parse[database.RedisRequest],
+		database.KindMD:        parse[database.MDRequest],
+		database.KindSQLSource: parse[database.SQLSourceRequest],
 	}[kind]
 	if !ok {
 		return errors.Errorf("unknown request kind %q", kind)
@@ -219,28 +225,6 @@ func (a *App) Delete(requestID string) error {
 	return nil
 }
 
-func fromKV(kvs []database.KV) http.Header {
-	headers := make(http.Header, len(kvs))
-	for _, kv := range kvs {
-		headers.Add(kv.Key, kv.Value)
-	}
-	return headers
-}
-
-func toKV(headers http.Header) []database.KV {
-	kvs := make([]database.KV, 0, len(headers))
-	for k, vs := range headers {
-		kvs = append(kvs, database.KV{
-			Key:   k,
-			Value: vs[0],
-		})
-	}
-	slices.SortFunc(kvs, func(a, b database.KV) int {
-		return strings.Compare(a.Key, b.Key)
-	})
-	return kvs
-}
-
 // Perform create a handler that performs call and save result to history
 func (a *App) Perform(requestID string) (historyEntry, error) {
 	request, err := a.DB.Get(a.ctx, database.RequestID(requestID))
@@ -252,38 +236,21 @@ func (a *App) Perform(requestID string) (historyEntry, error) {
 
 	var response database.EntryData
 	switch request := request.Data.(type) {
-	case database.HTTPRequest:
-		response, err = a.sendHTTP(request)
-		if err != nil {
-			return nil, errors.Wrapf(err, "send http request id=%q", requestID)
-		}
-	case database.SQLRequest:
-		response, err = a.sendSQL(request)
-		if err != nil {
-			return nil, errors.Wrapf(err, "send sql request id=%q", requestID)
-		}
-	case database.GRPCRequest:
-		response, err = a.sendGRPC(request)
-		if err != nil {
-			return nil, errors.Wrapf(err, "send grpc request id=%q", requestID)
-		}
 	case database.JQRequest:
 		response, err = sendJQ(a.ctx, request)
 		if err != nil {
 			return nil, errors.Wrapf(err, "send jq request id=%q", requestID)
 		}
-	case database.RedisRequest:
-		response, err = sendRedis(a.ctx, request)
-		if err != nil {
-			return nil, errors.Wrapf(err, "send redis request id=%q", requestID)
-		}
-	case database.MDRequest:
-		response, err = sendMarkdown(request)
-		if err != nil {
-			return nil, errors.Wrapf(err, "send redis request id=%q", requestID)
-		}
 	default:
-		return nil, errors.Errorf("unsupported request type %T", request)
+		plugin, ok := database.Plugins[request.Kind()]
+		if !ok {
+			return nil, errors.Errorf("unsupported request type %T", request)
+		}
+
+		response, err = plugin.Perform(a.ctx, request)
+		if err != nil {
+			return nil, errors.Wrapf(err, "send %v request id=%q", request.Kind(), requestID)
+		}
 	}
 
 	receivedAt := time.Now()
@@ -301,4 +268,234 @@ func (a *App) Perform(requestID string) (historyEntry, error) {
 		"request":     request,
 		"response":    response,
 	}, nil
+}
+
+type grpcServiceMethods struct {
+	Service string   `json:"service"`
+	Methods []string `json:"methods"`
+}
+
+func splitService(serviceName string) (pkg, short string) {
+	dotI := strings.LastIndexByte(serviceName, '.')
+	return serviceName[:dotI], serviceName[dotI+1:]
+}
+
+func (a *App) GRPCMethods(id string) ([]grpcServiceMethods, error) {
+	request, err := a.DB.Get(a.ctx, database.RequestID(id))
+	if err != nil {
+		return nil, errors.Wrapf(err, "get request id=%q", id)
+	}
+	if kind := request.Data.Kind(); kind != database.KindGRPC {
+		return nil, errors.Errorf("query kind is %s, expected grpc", kind)
+	}
+
+	reflSource, cc, err := database.Connect(a.ctx, request.Data.(database.GRPCRequest).Target)
+	if err != nil {
+		return nil, errors.Wrap(err, "connect")
+	}
+	defer cc.Close()
+
+	services, err := grpcurl.ListServices(reflSource)
+	if err != nil {
+		return nil, errors.Wrap(err, "list services")
+	}
+
+	res := make([]grpcServiceMethods, 0, len(services))
+	for _, service := range services {
+		pkg, serviceName := splitService(service)
+		methods, err := grpcurl.ListMethods(reflSource, service)
+		if err != nil {
+			return nil, errors.Wrapf(err, "list service %s methods", service)
+		}
+
+		prefix := pkg + "." + serviceName + "."
+		zun.Map(methods, func(method string) string {
+			return strings.TrimPrefix(method, prefix)
+		}, methods...)
+		res = append(res, grpcServiceMethods{
+			service,
+			methods,
+		})
+	}
+	return res, nil
+}
+
+// JSONSchema represents the structure of a JSON schema
+type JSONSchema struct {
+	Type string `json:"type"`
+	// type == "object"
+	Properties map[string]JSONSchema `json:"properties,omitempty"`
+	// type == "object" && "oneOf" is present
+	OneOf []JSONSchema `json:"oneOf,omitempty"`
+	// type == "array"
+	Items *JSONSchema `json:"items,omitempty"`
+}
+
+func convertFieldToJSONSchema(field protoreflect.FieldDescriptor) (JSONSchema, error) {
+	var fieldSchema JSONSchema
+	switch field.Kind() {
+	case protoreflect.BoolKind:
+		fieldSchema.Type = "boolean"
+	case protoreflect.Int32Kind, protoreflect.Int64Kind,
+		protoreflect.Uint32Kind, protoreflect.Uint64Kind,
+		protoreflect.Sint32Kind, protoreflect.Sint64Kind,
+		protoreflect.Sfixed32Kind, protoreflect.Sfixed64Kind,
+		protoreflect.Fixed32Kind, protoreflect.Fixed64Kind:
+		fieldSchema.Type = "integer"
+	case protoreflect.FloatKind,
+		protoreflect.DoubleKind:
+		fieldSchema.Type = "number"
+	case protoreflect.StringKind:
+		fieldSchema.Type = "string"
+	case protoreflect.BytesKind:
+		fieldSchema.Type = "string"
+		// TODO: support bytes
+	case protoreflect.MessageKind:
+		var err error
+		fieldSchema, err = convertObjectToJSONSchema(field.Message())
+		if err != nil {
+			return JSONSchema{}, err
+		}
+	case protoreflect.EnumKind:
+		fieldSchema.Type = "string"
+		vals := field.Enum().Values()
+		for i := 0; i < vals.Len(); i++ {
+			val := vals.Get(i)
+			fmt.Println("ENUM", i, val.Name())
+		}
+	default:
+		return JSONSchema{}, fmt.Errorf("unsupported field kind: %v", field.Kind())
+	}
+
+	if field.IsList() {
+		return JSONSchema{
+			Type:  "array",
+			Items: &fieldSchema,
+		}, nil
+	}
+
+	return fieldSchema, nil
+}
+
+func convertObjectToJSONSchema(msg protoreflect.MessageDescriptor) (JSONSchema, error) {
+	fields := msg.Fields()
+	properties := make(map[string]JSONSchema, fields.Len())
+	for i := 0; i < fields.Len(); i++ {
+		field := fields.Get(i)
+		fieldSchema, err := convertFieldToJSONSchema(field)
+		if err != nil {
+			return JSONSchema{}, err
+		}
+
+		if oneof := field.ContainingOneof(); oneof != nil {
+			oneofName := string(oneof.Name())
+			if _, ok := properties[oneofName]; !ok {
+				properties[oneofName] = JSONSchema{
+					Type:  "object",
+					OneOf: []JSONSchema{},
+				}
+			}
+			m := properties[oneofName]
+			m.OneOf = append(m.OneOf, JSONSchema{
+				Type:       "object",
+				Properties: map[string]JSONSchema{string(field.Name()): fieldSchema},
+			})
+			properties[oneofName] = m
+		} else {
+			properties[string(field.Name())] = fieldSchema
+		}
+	}
+
+	return JSONSchema{
+		Type:       "object",
+		Properties: properties,
+		Items:      nil,
+	}, nil
+}
+
+func newFake(js JSONSchema) any {
+	switch js.Type {
+	case "object":
+		m := make(map[string]any, len(js.Properties))
+		for k, v := range js.Properties {
+			if v.Type == "object" && v.OneOf != nil {
+				idx := rand.Intn(len(v.OneOf))
+
+				// TODO: (((GO)))VNO
+				var kkk string
+				var vvv JSONSchema
+				for k, v := range v.OneOf[idx].Properties {
+					kkk = k
+					vvv = v
+				}
+
+				m[kkk] = newFake(vvv)
+			} else {
+				m[k] = newFake(v)
+			}
+		}
+		return m
+	case "array":
+		a := []any{}
+		for _, v := range js.Items.Properties {
+			a = append(a, newFake(v))
+		}
+		return a
+	case "number":
+		return float64(5.2)
+	case "integer":
+		return int64(52)
+	case "string":
+		return "ABOBA"
+	default:
+		return nil
+	}
+}
+
+func ConvertMessageToJSONSchema(msg protoreflect.Message) (JSONSchema, error) {
+	return convertObjectToJSONSchema(msg.Descriptor())
+}
+
+func (a *App) GRPCQueryFake(
+	Target string,
+	Method string, // NOTE: fully qualified
+) (string, error) {
+	reflSource, cc, err := database.Connect(a.ctx, Target)
+	if err != nil {
+		return "", errors.Wrap(err, "connect")
+	}
+	defer cc.Close()
+
+	dsc, err := reflSource.FindSymbol(Method)
+	if err != nil {
+		return "", errors.Wrap(err, "find method")
+	}
+
+	methodDesc := dsc.(*desc.MethodDescriptor)
+	// fmt.Println("    IN", strings.TrimPrefix(inputType.GetFullyQualifiedName(), pkg+"."))
+	// fmt.Println("    OUT", strings.TrimPrefix(methodDesc.GetOutputType().GetFullyQualifiedName(), pkg+"."))
+	m := dynamicpb.NewMessage(methodDesc.GetInputType().UnwrapMessage())
+
+	schema, err := ConvertMessageToJSONSchema(m)
+	// schema["$schema"]= "http://json-schema.org/schema#"
+	if err != nil {
+		return "", errors.Wrap(err, "convert message to json schema")
+	}
+
+	// jsonSchema, err := json.MarshalIndent(schema, "", "  ")
+	// check(err)
+
+	b, err := json.MarshalIndent(newFake(schema), "", "  ")
+	if err != nil {
+		return "", errors.Wrap(err, "marshal fake")
+	}
+	return string(b), nil
+}
+
+func (a *App) GRPCQueryValidate(
+	Target string,
+	Method string, // NOTE: fully qualified
+	Payload string,
+) error {
+	return errors.New("not implemented")
 }
