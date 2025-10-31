@@ -1,7 +1,7 @@
 import m, {ComponentTypes, VnodeDOM} from "mithril";
 import {ComponentContainer, GoldenLayout, Tab} from "golden-layout";
 import {VNodeChild} from "./components/dataview";
-import {NDropdown, NInput, NSelect, NButton,} from "./components/input";
+import {NDropdown, NInput, NSelect, NButton} from "./components/input";
 import {NModal, NScrollbar, NSpace, NTabs} from "./components/layout";
 import {TreeOption, NTree, NList, NListItem, NIcon, NTag, NEmpty, NResult} from "./components/dataview";
 import {DownOutlined, DoubleLeftOutlined, DoubleRightOutlined, Eye, EyeClosed} from "./components/icons";
@@ -16,6 +16,7 @@ import {store, notification, handleCloseTab, use_request, updateLocalstorageTabs
 import {Method, Kinds, Database} from "./api";
 import {app, database} from "../wailsjs/go/models";
 import Command from "./components/CommandPalette";
+import RequestSQLSource from "./RequestSQLSource";
 
 function fromNow(date: Date): string {
   const now = new Date();
@@ -98,15 +99,6 @@ function rename() {
 
 // TODO: fix editing request headers
 
-const location = {
-  hash: document.location.hash,
-};
-
-function selectRequest(id: string) {
-  store.selectRequest(id);
-  location.hash = id;
-}
-
 let sidebarHidden = false;
 let expandedKeys = useLocalStorage<string[]>("expanded-keys", []);
 function dirname(id: string): string {
@@ -121,10 +113,10 @@ const treeData = (): TreeOption[] => {
       key: k,
       label: basename(k),
       children: mapper(v),
-    } as TreeOption)).concat(tree.IDs.map(id => {
+    } as TreeOption)).concat(Object.entries(tree.IDs).map(([id, basename]) => {
       return {
         key: id,
-        label: basename(id),
+        label: basename,
       } as TreeOption;
     }));
   return mapper(store.requestsTree);
@@ -149,12 +141,13 @@ function drag({node, dragNode, dropPosition}: {
 }
 function badge(req: app.requestPreview): [string, string] {
   switch (req.Kind) {
-  case database.Kind.HTTP:  return [Method[req.SubKind as keyof typeof Method], "lime"];
-  case database.Kind.SQL:   return [Database[req.SubKind as keyof typeof Database], "bluewhite"];
-  case database.Kind.GRPC:  return ["GRPC", "cyan"];
-  case database.Kind.JQ:    return ["JQ", "violet"];
-  case database.Kind.REDIS: return ["REDIS", "red"];
-  case database.Kind.MD:    return ["MD", "blue"];
+  case database.Kind.HTTP:      return [Method[req.SubKind as keyof typeof Method], "lime"];
+  case database.Kind.SQL:       return [Database[req.SubKind as keyof typeof Database], "bluewhite"];
+  case database.Kind.GRPC:      return ["GRPC", "cyan"];
+  case database.Kind.JQ:        return ["JQ", "violet"];
+  case database.Kind.REDIS:     return ["REDIS", "red"];
+  case database.Kind.MD:        return ["MD", "blue"];
+  case database.Kind.SQLSource: return ["SQL Source", "blue"];
   }
 }
 function renderSuffix(info: {option: TreeOption}): VNodeChild {
@@ -411,12 +404,13 @@ type Panelka = {
 type panelkaState = {id: string};
 
 const f = {
-  [database.Kind.HTTP ]: RequestHTTP,
-  [database.Kind.SQL  ]: RequestSQL,
-  [database.Kind.GRPC ]: RequestGRPC,
-  [database.Kind.JQ   ]: RequestJQ,
-  [database.Kind.REDIS]: RequestRedis,
-  [database.Kind.MD   ]: RequestMD,
+  [database.Kind.HTTP ]:     RequestHTTP,
+  [database.Kind.SQL  ]:     RequestSQL,
+  [database.Kind.GRPC ]:     RequestGRPC,
+  [database.Kind.JQ   ]:     RequestJQ,
+  [database.Kind.REDIS]:     RequestRedis,
+  [database.Kind.MD   ]:     RequestMD,
+  [database.Kind.SQLSource]: RequestSQLSource,
 } as {[key in database.Kind]: (id: string, show: () => boolean) => ComponentTypes};
 const panelkaFactory = (
   container: ComponentContainer,
@@ -439,6 +433,8 @@ const panelkaFactory = (
       m.redraw();
     };
     tab.element.prepend(eye);
+    // TODO: ebanij rot etogo kazino, we have to use timeout for now, since request is not yet loaded (???)
+    setTimeout(() => tab.setTitle(store.requests2[id].request.path), 100);
   });
   if (store.requests[id]) {
     m.mount(el, f[store.requests[id].Kind](id, () => show_request));
@@ -538,7 +534,7 @@ export default function() {
                 value: item.id,
                 on: {select: () => {
                   commandBarOpenVisible = false;
-                  selectRequest(item.id);
+                  store.selectRequest(item.id);
                 }},
               }, m("div", `[${item.kind}] ${item.id}`))),
           ]),
@@ -638,7 +634,7 @@ export default function() {
                             onclick() {
                               const id = option.key;
                               if (!option.children && !option.disabled) {
-                                selectRequest(id);
+                                store.selectRequest(id);
                               }
                             }
                           }
@@ -695,36 +691,39 @@ export default function() {
                 },
               ],
             }),
-            !sidebarHidden ?
             m(NButton, {
               class: "h100",
               on: {click: () => {sidebarHidden = !sidebarHidden}},
               style: {display: "grid", "grid-template-columns": "1fr 1fr", "grid-column-gap": ".5em"},
             }, [
-              m(NSpace, [
+              m(NSpace, !sidebarHidden ? [
                 m(NIcon, {component: m(DoubleLeftOutlined)}),
                 "hide",
-              ]),
-            ]) :
-            m(NButton, {
-              class: "h100",
-              on: {click: () => {sidebarHidden = !sidebarHidden}},
-              style: {display: "grid", "grid-template-columns": "1fr 1fr", "grid-column-gap": ".5em"},
-            }, [
-              m(NSpace,
+              ] : [
                 m(NIcon, {component: m(DoubleRightOutlined)})
-              ),
+              ]),
             ]),
           ]),
-          m("div", {style: {color: "rgba(255, 255, 255, 0.82)", "background-color": "rgb(16, 16, 20)", overflow: "hidden", },}, [
-            // (store.layoutConfig.root?.content ?? []).length === 0 ? m(NResult, {
+          m("div", {style: {
+            color: "rgba(255, 255, 255, 0.82)",
+            "background-color": "rgb(16, 16, 20)",
+            overflow: "hidden",
+          },}, [
+            // m(NResult, {
             //   status: "info",
             //   title: "Pick request",
             //   description: "Pick request to see it, edit and send and do other fun things.",
             //   class: "h100",
-            //   style: "align-content: center;",
-            // }) :
-            m("div", {id: "layoutContainer", style: {height: "100%", width: "100%"}}),
+            //   style: {
+            //     "align-content": "center",
+            //     position: "absolute",
+            //     display: (store.layoutConfig.root?.content ?? []).length === 0 ? "none" : null,
+            //   },
+            // }),
+            m("div", {id: "layoutContainer", style: {
+              height: "100%",
+              width: "100%",
+            }}),
           ]),
         ]),
       ])

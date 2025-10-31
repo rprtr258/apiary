@@ -5,6 +5,7 @@ services:
       - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: my-secret-pw
+
   redis:
     image: redis:alpine
     ports:

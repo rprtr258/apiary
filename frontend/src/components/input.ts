@@ -1,4 +1,5 @@
 import m, {Vnode} from "mithril";
+import {Button} from "bootstrap";
 
 type NInputProps = {
   value: string,

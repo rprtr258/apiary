@@ -44,12 +44,13 @@ export const Database: Record<database.Database, string> = {
 export type Database = keyof typeof Database;
 
 export type RequestData =
-  | {kind: database.Kind.HTTP } & database.HTTPRequest
-  | {kind: database.Kind.SQL  } & database.SQLRequest
-  | {kind: database.Kind.GRPC } & database.GRPCRequest
-  | {kind: database.Kind.JQ   } & database.JQRequest
-  | {kind: database.Kind.REDIS} & database.RedisRequest
-  | {kind: database.Kind.MD   } & database.MDRequest
+  | {kind: database.Kind.HTTP }     & database.HTTPRequest
+  | {kind: database.Kind.SQL  }     & database.SQLRequest
+  | {kind: database.Kind.GRPC }     & database.GRPCRequest
+  | {kind: database.Kind.JQ   }     & database.JQRequest
+  | {kind: database.Kind.REDIS}     & database.RedisRequest
+  | {kind: database.Kind.MD   }     & database.MDRequest
+  | {kind: database.Kind.SQLSource} & database.SQLSourceRequest
 ;
 
 export type Request = {
@@ -122,35 +123,35 @@ export const api = {
 
   async requestDuplicate(
     name: string,
-  ): Promise<Result<void>> {
+  ): Promise<Result<app.ResponseNewRequest>> {
     return await wrap(() => App.Duplicate(name), {name});
   },
 
   async request_update(
-    reqId: string,
+    id: string,
     kind: database.Kind,
     req: Omit<RequestData, "kind">,
   ): Promise<Result<void>> {
-    return await wrap(() => App.Update(reqId, kind, req), {reqId, kind, req});
+    return await wrap(() => App.Update(id, kind, req), {reqId: id, kind, req});
   },
 
   async rename(
-    reqId: string,
+    id: string,
     newID: string,
   ): Promise<Result<void>> {
-    return await wrap(() => App.Rename(reqId, newID), {reqId, newID});
+    return await wrap(() => App.Rename(id, newID), {reqId: id, newID});
   },
 
   async requestPerform(
-    reqId: string,
+    id: string,
   ): Promise<Result<HistoryEntry>> {
-    return await wrap(() => App.Perform(reqId), {reqId}) as Result<HistoryEntry>;
+    return await wrap(() => App.Perform(id), {reqId: id}) as Result<HistoryEntry>;
   },
 
   async requestDelete(
-    reqId: string,
+    id: string,
   ): Promise<Result<void>> {
-    return await wrap(() => App.Delete(reqId), {reqId});
+    return await wrap(() => App.Delete(id), {reqId: id});
   },
 
   async jq(
@@ -162,5 +163,12 @@ export const api = {
 
   async grpcMethods(target: string): Promise<Result<app.grpcServiceMethods[]>> {
     return await wrap(() => App.GRPCMethods(target), {target});
+  },
+
+  async requestPerformSQLSource(
+    id: string,
+    query: string,
+  ): Promise<Result<HistoryEntry>> {
+    return await wrap(() => App.PerformSQLSource(id, query), {reqId: id}) as Result<HistoryEntry>;
   },
 };

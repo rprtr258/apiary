@@ -1,7 +1,7 @@
 import m from "mithril";
-import {api, type RequestData, type HistoryEntry} from "./api";
-import {app} from '../wailsjs/go/models';
-import { ComponentItemConfig, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig } from "golden-layout";
+import {ComponentItemConfig, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig} from "golden-layout";
+import {api, type RequestData, type HistoryEntry, ResponseData} from "./api";
+import {app, database} from '../wailsjs/go/models';
 
 // TODO: <NNotificationProvider :max="1" placement="bottom-right">
 export function useNotification() {
@@ -89,6 +89,7 @@ export function useStore() {
     requestsTree : new app.Tree({IDs: [], Dirs: {}}) as app.Tree,
     requests : {} as Record<string, app.requestPreview>,
     requests2: {} as Record<string, UseRequest<any, any>>,
+    sql_sources: {} as Record<string, UseSQLSource>,
     load,
     layoutConfig,
     layout: undefined as GoldenLayout | undefined,
@@ -98,7 +99,7 @@ export function useStore() {
     requestID(): string | null {
       // const tabsValue = tabs.value;
       // if (tabsValue === null) {
-        return null;
+        return null; // TODO: get from tabs
       // }
       // const {map: requestIDs, index} = tabsValue;
       // return requestIDs.list[index] ?? null;
@@ -114,7 +115,8 @@ export function useStore() {
           }
         }
       }
-      if (this.layout?.layoutConfig.root && dfs(this.layout?.layoutConfig.root).find((tabID) => tabID === id)) {
+      const cfg = this.layout!.saveLayout();
+      if (cfg.root && dfs(cfg.root).find((tabID) => tabID === id)) {
         return;
       }
       this.layout?.addItem(panelka(id));
@@ -242,7 +244,7 @@ export function use_request<
         return;
       }
     },
-  };
+  } as UseRequest<Request, Response>;
   const fetchData = async () => {
     store.requests2[request_id].is_loading = true;
     const res = await api.get(request_id);
@@ -266,6 +268,69 @@ export function use_request<
   // });
 
   return store.requests2[request_id];
+}
+
+type UseSQLSource = {
+  request: database.SQLSourceRequest | null,
+  response: database.SQLResponse | null,
+  is_loading: boolean,
+  update_request: (patch: Partial<database.SQLSourceRequest>) => Promise<void>,
+  send: (query: string) => Promise<void>,
+};
+export function use_sql_source(request_id: string): UseSQLSource {
+  const notify = notification.error;
+
+  store.sql_sources[request_id] = store.sql_sources[request_id] ?? {
+    is_loading: true,
+    request: null,
+    response: null,
+    send: async (query: string) => {
+      if (store.sql_sources[request_id].request === null || store.sql_sources[request_id].is_loading) return;
+
+      store.sql_sources[request_id].is_loading = true;
+      const res = await api.requestPerformSQLSource(request_id, query);
+      store.sql_sources[request_id].is_loading = false;
+      if (res.kind === "err") {
+        notify(`Could not perform request ${request_id}: ${res.value}`);
+        return;
+      }
+
+      store.sql_sources[request_id].response = res.value.response as database.SQLResponse;
+    },
+    update_request: async (patch: Partial<database.SQLSourceRequest>) => {
+      if (store.sql_sources[request_id].request === null || store.sql_sources[request_id].is_loading) return;
+
+      store.sql_sources[request_id].is_loading = true;
+      const old_request = store.sql_sources[request_id].request;
+      const new_request = {...store.sql_sources[request_id].request, ...patch} as RequestData;
+      store.sql_sources[request_id].request = new_request as database.SQLSourceRequest; // NOTE: optimistic update
+      const res = await api.request_update(request_id, new_request.kind, new_request);
+      store.sql_sources[request_id].is_loading = false;
+      if (res.kind === "err") {
+        store.sql_sources[request_id].request = old_request; // NOTE: undo change
+        notify(`Could not save current request: ${res.value}`);
+        return;
+      }
+    },
+  } as UseSQLSource;
+  const fetchData = async () => {
+    store.sql_sources[request_id].is_loading = true;
+    console.log("fetch", request_id);
+    const res = await api.get(request_id);
+    store.sql_sources[request_id].is_loading = false;
+    if (res.kind === "err") {
+      notify("load request", request_id, res.value);
+      return;
+    }
+
+    store.sql_sources[request_id].request = res.value.Request.Data as database.SQLSourceRequest;
+  };
+
+  if (store.sql_sources[request_id].is_loading) {
+    fetchData().then(m.redraw);
+  }
+
+  return store.sql_sources[request_id];
 }
 
 export const store = useStore();

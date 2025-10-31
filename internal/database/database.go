@@ -2,120 +2,191 @@ package database
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"os"
 
-	"github.com/jmoiron/sqlx"
+	nanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/pkg/errors"
 	"github.com/rprtr258/fun"
+	json2 "github.com/rprtr258/fun/exp/json"
 )
 
-type DB struct {
-	db *sqlx.DB
-}
+type dbInner = map[RequestID]Request
 
-func New(db *sqlx.DB) *DB {
-	return &DB{
-		db: db,
+var Decoder = json2.AndThen(
+	json2.Optional("$version", json2.Int, 0),
+	func(version int) json2.Decoder[dbInner] {
+		switch version {
+		case 0:
+			return json2.Success(dbInner{})
+		case 1:
+			return decoderV1
+		default:
+			return json2.Fail[dbInner](fmt.Sprintf("unknown version: %d", version))
+		}
+	},
+)
+
+type D = map[string]any
+type A = []any
+
+func encod[Req, Resp EntryData](v dbInner) map[RequestID]pluginv1[Req, Resp] {
+	requests := make(map[RequestID]pluginv1[Req, Resp], len(v))
+	for id, req := range v {
+		reqData, ok := req.Data.(Req)
+		if !ok {
+			continue
+		}
+
+		requests[id] = pluginv1[Req, Resp]{
+			Request: reqData,
+			Responses: fun.Map[preresponsev1[Resp]](func(resp Response) preresponsev1[Resp] {
+				return preresponsev1[Resp]{
+					SentAt:     resp.SentAt,
+					ReceivedAt: resp.ReceivedAt,
+					Data:       resp.Response.(Resp),
+				}
+			}, req.Responses...),
+		}
 	}
+	return requests
 }
 
-func (db *DB) Close() error {
+func encoder(v dbInner) ([]byte, error) {
+	return json.MarshalIndent(D{
+		"$version": 1,
+		"request": fun.MapToSlice(v, func(id RequestID, req Request) requestv1 {
+			return requestv1{
+				ID:   req.ID,
+				Path: req.Path,
+				Kind: req.Data.Kind(),
+			}
+		}),
+		"response": func() []responsev1 {
+			responses := []responsev1{}
+			for id, req := range v {
+				for _, resp := range req.Responses {
+					responses = append(responses, responsev1{
+						ID:         id,
+						SentAt:     resp.SentAt,
+						ReceivedAt: resp.ReceivedAt,
+					})
+				}
+			}
+			return responses
+		}(),
+		"http":  encod[HTTPRequest, HTTPResponse](v),
+		"sql":   encod[SQLRequest, SQLResponse](v),
+		"jq":    encod[JQRequest, JQResponse](v),
+		"md":    encod[MDRequest, MDResponse](v),
+		"redis": encod[RedisRequest, RedisResponse](v),
+		"grpc":  encod[GRPCRequest, GRPCResponse](v),
+		"sql-source": func() map[RequestID]SQLSourceRequest {
+			requests := make(map[RequestID]SQLSourceRequest, len(v))
+			for id, req := range v {
+				reqData, ok := req.Data.(SQLSourceRequest)
+				if !ok {
+					continue
+				}
+
+				requests[id] = reqData
+			}
+			return requests
+		}(),
+	}, "", "  ")
+}
+
+type DB struct {
+	filename string
+	Data     dbInner
+}
+
+func New(filename string) (*DB, error) {
+	b, err := os.ReadFile(filename)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, errors.Wrap(err, "read file")
+		}
+		b = []byte("{}")
+	}
+
+	db, err := Decoder.ParseBytes(b)
+	if err != nil {
+		return nil, errors.Wrap(err, "parse file")
+	}
+
+	return &DB{filename, db}, nil
+}
+
+func (db *DB) Flush() error {
+	b, err := encoder(db.Data)
+	if err != nil {
+		return errors.Wrap(err, "encode db")
+	}
+
+	if err := os.WriteFile(db.filename, b, 0644); err != nil {
+		return errors.Wrap(err, "write db")
+	}
+
 	return nil
 }
 
-func (db *DB) list(ctx context.Context, ids []RequestID) ([]Request, error) {
-	var rows []struct {
-		ID   RequestID
-		Kind Kind
-	}
-	if err := db.db.SelectContext(ctx, &rows, `SELECT id, kind FROM request`); err != nil {
-		return nil, errors.Wrapf(err, "query rows")
+func (db *DB) Close() error {
+	return db.Flush()
+}
+
+func (db *DB) List(ctx context.Context, ids []RequestID) ([]Request, error) {
+	if ids == nil {
+		return fun.Values(db.Data), nil
 	}
 
-	res := make([]Request, 0, len(rows))
-	for kind, list := range listers {
-		requests, err := list(db, ctx)
-		if err != nil {
-			return nil, errors.Wrapf(err, "list %s requests", kind)
+	res := make([]Request, 0, len(ids))
+	for _, id := range ids {
+		r, ok := db.Data[id]
+		if !ok {
+			return nil, errors.Errorf("request %s not found", id)
 		}
-		res = append(res, requests...)
+		res = append(res, r)
 	}
-
-	if ids != nil { // TODO: use filter in sql requests instead
-		res = fun.Filter(func(r Request) bool {
-			return fun.Contains(r.ID, ids...)
-		}, res...)
-	}
-
 	return res, nil
-}
-
-func (db *DB) List(ctx context.Context) ([]Request, error) {
-	return db.list(ctx, nil)
-}
-
-func (db *DB) Get(ctx context.Context, id RequestID) (Request, error) {
-	resp, err := db.list(ctx, []RequestID{id})
-	if err != nil {
-		return Request{}, err
-	}
-	if len(resp) != 1 {
-		return Request{}, errors.New("not found")
-	}
-	return resp[0], err
 }
 
 func (db *DB) Create(
 	ctx context.Context,
-	id RequestID,
+	path string,
 	request EntryData,
-) error {
+) (RequestID, error) {
 	kind := request.Kind()
-	if _, err := db.db.ExecContext(ctx, `INSERT INTO request (id, kind) VALUES ($1, $2)`, id, kind); err != nil {
-		return errors.Wrap(err, "insert request")
-	}
-
-	create, ok := creates[kind]
+	plugin, ok := Plugins[kind]
 	if !ok {
-		return errors.Errorf("unknown request kind %s", kind)
+		return "", errors.Errorf("unknown request kind %s", kind)
 	}
 
-	return create(db, ctx, id, request)
+	id := RequestID(nanoid.Must())
+
+	if err := plugin.create(db, ctx, id, path, request); err != nil {
+		return "", err
+	}
+
+	return id, db.Flush()
 }
 
 func (db *DB) Delete(ctx context.Context, id RequestID) error {
-	// TODO: switch on kind
-	for _, table := range []string{
-		"request", "response",
-		"request_http", "response_http",
-		"request_sql", "response_sql",
-		"request_jq", "response_jq",
-		"request_md",
-		"request_redis", "response_redis",
-		"request_grpc", "response_grpc",
-	} {
-		if _, err := db.db.ExecContext(ctx, `DELETE FROM `+table+` WHERE id = $1`, id); err != nil {
-			return err
-		}
-	}
+	delete(db.Data, id)
 	return nil
 }
 
 func (db *DB) Rename(ctx context.Context, id, newID RequestID) error {
-	// TODO: switch on kind
-	for _, table := range []string{
-		"request", "response",
-		"request_http", "response_http",
-		"request_sql", "response_sql",
-		"request_jq", "response_jq",
-		"request_md",
-		"request_redis", "response_redis",
-		"request_grpc", "response_grpc",
-	} {
-		if _, err := db.db.ExecContext(ctx, `UPDATE `+table+` SET id = $1 WHERE id = $2`, newID, id); err != nil {
-			return err
-		}
+	if _, ok := db.Data[id]; !ok {
+		return errors.Errorf("request %s not found", id)
 	}
-	return nil
+	if _, ok := db.Data[newID]; ok {
+		return errors.Errorf("request %s already exists", newID)
+	}
+	db.Data[newID] = db.Data[id]
+	delete(db.Data, id)
+	return db.Flush()
 }
 
 func (db *DB) Update(
@@ -123,36 +194,75 @@ func (db *DB) Update(
 	id RequestID,
 	request EntryData,
 ) error {
+	if _, ok := db.Data[id]; !ok {
+		return errors.Errorf("request %s not found", id)
+	}
+
 	kind := request.Kind()
-	update, ok := updates[kind]
+	plugin, ok := Plugins[kind]
 	if !ok {
 		return errors.Errorf("unknown request kind %s", kind)
 	}
 
-	return update(db, ctx, id, request)
-}
-
-func (db *DB) CreateHistoryEntry(
-	ctx context.Context,
-	id RequestID,
-	entry HistoryEntry,
-) error {
-	var newPos int
-	if err := db.db.GetContext(ctx, &newPos, `SELECT COALESCE(MAX(pos) + 1, 0) FROM response WHERE id=$1`, id); err != nil {
+	if err := plugin.update(db, ctx, id, request); err != nil {
 		return err
 	}
 
-	if _, err := db.db.ExecContext(ctx,
-		`INSERT INTO response (id, pos, sent_at, received_at) VALUES ($1, $2, $3, $4)`,
-		id, newPos, entry.SentAt, entry.ReceivedAt,
-	); err != nil {
-		return errors.Wrap(err, "insert response")
-	}
+	return db.Flush()
+}
 
-	createHistoryEntry, ok := createHistoryEntrys[entry.Request.Kind()]
+func (db *DB) CreateResponse(
+	ctx context.Context,
+	id RequestID,
+	entry Response,
+) error {
+	req, ok := db.Data[id]
 	if !ok {
-		return errors.Errorf("unknown response kind %s", entry.Request.Kind())
+		return errors.Errorf("request %s not found", id)
 	}
 
-	return createHistoryEntry(db, ctx, id, newPos, entry.Response)
+	kind := req.Data.Kind()
+	plugin, ok := Plugins[kind]
+	if !ok {
+		return errors.Errorf("unknown response kind %s", kind)
+	}
+
+	if err := plugin.createResponse(db, ctx, id, entry); err != nil {
+		return err
+	}
+
+	return db.Flush()
+}
+
+func (db *DB) create(
+	ctx context.Context,
+	id RequestID,
+	path string,
+	request EntryData,
+) error {
+	db.Data[id] = Request{
+		ID:        id,
+		Path:      path,
+		Data:      request,
+		Responses: nil,
+	}
+	return nil
+}
+
+func (db *DB) update(ctx context.Context, id RequestID, request EntryData) error {
+	tmp := db.Data[id]
+	tmp.Data = request
+	db.Data[id] = tmp
+	return nil
+}
+
+func (db *DB) createResponse(
+	ctx context.Context,
+	id RequestID,
+	response Response,
+) error {
+	tmp := db.Data[id]
+	tmp.Responses = append(db.Data[id].Responses, response)
+	db.Data[id] = tmp
+	return nil
 }

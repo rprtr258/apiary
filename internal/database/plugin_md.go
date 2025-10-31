@@ -1,7 +1,9 @@
-package app
+package database
 
 import (
 	"bytes"
+	"context"
+	_ "embed"
 
 	pikchr "github.com/jchenry/goldmark-pikchr"
 	"github.com/pkg/errors"
@@ -14,9 +16,43 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"go.abhg.dev/goldmark/mermaid"
 	"go.abhg.dev/goldmark/toc"
-
-	"github.com/rprtr258/apiary/internal/database"
 )
+
+const KindMD Kind = "md"
+
+type MDRequest struct {
+	Data string `json:"data"`
+}
+
+func (MDRequest) Kind() Kind { return KindMD }
+
+type MDResponse struct {
+	Data string `json:"data"`
+}
+
+func (MDResponse) Kind() Kind { return KindMD }
+
+var pluginMD = plugin{
+	EmptyRequest:   MDEmptyRequest,
+	enum:           enumElem[Kind]{KindMD, "MD"},
+	Perform:        sendMD,
+	create:         (*DB).create,
+	update:         (*DB).update,
+	createResponse: (*DB).createHistoryEntryMD,
+}
+
+//go:embed default.md
+var DefaultMarkdown string
+
+var MDEmptyRequest = MDRequest{DefaultMarkdown}
+
+func (db *DB) createHistoryEntryMD(
+	context.Context,
+	RequestID,
+	Response,
+) error {
+	return nil // no history for md
+}
 
 var m = goldmark.New(
 	goldmark.WithExtensions(
@@ -40,11 +76,12 @@ var m = goldmark.New(
 	),
 )
 
-func sendMarkdown(req database.MDRequest) (database.MDResponse, error) {
+func sendMD(ctx context.Context, request EntryData) (EntryData, error) {
+	req := request.(MDRequest)
 	var b bytes.Buffer
 	if err := m.Convert([]byte(req.Data), &b); err != nil {
-		return database.MDResponse{}, errors.Wrap(err, "convert")
+		return MDResponse{}, errors.Wrap(err, "convert")
 	}
 
-	return database.MDResponse{b.String()}, nil
+	return MDResponse{b.String()}, nil
 }

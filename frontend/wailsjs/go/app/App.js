@@ -42,6 +42,10 @@ export function Perform(arg1) {
   return window['go']['app']['App']['Perform'](arg1);
 }
 
+export function PerformSQLSource(arg1, arg2) {
+  return window['go']['app']['App']['PerformSQLSource'](arg1, arg2);
+}
+
 export function Read(arg1) {
   return window['go']['app']['App']['Read'](arg1);
 }

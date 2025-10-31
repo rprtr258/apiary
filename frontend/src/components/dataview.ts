@@ -49,7 +49,7 @@ export const NResult = {
     title: string,
     description: string,
     class: string,
-    style: string,
+    style?: any,
   }, any>) {
     const props = vnode.attrs;
     return m("div", {

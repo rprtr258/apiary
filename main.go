@@ -3,12 +3,9 @@ package main
 import (
 	"context"
 	"embed"
-	"io/fs"
 	"os"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
-	goose "github.com/pressly/goose/v3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/wailsapp/wails/v2"
@@ -32,40 +29,18 @@ func (export) ExportTypes(
 	database.JQRequest, database.JQResponse,
 	database.RedisRequest, database.RedisResponse,
 	database.MDRequest, database.MDResponse,
+	database.SQLSourceRequest,
 ) {
 }
 
-//go:embed internal/database/migrations/*
-var migrationsFS embed.FS
-
 func run(ctx context.Context) error {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-
-	db, err := sqlx.Open("sqlite", "db.db")
-	if err != nil {
-		return err
+	_ = ctx // TODO: use
+	app, startup, close := app.New("db.json")
+	if err := app.DB.Flush(); err != nil { // NOTE: immediately flush db to migrate to latest version
+		return errors.Wrap(err, "migrate db")
 	}
-	defer db.Close()
-	// NOTE: since we are using sqlite, we do not want to get (SQLITE_BUSY)
-	// due to other goroutine updating same file
-	db.SetMaxOpenConns(1)
-
-	migrationsFS2, err := fs.Sub(migrationsFS, "internal/database/migrations")
-	if err != nil {
-		return errors.Wrap(err, "sub fs")
-	}
-	provider, err := goose.NewProvider(goose.DialectSQLite3, db.DB, migrationsFS2)
-	if err != nil {
-		return errors.Wrap(err, "new provider")
-	}
-	if _, err := provider.Up(ctx); err != nil {
-		return errors.Wrap(err, "run migrations")
-	}
-
-	app, startup, close := app.New(db)
 	defer close()
 
-	// Create application with options
 	return wails.Run(&options.App{
 		Title:  "apiary",
 		Width:  1024,
@@ -77,7 +52,7 @@ func run(ctx context.Context) error {
 		OnStartup:        startup,
 		Bind:             []any{app, &export{}},
 		EnumBind: []any{
-			database.AllKinds,
+			database.KindEnums,
 			database.AllDatabases,
 			database.AllColumnTypes,
 		},
@@ -86,6 +61,8 @@ func run(ctx context.Context) error {
 }
 
 func main() {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	if err := run(context.Background()); err != nil {
 		log.Fatal().Err(err).Msg("App stopped unexpectedly")
 	}

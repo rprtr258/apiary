@@ -3,10 +3,10 @@ import {NEmpty, NIcon, NTooltip} from "./components/dataview";
 import {NButton, NInput, NInputGroup, NSelect} from "./components/input";
 import {database} from "../wailsjs/go/models";
 import EditorSQL from "./EditorSQL";
-import {use_request} from "./store";
+import {use_sql_source} from "./store";
 import {Database} from "./api";
 
-type Request = {kind: database.Kind.SQL} & database.SQLRequest;
+type Request = {kind: database.Kind.SQLSource} & database.SQLSourceRequest;
 
 const NSplit = {
   view(vnode: Vnode<{}, any>) {
@@ -71,12 +71,12 @@ export default function(
   id: string,
   show_request: () => boolean,
 ): m.Component<any, any> {
+  let query = "";
   return {
     view() {
-      // {request, response, is_loading, send} =
-      const r = use_request<Request, database.SQLResponse>(id);
+      const r = use_sql_source(id);
 
-      const update_request = (patch: Partial<Request>): void => {
+      const update_request = (patch: Partial<database.SQLSourceRequest>): void => {
         r.update_request(patch).then(m.redraw);
       };
 
@@ -171,14 +171,14 @@ export default function(
             }),
             m(NButton, {
               type: "primary",
-              on: {click: () => r.send()},
+              on: {click: () => r.send(query)},
               disabled: r.is_loading,
             }, "Run"),
           ]),
           m(NSplit, {}, [
             show_request() && m(EditorSQL, {
-              value: r.request.query,
-              on: {update: (query: string) => update_request({query})},
+              value: query,
+              on: {update: (q: string) => query = q},
               class: "h100",
             }),
             r.response === null ?
@@ -203,18 +203,3 @@ export default function(
     },
   };
 };
-
-// <style lang="css" scoped>
-// .n-tab-pane {
-//   height: 100% !important;
-// }
-// </style>
-// <style lang="css">
-// /* TODO: как же я ненавижу ебаный цсс блять господи за что */
-// #gavno > .n-layout-scroll-container {
-//   overflow: hidden;
-//   height: 100%;
-//   display: grid;
-//   grid-template-rows: 34px 1fr;
-// }
-// </style>
