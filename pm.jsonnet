@@ -1,17 +1,9 @@
 [
   {
-    name: "apiary-backend",
-    command: "go",
-    args: ["run", "cmd/main.go"],
-    autorestart: false,
-    watch: "\\.go$",
-    tags: ["apiary"],
-  },
-  {
-    name: "apiary-frontend",
-    command: "bun",
+    name: "apiary",
+    command: "wails",
     args: ["dev"],
-    cwd: "frontend",
-    tags: ["apiary"],
-  },
+    autorestart: false,
+    tags: ["apiary"]
+  }
 ]

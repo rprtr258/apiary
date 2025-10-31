@@ -142,12 +142,6 @@ export namespace app {
 
 export namespace database {
 	
-	export enum ColumnType {
-	    STRING = "string",
-	    NUMBER = "number",
-	    TIME = "time",
-	    BOOLEAN = "boolean",
-	}
 	export enum Kind {
 	    HTTP = "http",
 	    SQL = "sql",
@@ -161,6 +155,12 @@ export namespace database {
 	    MYSQL = "mysql",
 	    SQLITE = "sqlite",
 	    CLICKHOUSE = "clickhouse",
+	}
+	export enum ColumnType {
+	    STRING = "string",
+	    NUMBER = "number",
+	    TIME = "time",
+	    BOOLEAN = "boolean",
 	}
 	export class KV {
 	    key: string;
