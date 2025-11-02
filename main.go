@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"embed"
 	"os"
 
@@ -33,8 +32,7 @@ func (export) ExportTypes(
 ) {
 }
 
-func run(ctx context.Context) error {
-	_ = ctx // TODO: use
+func run() error {
 	app, startup, close := app.New("db.json")
 	if err := app.DB.Flush(); err != nil { // NOTE: immediately flush db to migrate to latest version
 		return errors.Wrap(err, "migrate db")
@@ -48,7 +46,7 @@ func run(ctx context.Context) error {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		BackgroundColour: options.NewRGB(27, 38, 54),
 		OnStartup:        startup,
 		Bind:             []any{app, &export{}},
 		EnumBind: []any{
@@ -63,7 +61,7 @@ func run(ctx context.Context) error {
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	if err := run(context.Background()); err != nil {
+	if err := run(); err != nil {
 		log.Fatal().Err(err).Msg("App stopped unexpectedly")
 	}
 }

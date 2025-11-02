@@ -55,6 +55,7 @@ export type RequestData =
 
 export type Request = {
   id: string,
+  path: string,
 } & RequestData;
 
 export const Kinds = Object.values(database.Kind);

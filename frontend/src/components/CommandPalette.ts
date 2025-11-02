@@ -1,44 +1,38 @@
-import m, {Vnode} from "mithril";
 import {NEmpty, NList} from "./dataview";
 import {NInput} from "./input";
 import {Modal} from "./layout";
+import {KeyESC, KeyDown, KeyUp, KeyEnter} from "./icons";
+import {m, DOMNode} from "../utils";
 
 type CommandDialogProps = {
   visible: boolean,
-  theme: "algolia",
   on: {
     close: () => void
   }
-  header: Vnode<any, any>,
-  body: Vnode<any, any>,
-  footer: Vnode<any, any>,
+  header: DOMNode,
+  body: DOMNode,
+  footer: DOMNode,
 };
-const CommandDialog = {
-  view(vnode: Vnode<CommandDialogProps, any>) {
-    const props = vnode.attrs;
-    return m(Modal, {
-      show: props.visible,
-      title: "COMMAND PALETTE",
-      content: "",
-      buttons: [{id: "", text: ""}],
-      on: {
-        close: props.on.close,
-      },
-    }, [
-      m("div", {class: "command-palette"}, [
-        m("div", {class: "command-palette-header"}, props.header),
-        m("div", {class: "command-palette-body"}, props.body),
-        m("div", {class: "command-palette-footer"}, props.footer),
-      ])
-    ]);
-  },
+function Dialog(props: CommandDialogProps) {
+  return Modal({
+    show: props.visible,
+    title: "COMMAND PALETTE",
+    content: [""],
+    buttons: [{id: "", text: ""}],
+    on: {
+      close: props.on.close,
+    },
+  }, [
+    m("div", {class: "command-palette"}, [
+      m("div", {class: "command-palette-header"}, props.header),
+      m("div", {class: "command-palette-body"}, props.body),
+      m("div", {class: "command-palette-footer"}, props.footer),
+    ])
+  ]);
 };
 
-const CommandGroup = {
-  view(vnode: Vnode<any, any>) {
-    const props = vnode.attrs;
-    return m("div", (vnode.children as any[]).flatMap(v => [v, m("hr")]));
-  }
+function Group(props: {heading: string}, children: DOMNode[] = []) {
+  return m("div", {}, [props.heading, children.flatMap(v => [v, m("hr")])]);
 };
 
 type ItemProps = {
@@ -46,25 +40,39 @@ type ItemProps = {
   shortcut?: string[],
   on: {select?: () => void},
 };
-const CommandItem = {
-  view(vnode: Vnode<ItemProps, any>) {
-    const props = vnode.attrs;
-    return m("div", [
-      m("div", {class: "command-palette-item"}, [
-        // ...vnode.children,
-        m("span", {class: "command-palette-item-value"}, props.value),
-        m("span", {class: "command-palette-item-shortcut"}, props.shortcut),
-      ]),
-      m("button", {onclick: props.on.select}, "Select"),
-    ]);
-  },
+function Item(props: ItemProps, children: DOMNode = []) {
+  return m("div", {}, [
+    m("div", {class: "command-palette-item"}, [
+      children,
+      m("span", {class: "command-palette-item-value"}, props.value),
+      m("span", {class: "command-palette-item-shortcut"}, props.shortcut ?? []),
+    ]),
+    m("button", {onclick: props.on.select}, ["Select"]),
+  ]);
 };
 
+const Footer = m("ul", {class: "command-palette-commands"}, [
+  m("li", {},
+    m("kbd", {class: "command-palette-commands-key"}, KeyEnter),
+    m("span", {class: "command-palette-Label"}, "to select"),
+  ),
+  m("li", {},
+    m("kbd", {class: "command-palette-commands-key"}, KeyDown),
+    m("kbd", {class: "command-palette-commands-key"}, KeyUp),
+    m("span", {class: "command-palette-Label"}, "to navigate"),
+  ),
+  m("li", {},
+    m("kbd", {class: "command-palette-commands-key"}, KeyESC),
+    m("span", {class: "command-palette-Label"}, "to close"),
+  ),
+]);
+
 export default {
+  Dialog,
+  Group,
+  Item,
+  Footer,
   Input: NInput,
-  Dialog: CommandDialog,
   List: NList,
   Empty: NEmpty,
-  Group: CommandGroup,
-  Item: CommandItem,
 };

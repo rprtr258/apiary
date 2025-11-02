@@ -3,11 +3,14 @@ package database
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"slices"
 	"strings"
 
 	"github.com/pkg/errors"
+
+	. "github.com/rprtr258/apiary/internal/json"
 )
 
 const KindHTTP Kind = "http"
@@ -19,6 +22,15 @@ type HTTPRequest struct {
 	Headers []KV   `json:"headers"`
 }
 
+func (r HTTPRequest) MarshalJSON() ([]byte, error) {
+	return json.Marshal(D{
+		"url":     r.URL,
+		"method":  r.Method,
+		"body":    r.Body,
+		"headers": Emptize(r.Headers),
+	})
+}
+
 func (HTTPRequest) Kind() Kind { return KindHTTP }
 
 type HTTPResponse struct {
@@ -28,6 +40,14 @@ type HTTPResponse struct {
 }
 
 func (HTTPResponse) Kind() Kind { return KindHTTP }
+
+func (r HTTPResponse) MarshalJSON() ([]byte, error) {
+	return json.Marshal(D{
+		"code":    r.Code,
+		"body":    r.Body,
+		"headers": Emptize(r.Headers),
+	})
+}
 
 var pluginHTTP = plugin{
 	EmptyRequest:   HTTPEmptyRequest,
@@ -84,6 +104,7 @@ func sendHTTP(ctx context.Context, requestt EntryData) (EntryData, error) {
 	if err != nil {
 		return HTTPResponse{}, errors.Wrap(err, "perform request")
 	}
+	defer response.Body.Close()
 
 	buf := new(bytes.Buffer)
 	if _, err := buf.ReadFrom(response.Body); err != nil {

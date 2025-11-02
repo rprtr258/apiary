@@ -1,16 +1,16 @@
-import m from "mithril";
 import {database} from '../wailsjs/go/models';
-import {Method as Methods} from "./api";
-import {VNodeChild} from "./components";
+import {HistoryEntry, Method as Methods} from "./api";
 import {NInputGroup, NInput, NSelect, NButton} from "./components/input";
 import {NTabs} from "./components/layout";
 import {NTag, NTable, NEmpty} from "./components/dataview";
 import EditorJSON from "./components/EditorJSON";
 import ViewJSON from "./components/ViewJSON";
 import ParamsList from "./components/ParamsList";
-import {use_request} from "./store";
+import {type get_request, last_history_entry} from "./store";
+import {DOMNode, m, Signal} from "./utils";
+import Split from "split-grid";
 
-type Request = {kind: database.Kind.HTTP} & database.HTTPRequest;
+type Request = database.HTTPRequest;
 
 // function responseBodyLanguage(contentType: string): string {
 //   for (const [key, value] of Object.entries({
@@ -24,9 +24,9 @@ type Request = {kind: database.Kind.HTTP} & database.HTTPRequest;
 //   return "text";
 // };
 
-function responseBadge(response?: any): VNodeChild {
-  const code = response!.code;
-  return m(NTag, {
+function responseBadge(response: any): DOMNode {
+  const code = response.code;
+  return NTag({
     type: (
       code < 300 ? "success" :
       code < 500 ? "warning" :
@@ -34,144 +34,208 @@ function responseBadge(response?: any): VNodeChild {
     ) as "success" | "info" | "warning",
     size: "small",
     round: true,
-  }, code ?? "N/A");
+  }, `${code ?? "N/A"}`);
+}
+
+function NSplit(left: HTMLElement, right: HTMLElement) {
+  const el_line = m("hr", {style: {
+    cursor: "col-resize",
+    border: "none",
+    "background-color": "white",
+    width: "2px",
+  }});
+  const el = m("div", {
+    class: "h100",
+    id: "split-request-http",
+    style: {
+      display: "grid",
+      "grid-template-columns": "1fr 5px 1fr",
+      "grid-template-rows": "100%",
+    },
+  },
+    left,
+    el_line,
+    right,
+  );
+  Split({
+    columnGutters: [
+      {track: 1, element: el_line},
+    ],
+  });
+  return el;
 }
 
 export default function(
-  id: string,
-  show_request: () => boolean,
-): m.ComponentTypes<any, any> {
-  let requestTab = "tab-req-request";
-  let responseTab = "tab-resp-body";
+  el: HTMLElement,
+  show_request: Signal<boolean>, // TODO: remove, show by default
+  on: {
+    update: (patch: Partial<Request>) => Promise<void>,
+    send: () => Promise<void>,
+  },
+): {
+  loaded(r: get_request): void,
+  push_history_entry(he: HistoryEntry): void, // show last history entry
+  // TODO: hide/show request
+} {
+  el.append(NEmpty({
+    description: "Loading request...",
+    class: "h100",
+    style: {"justify-content": "center"},
+  }));
+
+  const el_response = NEmpty({
+    description: "Send request or choose one from history.",
+    class: "h100",
+    style: {"justify-content": "center"},
+  });
+  const el_view_response_body = ViewJSON("");
+  const update_response = (response: database.HTTPResponse | null) => {
+    if (response === null) {return;}
+
+    el_response.replaceChildren(NTabs({
+      type: "card",
+      size: "small",
+      class: "h100",
+      style: {"overflow-y": "none"},
+      tabs: [
+        {
+          name: responseBadge(response),
+          disabled: true,
+        },
+        {
+          name: "Body",
+          style: {"overflow-y": "auto"},
+          elem: el_view_response_body.el,
+        },
+        {
+          name: "Headers",
+          style: {
+            flex: 1,
+            "overflow-y": "auto",
+          },
+          elem: NTable({
+            size: "small",
+            "single-column": true,
+            "single-line": false,
+            style: {
+              "border-collapse": "collapse",
+            },
+          }, [
+            m("colgroup", {},
+              m("col", {style: {width: "30%"}}),
+              m("col", {style: {width: "70%"}}),
+            ),
+            m("thead", m("tr", {}, m("th", {}, "NAME"), m("th", {}, "VALUE"))),
+            ...response.headers.map(header => m("tr", {},
+              m("td", {style: {border: "1px solid #444"}}, header.key),
+              m("td", {style: {border: "1px solid #444", "word-break": "break-word"}}, header.value),
+            )),
+          ]),
+        },
+      ],
+    }));
+    el_view_response_body.update(response.body);
+  };
+
   return {
-    view() {
-      // const {id} = vnode.attrs;
-      const r = use_request<Request, database.HTTPResponse>(id);
-      if (r.request === null)
-        return m(NEmpty, {
-          description: "Loading request...",
-          class: "h100",
-          style: {"justify-content": "center"},
+    loaded(r: get_request) {
+      let request = r.request as Request;
+      const el_send = NButton({
+        type: "primary",
+        on: {click: () => {
+          el_send.disabled = true;
+          on.send().then(() => {
+            el_send.disabled = false;
+            // TODO: refetch
+          });
+        }},
+      }, "Send");
+      const update_requestt = (patch: Partial<database.HTTPRequest>): void => {
+        el_send.disabled = true;
+        on.update(patch).then(() => {
+          el_send.disabled = false;
         });
-
-      const request = r.request;
-      const update_request = (patch: Partial<Request>): void => {
-        r.update_request(patch).then(m.redraw);
       };
+      update_response(last_history_entry(r)?.response as database.HTTPResponse | null);
 
-      return m("div", {
+      el.replaceChildren(m("div", {
         class: "h100",
         style: {
           display: "grid",
-          "grid-template-columns": "1fr" + (show_request() ? " 1fr" : ""),
-          "grid-template-rows": "auto 1fr",
+          "grid-template-columns": "1fr",
+          "grid-template-rows": "auto minmax(0, 1fr)",
           "grid-column-gap": ".5em",
         },
       }, [
-        show_request() && m(NInputGroup, {style: {
+        show_request ? NInputGroup({style: {
           "grid-column": "span 2",
           display: "grid",
           "grid-template-columns": "1fr 10fr 1fr",
-        }}, [
-          m(NSelect, {
-            value: r.request.method,
+        }},
+          NSelect({
+            label: request.method,
             options: Object.keys(Methods).map(method => ({label: method, value: method})),
-            on: {update: (method: string) => update_request({method})},
-          }),
-          m(NInput, {
+            on: {update: (method: string) => update_requestt({method})},
+          }).el,
+          NInput({
             placeholder: "URL",
-            value: r.request.url,
-            on: {update: (url: string) => update_request({url})},
+            value: request.url,
+            on: {update: (url: string) => update_requestt({url})},
           }),
-          m(NButton, {
-            type: "primary",
-            on: {click: r.send},
-            disabled: r.is_loading,
-          }, "Send"),
-        ]),
-        show_request() && m(NTabs, {
-          value: requestTab,
-          type: "line",
-          size: "small",
-          class: "h100",
-          on: {update: (id: string) => requestTab = id},
-          tabs: [
-            {
-              id: "tab-req-request",
-              name: "Request",
+          el_send,
+        ) : null,
+        NSplit(
+          (() => {
+            const el_req_show = NTabs({
+              type: "line",
+              size: "small",
               class: "h100",
-              elem: m(EditorJSON, {
-                // class: "h100",
-                value: request.body ?? null,
-                on: {update: (body: string) => update_request({body})},
-              }),
-            },
-            {
-              name: "Headers",
-              id: "tab-req-headers",
-              style: {display: "flex", "flex-direction": "column", flex: 1},
-              elem: m(ParamsList, {
-                value: request.headers,
-                on: {update: (value: database.KV[]): void => update_request({headers: value.filter(({key, value}) => key!=="" || value!=="")})},
-              }),
-            },
-          ],
-        }),
-        r.response === null ?
-        m(NEmpty, {
-          description: "Send request or choose one from history.",
-          class: "h100",
-          style: {"justify-content": "center"},
-        }) : ((response: database.HTTPResponse) => {
-          return m(NTabs, {
-            value: responseTab,
-            type: "card",
-            size: "small",
-            style: {"overflow-y": "auto"},
-            on: {update: (id) => responseTab = id},
-            tabs: [
-              {
-                id: "tab-resp-code",
-                name: responseBadge(r.response),
-                disabled: true,
-              },
-              {
-                id: "tab-resp-body",
-                name: "Body",
-                style: {"overflow-y": "auto"},
-                elem: m(ViewJSON, {value: response.body}),
-              },
-              {
-                id: "tab-resp-headers",
-                name: "Headers",
-                style: {flex: 1},
-                elem: m(NTable, {
-                  striped: true,
-                  size: "small",
-                  "single-column": true,
-                  "single-line": false,
-                }, [
-                  m("colgroup", {key: "__colgroup"}, [
-                    m("col", {style: {width: "50%"}}),
-                    m("col", {style: {width: "50%"}}),
-                  ]),
-                  m("thead", {key: "__head"}, [
-                    m("tr", [
-                      m("th", "NAME"),
-                      m("th", "VALUE"),
-                    ]),
-                  ]),
-                  ...response.headers.map(header =>
-                    m("tr", {key: header.key}, [
-                      m("td", header.key),
-                      m("td", header.value),
-                    ])),
-                ])
-              },
-            ],
-          });
-        })(r.response),
-      ]);
+              tabs: [
+                {
+                  name: "Request",
+                  class: "h100",
+                  elem: EditorJSON({
+                    value: request.body ?? null,
+                    on: {update: (body: string) => update_requestt({body})},
+                  }),
+                },
+                {
+                  name: "Headers",
+                  style: {
+                    display: "flex",
+                    "flex-direction": "column",
+                    flex: 1,
+                  },
+                  elem: [ParamsList({
+                    value: request.headers,
+                    on: {update: (value: database.KV[]): void => update_requestt({headers: value})},
+                  })],
+                },
+              ],
+            });
+            const el_req_hide = m("div");
+            const el_req = el_req_show;
+            show_request.sub(b => {
+              if (b) {
+                if (el_req !== el_req_show) {
+                  el_req.replaceChildren(el_req_show);
+                }
+              } else {
+                el_req.replaceChildren(el_req_hide);
+              }
+            });
+            return el_req;
+          })(),
+          el_response,
+        ),
+      ]));
     },
+    push_history_entry(he: HistoryEntry) {
+      update_response(he.response as database.HTTPResponse);
+    },
+    // unmount() { // TODO: uncomment and use
+    //   // TODO: destroy split
+    //   el_view_response_body.unmount();
+    // },
   };
 }

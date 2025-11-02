@@ -1,56 +1,146 @@
-import m, { Vnode } from "mithril";
 import {database} from '../../wailsjs/go/models';
-
-function NDynamicInput() {
-  return {
-    view(vnode: Vnode<{
-      value: database.KV[],
-      on: {update: (value: database.KV[]) => void},
-      preset: "pair",
-      placeholder: {
-        key: string,
-        value: string,
-      },
-    }, any>) {
-      return m("div", vnode.attrs, "not implemented");
-    }
-  };
-}
+import {m} from "../utils";
+import {NIcon} from './dataview';
+import {DeleteOutline} from './icons';
 
 type Props = {
-  value?: database.KV[],
+  value: database.KV[],
   on: {
     update: (value: database.KV[]) => void,
   },
 };
 
-export default function() {
-  return {
-    view(vnode: Vnode<Props, any>) {
-      const props = vnode.attrs;
+const input_style = {
+  padding: "4px 8px",
+  border: "1px solid #ccc",
+  "border-radius": "4px",
+};
 
-      const emit = (_: "update", value: database.KV[]) => console.log("UPDATE", value);
-      // const emit = defineEmits<{
-      //   update: [value: database.KV[]],
-      // }>();
+declare const is_id: unique symbol;
+type ID = number & {[is_id]: true};
 
-      const valueNonNull = props.value ?? [];
-
-      return m(NDynamicInput, {
-        value: valueNonNull.concat([{key: "", value: ""}]),
-        on: {update: (value: database.KV[]) => emit("update", value)},
-        preset: "pair",
-        placeholder: {
-          key: "Header",
-          value: "Value",
-        },
-      });
+export default function(props: Props) {
+  const {value} = props;
+  const gen_id: () => ID = (() => {
+    let internal_id = -1 as ID;
+    return (): ID => {
+      internal_id = internal_id + 1 as ID;
+      return internal_id;
+    };
+  })();
+  const ids = props.value.map(_ => gen_id());
+  const new_el_row = (id: ID, kv: database.KV) => [
+    m("input", {
+      type: "text",
+      placeholder: "Header",
+      value: kv.key,
+      oninput: (e: Event) => update_kv(id, 'key', (e.target as HTMLInputElement).value),
+      onblur: () => unfocus_kv(id),
+      style: {...input_style, "grid-column": "1/2"},
+    }),
+    m("input", {
+      type: "text",
+      placeholder: "Value",
+      value: kv.value,
+      oninput: (e: Event) => update_kv(id, 'value', (e.target as HTMLInputElement).value),
+      onblur: () => unfocus_kv(id),
+      style: {...input_style, "grid-column": "2/3"},
+    }),
+    m("button", {
+      style: {
+        "grid-column": "3/4",
+        padding: "4px 8px",
+        border: "none",
+        "background-color": "oklch(0.5 0.1 27)",
+        "border-radius": "4px",
+        cursor: "pointer",
+      },
+      onclick: () => delete_kv(id),
     },
-  };
-}
+      NIcon({
+        component: DeleteOutline,
+        color: "#ff4444",
+      }),
+    ),
+  ];
+  const el_rows = value.map((kv, i) => {
+    const id = ids[i];
+    return new_el_row(id, kv);
+  });
 
-// <style lang="css">
-// div.n-dynamic-input-preset-pair > div:nth-child(1) {
-//   margin-right: 4px !important;
-// }
-// </style>
+  const add_kv = (k: string, v: string): void => {
+    const id = gen_id();
+    ids.push(id);
+    const kv = {key: k, value: v};
+    value.push(kv);
+    const el_row = new_el_row(id, kv);
+    el_rows.push(el_row);
+    for (let el_child of el_row)
+      el.insertBefore(el_child, el_empty[0]);
+
+    if (k !== "") {
+      el_empty[0].value = "";
+      el_row[0].focus();
+      (el_row[0] as HTMLInputElement).selectionStart = el_row[0].value.length;
+    } else {
+      el_empty[1].value = "";
+      el_row[1].focus();
+      (el_row[1] as HTMLInputElement).selectionStart = el_row[1].value.length;
+    }
+
+    props.on.update(value);
+  };
+
+  const el_empty = [
+    m("input", {
+      type: "text",
+      placeholder: "New Header",
+      value: "",
+      oninput: (e: Event) => add_kv((e.target as HTMLInputElement).value, ""),
+      style: input_style,
+    }),
+    m("input", {
+      type: "text",
+      placeholder: "New Value",
+      value: "",
+      oninput: (e: Event) => add_kv("", (e.target as HTMLInputElement).value),
+      style: input_style,
+    }),
+  ];
+
+  const update_kv = (id: ID, field: 'key' | 'value', new_value: string) => {
+    const i = ids.findIndex(id2 => id2 === id);
+    value[i][field] = new_value;
+
+    props.on.update(value);
+  };
+
+  const el = m("div", {style: {
+    padding: "4px 8px",
+    "display": "grid",
+    "grid-template-columns": "48% 48% 4%",
+    "grid-column-gap": "2px",
+    "grid-row-gap": "3px",
+  }}, [...el_rows, el_empty]);
+
+  const delete_kv = (id: ID) => {
+    const i = ids.findIndex(id2 => id2 === id);
+    ids.splice(i, 1);
+    value.splice(i, 1);
+    for (let el_child of el_rows[i])
+      el.removeChild(el_child);
+    el_rows.splice(i, 1);
+
+    props.on.update(value);
+  };
+  const unfocus_kv = (id: ID): void => {
+    const i = ids.findIndex(id2 => id2 === id);
+    const kv = value[i];
+    if (kv.key !== "" || kv.value !== "") {
+      return;
+    }
+    delete_kv(id);
+  };
+
+  return el;
+};

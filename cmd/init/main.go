@@ -12,8 +12,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/rprtr258/apiary/internal/database"
 	. "github.com/rprtr258/apiary/internal/database"
+	. "github.com/rprtr258/apiary/internal/json"
 )
 
 func must(err error) {
@@ -41,7 +41,11 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "open db")
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Flush(); err != nil { // NOTE: immediately flush db to migrate to latest version
+			log.Error().Err(err).Msg("failed to migrate db")
+		}
+	}()
 
 	ids := map[string]RequestID{}
 	for path, data := range map[string]EntryData{
@@ -49,7 +53,7 @@ func run(ctx context.Context) error {
 			Query: ". + 1 | . * 3",
 			JSON:  "2\n3",
 		},
-		"readme": database.MDEmptyRequest,
+		"readme": MDEmptyRequest,
 		"test-grpc": GRPCRequest{
 			Target: "localhost:50051",
 			Method: "helloworld.Greeter.SayHello",
@@ -64,7 +68,7 @@ func run(ctx context.Context) error {
 		"ymusic":                    HTTPRequest{"https://api.music.yandex.net:443/tracks/", "POST", "track-ids=7019818,29238706&with-positions=false", nil},
 		"Pokemon API/three Pokemon": HTTPRequest{"https://pokeapi.co/api/v2/pokemon/beedrill", "GET", "", nil},
 		"Postman API/get":           HTTPRequest{"https://postman-echo.com/get?k=v&arg=1&arg=b", "GET", "", nil},
-		"Sanya/create-post":         HTTPRequest{"https://jsonplaceholder.typicode.com/posts", "POST", json(D{"title": "foo", "body": "bxar", "userId": 1}), []database.KV{{"Content-type", "application/json; charset=UTF-8"}}},
+		"Sanya/create-post":         HTTPRequest{"https://jsonplaceholder.typicode.com/posts", "POST", json(D{"title": "foo", "body": "bxar", "userId": 1}), []KV{{"Content-type", "application/json; charset=UTF-8"}}},
 		"Sanya/github":              HTTPRequest{"https://api.github.com/repositories/498770377", "GET", "{}", nil},
 		"Sanya/google":              HTTPRequest{"http://google.com", "POST", "", nil},
 		"Sanya/sanya_1":             HTTPRequest{"http://google.com", "GET", "", nil},

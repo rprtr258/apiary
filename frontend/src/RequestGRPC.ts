@@ -1,29 +1,98 @@
-import m, {Vnode} from "mithril";
 import {NInput, NButton, NInputGroup, NSelect} from "./components/input";
 import {NTabs} from "./components/layout";
 import {NTag, NTable, NEmpty} from "./components/dataview";
-import {GRPCCodes} from "./api";
+import {GRPCCodes, HistoryEntry} from "./api";
 import {database} from '../wailsjs/go/models';
 import EditorJSON from "./components/EditorJSON";
 import ViewJSON from "./components/ViewJSON";
 import ParamsList from "./components/ParamsList";
-import {use_request, useNotification} from "./store";
+import {get_request, last_history_entry, useNotification} from "./store";
+import {m, Signal} from "./utils";
 
 type Request = {kind: database.Kind.GRPC} & database.GRPCRequest;
 
-export default function(id: string) {
+function responseBadge(response: {code: number}) {
+  const code = response.code;
+  return NTag({
+    type: (code === 0 ? "success" : "error") as "success" | "info" | "warning",
+    size: "small",
+    round: true,
+  }, `${code ?? "N/A"} ${GRPCCodes[code as keyof typeof GRPCCodes]}`);
+}
+
+export default function(
+  el: HTMLElement,
+  show_request: Signal<boolean>, // TODO: remove, show by default
+  on: {
+    update: (patch: Partial<Request>) => Promise<void>,
+    send: () => Promise<void>,
+  },
+): {
+  loaded(r: get_request): void,
+  push_history_entry(he: HistoryEntry): void, // show last history entry
+} {
+  el.append(NEmpty({
+    description: "Loading request...",
+    class: "h100",
+    style: {"justify-content": "center"},
+  }));
+
+  const el_response = NEmpty({
+    description: "Send request or choose one from history.",
+    class: "h100",
+    style: {"justify-content": "center"},
+  });
+  const el_view_response_body = ViewJSON("");
+  const update_response = (response: database.GRPCResponse | null) => {
+    if (response === null) {return;}
+
+    el_response.replaceChildren(NTabs({
+      type: "card",
+      size: "small",
+      style: {"overflow-y": "auto"},
+      tabs: [
+        {
+          name: responseBadge(response),
+          disabled: true,
+        },
+        {
+          name: "Body",
+          style: {"overflow-y": "auto"},
+          elem: el_view_response_body.el,
+        },
+        {
+          name: "Metadata",
+          style: {flex: 1},
+          elem: NTable({striped: true, size: "small", "single-column": true, "single-line": false}, [
+            m("colgroup", {},
+              m("col", {style: {width: "50%"}}),
+              m("col", {style: {width: "50%"}}),
+            ),
+            m("thead", {},
+              m("tr", {},
+                m("th", {}, "NAME"),
+                m("th", {}, "VALUE"),
+              ),
+            ),
+            ...response.metadata.map(header => m("tr", {},
+              m("td", {}, header.key),
+              m("td", {}, header.value),
+            )),
+          ]),
+        },
+      ],
+    }));
+    el_view_response_body.update(response.response);
+  };
+
   const methods : {
     service: string,
     methods: string[],
   }[] = [];
-  const loadingMethods = false;
-  let requestTab = "tab-req-request";
-  let responseTab = "tab-resp-body";
+  let loading_methods = false;
   return {
-    view() {
-      // {request, response, is_loading, update_request, send}
-      const r = use_request<Request, database.GRPCResponse>(id);
-      const notification = useNotification();
+    loaded: (r: get_request): void => {
+      // const notification = useNotification();
 
       // watch(() => request.value?.target, async () => {
       //   loadingMethods.value = true;
@@ -36,152 +105,103 @@ export default function(id: string) {
       //   methods.value = res.value;
       // }, {immediate: true});
 
-      const selectOptions = methods.map(svc => ({
-        type: "group" as const,
+      const el_send = NButton({
+        type: "primary",
+        on: {click: on.send},
+        disabled: true,
+      }, "Send");
+
+      // TODO: group by service
+      const selectOptions = methods.flatMap(svc => [{
         label: svc.service,
-        key: svc.service,
-        children: svc.methods.map(method => ({
-          label: method,
-          value: svc.service + "." + method,
-        })),
-      }));
+      }, ...svc.methods.map(method => ({
+        label: method,
+        value: svc.service + "." + method,
+      }))]);
 
-      function responseBadge(response: {code: number}): Vnode<any, any> {
-        const code = response.code;
-        return m(NTag, {
-          type: (code === 0 ? "success" : "error") as "success" | "info" | "warning",
-          size: "small",
-          round: true,
-        }, `${code ?? "N/A"} ${GRPCCodes[code as keyof typeof GRPCCodes]}`);
-      }
-
-      if (r.request === null)
-        return m(NEmpty, {
-          description: "Loading request...",
-          class: "h100",
-          style: {"justify-content": "center"},
+      const request = r.request as Request;
+      const update_requestt = (patch: Partial<database.GRPCRequest>): void => {
+        loading_methods = true;
+        el_send.disabled = true;
+        on.update(patch).then(() => {
+          loading_methods = false;
+          el_send.disabled = false;
         });
-
-      const request = r.request;
-      const update_request = (patch: Partial<Request>): void => {
-        r.update_request(patch).then(m.redraw);
       };
+      update_response((last_history_entry(r)?.response as database.GRPCResponse | undefined) ?? null);
 
-      return m("div", {
+      el.replaceChildren(m("div", {
         class: "h100",
-        style: {display: "grid", "grid-template-columns": "1fr 1fr", "grid-template-rows": "34px 1fr", "grid-column-gap": ".5em"},
+        style: {
+          display: "grid",
+          "grid-template-columns": "1fr 1fr",
+          "grid-template-rows": "auto 1fr",
+          "grid-column-gap": ".5em",
+        },
       }, [
-        m(NInputGroup, {style: {"grid-column": "span 2"}}, [
-          m(NSelect, {
-            value: request.method,
+        NInputGroup({style: {
+          "grid-column": "span 2",
+          display: "grid",
+          "grid-template-columns": "1fr 10fr 1fr",
+        }},
+          NSelect({
+            label: request.method,
             options: selectOptions,
-            loading: loadingMethods,
-            remote: true,
+            placeholder: "Method",
+            disabled: loading_methods,
             style: {width: "10%", "min-width": "18em"},
-            on: {update: (method: string) => update_request({method})},
-          }),
-          m(NInput, {
+            on: {update: (method: string) => update_requestt({method})},
+          }).el,
+          NInput({
             placeholder: "Addr",
             value: request.target,
-            on: {update: (target: string) => update_request({target})},
+            on: {update: (target: string) => update_requestt({target})},
           }),
-          m(NButton, {
-            type: "primary",
-            on: {click: r.send},
-            disabled: r.is_loading,
-          }, "Send"),
-        ]),
-        m(NTabs, {
-          value: requestTab,
+          el_send,
+        ),
+        NTabs({
           type: "line",
           size: "small",
           class: "h100",
-          on: {update: (id: string) => requestTab = id},
           tabs: [
             {
-              id: "tab-req-request",
               name: "Request",
               class: "h100",
-              elem: m(EditorJSON, {
-                class: "h100",
-                value: request.payload,
-                on: {update: (payload: string) => update_request({payload})},
-              }),
+              // elem: EditorJSON({
+              //   class: "h100",
+              //   value: request.payload,
+              //   on: {update: (payload: string) => update_request({payload})},
+              // }),
             },
             {
-              id: "tab-req-headers",
               name: "Metadata",
               style: {display: "flex", "flex-direction": "column", flex: 1},
               elem: [
-                m(ParamsList, {
+                ParamsList({
                   value: request.metadata,
-                  on: {update: (value: database.KV[]) => update_request({metadata: value.filter(({key, value}) => key !== "" || value !== "")})},
+                  on: {update: (value: database.KV[]) => update_requestt({metadata: value})},
                 }),
                 // ...request.headers.map((obj, i) => m("div", {
                 //   style: {display: "flex", "flex-direction": "row"},
-                //   key: i,
                 // }, [
-                //   m(NInput, {type: "text", value: obj.key,   style: {flex: 1}}),
-                //   m(NInput, {type: "text", value: obj.value, style: {flex: 1}}),
+                //   NInput({type: "text", value: obj.key,   style: {flex: 1}}),
+                //   NInput({type: "text", value: obj.value, style: {flex: 1}}),
                 // ])),
                 // m("div", {
                 //   style: {display: "flex", "flex-direction": "row"},
                 // }, [
-                //   m(NInput, {type: "text", ref: "key",   value: pending.key,   style: {flex: 1}),
-                //   m(NInput, {type: "text", ref: "value", value: pending.value, style: {flex: 1}),
+                //   NInput({type: "text", ref: "key",   value: pending.key,   style: {flex: 1}),
+                //   NInput({type: "text", ref: "value", value: pending.value, style: {flex: 1}),
                 // ]),
               ],
             },
           ],
         }),
-        r.response === null ?
-        m(NEmpty, {
-          description: "Send request or choose one from history.",
-          class: "h100",
-          style: {"justify-content": "center"},
-        }) :
-        ((response: database.GRPCResponse) => m(NTabs, {
-          type: "card",
-          size: "small",
-          style: {"overflow-y": "auto"},
-          value: responseTab,
-          on: {update: (id: string) => responseTab = id},
-          tabs: [
-            {
-              id: "tab-resp-code",
-              name: responseBadge(response),
-              disabled: true,
-            },
-            {
-              id: "tab-resp-body",
-              name: "Body",
-              style: {"overflow-y": "auto"},
-              elem: m(ViewJSON, {value: response?.response}),
-            },
-            {
-              id: "tab-resp-headers",
-              name: "Metadata",
-              style: {flex: 1},
-              elem: m(NTable, {striped: true, size: "small", "single-column": true, "single-line": false}, [
-                m("colgroup", [
-                  m("col", {style: {width: "50%"}}),
-                  m("col", {style: {width: "50%"}}),
-                ]),
-                m("thead", [
-                  m("tr", [
-                    m("th", "NAME"),
-                    m("th", "VALUE"),
-                  ]),
-                ]),
-                ...response.metadata.map(header => m("tr", {key: header.key}, [
-                  m("td", header.key),
-                  m("td", header.value),
-                ])),
-              ]),
-            },
-          ],
-        }))(r.response),
-      ]);
+        el_response,
+      ]));
+    },
+    push_history_entry(he) {
+      update_response(he.response as database.GRPCResponse);
     },
   };
 }

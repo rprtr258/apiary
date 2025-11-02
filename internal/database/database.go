@@ -1,15 +1,19 @@
 package database
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 
 	nanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/pkg/errors"
 	"github.com/rprtr258/fun"
 	json2 "github.com/rprtr258/fun/exp/json"
+
+	. "github.com/rprtr258/apiary/internal/json"
 )
 
 type dbInner = map[RequestID]Request
@@ -28,9 +32,6 @@ var Decoder = json2.AndThen(
 	},
 )
 
-type D = map[string]any
-type A = []any
-
 func encod[Req, Resp EntryData](v dbInner) map[RequestID]pluginv1[Req, Resp] {
 	requests := make(map[RequestID]pluginv1[Req, Resp], len(v))
 	for id, req := range v {
@@ -41,41 +42,50 @@ func encod[Req, Resp EntryData](v dbInner) map[RequestID]pluginv1[Req, Resp] {
 
 		requests[id] = pluginv1[Req, Resp]{
 			Request: reqData,
-			Responses: fun.Map[preresponsev1[Resp]](func(resp Response) preresponsev1[Resp] {
+			Responses: Emptize(fun.Map[preresponsev1[Resp]](func(resp Response) preresponsev1[Resp] {
 				return preresponsev1[Resp]{
 					SentAt:     resp.SentAt,
 					ReceivedAt: resp.ReceivedAt,
 					Data:       resp.Response.(Resp),
 				}
-			}, req.Responses...),
+			}, req.Responses...)),
 		}
 	}
 	return requests
 }
 
+func sorted[T any](xs []T, cmp func(T, T) int) []T {
+	slices.SortFunc(xs, cmp)
+	return xs
+}
+
 func encoder(v dbInner) ([]byte, error) {
 	return json.MarshalIndent(D{
 		"$version": 1,
-		"request": fun.MapToSlice(v, func(id RequestID, req Request) requestv1 {
+		"request": sorted(fun.MapToSlice(v, func(id RequestID, req Request) requestv1 {
 			return requestv1{
 				ID:   req.ID,
 				Path: req.Path,
 				Kind: req.Data.Kind(),
 			}
+		}), func(a, b requestv1) int {
+			return cmp.Compare(a.ID, b.ID)
 		}),
-		"response": func() []responsev1 {
-			responses := []responsev1{}
+		"response": sorted(slices.Collect(func(yield func(responsev1) bool) {
 			for id, req := range v {
 				for _, resp := range req.Responses {
-					responses = append(responses, responsev1{
+					if !yield(responsev1{
 						ID:         id,
 						SentAt:     resp.SentAt,
 						ReceivedAt: resp.ReceivedAt,
-					})
+					}) {
+						return
+					}
 				}
 			}
-			return responses
-		}(),
+		}), func(a, b responsev1) int {
+			return a.SentAt.Compare(b.SentAt)
+		}),
 		"http":  encod[HTTPRequest, HTTPResponse](v),
 		"sql":   encod[SQLRequest, SQLResponse](v),
 		"jq":    encod[JQRequest, JQResponse](v),

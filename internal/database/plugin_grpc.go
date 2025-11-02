@@ -3,6 +3,7 @@ package database
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/fullstorydev/grpcurl"
@@ -12,10 +13,13 @@ import (
 	"github.com/jhump/protoreflect/grpcreflect"
 	"github.com/pkg/errors"
 	"github.com/rprtr258/fun"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+
+	. "github.com/rprtr258/apiary/internal/json"
 )
 
 const KindGRPC Kind = "grpc"
@@ -29,11 +33,28 @@ type GRPCRequest struct {
 
 func (GRPCRequest) Kind() Kind { return KindGRPC }
 
+func (r GRPCRequest) MarshalJSON() ([]byte, error) {
+	return json.Marshal(D{
+		"target":   r.Target,
+		"method":   r.Method,
+		"payload":  r.Payload,
+		"metadata": Emptize(r.Metadata),
+	})
+}
+
 type GRPCResponse struct { // TODO: last inserted id on insert
 	Response string `json:"response"`
 	// https://grpc.io/docs/guides/status-codes/#the-full-list-of-status-codes
 	Code     int  `json:"code"`
 	Metadata []KV `json:"metadata"`
+}
+
+func (r GRPCResponse) MarshalJSON() ([]byte, error) {
+	return json.Marshal(D{
+		"response": r.Response,
+		"code":     r.Code,
+		"metadata": Emptize(r.Metadata),
+	})
 }
 
 func (GRPCResponse) Kind() Kind { return KindGRPC }
@@ -131,7 +152,9 @@ func sendGRPC(ctx context.Context, request EntryData) (EntryData, error) {
 		headers,
 		&invocationHandler{
 			onReceiveResponse: func(m proto.Message) {
-				_ = (&jsonpb.Marshaler{}).Marshal(&body, m)
+				if err := (&jsonpb.Marshaler{}).Marshal(&body, m); err != nil {
+					log.Error().Err(err).Any("response", m).Msg("marshal response")
+				}
 			},
 			onReceiveHeaders: func(md metadata.MD) {
 				for k, vs := range md {

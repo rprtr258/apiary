@@ -1,77 +1,101 @@
-import m from "mithril";
 import {NInput, NButton, NInputGroup} from "./components/input";
 import {NEmpty} from "./components/dataview";
 import ViewJSON from "./components/ViewJSON";
 import EditorJSON from "./components/EditorJSON";
 import {database} from "../wailsjs/go/models";
-import {use_request} from "./store";
+import {get_request, last_history_entry} from "./store";
+import {m, Signal} from "./utils";
+import {HistoryEntry} from "./api";
 
 type Request = {kind: database.Kind.JQ} & database.JQRequest;
 
 export default function(
-  id: string,
-  show_request: () => boolean,
-): m.Component<any, any> {
+  el: HTMLElement,
+  show_request: Signal<boolean>, // TODO: remove, show by default
+  on: {
+    update: (patch: Partial<Request>) => Promise<void>,
+    send: () => Promise<void>,
+  },
+): {
+  loaded(r: get_request): void,
+  push_history_entry(he: HistoryEntry): void, // show last history entry
+  // TODO: hide/show request
+} {
+  el.append(NEmpty({
+    description: "Loading request...",
+    class: "h100",
+    style: { "justify-content": "center" },
+  }));
+
+  const jqerror: string | null = null; // TODO: use
+  const el_send = NButton({
+    type: "primary",
+    on: {click: on.send},
+    disabled: true,
+  }, "Send");
+  const update_requestt = (patch: Partial<database.JQRequest>): void => {
+    el_send.disabled = true;
+    on.update(patch).then(() => {
+      el_send.disabled = false;
+    });
+  };
+
+  const el_response = NEmpty({
+    description: "Send request or choose one from history.",
+    class: "h100",
+    style: {"justify-content": "center"},
+  });
+  const el_view_response_body = ViewJSON("");
+  const update_response = (response: database.JQResponse | null) => {
+    if (response === null) {return;}
+
+    if (jqerror !== null) {
+      el_response.replaceChildren(m("div", {style: {position: "fixed", color: "red", bottom: "3em"}}, jqerror));
+      return;
+    }
+
+    el_response.replaceChildren(el_view_response_body.el);
+    el_view_response_body.update(response.response.join("\n"));
+  }
+
   return {
-    view() {
-      // {request, response, is_loading, update_request, send}
-      const r = use_request<Request, database.JQResponse>(id);
+    loaded: (r: get_request) => {
+      let request = r.request as Request;
+      update_response((last_history_entry(r)?.response as database.JQResponse | undefined) ?? null);
 
-      const jqerror: string | null = null; // TODO: use
-      const responseText = (r.response?.response ?? []).join("\n");
-
-      if (r.request === null) {
-        return m(NEmpty, {
-          description: "Loading request...",
-          class: "h100",
-          style: { "justify-content": "center" },
-        });
-      }
-
-      return m("div", {
+      el.replaceChildren(m("div", {
         class: "h100",
         style: {
           display: "grid",
           "grid-template-columns": "1fr 1fr",
-          "grid-template-rows": "34px 1fr",
+          "grid-template-rows": "auto minmax(0, 1fr)",
           "grid-column-gap": ".5em",
         },
-      }, [
-        show_request() && m(NInputGroup, {style: {"grid-column": "span 2"}}, [
-          m(NInput, {
+      },
+        show_request && [NInputGroup({style: {
+          "display": "grid",
+          "grid-template-columns": "11fr 1fr",
+          "grid-column": "span 2",
+        }}, [
+          NInput({
             placeholder: "JQ query",
             status: jqerror !== null ? "error" : "success",
-            value: r.request.query,
-            on: {update: (query: string) => r.update_request({query})},
+            value: request.query,
+            on: {update: (query: string) => update_requestt({query})},
           }),
           // TODO: autosend
-          m(NButton, {
-            type: "primary",
-            on: {click: r.send},
-            disabled: r.is_loading,
-          }, "Send"),
+          el_send,
         ]),
-        show_request() && m(EditorJSON, {
+        EditorJSON({
           class: "h100",
-          value: r.request.json,
-          on: {update: (json: string) => r.update_request({json})},
-        }),
-        jqerror !== null ?
-        m("div", {style: {position: "fixed", color: "red", bottom: "3em"}}, jqerror) :
-        r.response === null ?
-        m(NEmpty, {
-          description: "Send request or choose one from history.",
-          class: "h100",
-          style: {"justify-content": "center"},
-        }) :
-        m(ViewJSON, {value: responseText}),
-      ]);
+          value: request.json,
+          on: {update: (json: string) => update_requestt({json})},
+        })] || null,
+        el_response,
+      ));
+    },
+    push_history_entry(he) {
+      update_response(he.response as database.JQResponse);
     },
   };
 }
-
-// <style lang="css" scoped>
-// .n-tab-pane {
-//   height: 100% !important;
-// }
-// </style>

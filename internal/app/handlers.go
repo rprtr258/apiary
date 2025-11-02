@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	"github.com/rprtr258/apiary/internal/database"
+	. "github.com/rprtr258/apiary/internal/json"
 )
 
 type requestPreview struct {
@@ -86,7 +87,7 @@ func (a *App) List() (ListResponse, error) {
 
 type GetResponse struct {
 	Request database.Request
-	History []database.D
+	History []D
 }
 
 func (a *App) get(id database.RequestID) (database.Request, error) {
@@ -106,14 +107,14 @@ func (a *App) Get(id string) (GetResponse, error) {
 		return GetResponse{}, errors.Wrapf(err, "get request id=%q", id)
 	}
 
-	history := fun.Map[database.D](func(h database.Response) database.D {
-		return database.D{
+	history := fun.Map[D](func(h database.Response) D {
+		return D{
 			"sent_at":     h.SentAt.Format(time.RFC3339),
 			"received_at": h.ReceivedAt.Format(time.RFC3339),
 			"response":    h.Response,
 		}
 	}, request.Responses...)
-	slices.SortFunc(history, func(i, j database.D) int {
+	slices.SortFunc(history, func(i, j D) int {
 		return strings.Compare(i["sent_at"].(string), j["sent_at"].(string))
 	})
 
@@ -185,7 +186,7 @@ func (a *App) Update(
 ) error {
 	b, err := json.Marshal(request)
 	if err != nil {
-		return errors.Wrap(err, "huita request")
+		return errors.Wrap(err, "marshal request")
 	}
 
 	parseRequestt, ok := map[database.Kind]func([]byte) (database.EntryData, error){
@@ -226,7 +227,7 @@ func (a *App) Delete(requestID string) error {
 }
 
 // Perform create a handler that performs call and save result to history
-func (a *App) Perform(requestID string) (database.D, error) {
+func (a *App) Perform(requestID string) (D, error) {
 	request, err := a.get(database.RequestID(requestID))
 	if err != nil {
 		return nil, errors.Wrapf(err, "get request id=%q", requestID)
@@ -261,7 +262,7 @@ func (a *App) Perform(requestID string) (database.D, error) {
 		return nil, errors.Wrap(err, "insert into database")
 	}
 
-	return database.D{
+	return D{
 		"RequestId":   requestID,
 		"sent_at":     sentAt.Format(time.RFC3339),
 		"received_at": receivedAt.Format(time.RFC3339),
@@ -270,7 +271,7 @@ func (a *App) Perform(requestID string) (database.D, error) {
 	}, nil
 }
 
-func (a *App) PerformSQLSource(requestID, query string) (database.D, error) {
+func (a *App) PerformSQLSource(requestID, query string) (D, error) {
 	request, err := a.get(database.RequestID(requestID))
 	if err != nil {
 		return nil, errors.Wrapf(err, "get request id=%q", requestID)
@@ -298,7 +299,7 @@ func (a *App) PerformSQLSource(requestID, query string) (database.D, error) {
 
 	receivedAt := time.Now()
 
-	return database.D{
+	return D{
 		"RequestId":   requestID,
 		"sent_at":     sentAt.Format(time.RFC3339),
 		"received_at": receivedAt.Format(time.RFC3339),

@@ -61,6 +61,7 @@ func sendRedis(ctx context.Context, request EntryData) (EntryData, error) {
 		Password: password,
 		DB:       db,
 	})
+	defer rdb.Close() // TODO: keep connections pool
 
 	// TODO: breaks on something like SET key "barabem barabum"
 	args := []any{}

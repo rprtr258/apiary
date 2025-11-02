@@ -1,12 +1,36 @@
 services:
   mysql:
     image: mysql:latest
-    ports:
-      - "3306:3306"
+    ports: ["3306:3306"]
     environment:
       MYSQL_ROOT_PASSWORD: my-secret-pw
 
   redis:
     image: redis:alpine
-    ports:
-      - "6379:6379"
+    ports: ["6379:6379"]
+    volumes:
+      - ./tests/dump.redis:/data/init-data.redis
+    command: >
+      sh -c "redis-server --save '' --appendonly no &
+             sleep 2 &&
+             redis-cli < /data/init-data.redis &&
+             tail -f /dev/null"
+
+  postgres:
+    image: postgres:16
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./tests:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  grpc-server:
+    build: ./cmd/grpc
+    ports: ["50051:50051"]

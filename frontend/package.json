@@ -11,16 +11,11 @@
     "@codemirror/lang-markdown": "^6.4.0",
     "@codemirror/lang-sql": "^6.9.0",
     "@codemirror/theme-one-dark": "^6.1.2",
-    "@types/jquery": "^3.5.33",
-    "bootstrap": "^5.3.8",
     "codemirror": "^6.0.1",
     "golden-layout": "^2.6.0",
-    "jquery": "^3.7.1",
-    "mithril": "^2.0.4"
+    "split-grid": "^1.0.11"
   },
   "devDependencies": {
-    "@types/bootstrap": "^5.2.10",
-    "@types/mithril": "^2.0.8",
     "typescript": "^4.4.3",
     "vite": "^6.0.11"
   }

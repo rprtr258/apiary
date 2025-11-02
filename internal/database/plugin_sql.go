@@ -227,9 +227,8 @@ func sendSQLPostgres(ctx context.Context, dsn, query string) (SQLResponse, error
 }
 
 func sendSQL(ctx context.Context, request EntryData) (EntryData, error) {
-	req := request.(SQLRequest)
-	dsn, query := req.DSN, req.Query
-	switch req.Database {
+	req := request.(SQLRequest) // TODO: timeouts
+	switch dsn, query := req.DSN, req.Query; req.Database {
 	case DBPostgres:
 		return sendSQLPostgres(ctx, dsn, query)
 	case DBClickhouse:
