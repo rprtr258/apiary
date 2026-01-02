@@ -1,5 +1,4 @@
-import type {Extension, Transaction, TransactionSpec} from "@codemirror/state";
-import {EditorState} from "@codemirror/state";
+import {Extension, Transaction, TransactionSpec, EditorState} from "@codemirror/state";
 import {EditorView, highlightSpecialChars, keymap, drawSelection, lineNumbers, highlightActiveLineGutter, dropCursor, highlightActiveLine} from "@codemirror/view";
 import {defaultKeymap, historyKeymap, standardKeymap, history, indentMore} from "@codemirror/commands";
 import {foldGutter, syntaxHighlighting, defaultHighlightStyle, bracketMatching, foldKeymap} from "@codemirror/language";

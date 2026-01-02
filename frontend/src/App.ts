@@ -1,22 +1,20 @@
-import {ComponentContainer, GoldenLayout, Tab} from "golden-layout";
-import {NDropdown, NInput, NSelect, NButton} from "./components/input";
-import {NModal, NScrollbar, NSpace, NTabs} from "./components/layout";
-import {TreeOption, NTree, NList, NListItem, NIcon, NTag, NEmpty, NResult} from "./components/dataview";
-import {DownOutlined, DoubleLeftOutlined, DoubleRightOutlined, Eye, EyeClosed} from "./components/icons";
-import RequestHTTP from "./RequestHTTP";
-import RequestSQL from "./RequestSQL";
-import RequestGRPC from "./RequestGRPC";
-import RequestJQ from "./RequestJQ";
-import RequestRedis from "./RequestRedis";
-import RequestMD from "./RequestMD";
-import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs, useStore, update_request, send, last_history_entry} from "./store";
-// import {useBrowserLocation, useLocalStorage, useMagicKeys} from "@vueuse/core";
-import {Method, Kinds, Database, HistoryEntry, Request} from "./api";
-import {app, database} from "../wailsjs/go/models";
-import Command from "./components/CommandPalette";
-import RequestSQLSource from "./RequestSQLSource";
-import {clone, DOMNode, m, s, Signal, signal} from "./utils";
 import Split from "split-grid";
+import {ComponentContainer, GoldenLayout, Tab} from "golden-layout";
+import {NDropdown, NInput, NSelect} from "./components/input.ts";
+import {NModal, NScrollbar, NTabs} from "./components/layout.ts";
+import {TreeOption, NTree, NList, NListItem, NIcon, NTag, NEmpty, NResult} from "./components/dataview.ts";
+import {DownOutlined, Eye, EyeClosed} from "./components/icons.ts";
+import RequestHTTP from "./RequestHTTP.ts";
+import RequestSQL from "./RequestSQL.ts";
+import RequestGRPC from "./RequestGRPC.ts";
+import RequestJQ from "./RequestJQ.ts";
+import RequestRedis from "./RequestRedis.ts";
+import RequestMD from "./RequestMD.ts";
+import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs, useStore, update_request, send, last_history_entry, Store} from "./store.ts";
+import {Method, Kinds, Database, HistoryEntry, Request} from "./api.ts";
+import {app, database} from "../wailsjs/go/models.ts";
+import Command from "./components/CommandPalette.ts";
+import {DOMNode, m, Signal, signal} from "./utils.ts";
 
 function fromNow(date: Date): string {
   const now = new Date();
@@ -47,7 +45,7 @@ function useLocalStorage<T>(key: string, init: T): T {
     localStorage.setItem(key, JSON.stringify(init));
     return init;
   }
-  return JSON.parse(value);
+  return JSON.parse(value) as T;
 }
 
 type Kind = typeof Kinds[number];
@@ -57,7 +55,7 @@ function create() {
   newRequestName = new Date().toUTCString();
 
   const kind = newRequestKind!;
-  const name = newRequestName!;
+  const name = newRequestName;
   store.createRequest(name, kind);
   createCancel();
   // TODO: show new request in list
@@ -113,8 +111,8 @@ function drag({node, dragNode, dropPosition}: {
   dropPosition: "before" | "inside" | "after",
 }): void  {
   const dir = (d: string): string => d === "" ? "" : d + "/";
-  const oldID = dragNode.key as string;
-  const into = node.key as string;
+  const oldID = dragNode.key;
+  const into = node.key;
   switch (dropPosition) {
     case "before":
     case "after":
@@ -138,7 +136,7 @@ function badge(req: app.requestPreview): [string, string] {
 }
 function renderSuffix(info: {option: TreeOption}): DOMNode {
   const option = info.option;
-  const id = option.key as string;
+  const id = option.key;
   return NDropdown({
     trigger: "click", // "hover",
     on: {select: (key: string | number) => {
@@ -150,27 +148,27 @@ function renderSuffix(info: {option: TreeOption}): DOMNode {
         label: "Rename",
         key: "rename",
         icon: NIcon({component: "EditOutlined"}),
-        props: {
+        on: {
           // onclick: () => renameInit(id),
-        }
+        },
       },
       {
         label: "Duplicate",
         key: "duplicate",
         icon: NIcon({component: "CopySharp"}),
-        props: {
-          onclick: () => {
+        on: {
+          click: () => {
             store.duplicate(id);
-          }
-        }
+          },
+        },
       },
       {
         label: "Copy as curl",
         key: "copy-as-curl",
         icon: NIcon({component: "ContentCopyFilled"}),
-        show: store.requests[id]?.Kind === "http",
-        props: {
-          onclick: () => {
+        show: store.requests[id]?.Kind === database.Kind.HTTP,
+        on: {
+          click: () => {
             // api.get(id).then((r) => {
             //   if (r.kind === "err") {
             //     useNotification().error({title: "Error", content: `Failed to load request: ${r.value}`});
@@ -185,15 +183,15 @@ function renderSuffix(info: {option: TreeOption}): DOMNode {
             //   };
             //   navigator.clipboard.writeText(httpToCurl(req));
             // });
-          }
-        }
+          },
+        },
       },
       {
         label: "Delete",
         key: "delete",
         icon: NIcon({color: "red", component: "DeleteOutlined"}),
-        props: {
-          onclick: () => {
+        on: {
+          click: () => {
             store.deleteRequest(id);
           },
         },
@@ -294,7 +292,7 @@ const open_items = () => {
     kind: preview.Kind,
   }));
 };
-const anyModalIsOpen = () => newRequestName !== null || renameID !== null;
+// const anyModalIsOpen = () => newRequestName !== null || renameID !== null;
 // const keys = useMagicKeys();
 // watch(keys['Alt+K'], (v) => {
 //   if (!v || anyModalIsOpen()) {
@@ -320,8 +318,8 @@ const anyModalIsOpen = () => newRequestName !== null || renameID !== null;
 // });
 
 type Panelka = {
-  el: HTMLElement;
-}
+  el: HTMLElement,
+};
 
 type panelkaState = {id: string};
 
@@ -349,17 +347,17 @@ const panelkaFactory = (
   {id}: panelkaState,
 ): Panelka => {
   const el = container.element;
-  let show_request = signal(true);
+  const show_request = signal(true);
   container.on("tab", (tab: Tab): void => {
     const eye = m("span", {
       title: "Hide request",
       onclick: () => {
         show_request.update(b => !b);
-        eye.title = show_request ? "Hide request" : "Show request";
+        eye.title = show_request.value ? "Hide request" : "Show request";
         // m.redraw();
       },
     }, NIcon({
-      component: show_request ? Eye : EyeClosed,
+      component: show_request.value ? Eye : EyeClosed,
       class: "highlight-red",
     }));
     // m.mount(eye, {view: () => NIcon({
@@ -377,7 +375,7 @@ const panelkaFactory = (
       tab.setTitle(req.request.path);
     }, 100);
   });
-  if (store.requests[id]) {
+  if (store.requests[id] !== undefined) {
     const frame = f[store.requests[id].Kind](
       el,
       show_request,
@@ -388,16 +386,16 @@ const panelkaFactory = (
         }),
       },
     );
-    get_request<database.HTTPResponse>(id).then(r => r && frame.loaded(r));
+    get_request(id).then(r => r && frame.loaded(r));
   }
   return {el};
-}
+};
 
 export default function(root: HTMLElement) {
-  useStore().fetch().then(() => preApp(root, store));
+  void store.fetch().then(() => preApp(root, store));
 }
 
-function preApp(root: HTMLElement, store: any) {
+function preApp(root: HTMLElement, store: Store) {
   let sidebarHidden = false;
 
   const el_empty_state = NResult({
@@ -408,8 +406,7 @@ function preApp(root: HTMLElement, store: any) {
 
   const el_layout = m("div", {id: "layoutContainer", style: {height: "100%", width: "100%"}});
 
-  let golden_layout: GoldenLayout;
-  golden_layout = new GoldenLayout(el_layout);
+  const golden_layout: GoldenLayout = new GoldenLayout(el_layout);
   golden_layout.resizeWithContainerAutomatically = true;
   golden_layout.resizeDebounceInterval = 0;
   golden_layout.registerComponentFactoryFunction("MyComponent", (container, state, _) => panelkaFactory(container, state as panelkaState));
@@ -417,7 +414,7 @@ function preApp(root: HTMLElement, store: any) {
   golden_layout.on("stateChanged", () => {
     update_empty_state(golden_layout.saveLayout().root === undefined);
     updateLocalstorageTabs();
-  })
+  });
   store.layout = golden_layout;
   const update_empty_state = (show: boolean) => {
     el_empty_state.style.display = show ? "flex" : "none";
@@ -434,8 +431,8 @@ function preApp(root: HTMLElement, store: any) {
     style: {
       color: "black",
       display: "grid",
-      "grid-template-columns": "1fr 1fr",
-      "grid-column-gap": ".5em",
+      gridTemplateColumns: "1fr 1fr",
+      gridColumnGap: ".5em",
     },
   }, [
     "hide",
@@ -462,23 +459,23 @@ function preApp(root: HTMLElement, store: any) {
   const el_line = m("hr", {style: {
     cursor: "col-resize",
     border: "none",
-    "background-color": "white",
+    backgroundColor: "white",
     width: "2px",
   }});
   const app_container = m("div", {
     class: "h100",
     style: {
       display: "grid",
-      "grid-template-columns": `300px ${el_line.style.width} 6fr`,
+      gridTemplateColumns: `300px ${el_line.style.width} 6fr`,
     },
   },
     m("aside", {
       style: {
         overflow: "auto",
         color: "rgba(255, 255, 255, 0.82)",
-        "background-color": "rgb(24, 24, 28)",
+        backgroundColor: "rgb(24, 24, 28)",
         display: "grid",
-        "grid-template-rows": "95% 5%",
+        gridTemplateRows: "95% 5%",
         height: "100vh",
       },
     },
@@ -491,8 +488,8 @@ function preApp(root: HTMLElement, store: any) {
             style: {
               overflow: "auto",
               display: "grid",
-              "padding-top": "0px",
-              "grid-template-rows": "2em auto",
+              paddingTop: "0px",
+              gridTemplateRows: "2em auto",
               height: "100%",
             },
             elem: [
@@ -516,18 +513,18 @@ function preApp(root: HTMLElement, store: any) {
                   })(),
                   "default-expanded-keys": expandedKeys,
                   on: {
-                    "update:expanded-keys": (keys: string[]) => {expandedKeys = keys},
+                    "update:expanded-keys": (keys: string[]) => {expandedKeys = keys;},
                     drop: drag,
                   },
                   "node-props": ({option}: {option: TreeOption}): {onclick: () => void} => {
                     return {
                       onclick: () => {
                         const id = option.key;
-                        if (!option.children && !option.disabled) {
+                        if (!option.children && !(option.disabled ?? false)) {
                           store.selectRequest(id);
                         }
-                      }
-                    }
+                      },
+                    };
                   },
                   "render-prefix": (info: {option: TreeOption, checked: boolean, selected: boolean}): DOMNode => {
                     const option = info.option;
@@ -540,10 +537,10 @@ function preApp(root: HTMLElement, store: any) {
                     }
                     const [method, color] = badge(req);
                     return NTag({
-                      type: (req.Kind === "http" ? "success" : "info") as "success" | "info" | "warning",
-                      style: {width: "4em", "justify-content": "center", color: color},
+                      type: (req.Kind === database.Kind.HTTP ? "success" : "info") as "success" | "info" | "warning",
+                      style: {width: "4em", justifyContent: "center", color},
                       size: "small",
-                    }, method)
+                    }, method);
                   },
                   "render-suffix": renderSuffix,
                 }),
@@ -552,19 +549,19 @@ function preApp(root: HTMLElement, store: any) {
           },
           {
             name: "History",
-            style: {flex: 1},
+            style: {flexGrow: "1"},
             elem: (() => {
               if (store.requestID() === null)
                 return NEmpty({
                   description: "Not implemented",
                   class: "h100",
-                  style: {"justify-content": "center"},
+                  style: {justifyContent: "center"},
                 });
               if (history.length === 0)
                 return NEmpty({
                   description: "No history yet",
                   class: "h100",
-                  style: {"justify-content": "center"},
+                  style: {justifyContent: "center"},
                 });
               return [
                 NList(history.map(r =>
@@ -585,7 +582,7 @@ function preApp(root: HTMLElement, store: any) {
     el_line,
     m("div", {style: {
       color: "rgba(255, 255, 255, 0.82)",
-      "background-color": "rgb(16, 16, 20)",
+      backgroundColor: "rgb(16, 16, 20)",
       overflow: "hidden",
     }}, [
       el_empty_state,
@@ -597,7 +594,7 @@ function preApp(root: HTMLElement, store: any) {
     columnGutters: [
       {track: 1, element: el_line},
     ],
-  })
+  });
   collapseButton.onclick = () => { // TODO: inline to props
     sidebarHidden = !sidebarHidden;
     const el_aside = app_container.children[0].children[0];
@@ -610,7 +607,7 @@ function preApp(root: HTMLElement, store: any) {
       app_container.style.setProperty("grid-template-columns", "300px 6fr");
       (el_aside.children[1] as HTMLElement).style.setProperty("display", "block"); // show requests tree
       (el_aside.children[0] as HTMLElement).style.setProperty("display", "none"); // hide "nothing"
-      collapseButton.innerText = "<< hide"
+      collapseButton.innerText = "<< hide";
     }
   };
 
@@ -661,18 +658,17 @@ function preApp(root: HTMLElement, store: any) {
             }, [
               m("div", {}, item.label),
               m("div", {
-                "command-linear-shortcuts": true,
                 class: "hidden",
                 style: {
                   color: "var(--gray10)",
-                  "align-items": "center",
+                  alignItems: "center",
                   display: item.shortcut !== undefined ? "block" : "none",
                 },
               }, item.shortcut?.flatMap((k, i) => [
-                i !== 0 && m("div", {style: {padding: "0px 2px"}}, "+") || null,
+                i !== 0 ? m("div", {style: {padding: "0px 2px"}}, "+") : null,
                 m("kbd", {}, k),
               ]) ?? []),
-            ]))
+            ])),
           ),
         ),
       ]),

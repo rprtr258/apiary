@@ -1,8 +1,6 @@
-import type {Result} from "./result";
-import {err, ok} from "./result";
-import * as App from "../wailsjs/go/app/App";
-import type {app} from '../wailsjs/go/models';
-import {database} from '../wailsjs/go/models';
+import {Result, err, ok} from "./result.ts";
+import * as App from "../wailsjs/go/app/App.js";
+import {app, database} from "../wailsjs/go/models.ts";
 
 export const Method = {
   GET:     "GET",
@@ -77,9 +75,10 @@ export type HistoryEntry = {
   {kind: database.Kind.GRPC,  request: database. GRPCRequest, response: database. GRPCResponse} |
   {kind: database.Kind.JQ,    request: database.   JQRequest, response: database.   JQResponse} |
   {kind: database.Kind.REDIS, request: database.RedisRequest, response: database.RedisResponse} |
-  {kind: database.Kind.MD,    request: database.   MDRequest, response: database.   MDResponse} |
-  never
-)
+  {kind: database.Kind.MD,    request: database.   MDRequest, response: database.   MDResponse}
+);
+
+export type RowValue = string | number | boolean | null;
 
 function parseTime(s: string): Date {
   const d = new Date();
@@ -87,7 +86,7 @@ function parseTime(s: string): Date {
   return d;
 };
 
-async function wrap<T>(f: () => Promise<T>, args: any): Promise<Result<T>> {
+async function wrap<T>(f: () => Promise<T>, args: unknown): Promise<Result<T>> {
   try {
     const res = await f();
     console.log("FETCH", f, args, res);

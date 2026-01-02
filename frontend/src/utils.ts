@@ -1,6 +1,5 @@
-import {api} from "./api";
-import type {Result} from "./result";
-import {ok} from "./result";
+import {api} from "./api.ts";
+import {Result, ok} from "./result.ts";
 
 function formatResponse(response: string): string {
   const value = ((): unknown => {
@@ -25,7 +24,7 @@ export async function transform(body: string, query: string): Promise<Result<str
   return res.map((item: readonly string[]) => item.map(v => formatResponse(v)).join("\n"));
 };
 
-type BaseDOMNode = HTMLElement | string | SVGSVGElement | null;
+type BaseDOMNode = HTMLElement | SVGSVGElement | string | null;
 export type DOMNode = BaseDOMNode | DOMNode[];
 
 export function clone(n: DOMNode): DOMNode {
@@ -42,26 +41,38 @@ function flatten(n: DOMNode): BaseDOMNode[] {
       n.flatMap(flatten);
 }
 
+type ElementProps<K extends keyof HTMLElementTagNameMap> =
+  Partial<Omit<
+    HTMLElementTagNameMap[K],
+    "style" | "children" | "innerHTML"
+  >> & {
+    class?: string,
+    style?: Partial<CSSStyleDeclaration>,
+    innerHTML?: string,
+  };
+
 export function m<K extends keyof HTMLElementTagNameMap>(
   tag: K,
-  props: Partial<HTMLElementTagNameMap[K]> | Record<string, any> = {},
+  preProps?: ElementProps<K>,
   ...children: DOMNode[]
 ): HTMLElementTagNameMap[K] {
+  const props: ElementProps<K> = preProps ?? {};
   const el = document.createElement(tag);
-  for (const [key, value] of Object.entries(props)) {
-    if (key === "style") {
-      for (const [k, v] of Object.entries(value ?? {})) {
-        el.style.setProperty(k, v as string);
-      }
-    } else if (key === "innerHTML") {
-      el.innerHTML = String(value);
+  Object.assign(el.style, props.style ?? {});
+  if (props.innerHTML !== undefined) {
+      el.innerHTML = props.innerHTML;
       if (children.length !== 0) {
         throw new Error("Can't use innerHTML with children");
       }
-    } else if (key.startsWith("on")) { // event handlers
-      el.addEventListener(key.slice(2).toLowerCase(), value);
-    } else if (value === undefined) {
+  }
+  for (const [key, value] of Object.entries(props)) {
+    if (key === "style" || key === "innerHTML" || value === undefined) {
       continue;
+    }
+    if (key.startsWith("on")) { // event handlers
+      el.addEventListener(key.slice(2).toLowerCase(), value as EventListenerOrEventListenerObject);
+    } else if (typeof value === "object") {
+      throw new Error(`Can't set element property "${key}" to ${JSON.stringify(value)}`);
     } else {
       el.setAttribute(key, String(value));
     }
@@ -78,17 +89,40 @@ export function m<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
-export function s<K extends keyof SVGElementTagNameMap>(
+interface SVGAttrs {
+  svg: {
+    xmlns: "http://www.w3.org/2000/svg",
+    "xmlns:xlink": "http://www.w3.org/1999/xlink",
+    viewBox: string, // TODO: DOMRect
+    width: string,
+    height: string,
+    "aria-label": string,
+    role: "img",
+    style: Partial<CSSStyleDeclaration>,
+  },
+  path: {
+    d: string,
+    fill: string,
+  },
+  g: {
+    fill: string,
+    stroke: string,
+    "stroke-linecap": string,
+    "stroke-linejoin": string,
+    "stroke-width": number,
+    "fill-rule": "evenodd" | "nonzero",
+  },
+}
+
+export function s<K extends keyof SVGAttrs>(
   tag: K,
-  props: Partial<SVGElementTagNameMap[K]> | Record<string, any> = {},
-  ...children: (SVGElement | string)[]
+  props: Partial<SVGAttrs[K]>,
+  ...children: SVGElement[]
 ): SVGElementTagNameMap[K] {
   const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
   for (const [key, value] of Object.entries(props)) {
     if (key === "style") { // inline styles
-      for (const [k, v] of Object.entries(value ?? {})) {
-        el.style.setProperty(k, v as string);
-      }
+      Object.assign(el.style, value ?? {});
     } else {
       el.setAttribute(key, String(value));
     }
@@ -102,6 +136,7 @@ export function s<K extends keyof SVGElementTagNameMap>(
 export type Signal<T> = {
   update: (f: (value: T) => T) => void,
   sub: (cb: (value: T) => void) => void,
+  get value(): T, // TODO: remove?
 };
 export function signal<T>(value: T): Signal<T> {
   let _value = value;
@@ -124,5 +159,6 @@ export function signal<T>(value: T): Signal<T> {
         cb(value);
       }
     },
+    get value(): T {return _value;},
   };
 }

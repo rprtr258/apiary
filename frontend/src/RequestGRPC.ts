@@ -1,13 +1,13 @@
-import {NInput, NButton, NInputGroup, NSelect} from "./components/input";
-import {NTabs} from "./components/layout";
-import {NTag, NTable, NEmpty} from "./components/dataview";
-import {GRPCCodes, HistoryEntry} from "./api";
-import {database} from '../wailsjs/go/models';
-import EditorJSON from "./components/EditorJSON";
-import ViewJSON from "./components/ViewJSON";
-import ParamsList from "./components/ParamsList";
-import {get_request, last_history_entry, useNotification} from "./store";
-import {m, Signal} from "./utils";
+import {database} from "../wailsjs/go/models.ts";
+import {NInput, NButton, NInputGroup, NSelect} from "./components/input.ts";
+import {NTabs} from "./components/layout.ts";
+import {NTag, NTable, NEmpty} from "./components/dataview.ts";
+import {GRPCCodes, HistoryEntry} from "./api.ts";
+import EditorJSON from "./components/EditorJSON.ts";
+import ViewJSON from "./components/ViewJSON.ts";
+import ParamsList from "./components/ParamsList.ts";
+import {get_request, last_history_entry, useNotification} from "./store.ts";
+import {m, Signal} from "./utils.ts";
 
 type Request = {kind: database.Kind.GRPC} & database.GRPCRequest;
 
@@ -34,13 +34,13 @@ export default function(
   el.append(NEmpty({
     description: "Loading request...",
     class: "h100",
-    style: {"justify-content": "center"},
+    style: {justifyContent: "center"},
   }));
 
   const el_response = NEmpty({
     description: "Send request or choose one from history.",
     class: "h100",
-    style: {"justify-content": "center"},
+    style: {justifyContent: "center"},
   });
   const el_view_response_body = ViewJSON("");
   const update_response = (response: database.GRPCResponse | null) => {
@@ -49,7 +49,7 @@ export default function(
     el_response.replaceChildren(NTabs({
       type: "card",
       size: "small",
-      style: {"overflow-y": "auto"},
+      style: {overflowY: "auto"},
       tabs: [
         {
           name: responseBadge(response),
@@ -57,12 +57,12 @@ export default function(
         },
         {
           name: "Body",
-          style: {"overflow-y": "auto"},
+          style: {overflowY: "auto"},
           elem: el_view_response_body.el,
         },
         {
           name: "Metadata",
-          style: {flex: 1},
+          style: {flexGrow: "1"},
           elem: NTable({striped: true, size: "small", "single-column": true, "single-line": false}, [
             m("colgroup", {},
               m("col", {style: {width: "50%"}}),
@@ -134,22 +134,22 @@ export default function(
         class: "h100",
         style: {
           display: "grid",
-          "grid-template-columns": "1fr 1fr",
-          "grid-template-rows": "auto 1fr",
-          "grid-column-gap": ".5em",
+          gridTemplateColumns: "1fr 1fr",
+          gridTemplateRows: "auto 1fr",
+          gridColumnGap: ".5em",
         },
       }, [
         NInputGroup({style: {
-          "grid-column": "span 2",
+          gridColumn: "span 2",
           display: "grid",
-          "grid-template-columns": "1fr 10fr 1fr",
+          gridTemplateColumns: "1fr 10fr 1fr",
         }},
           NSelect({
             label: request.method,
             options: selectOptions,
             placeholder: "Method",
             disabled: loading_methods,
-            style: {width: "10%", "min-width": "18em"},
+            style: {width: "10%", minWidth: "18em"},
             on: {update: (method: string) => update_requestt({method})},
           }).el,
           NInput({
@@ -175,7 +175,7 @@ export default function(
             },
             {
               name: "Metadata",
-              style: {display: "flex", "flex-direction": "column", flex: 1},
+              style: {display: "flex", flexDirection: "column", flexGrow: "1"},
               elem: [
                 ParamsList({
                   value: request.metadata,

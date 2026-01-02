@@ -1,4 +1,4 @@
-import {m, DOMNode} from "../utils";
+import {m, DOMNode} from "../utils.ts";
 
 type NInputProps = {
   placeholder?: string,
@@ -12,11 +12,11 @@ export function NInput(props: NInputProps) {
   return m("input", {
     value: props.value,
     placeholder: props.placeholder,
-    oninput: (e: any) => props.on?.update(e.target.value),
+    oninput: (e: Event) => props.on?.update((e.target as HTMLInputElement).value),
   });
 }
 
-export function NInputGroup(props: Record<string, any>, ...children: DOMNode[]) {
+export function NInputGroup(props: {style: Partial<CSSStyleDeclaration>}, ...children: DOMNode[]) {
   return m("div", props, children);
 }
 
@@ -27,7 +27,9 @@ type NDropdownProps = {
     key: string,
     show?: boolean,
     icon?: HTMLElement,
-    props?: any,
+    on?: {
+      click?: () => void,
+    },
   }[],
   on: {select: (key: string) => void},
 };
@@ -38,7 +40,7 @@ export function NDropdown(props: NDropdownProps, children: HTMLElement[]) {
     onmouseover: () => {if (props.trigger !== "hover") return; open = !open;},
   }, [
     ...children,
-    m("div", {style: {display: open ? null : "none"}}, props.options.map(opt =>
+    m("div", {style: {display: open ? "block" : "none"}}, props.options.map(opt =>
       m("div", {
         onclick: () => {open = false; props.on.select(opt.key);},
       }, [
@@ -56,7 +58,7 @@ type NSelectProps<T> = {
   label?: string,
   options: SelectOption<T>[],
   placeholder?: string,
-  style?: any,
+  style?: Partial<CSSStyleDeclaration>,
   disabled?: boolean,
   on: {update: (value: T) => void},
 };
@@ -71,23 +73,23 @@ export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () 
 
   const el_placeholder = m("option", {
     value: "",
-    disabled: props.placeholder === undefined ? "" : undefined,
-    hidden: "",
-    selected: current === null ? "" : undefined,
+    disabled: props.placeholder === undefined,
+    hidden: true,
+    selected: current === null,
   }, props.placeholder ?? "");
   const el_opts = props.options.map(({label, value}, i) => m("option", {
-    value: i,
-    selected: i == current ? "" : undefined,
-    disabled: value === undefined ? "" : undefined,
+    value: String(i),
+    selected: i == current,
+    disabled: value === undefined,
   }, label));
 
   return {
     el: m("select", {
       style: props.style,
-      onchange: (e: InputEvent) => {
+      onchange: (e: Event) => {
         const i = parseInt((e.target! as HTMLSelectElement).value);
         const value = props.options[i].value;
-        if (current) {
+        if (current !== null) {
           el_opts[current].selected = false;
         }
         el_opts[i].selected = true;
@@ -112,7 +114,7 @@ type NButtonProps = {
   type?: "primary",
   disabled?: boolean,
   class?: string,
-  style?: any,
+  style?: Partial<CSSStyleDeclaration>,
   on: {click: () => void},
 };
 export function NButton(props: NButtonProps, ...children: DOMNode[]) {

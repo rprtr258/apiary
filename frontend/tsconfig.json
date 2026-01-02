@@ -1,25 +1,30 @@
 {
   "include": [
     "src/**/*",
-    "wailsjs/go/**/*.ts"
+    "wailsjs/go/**/*.ts",
+    "eslint.config.ts",
+    "vite.config.ts"
   ],
   "compilerOptions": {
-    // "baseUrl": ".",
-    // "paths": {
-    //   "@/*": ["./src/*"]
-    // }
     "target": "ESNext",
     "module": "ESNext",
-    "lib": ["ESNext", "DOM"],
-    "moduleResolution": "Node",
+    "moduleResolution": "node",
     "strict": true,
     "sourceMap": true,
     "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "noEmit": true,
+    "esModuleInterop": false,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
-    "noImplicitThis": true
+    "noImplicitThis": true,
+    "strictNullChecks": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "useDefineForClassFields": true,
+    "allowJs": false,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   }
 }

@@ -1,8 +1,8 @@
 import {EditorState} from "@codemirror/state";
 import {EditorView} from "@codemirror/view";
 import {PostgreSQL, sql} from "@codemirror/lang-sql";
-import {defaultEditorExtensions, defaultExtensions} from "./components/editor";
-import {m} from "./utils";
+import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
+import {m} from "./utils.ts";
 
 type Props = {
   class?: string,
@@ -10,7 +10,7 @@ type Props = {
   on: {
     update: (value: string) => void,
   },
-}
+};
 export default function(props: Props) {
   const el = m("div", {class: props.class});
   const editor = new EditorView({

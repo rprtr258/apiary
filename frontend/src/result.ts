@@ -5,7 +5,7 @@ export type Result<T> = ({
   kind: "err",
   value: string,
 }) & {
-  map: <U>(f: (value: T) => U) => Result<U>;
+  map: <U>(f: (value: T) => U) => Result<U>,
 };
 
 export function ok<T>(value: T): Result<T> {

@@ -1,7 +1,7 @@
-import {database} from '../../wailsjs/go/models';
-import {m} from "../utils";
-import {NIcon} from './dataview';
-import {DeleteOutline} from './icons';
+import {database} from "../../wailsjs/go/models.ts";
+import {m} from "../utils.ts";
+import {NIcon} from "./dataview.ts";
+import {DeleteOutline} from "./icons.ts";
 
 type Props = {
   value: database.KV[],
@@ -36,7 +36,7 @@ export default function(props: Props) {
       value: kv.key,
       oninput: (e: Event) => update_kv(id, 'key', (e.target as HTMLInputElement).value),
       onblur: () => unfocus_kv(id),
-      style: {...input_style, "grid-column": "1/2"},
+      style: {...input_style, gridColumn: "1/2"},
     }),
     m("input", {
       type: "text",
@@ -44,15 +44,15 @@ export default function(props: Props) {
       value: kv.value,
       oninput: (e: Event) => update_kv(id, 'value', (e.target as HTMLInputElement).value),
       onblur: () => unfocus_kv(id),
-      style: {...input_style, "grid-column": "2/3"},
+      style: {...input_style, gridColumn: "2/3"},
     }),
     m("button", {
       style: {
-        "grid-column": "3/4",
+        gridColumn: "3/4",
         padding: "4px 8px",
         border: "none",
-        "background-color": "oklch(0.5 0.1 27)",
-        "border-radius": "4px",
+        backgroundColor: "oklch(0.5 0.1 27)",
+        borderRadius: "4px",
         cursor: "pointer",
       },
       onclick: () => delete_kv(id),
@@ -75,7 +75,7 @@ export default function(props: Props) {
     value.push(kv);
     const el_row = new_el_row(id, kv);
     el_rows.push(el_row);
-    for (let el_child of el_row)
+    for (const el_child of el_row)
       el.insertBefore(el_child, el_empty[0]);
 
     if (k !== "") {
@@ -118,16 +118,16 @@ export default function(props: Props) {
   const el = m("div", {style: {
     padding: "4px 8px",
     "display": "grid",
-    "grid-template-columns": "48% 48% 4%",
-    "grid-column-gap": "2px",
-    "grid-row-gap": "3px",
+    gridTemplateColumns: "48% 48% 4%",
+    gridColumnGap: "2px",
+    gridRowGap: "3px",
   }}, [...el_rows, el_empty]);
 
   const delete_kv = (id: ID) => {
     const i = ids.findIndex(id2 => id2 === id);
     ids.splice(i, 1);
     value.splice(i, 1);
-    for (let el_child of el_rows[i])
+    for (const el_child of el_rows[i])
       el.removeChild(el_child);
     el_rows.splice(i, 1);
 

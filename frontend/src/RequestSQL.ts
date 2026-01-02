@@ -1,13 +1,13 @@
 import Split from "split-grid";
-import {database} from "../wailsjs/go/models";
-import {NEmpty, NIcon} from "./components/dataview";
-import {NButton, NInput, NInputGroup, NSelect} from "./components/input";
-import {NScrollbar} from "./components/layout";
-import {CheckSquareOutlined, ClockCircleOutlined, FieldNumberOutlined, ItalicOutlined, QuestionCircleOutlined} from "./components/icons";
-import EditorSQL from "./EditorSQL";
-import {get_request, last_history_entry} from "./store";
-import {Database, HistoryEntry} from "./api";
-import {m, Signal} from "./utils";
+import {database} from "../wailsjs/go/models.ts";
+import {NEmpty, NIcon} from "./components/dataview.ts";
+import {NButton, NInput, NInputGroup, NSelect} from "./components/input.ts";
+import {NScrollbar} from "./components/layout.ts";
+import {CheckSquareOutlined, ClockCircleOutlined, FieldNumberOutlined, ItalicOutlined, QuestionCircleOutlined} from "./components/icons.ts";
+import EditorSQL from "./EditorSQL.ts";
+import {get_request, last_history_entry} from "./store.ts";
+import {Database, HistoryEntry, RowValue} from "./api.ts";
+import {DOMNode, m, Signal} from "./utils.ts";
 
 type Request = database.SQLRequest;
 
@@ -18,11 +18,11 @@ function NSplit(left: HTMLElement, right: HTMLElement) {
     id: "split",
     style: {
       display: "grid",
-      // "grid-template-columns": "1fr 1fr",
-      // "grid-template-rows": "auto 1fr",
-      "grid-template-rows": "1fr 5px 3fr",
-      "grid-column-gap": ".5em",
-    },
+      // gridTemplateRows: "auto 1fr",
+      // gridTemplateColumns: "1fr 1fr",
+      gridTemplateRows: "1fr 5px 3fr",
+      gridColumnGap: ".5em",
+    } as Partial<CSSStyleDeclaration>,
   },
     left,
     el_line,
@@ -36,25 +36,26 @@ function NSplit(left: HTMLElement, right: HTMLElement) {
   return el;
 }
 
-function render(v: any) {
+function render(v: RowValue): DOMNode {
   switch (true) {
   case v === null:
     return m("span", {style: {color: "grey"}}, "(NULL)");
   case typeof v == "boolean":
     return v ? "true" : "false";
   case typeof v == "number":
-    return m("span", {style: {color: "#e84e40"}}, `${v}`);
+    return m("span", {style: {color: "#e84e40"}}, String(v));
   case typeof v == "string":
-    return `${v}`;
-  default:
     return v;
+  default:
+    alert(`unknown row value type: ${String(v)} : ${typeof v}`);
+    return String(v);
   }
 }
 function render_column(c: string, typ: string) {
   return m("div", {
     style: {
       display: "flex",
-      "justify-content": "center",
+      justifyContent: "center",
       gap: "0.5em",
     },
     title: typ,
@@ -75,20 +76,18 @@ function render_column(c: string, typ: string) {
 
 type DataTableProps = {
   columns: string[],
-  rows: any[][],
+  rows: RowValue[][],
   types: string[],
-}
-function DataTable(props: DataTableProps) {
-  const {columns, rows, types} = props;
-  const tableBorderStyle = {
-    "table-layout": "fixed",
+};
+function DataTable({columns, rows, types}: DataTableProps) {
+  const tableBorderStyle: Partial<CSSStyleDeclaration> = {
+    tableLayout: "fixed",
     border: "1px solid #888",
-    "border-collapse": "collapse",
+    borderCollapse: "collapse",
     padding: "3px 5px",
   };
   return m("div", {
-    "overflow-y": "scroll",
-    ...props,
+    style: {overflowY: "scroll"},
   }, [m("table", {style: tableBorderStyle}, [
     m("thead", {}, [
       m("tr", {}, columns.map((c, i) =>
@@ -117,12 +116,12 @@ export default function(
   el.append(NEmpty({
     description: "Loading request...",
     class: "h100",
-    style: {"justify-content": "center"},
+    style: {justifyContent: "center"},
   }));
   const el_response = NEmpty({
     description: "Run query or choose one from history.",
     // class: "h100",
-    style: {"justify-content": "center"},
+    style: {justifyContent: "center"},
   });
   const push_response = (response: database.SQLResponse | null) => {
     if (response === null) {return;}
@@ -131,9 +130,9 @@ export default function(
     el_response.replaceChildren(NScrollbar(
       DataTable({
         columns: response.columns,
-        rows: response.rows,
+        rows: response.rows as RowValue[][],
         types: response.types,
-      })
+      }),
     ));
   };
 
@@ -157,7 +156,7 @@ export default function(
         on: {update: (query: string) => update_request({query})},
         // class: "h100",
       });
-      if (!show_request) {
+      if (!show_request.value) {
         el_editor.style.display = "none";
       }
       const update_request = (patch: Partial<Request>): void => {
@@ -171,15 +170,15 @@ export default function(
           class: "h100",
           id: "gavno",
         },
-        show_request ? NInputGroup({
+        show_request.value ? NInputGroup({
           style: {
-            "grid-column": "span 2",
+            gridColumn: "span 2",
             display: "grid",
-            "grid-template-columns": "1fr 10fr 1fr",
+            gridTemplateColumns: "1fr 10fr 1fr",
           },
         },
           NSelect({
-            label: Database[request.database as keyof typeof Database],
+            label: Database[request.database],
             options: Object.keys(Database).map(db => ({label: Database[db as keyof typeof Database], value: db})),
             on: {update: (database: string) => update_request({database: database as Database})},
             // style: {width: "10%"},

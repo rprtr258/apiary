@@ -1,14 +1,14 @@
-import {database} from '../wailsjs/go/models';
-import {HistoryEntry, Method as Methods} from "./api";
-import {NInputGroup, NInput, NSelect, NButton} from "./components/input";
-import {NTabs} from "./components/layout";
-import {NTag, NTable, NEmpty} from "./components/dataview";
-import EditorJSON from "./components/EditorJSON";
-import ViewJSON from "./components/ViewJSON";
-import ParamsList from "./components/ParamsList";
-import {type get_request, last_history_entry} from "./store";
-import {DOMNode, m, Signal} from "./utils";
 import Split from "split-grid";
+import {database} from "../wailsjs/go/models.ts";
+import {HistoryEntry, Method as Methods} from "./api.ts";
+import {NInputGroup, NInput, NSelect, NButton} from "./components/input.ts";
+import {NTabs} from "./components/layout.ts";
+import {NTag, NTable, NEmpty} from "./components/dataview.ts";
+import EditorJSON from "./components/EditorJSON.ts";
+import ViewJSON from "./components/ViewJSON.ts";
+import ParamsList from "./components/ParamsList.ts";
+import {type get_request, last_history_entry} from "./store.ts";
+import {DOMNode, m, Signal} from "./utils.ts";
 
 type Request = database.HTTPRequest;
 
@@ -24,7 +24,7 @@ type Request = database.HTTPRequest;
 //   return "text";
 // };
 
-function responseBadge(response: any): DOMNode {
+function responseBadge(response: database.HTTPResponse): DOMNode {
   const code = response.code;
   return NTag({
     type: (
@@ -41,7 +41,7 @@ function NSplit(left: HTMLElement, right: HTMLElement) {
   const el_line = m("hr", {style: {
     cursor: "col-resize",
     border: "none",
-    "background-color": "white",
+    backgroundColor: "white",
     width: "2px",
   }});
   const el = m("div", {
@@ -49,8 +49,8 @@ function NSplit(left: HTMLElement, right: HTMLElement) {
     id: "split-request-http",
     style: {
       display: "grid",
-      "grid-template-columns": "1fr 5px 1fr",
-      "grid-template-rows": "100%",
+      gridTemplateColumns: "1fr 5px 1fr",
+      gridTemplateRows: "100%",
     },
   },
     left,
@@ -80,13 +80,13 @@ export default function(
   el.append(NEmpty({
     description: "Loading request...",
     class: "h100",
-    style: {"justify-content": "center"},
+    style: {justifyContent: "center"},
   }));
 
   const el_response = NEmpty({
     description: "Send request or choose one from history.",
     class: "h100",
-    style: {"justify-content": "center"},
+    style: {justifyContent: "center"},
   });
   const el_view_response_body = ViewJSON("");
   const update_response = (response: database.HTTPResponse | null) => {
@@ -96,7 +96,6 @@ export default function(
       type: "card",
       size: "small",
       class: "h100",
-      style: {"overflow-y": "none"},
       tabs: [
         {
           name: responseBadge(response),
@@ -104,14 +103,14 @@ export default function(
         },
         {
           name: "Body",
-          style: {"overflow-y": "auto"},
+          style: {overflowY: "auto"},
           elem: el_view_response_body.el,
         },
         {
           name: "Headers",
           style: {
-            flex: 1,
-            "overflow-y": "auto",
+            flexGrow: "1",
+            overflowY: "auto",
           },
           elem: NTable({
             size: "small",
@@ -128,7 +127,7 @@ export default function(
             m("thead", m("tr", {}, m("th", {}, "NAME"), m("th", {}, "VALUE"))),
             ...response.headers.map(header => m("tr", {},
               m("td", {style: {border: "1px solid #444"}}, header.key),
-              m("td", {style: {border: "1px solid #444", "word-break": "break-word"}}, header.value),
+              m("td", {style: {border: "1px solid #444", wordBreak: "break-word"}}, header.value),
             )),
           ]),
         },
@@ -139,7 +138,7 @@ export default function(
 
   return {
     loaded(r: get_request) {
-      let request = r.request as Request;
+      const request = r.request as Request;
       const el_send = NButton({
         type: "primary",
         on: {click: () => {
@@ -162,15 +161,15 @@ export default function(
         class: "h100",
         style: {
           display: "grid",
-          "grid-template-columns": "1fr",
-          "grid-template-rows": "auto minmax(0, 1fr)",
-          "grid-column-gap": ".5em",
+          gridTemplateColumns: "1fr",
+          gridTemplateRows: "auto minmax(0, 1fr)",
+          gridColumnGap: ".5em",
         },
       }, [
-        show_request ? NInputGroup({style: {
-          "grid-column": "span 2",
+        show_request.value ? NInputGroup({style: {
+          gridColumn: "span 2",
           display: "grid",
-          "grid-template-columns": "1fr 10fr 1fr",
+          gridTemplateColumns: "1fr 10fr 1fr",
         }},
           NSelect({
             label: request.method,
@@ -203,8 +202,8 @@ export default function(
                   name: "Headers",
                   style: {
                     display: "flex",
-                    "flex-direction": "column",
-                    flex: 1,
+                    flexDirection: "column",
+                    flexGrow: "1",
                   },
                   elem: [ParamsList({
                     value: request.headers,
