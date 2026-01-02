@@ -1,8 +1,8 @@
-import m, {VnodeDOM} from "mithril";
 import {EditorState} from "@codemirror/state";
 import {EditorView} from "@codemirror/view";
 import {PostgreSQL, sql} from "@codemirror/lang-sql";
 import {defaultEditorExtensions, defaultExtensions} from "./components/editor";
+import {m} from "./utils";
 
 type Props = {
   class?: string,
@@ -11,49 +11,26 @@ type Props = {
     update: (value: string) => void,
   },
 }
+export default function(props: Props) {
+  const el = m("div", {class: props.class});
+  const editor = new EditorView({
+    parent: el,
+    state: EditorState.create({
+      doc: props.value ?? "",
+      extensions: [
+        ...defaultExtensions,
+        ...defaultEditorExtensions(props.on.update),
+        sql({
+          dialect: PostgreSQL,
+        }),
+      ],
+    }),
+  });
+  void editor;
 
-export default function(): m.Component<Props, any> {
-  let editor: EditorView | null = null;
-  return {
-    oncreate(vnode: VnodeDOM<Props, any>) {
-      const {value, on} = vnode.attrs;
-
-      if (editor) {
-        if (value !== editor.state.doc.toString()) {
-          editor.dispatch({
-            changes: {
-              from: 0,
-              to: editor.state.doc.length,
-              insert: value,
-            },
-          });
-        }
-
-        return;
-      }
-
-      const state = EditorState.create({
-        doc: value ?? "",
-        extensions: [
-          ...defaultExtensions,
-          ...defaultEditorExtensions(on.update),
-          sql({
-            dialect: PostgreSQL,
-          }),
-        ],
-      });
-
-      editor = new EditorView({
-        parent: vnode.dom,
-        state: state,
-      });
-     },
-    onremove() {
-      editor?.destroy();
-    },
-    view(vnode: VnodeDOM<Props, any>) {
-      const props = vnode.attrs;
-      return m("div", {class: props.class});
-    },
-  };
+  // TODO: unmount method
+    // onremove() {
+    //   editor?.destroy();
+    // },
+  return el;
 }

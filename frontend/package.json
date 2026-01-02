@@ -13,10 +13,9 @@
     "@codemirror/theme-one-dark": "^6.1.2",
     "codemirror": "^6.0.1",
     "golden-layout": "^2.6.0",
-    "mithril": "^2.0.4"
+    "split-grid": "^1.0.11"
   },
   "devDependencies": {
-    "@types/mithril": "^2.0.8",
     "typescript": "^4.4.3",
     "vite": "^6.0.11"
   }

@@ -7,7 +7,7 @@ export function Create(arg1:string,arg2:database.Kind):Promise<app.ResponseNewRe
 
 export function Delete(arg1:string):Promise<void>;
 
-export function Duplicate(arg1:string):Promise<void>;
+export function Duplicate(arg1:string):Promise<app.ResponseNewRequest>;
 
 export function GRPCMethods(arg1:string):Promise<Array<app.grpcServiceMethods>>;
 
@@ -22,6 +22,8 @@ export function JQ(arg1:string,arg2:string):Promise<Array<string>>;
 export function List():Promise<app.ListResponse>;
 
 export function Perform(arg1:string):Promise<Record<string, any>>;
+
+export function PerformSQLSource(arg1:string,arg2:string):Promise<Record<string, any>>;
 
 export function Read(arg1:string):Promise<database.Request>;
 

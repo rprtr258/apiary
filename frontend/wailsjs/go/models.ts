@@ -47,7 +47,7 @@ export namespace app {
 	    }
 	}
 	export class Tree {
-	    IDs: string[];
+	    IDs: Record<string, string>;
 	    Dirs: Record<string, Tree>;
 	
 	    static createFrom(source: any = {}) {
@@ -143,12 +143,13 @@ export namespace app {
 export namespace database {
 	
 	export enum Kind {
-	    HTTP = "http",
-	    SQL = "sql",
-	    JQ = "jq",
 	    MD = "md",
 	    REDIS = "redis",
 	    GRPC = "grpc",
+	    SQLSource = "sql-source",
+	    HTTP = "http",
+	    SQL = "sql",
+	    JQ = "jq",
 	}
 	export enum Database {
 	    POSTGRES = "postgres",
@@ -316,44 +317,6 @@ export namespace database {
 		    return a;
 		}
 	}
-	export class HistoryEntry {
-	    // Go type: time
-	    sent_at: any;
-	    // Go type: time
-	    received_at: any;
-	    request: any;
-	    response: any;
-	
-	    static createFrom(source: any = {}) {
-	        return new HistoryEntry(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sent_at = this.convertValues(source["sent_at"], null);
-	        this.received_at = this.convertValues(source["received_at"], null);
-	        this.request = source["request"];
-	        this.response = source["response"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
 	export class JQRequest {
 	    query: string;
 	    json: string;
@@ -431,20 +394,22 @@ export namespace database {
 	        this.response = source["response"];
 	    }
 	}
-	export class Request {
-	    ID: string;
-	    Data: any;
-	    History: HistoryEntry[];
+	export class Response {
+	    // Go type: time
+	    sent_at: any;
+	    // Go type: time
+	    received_at: any;
+	    response: any;
 	
 	    static createFrom(source: any = {}) {
-	        return new Request(source);
+	        return new Response(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ID = source["ID"];
-	        this.Data = source["Data"];
-	        this.History = this.convertValues(source["History"], HistoryEntry);
+	        this.sent_at = this.convertValues(source["sent_at"], null);
+	        this.received_at = this.convertValues(source["received_at"], null);
+	        this.response = source["response"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -465,6 +430,43 @@ export namespace database {
 		    return a;
 		}
 	}
+	export class Request {
+	    ID: string;
+	    Path: string;
+	    Data: any;
+	    Responses: Response[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Request(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ID = source["ID"];
+	        this.Path = source["Path"];
+	        this.Data = source["Data"];
+	        this.Responses = this.convertValues(source["Responses"], Response);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class SQLRequest {
 	    dsn: string;
 	    database: Database;
@@ -495,6 +497,20 @@ export namespace database {
 	        this.columns = source["columns"];
 	        this.types = source["types"];
 	        this.rows = source["rows"];
+	    }
+	}
+	export class SQLSourceRequest {
+	    database: Database;
+	    dsn: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SQLSourceRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.database = source["database"];
+	        this.dsn = source["dsn"];
 	    }
 	}
 

@@ -1,149 +1,140 @@
-import m, {ChildArrayOrPrimitive, Vnode} from "mithril";
+import {DOMNode, m} from "../utils";
+
+export function NScrollbar(...children: HTMLElement[]) {
+  return m("div", {
+    style: {
+      "overflow-y": "scroll",
+    },
+  }, children);
+}
 
 type NTabsProps = {
   type: "card" | "line",
-  value: string,
   size: "small",
   class?: string,
   style?: any,
-  on: {
-    update: (id: string) => void,
-  },
   tabs: {
-    id: string,
-    name: ChildArrayOrPrimitive | Vnode<any, any>,
+    name: DOMNode,
     style?: any,
     class?: string,
     disabled?: boolean,
-    elem?: ChildArrayOrPrimitive | Vnode<any, any>,
+    elem?: DOMNode,
   }[],
 };
-export function NTabs() {
-  return {
-    view(vnode: Vnode<NTabsProps, any>) {
-      const props = vnode.attrs;
-      const tabs = props.tabs;
-      const value = tabs.findIndex(v => v.id == props.value);
-      if (value === -1) {
-        throw new Error(`Tab ${props.value} not found in ${tabs.map(v => v.id)}`);
-      }
-
-      let tab = tabs[value];
-      let elem = tab.elem ?? null;
-
-      return m("div", {
-        class: props.class,
-        style: props.style,
-      },
-        m("div", {class: "h100", style: tabStyles.container}, [
-          m("div", {style: tabStyles.header}, tabs.map((v, j) =>
-            m("button", {
-              key: j,
-              disabled: v.disabled,
-              style:
-                j == value ?
-                tabStyles.tab.active :
-                v.disabled ?
-                tabStyles.tab.disabled :
-                tabStyles.tab.inactive,
-              onclick: () => {
-                if (v.disabled || value == j) {
-                  return;
-                }
-                props.on.update(tabs[j].id);
-              },
-            }, v.name)
-          )),
-          m("div", {
-            style: {
-              height: "100%",
-              ...tabStyles.content,
-              ...tab.style,
-            },
-            class: tab.class,
-          }, elem)])
-      );
+export function NTabs(props: NTabsProps): HTMLElement {
+  const tab_buttons = props.tabs.map((tab, i) => m("button", {
+    disabled: tab.disabled || undefined,
+    style: tab.disabled ? tabStyles.tab.disabled : tabStyles.tab.inactive,
+    onclick: () => update(i),
+  }, tab.name));
+  const tabs = props.tabs.map(tab => m("div", {
+    style: {
+      height: "100%",
+      ...tabStyles.content,
+      ...tab.style,
+      display: "none",
     },
+    class: tab.class,
+  }, tab.elem ?? null));
+
+  let tab_idx = -1;
+  const update = (new_tab_idx: number): void => {
+    if (tab_idx == new_tab_idx) {
+      return;
+    }
+    if (props.tabs[new_tab_idx].disabled) {
+      return;
+    }
+    if (new_tab_idx < 0 || new_tab_idx >= props.tabs.length) {
+      throw new Error(`Tab ${new_tab_idx} not found in ${props.tabs}`);
+    }
+    if (tab_idx >= 0) {
+      Object.assign(tab_buttons[tab_idx].style, tabStyles.tab.inactive); // TODO: classes
+      tabs[tab_idx].style.display = "none";
+    }
+    Object.assign(tab_buttons[new_tab_idx].style, tabStyles.tab.active); // TODO: classes
+    tabs[new_tab_idx].style.display = props.tabs[new_tab_idx].style?.display ?? "block";
+    tab_idx = new_tab_idx;
   };
+  update(props.tabs.findIndex(v => !v.disabled)); // init
+
+  return m("div", {
+    class: props.class,
+    style: props.style,
+  },
+    m("div", {class: "h100", style: tabStyles.container},
+      m("div", {style: tabStyles.header}, tab_buttons),
+      tabs,
+    ),
+  );
 }
+
 const tabStyles = (() => {
   const base = {
-      padding: "4px 5px",
-      cursor: "pointer",
-      border: "1px solid transparent",
-      borderBottom: "none",
-      borderRadius: "3px 3px 0 0",
-      position: "relative",
+      // padding: "4px 5px",
+      // cursor: "pointer",
+      // border: "1px solid transparent",
+      // borderBottom: "none",
+      // borderRadius: "3px 3px 0 0",
+      // position: "relative",
   };
 
   return {
     container: {
-      fontFamily: "Arial, sans-serif",
-      display: "grid",
-      "grid-template-rows": "1.8em 1fr",
+      // fontFamily: "Arial, sans-serif",
+      // display: "grid",
+      // "grid-template-rows": "1.8em 1fr",
     },
     header: {
-      display: "flex",
-      borderBottom: "1px solid #303030",
+      // display: "flex",
+      // borderBottom: "1px solid #303030",
     },
     tab: {
       disabled: {
         ...base,
-        background: "gray",
-        fontWeight: "italic",
+        // background: "gray",
+        // fontWeight: "italic",
       },
       inactive: {
         ...base,
-        background: "#7068ab",
-        borderColor: "#454566",
+        // background: "#7068ab",
+        // borderColor: "#454566",
       },
       active: {
         ...base,
-        background: "#ddd3f5",
-        borderColor: "#656596",
-        borderBottom: "3px solid white",
-        fontWeight: "bold",
+        // background: "#ddd3f5",
+        // borderColor: "#656596",
+        // borderBottom: "3px solid white",
+        // fontWeight: "bold",
       },
     },
     content: {
-      padding: "2px",
+      // padding: "2px",
     },
   };
 })();
 
-export const NSpace = {
-  view(vnode: Vnode<any, any>) {
-    return m("div", vnode.attrs, vnode.children);
-  },
+export function NSpace(props: Record<string, any>, children: DOMNode[]) {
+  return m("div", props, children);
 };
 
-function Overlay() {
-  let dom : HTMLDivElement;
-  let children : m.ChildArrayOrPrimitive | undefined;
-
-  const OverlayContainer = {
-    view() {return children},
-  }
-
-  return {
-    oncreate(vnode: Vnode<any, any>) {
-      children = vnode.children;
-      // Append a container to the end of body
-      dom = document.createElement("div");
-      dom.className = "overlay";
-      // dom.style = "place-self: center; position: fixed; z-index: 100;";
-      document.body.appendChild(dom);
-      m.mount(dom, OverlayContainer);
+function Overlay(props: {on: {close: () => void}}, child: HTMLElement) {
+  const dom = m("div", {
+    class: "overlay",
+    style: {
+      "place-self": "center",
+      position: "fixed",
+      "z-index": 100,
+      height: "100%",
+      width: "100%",
+      "align-content": "center",
+      "justify-items": "center",
+      "backdrop-filter": "blur(3px)",
     },
-    onremove() {
-      m.mount(dom, null); // triggers modal children removal hooks
-      document.body.removeChild(dom);
-    },
-    onbeforeupdate(vnode: Vnode<any, any>) {
-      children = vnode.children;
-    },
-    view() {},
-  };
+    onclick: props.on.close,
+  }, child);
+  document.body.appendChild(dom);
+  return dom;
 };
 type NModalProps = {
   show: boolean,
@@ -159,93 +150,89 @@ type NModalProps = {
     close: () => void, // TODO: call on close/outer click
   },
 };
-export const NModal = {
-  view(vnode: Vnode<NModalProps, any>) {
-    const props = vnode.attrs;
-    // return m("dialog", vnode.children);
-    return m(Modal, {
-      show: props.show,
-      title: props.title,
-      content: vnode.children,
-      buttons: [
-        {id: 'positive', text: props.text.positive},
-        {id: 'negative', text: props.text.negative},
-      ],
-      on: {close: (id: "positive" | "negative") => {
-        switch (id) {
-          case "positive":
-            props.on.positive_click();
-            break;
-          case "negative":
-            props.on.negative_click();
-            break;
-          default:
-            // TODO: never called, see not on on.close prop
-            props.on.close();
-            break;
-        }
-      }},
-    });
-  },
+export function NModal(props: NModalProps, ...children: DOMNode[]) {
+  // return m("dialog", vnode.children);
+  return Modal({
+    show: props.show,
+    title: props.title,
+    content: children,
+    buttons: [
+      {id: 'positive', text: props.text.positive},
+      {id: 'negative', text: props.text.negative},
+    ],
+    on: {close: (id: "positive" | "negative") => {
+      switch (id) {
+        case "positive":
+          props.on.positive_click();
+          break;
+        case "negative":
+          props.on.negative_click();
+          break;
+        default:
+          // TODO: never called, see not on on.close prop
+          props.on.close();
+          break;
+      }
+    }},
+  });
 };
 type ModalProps = {
   show: boolean,
-  title: m.Children,
-  content: m.Children,
+  title: DOMNode,
+  content: DOMNode[],
   buttons: {id: string, text: string}[],
   on: {
     close(id: string): void,
   },
 };
-export function Modal() {
-  let clickedId: string;
-  return {
-    view({attrs: {show, title, content, buttons, on: {close: onClose}}}: Vnode<ModalProps, any>) {
-      if (!show || clickedId != null) {
-        // We need to allow the Overlay component execute its
-        // exit animation. Because it is a child of this component,
-        // it will not fire when this component is removed.
-        // Instead, we need to remove it first before this component
-        // goes away.
-        // When a button is clicked, we omit the Overlay component
-        // from this Modal component's next view render, which will
-        // trigger Overlay's onbeforeremove hook.
-        return null
-      }
-      return m(Overlay,
-        {
-          onremove() {
-            // Wait for the overlay's removal animation to complete.
-            // Then we fire our parent's callback, which will
-            // presumably remove this Modal component.
-            Promise.resolve().then(() => {
-              onClose(clickedId);
-              m.redraw();
-            })
-          },
-        },
-        m('.modal',
-          m('h3', title),
-          m('.modal-content', content),
-          m('.modal-buttons',
-            buttons.map(b =>
-              m('button', {
-                type: 'button',
-                disabled: clickedId != null,
-                onclick() {
-                  clickedId = b.id
-                }
-              }, b.text)
-            )
-          ),
-        ),
-      );
-    },
-  };
-}
+export function Modal(
+  {show, title, content, buttons, on}: ModalProps,
+  children: DOMNode[] = [],
+) {
+  let clickedId: string | null = null;
 
-export const NScrollbar = {
-  view(vnode: Vnode<{trigger: "none"}, any>) {
-    return m("div", vnode.children);
+  if (!show || clickedId != null) {
+    // We need to allow the Overlay component execute its
+    // exit animation. Because it is a child of this component,
+    // it will not fire when this component is removed.
+    // Instead, we need to remove it first before this component
+    // goes away.
+    // When a button is clicked, we omit the Overlay component
+    // from this Modal component's next view render, which will
+    // trigger Overlay's onbeforeremove hook.
+    return null
   }
+  return Overlay(
+  {
+    on: {close: () => {
+      clickedId && on.close(clickedId);
+      // m.redraw();
+    }},
+  },
+    m("div", {
+      class: "modal",
+      style: {
+        "background-color": "#646464",
+        width: "20%",
+        height: "20%",
+        padding: "1em",
+      },
+    },
+      m("h3", {}, title),
+      m("div", {class: "modal-content"}, content),
+      m("div",
+        {class: "modal-buttons"},
+        buttons.map(b =>
+          m("button", {
+            type: "button",
+            disabled: clickedId != null,
+            onclick() {
+              clickedId = b.id
+            }
+          }, b.text)
+        ),
+      ),
+      ...children,
+    ),
+  );
 }

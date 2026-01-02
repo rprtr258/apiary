@@ -1,24 +1,23 @@
-import m, {Vnode} from "mithril";
+import {m, DOMNode} from "../utils";
 
 type NInputProps = {
-  value: string,
-  on: {update: (value: string) => void},
+  placeholder?: string,
+  status?: "success" | "error", // TODO: highlight with red, method to update
+  value?: string,
+  on?: {
+    update: (value: string) => void,
+  },
 };
-export const NInput = {
-  view(vnode: Vnode<any, any>) {
-    const props = vnode.attrs as NInputProps;
-    return m("input", {
-      value: props.value,
-      oninput: (e: any) => props.on.update(e.target.value),
-    });
-  }
+export function NInput(props: NInputProps) {
+  return m("input", {
+    value: props.value,
+    placeholder: props.placeholder,
+    oninput: (e: any) => props.on?.update(e.target.value),
+  });
 }
 
-export const NInputGroup = {
-  view(vnode: Vnode<any, any>) {
-    const props = vnode.attrs;
-    return m("div", props, vnode.children);
-  }
+export function NInputGroup(props: Record<string, any>, ...children: DOMNode[]) {
+  return m("div", props, children);
 }
 
 type NDropdownProps = {
@@ -27,103 +26,99 @@ type NDropdownProps = {
     label: string,
     key: string,
     show?: boolean,
-    icon?: () => any,
+    icon?: HTMLElement,
     props?: any,
   }[],
-  on: {select: (key: string | number) => void},
+  on: {select: (key: string) => void},
 };
-export function NDropdown() {
+export function NDropdown(props: NDropdownProps, children: HTMLElement[]) {
   let open = false;
-  return {
-    view(vnode: Vnode<NDropdownProps, any>) {
-      const props = vnode.attrs;
-      return m("span", {
-        onclick:     () => {if (props.trigger !== "click") return; open = !open;},
-        onmouseover: () => {if (props.trigger !== "hover") return; open = !open;},
+  return m("span", {
+    onclick:     () => {if (props.trigger !== "click") return; open = !open;},
+    onmouseover: () => {if (props.trigger !== "hover") return; open = !open;},
+  }, [
+    ...children,
+    m("div", {style: {display: open ? null : "none"}}, props.options.map(opt =>
+      m("div", {
+        onclick: () => {open = false; props.on.select(opt.key);},
       }, [
-        vnode.children,
-        m("div", {style: {display: open ? null : "none"}}, props.options.map(opt =>
-          m("div", {
-            onclick: () => {open = false; props.on.select(opt.key);},
-          }, [
-            (opt.icon ?? (() => null))(),
-            opt.label,
-          ]))),
-      ]);
-    },
-  };
+        ...(opt.icon ? [opt.icon] : []),
+        opt.label,
+      ]))),
+  ]);
 };
 
-// TODO: make generic over value type
-type SelectOption = {
+type SelectOption<T> = {
   label: string,
-  value: string,
+  value?: T,
 };
-type NSelectProps = {
-  value: string,
-  options: (SelectOption | {
-    type: "group",
-    label: string, // TODO: generic
-    key: string,
-    children: SelectOption[],
-  })[],
+type NSelectProps<T> = {
+  label?: string,
+  options: SelectOption<T>[],
   placeholder?: string,
-  clearable?: true,
   style?: any,
-  loading?: boolean,
-  remote?: true,
-  on: {update: (value: string) => void},
+  disabled?: boolean,
+  on: {update: (value: T) => void},
 };
-export function NSelect() {
-  let open = false;
-  let current : number | null = null;
-  return {
-    view(vnode: Vnode<NSelectProps, any>) {
-      const props = vnode.attrs;
-      // TODO: use groups
-      const options = props.options.filter(v => !("type" in v)).map(v => v as SelectOption);
-
-      const idx = options.findIndex(v => v.value == props.value);
-      if (idx != -1) {
-        current = idx;
-      }
-
-      return m("select", {
-        style: props.style,
-        onchange: (e: InputEvent) => {
-          const i = parseInt((e.target! as HTMLSelectElement).value);
-          const value = options[i].value;
-          current = i;
-          props.on.update(value);
-        },
-      }, [m("option", {
-        value: "",
-        disabled: true,
-        selected: current === null,
-        hidden: true,
-      }, props.placeholder)].concat(props.options.map(({label}, i) =>
-        m("option", {
-          value: i,
-          selected: i == current,
-        }, label)
-      )));
+export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () => void} {
+  let current: number | null = props.options.findIndex(opt => opt.label == props.label);
+  if (current == -1) {
+    if (props.placeholder === undefined) {
+      throw new Error(`Option ${props.label} not found in ${JSON.stringify(props.options)}`);
     }
+    current = null;
+  }
+
+  const el_placeholder = m("option", {
+    value: "",
+    disabled: props.placeholder === undefined ? "" : undefined,
+    hidden: "",
+    selected: current === null ? "" : undefined,
+  }, props.placeholder ?? "");
+  const el_opts = props.options.map(({label, value}, i) => m("option", {
+    value: i,
+    selected: i == current ? "" : undefined,
+    disabled: value === undefined ? "" : undefined,
+  }, label));
+
+  return {
+    el: m("select", {
+      style: props.style,
+      onchange: (e: InputEvent) => {
+        const i = parseInt((e.target! as HTMLSelectElement).value);
+        const value = props.options[i].value;
+        if (current) {
+          el_opts[current].selected = false;
+        }
+        el_opts[i].selected = true;
+        current = i;
+        props.on.update(value!);
+      },
+    },
+      el_placeholder,
+      ...el_opts,
+    ),
+    reset() {
+      if (current === null) {return;}
+
+      el_opts[current].selected = false;
+      el_placeholder.selected = true;
+      current = null;
+    },
   };
 }
 
-export const NButton = {
-  view(vnode: Vnode<{
-    type?: "primary",
-    disabled?: boolean,
-    class?: string,
-    style?: any,
-    on: {click: () => void},
-  }, any>) {
-    const props = vnode.attrs;
-    return m("button", {
-      class: props.class,
-      style: props.style,
-      onclick: props.on.click,
-    }, vnode.children);
-  },
+type NButtonProps = {
+  type?: "primary",
+  disabled?: boolean,
+  class?: string,
+  style?: any,
+  on: {click: () => void},
+};
+export function NButton(props: NButtonProps, ...children: DOMNode[]) {
+  return m("button", {
+    class: props.class,
+    style: props.style,
+    onclick: props.on.click,
+  }, children);
 };
