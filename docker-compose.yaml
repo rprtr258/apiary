@@ -9,7 +9,7 @@ services:
     image: redis:alpine
     ports: ["6379:6379"]
     volumes:
-      - ./tests/dump.redis:/data/init-data.redis
+      - ./testdata/dump.redis:/data/init-data.redis
     command: >
       sh -c "redis-server --save '' --appendonly no &
              sleep 2 &&
@@ -24,7 +24,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
     volumes:
-      - ./tests:/docker-entrypoint-initdb.d
+      - ./testdata/:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 5s
