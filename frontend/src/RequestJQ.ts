@@ -11,7 +11,7 @@ type Request = {kind: database.Kind.JQ} & database.JQRequest;
 
 export default function(
   el: HTMLElement,
-  show_request: Signal<boolean>, // TODO: remove, show by default
+  show_request: Signal<boolean>,
   on: {
     update: (patch: Partial<Request>) => Promise<void>,
     send: () => Promise<void>,
@@ -19,7 +19,6 @@ export default function(
 ): {
   loaded(r: get_request): void,
   push_history_entry(he: HistoryEntry): void, // show last history entry
-  // TODO: hide/show request
 } {
   el.append(NEmpty({
     description: "Loading request...",
@@ -33,7 +32,7 @@ export default function(
     on: {click: on.send},
     disabled: true,
   }, "Send");
-  const update_requestt = (patch: Partial<database.JQRequest>): void => {
+  const update_request = (patch: Partial<database.JQRequest>): void => {
     el_send.disabled = true;
     on.update(patch).then(() => {
       el_send.disabled = false;
@@ -63,36 +62,51 @@ export default function(
       const request = r.request as Request;
       update_response((last_history_entry(r)?.response as database.JQResponse | undefined) ?? null);
 
-      el.replaceChildren(m("div", {
+      const el_input_group = NInputGroup({style: {
+        "display": "grid",
+        gridTemplateColumns: "11fr 1fr",
+        gridColumn: "span 2",
+      }}, [
+        NInput({
+          placeholder: "JQ query",
+          status: jqerror !== null ? "error" : "success",
+          value: request.query,
+          on: {update: (query: string) => update_request({query})},
+        }),
+        // TODO: autosend
+        el_send,
+      ]);
+
+      const el_editor_json = EditorJSON({
         class: "h100",
-        style: {
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "auto minmax(0, 1fr)",
-          gridColumnGap: ".5em",
-        },
-      },
-        show_request.value ? [NInputGroup({style: {
-          "display": "grid",
-          gridTemplateColumns: "11fr 1fr",
-          gridColumn: "span 2",
-        }}, [
-          NInput({
-            placeholder: "JQ query",
-            status: jqerror !== null ? "error" : "success",
-            value: request.query,
-            on: {update: (query: string) => update_requestt({query})},
-          }),
-          // TODO: autosend
-          el_send,
-        ]),
-        EditorJSON({
-          class: "h100",
-          value: request.json,
-          on: {update: (json: string) => update_requestt({json})},
-        })] : null,
-        el_response,
-      ));
+        value: request.json,
+        on: {update: (json: string) => update_request({json})},
+      });
+
+      const updateLayout = () => {
+        if (show_request.value) {
+          el.replaceChildren(m("div", {
+            class: "h100",
+            style: {
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gridTemplateRows: "auto minmax(0, 1fr)",
+              gridColumnGap: ".5em",
+            },
+          }, el_input_group, el_editor_json, el_response));
+        } else {
+          el.replaceChildren(m("div", {
+            class: "h100",
+            style: {
+              display: "grid",
+              gridTemplateColumns: "1fr",
+              gridTemplateRows: "1fr",
+            },
+          }, el_response));
+        }
+      };
+
+      show_request.sub(() => updateLayout());
     },
     push_history_entry(he) {
       update_response(he.response as database.JQResponse);

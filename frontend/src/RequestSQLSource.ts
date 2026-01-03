@@ -5,9 +5,7 @@ import {NButton, NInput, NInputGroup, NSelect} from "./components/input.ts";
 import EditorSQL from "./EditorSQL.ts";
 import {get_request, use_sql_source} from "./store.ts";
 import {Database, RowValue} from "./api.ts";
-import {DOMNode, m} from "./utils.ts";
-
-type Request = {kind: database.Kind.SQLSource} & database.SQLSourceRequest;
+import {DOMNode, m, Signal} from "./utils.ts";
 
 function NSplit(children: DOMNode[]) {
   return m("div", {
@@ -63,10 +61,10 @@ function DataTable({columns, data}: DataTableProps) {
 
 export default function(
   el: HTMLElement,
-  show_request: () => boolean,
+  show_request: Signal<boolean>,
 ): {loaded: (r: get_request) => void} {
   let query = "";
-  return {loaded: (r: get_request) => {
+  return {loaded: (r: get_request): void => {
     const request = use_sql_source(r.request.id);
 
     const update_request = (patch: Partial<database.SQLSourceRequest>): void => {
@@ -130,12 +128,14 @@ export default function(
             .map((v, i) => [resp.columns[i], v])));
     })();
 
-    if (r.request === null)
-      return NEmpty({
+    if (r.request === null) {
+      el.replaceChildren(NEmpty({
         description: "Loading request...",
         class: "h100",
         style: {justifyContent: "center"},
-      });
+      }));
+      return;
+    }
     const select = NSelect({
       label: request.request!.database,
       options: Object.keys(Database).map(db => ({label: Database[db as keyof typeof Database], value: db})),
@@ -143,54 +143,66 @@ export default function(
       // style: {width: "10%"},
     });
 
-    return m("div", {
-        class: "h100",
-        id: "gavno",
+    const el_input_group = NInputGroup({
+      style: {
+        gridColumn: "span 2",
+        display: "grid",
+        gridTemplateColumns: "1fr 10fr 1fr",
       },
-      [
-        ...(show_request() ? [NInputGroup({
+    }, [
+      select.el,
+      NInput({
+        placeholder: "DSN",
+        value: request.request?.dsn,
+        on: {update: (newValue: string) => update_request({dsn: newValue})},
+      }),
+      NButton({
+        type: "primary",
+        on: {click: () => request.send(query)},
+        disabled: request.is_loading,
+      }, ["Run"]),
+    ]);
+
+    const el_editor_sql = EditorSQL({
+      value: query,
+      on: {update: (q: string) => query = q},
+      class: "h100",
+    });
+
+    const el_response_data = request.response === null ?
+      NEmpty({
+        description: "Run query or choose one from history.",
+        class: "h100",
+        style: {justifyContent: "center"},
+      }) :
+      NScrollbar(
+        DataTable({
+          columns,
+          data,
+          "single-line": false,
+          size: "small",
+          resizable: true,
+          "scroll-x": request.response.columns.length * 200,
+        }),
+      );
+
+    const updateLayout = () => {
+      if (show_request.value) {
+        el.replaceChildren(m("div", {
+          class: "h100",
+          id: "gavno",
+        }, el_input_group, NSplit([el_editor_sql, el_response_data])));
+      } else {
+        el.replaceChildren(m("div", {
+          class: "h100",
           style: {
-            gridColumn: "span 2",
             display: "grid",
-            gridTemplateColumns: "1fr 10fr 1fr",
+            gridTemplateColumns: "1fr",
+            gridTemplateRows: "1fr",
           },
-        }, [
-          select.el,
-          NInput({
-            placeholder: "DSN",
-            value: request.request?.dsn,
-            on: {update: (newValue: string) => update_request({dsn: newValue})},
-          }),
-          NButton({
-            type: "primary",
-            on: {click: () => request.send(query)},
-            disabled: request.is_loading,
-          }, ["Run"]),
-        ])] : []),
-        NSplit([
-          ...(show_request() ? [EditorSQL({
-            value: query,
-            on: {update: (q: string) => query = q},
-            class: "h100",
-          })] : []),
-          request.response === null ?
-          NEmpty({
-            description: "Run query or choose one from history.",
-            class: "h100",
-            style: {justifyContent: "center"},
-          }) :
-          NScrollbar(
-            DataTable({
-              columns,
-              data,
-              "single-line": false,
-              size: "small",
-              resizable: true,
-              "scroll-x": request.response.columns.length * 200,
-            }),
-          ),
-        ]),
-      ],
-    );
+        }, el_response_data));
+      }
+    };
+    show_request.sub(() => updateLayout());
   }};
 };

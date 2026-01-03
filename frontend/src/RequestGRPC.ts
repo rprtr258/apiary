@@ -3,10 +3,9 @@ import {NInput, NButton, NInputGroup, NSelect} from "./components/input.ts";
 import {NTabs} from "./components/layout.ts";
 import {NTag, NTable, NEmpty} from "./components/dataview.ts";
 import {GRPCCodes, HistoryEntry} from "./api.ts";
-import EditorJSON from "./components/EditorJSON.ts";
 import ViewJSON from "./components/ViewJSON.ts";
 import ParamsList from "./components/ParamsList.ts";
-import {get_request, last_history_entry, useNotification} from "./store.ts";
+import {get_request, last_history_entry} from "./store.ts";
 import {m, Signal} from "./utils.ts";
 
 type Request = {kind: database.Kind.GRPC} & database.GRPCRequest;
@@ -120,7 +119,7 @@ export default function(
       }))]);
 
       const request = r.request as Request;
-      const update_requestt = (patch: Partial<database.GRPCRequest>): void => {
+      const update_request = (patch: Partial<database.GRPCRequest>): void => {
         loading_methods = true;
         el_send.disabled = true;
         on.update(patch).then(() => {
@@ -130,75 +129,78 @@ export default function(
       };
       update_response((last_history_entry(r)?.response as database.GRPCResponse | undefined) ?? null);
 
-      el.replaceChildren(m("div", {
-        class: "h100",
-        style: {
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "auto 1fr",
-          gridColumnGap: ".5em",
-        },
-      }, [
-        NInputGroup({style: {
-          gridColumn: "span 2",
-          display: "grid",
-          gridTemplateColumns: "1fr 10fr 1fr",
-        }},
-          NSelect({
-            label: request.method,
-            options: selectOptions,
-            placeholder: "Method",
-            disabled: loading_methods,
-            style: {width: "10%", minWidth: "18em"},
-            on: {update: (method: string) => update_requestt({method})},
-          }).el,
-          NInput({
-            placeholder: "Addr",
-            value: request.target,
-            on: {update: (target: string) => update_requestt({target})},
-          }),
-          el_send,
-        ),
-        NTabs({
-          type: "line",
-          size: "small",
-          class: "h100",
-          tabs: [
-            {
-              name: "Request",
-              class: "h100",
-              // elem: EditorJSON({
-              //   class: "h100",
-              //   value: request.payload,
-              //   on: {update: (payload: string) => update_request({payload})},
-              // }),
-            },
-            {
-              name: "Metadata",
-              style: {display: "flex", flexDirection: "column", flexGrow: "1"},
-              elem: [
-                ParamsList({
-                  value: request.metadata,
-                  on: {update: (value: database.KV[]) => update_requestt({metadata: value})},
-                }),
-                // ...request.headers.map((obj, i) => m("div", {
-                //   style: {display: "flex", "flex-direction": "row"},
-                // }, [
-                //   NInput({type: "text", value: obj.key,   style: {flex: 1}}),
-                //   NInput({type: "text", value: obj.value, style: {flex: 1}}),
-                // ])),
-                // m("div", {
-                //   style: {display: "flex", "flex-direction": "row"},
-                // }, [
-                //   NInput({type: "text", ref: "key",   value: pending.key,   style: {flex: 1}),
-                //   NInput({type: "text", ref: "value", value: pending.value, style: {flex: 1}),
-                // ]),
-              ],
-            },
-          ],
+      const el_input_group = NInputGroup({style: {
+        gridColumn: "span 2",
+        display: "grid",
+        gridTemplateColumns: "1fr 10fr 1fr",
+      }},
+        NSelect({
+          label: request.method,
+          options: selectOptions,
+          placeholder: "Method",
+          disabled: loading_methods,
+          style: {width: "10%", minWidth: "18em"},
+          on: {update: (method: string) => update_request({method})},
+        }).el,
+        NInput({
+          placeholder: "Addr",
+          value: request.target,
+          on: {update: (target: string) => update_request({target})},
         }),
-        el_response,
-      ]));
+        el_send,
+      );
+
+      const el_req_tabs = NTabs({
+        type: "line",
+        size: "small",
+        class: "h100",
+        tabs: [
+          {
+            name: "Request",
+            class: "h100",
+            // elem: EditorJSON({
+            //   class: "h100",
+            //   value: request.payload,
+            //   on: {update: (payload: string) => update_request({payload})},
+            // }),
+          },
+          {
+            name: "Metadata",
+            style: {display: "flex", flexDirection: "column", flexGrow: "1"},
+            elem: [
+              ParamsList({
+                value: request.metadata,
+                on: {update: (value: database.KV[]) => update_request({metadata: value})},
+              }),
+            ],
+          },
+        ],
+      });
+
+      const updateLayout = () => {
+        if (show_request.value) {
+          el.replaceChildren(m("div", {
+            class: "h100",
+            style: {
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gridTemplateRows: "auto 1fr",
+              gridColumnGap: ".5em",
+            },
+          }, el_input_group, el_req_tabs, el_response));
+        } else {
+          el.replaceChildren(m("div", {
+            class: "h100",
+            style: {
+              display: "grid",
+              gridTemplateColumns: "1fr",
+              gridTemplateRows: "1fr",
+            },
+          }, el_response));
+        }
+      };
+
+      show_request.sub(() => updateLayout());
     },
     push_history_entry(he) {
       update_response(he.response as database.GRPCResponse);

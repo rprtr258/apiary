@@ -11,7 +11,7 @@ type Request = {kind: database.Kind.REDIS} & database.RedisRequest;
 
 export default function(
   el: HTMLElement,
-  show_request: Signal<boolean>, // TODO: remove, show by default
+  show_request: Signal<boolean>,
   on: {
     update: (patch: Partial<Request>) => Promise<void>,
     send: () => Promise<void>,
@@ -19,7 +19,6 @@ export default function(
 ): {
   loaded(r: get_request): void,
   push_history_entry(he: HistoryEntry): void, // show last history entry
-  // TODO: hide/show request
 } {
   el.append(NEmpty({
     description: "Loading request...",
@@ -38,7 +37,7 @@ export default function(
     style: {justifyContent: "center"},
   });
   const el_view_response_body = ViewJSON("");
-  const update_requestt = (patch: Partial<database.RedisRequest>): void => {
+  const update_request = (patch: Partial<database.RedisRequest>): void => {
     el_send.disabled = true;
     on.update(patch).then(() => {
       el_send.disabled = false;
@@ -55,30 +54,50 @@ export default function(
     loaded: (r: get_request) => {
       const request = r.request as Request;
 
-      el.replaceChildren(m("div", {
-        class: "h100",
-        style: {
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "34px 1fr",
-          gridColumnGap: ".5em",
-        },
-      },
-        NInputGroup({style: {gridColumn: "span 2"}}, [
-          NInput({
-            placeholder: "DSN",
-            value: request.dsn,
-            on: {update: (dsn: string) => update_requestt({dsn})},
-          }),
-          el_send,
-        ]),
-        EditorJSON({
-          class: "h100",
-          value: request.query,
-          on: {update: (value: string) => update_requestt({query: value})},
+      const el_input_group = NInputGroup({style: {gridColumn: "span 2"}}, [
+        NInput({
+          placeholder: "DSN",
+          value: request.dsn,
+          on: {update: (dsn: string) => update_request({dsn})},
         }),
-        el_response,
-      ));
+        el_send,
+      ]);
+
+      const el_editor_json = EditorJSON({
+        class: "h100",
+        value: request.query,
+        on: {update: (value: string) => update_request({query: value})},
+      });
+
+      const updateLayout = () => {
+        if (show_request.value) {
+          el.replaceChildren(m("div", {
+            class: "h100",
+            style: {
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gridTemplateRows: "34px 1fr",
+              gridColumnGap: ".5em",
+            },
+          },
+            el_input_group,
+            el_editor_json,
+            el_response,
+          ));
+        } else {
+          el.replaceChildren(m("div", {
+            class: "h100",
+            style: {
+              display: "grid",
+              gridTemplateColumns: "1fr",
+              gridTemplateRows: "1fr",
+            },
+          },
+            el_response,
+          ));
+        }
+      };
+      show_request.sub(() => updateLayout());
     },
     push_history_entry(he: HistoryEntry) {
       update_response(he.response as database.RedisResponse);

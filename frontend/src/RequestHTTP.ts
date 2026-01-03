@@ -149,7 +149,7 @@ export default function(
           });
         }},
       }, "Send");
-      const update_requestt = (patch: Partial<database.HTTPRequest>): void => {
+      const update_request = (patch: Partial<database.HTTPRequest>): void => {
         el_send.disabled = true;
         on.update(patch).then(() => {
           el_send.disabled = false;
@@ -157,77 +157,75 @@ export default function(
       };
       update_response(last_history_entry(r)?.response as database.HTTPResponse | null);
 
-      el.replaceChildren(m("div", {
+      const el_input_group = NInputGroup({style: {
+        gridColumn: "span 2",
+        display: "grid",
+        gridTemplateColumns: "1fr 10fr 1fr",
+      }},
+        NSelect({
+          label: request.method,
+          options: Object.keys(Methods).map(method => ({label: method, value: method})),
+          on: {update: (method: string) => update_request({method})},
+        }).el,
+        NInput({
+          placeholder: "URL",
+          value: request.url,
+          on: {update: (url: string) => update_request({url})},
+        }),
+        el_send,
+      );
+
+      const el_req_tabs = NTabs({
+        type: "line",
+        size: "small",
         class: "h100",
-        style: {
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gridTemplateRows: "auto minmax(0, 1fr)",
-          gridColumnGap: ".5em",
-        },
-      }, [
-        show_request.value ? NInputGroup({style: {
-          gridColumn: "span 2",
-          display: "grid",
-          gridTemplateColumns: "1fr 10fr 1fr",
-        }},
-          NSelect({
-            label: request.method,
-            options: Object.keys(Methods).map(method => ({label: method, value: method})),
-            on: {update: (method: string) => update_requestt({method})},
-          }).el,
-          NInput({
-            placeholder: "URL",
-            value: request.url,
-            on: {update: (url: string) => update_requestt({url})},
-          }),
-          el_send,
-        ) : null,
-        NSplit(
-          (() => {
-            const el_req_show = NTabs({
-              type: "line",
-              size: "small",
-              class: "h100",
-              tabs: [
-                {
-                  name: "Request",
-                  class: "h100",
-                  elem: EditorJSON({
-                    value: request.body ?? null,
-                    on: {update: (body: string) => update_requestt({body})},
-                  }),
-                },
-                {
-                  name: "Headers",
-                  style: {
-                    display: "flex",
-                    flexDirection: "column",
-                    flexGrow: "1",
-                  },
-                  elem: [ParamsList({
-                    value: request.headers,
-                    on: {update: (value: database.KV[]): void => update_requestt({headers: value})},
-                  })],
-                },
-              ],
-            });
-            const el_req_hide = m("div");
-            const el_req = el_req_show;
-            show_request.sub(b => {
-              if (b) {
-                if (el_req !== el_req_show) {
-                  el_req.replaceChildren(el_req_show);
-                }
-              } else {
-                el_req.replaceChildren(el_req_hide);
-              }
-            });
-            return el_req;
-          })(),
-          el_response,
-        ),
-      ]));
+        tabs: [
+          {
+            name: "Request",
+            class: "h100",
+            elem: EditorJSON({
+              value: request.body ?? null,
+              on: {update: (body: string) => update_request({body})},
+            }),
+          },
+          {
+            name: "Headers",
+            style: {
+              display: "flex",
+              flexDirection: "column",
+              flexGrow: "1",
+            },
+            elem: [ParamsList({
+              value: request.headers,
+              on: {update: (value: database.KV[]): void => update_request({headers: value})},
+            })],
+          },
+        ],
+      });
+
+      const updateLayout = () => {
+        if (show_request.value) {
+          el.replaceChildren(m("div", {
+            class: "h100",
+            style: {
+              display: "grid",
+              gridTemplateColumns: "1fr",
+              gridTemplateRows: "auto minmax(0, 1fr)",
+              gridColumnGap: ".5em",
+            },
+          }, el_input_group, NSplit(el_req_tabs, el_response)));
+        } else {
+          el.replaceChildren(m("div", {
+            class: "h100",
+            style: {
+              display: "grid",
+              gridTemplateColumns: "1fr",
+              gridTemplateRows: "1fr",
+            },
+          }, el_response));
+        }
+      };
+      show_request.sub(() => updateLayout());
     },
     push_history_entry(he: HistoryEntry) {
       update_response(he.response as database.HTTPResponse);

@@ -1,4 +1,4 @@
-import {ChangeSpec, EditorState} from "@codemirror/state";
+import {EditorState} from "@codemirror/state";
 import {EditorView} from "@codemirror/view";
 import {markdown} from "@codemirror/lang-markdown";
 import {database} from "../wailsjs/go/models.ts";
@@ -52,7 +52,7 @@ function EditorMD(props: Props) {
 
 export default function(
   el: HTMLElement,
-  show_request: Signal<boolean>, // TODO: remove, show by default
+  show_request: Signal<boolean>,
   on: {
     update: (patch: Partial<Request>) => Promise<void>,
     send: () => Promise<void>,
@@ -60,7 +60,6 @@ export default function(
 ): {
   loaded(r: get_request): void,
   push_history_entry(he: HistoryEntry): void, // show last history entry
-  // TODO: hide/show request
 } {
   el.append(NEmpty({
     description: "Loading request...",
@@ -100,25 +99,44 @@ export default function(
       id = r.request.id;
       update_response();
 
-      el.replaceChildren(m("div", {
+      const el_editor_md = EditorMD({
+        value: request.data,
+        on: {update: (data: string) => on.update({data})},
         class: "h100",
         style: {
-          display: "grid",
-          gridTemplateColumns: "1fr" + (show_request.value ? " 1fr" : ""),
-          gridColumnGap: ".5em",
+          overflowY: "scroll",
         },
-      },
-        show_request.value ? EditorMD({
-          value: request.data,
-          on: {update: (data: string) => on.update({data})},
-          class: "h100",
-          style: {
-            overflowY: "scroll",
+      });
+
+      const updateLayout = () => {
+        if (show_request.value) {
+          el.replaceChildren(m("div", {
+            class: "h100",
+            style: {
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gridColumnGap: ".5em",
+            },
           },
-        }) : null,
-        // Markdownerror !== null ?  m("div", {style: {position: "fixed", color: "red", bottom: "3em"}}, Markdownerror) :
-        el_response,
-      ));
+            el_editor_md,
+            el_response,
+          ));
+        } else {
+          el.replaceChildren(m("div", {
+            class: "h100",
+            style: {
+              display: "grid",
+              gridTemplateColumns: "1fr",
+              gridTemplateRows: "1fr",
+            },
+          },
+            // Markdownerror !== null ?  m("div", {style: {position: "fixed", color: "red", bottom: "3em"}}, Markdownerror) :
+            el_response,
+          ));
+        }
+      };
+
+      show_request.sub(() => updateLayout());
     },
     push_history_entry(_he) {
       update_response();
