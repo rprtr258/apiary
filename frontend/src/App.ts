@@ -10,7 +10,7 @@ import RequestGRPC from "./RequestGRPC.ts";
 import RequestJQ from "./RequestJQ.ts";
 import RequestRedis from "./RequestRedis.ts";
 import RequestMD from "./RequestMD.ts";
-import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs, useStore, update_request, send, last_history_entry, Store} from "./store.ts";
+import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs, update_request, send, last_history_entry, Store} from "./store.ts";
 import {Method, Kinds, Database, HistoryEntry, Request} from "./api.ts";
 import {app, database} from "../wailsjs/go/models.ts";
 import Command from "./components/CommandPalette.ts";
@@ -353,17 +353,20 @@ const panelkaFactory = (
       title: "Hide request",
       onclick: () => {
         show_request.update(b => !b);
-        eye.title = show_request.value ? "Hide request" : "Show request";
-        // m.redraw();
       },
     }, NIcon({
       component: show_request.value ? Eye : EyeClosed,
       class: "highlight-red",
     }));
-    // m.mount(eye, {view: () => NIcon({
-    //   component: show_request ? Eye : EyeClosed,
-    //   color: "grey",
-    // })});
+
+    show_request.sub(value => {
+      eye.title = value ? "Hide request" : "Show request";
+      eye.replaceChildren(NIcon({
+        component: value ? Eye : EyeClosed,
+        class: "highlight-red",
+      }));
+    });
+
     tab.element.prepend(eye);
     // TODO: ebanij rot etogo kazino, we have to use timeout for now, since request is not yet loaded (???)
     setTimeout(() => {

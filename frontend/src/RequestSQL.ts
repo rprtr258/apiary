@@ -103,7 +103,7 @@ function DataTable({columns, rows, types}: DataTableProps) {
 
 export default function(
   el: HTMLElement,
-  show_request: Signal<boolean>, // TODO: remove, show by default
+  show_request: Signal<boolean>,
   on: {
     update: (patch: Partial<Request>) => Promise<void>,
     send: () => Promise<void>,
@@ -111,7 +111,6 @@ export default function(
 ): {
   loaded(r: get_request): void,
   push_history_entry(he: HistoryEntry): void, // show last history entry
-  // TODO: hide/show request
 } {
   el.append(NEmpty({
     description: "Loading request...",
@@ -156,9 +155,6 @@ export default function(
         on: {update: (query: string) => update_request({query})},
         // class: "h100",
       });
-      if (!show_request.value) {
-        el_editor.style.display = "none";
-      }
       const update_request = (patch: Partial<Request>): void => {
         el_run.disabled = true;
         on.update(patch).then(() => {
@@ -166,35 +162,52 @@ export default function(
         });
       };
 
-      el.replaceChildren(m("div", {
-          class: "h100",
-          id: "gavno",
+      const el_input_group = NInputGroup({
+        style: {
+          gridColumn: "span 2",
+          display: "grid",
+          gridTemplateColumns: "1fr 10fr 1fr",
         },
-        show_request.value ? NInputGroup({
-          style: {
-            gridColumn: "span 2",
-            display: "grid",
-            gridTemplateColumns: "1fr 10fr 1fr",
-          },
-        },
-          NSelect({
-            label: Database[request.database],
-            options: Object.keys(Database).map(db => ({label: Database[db as keyof typeof Database], value: db})),
-            on: {update: (database: string) => update_request({database: database as Database})},
-            // style: {width: "10%"},
-          }).el,
-          NInput({
-            placeholder: "DSN",
-            value: request.dsn,
-            on: {update: (newValue: string) => update_request({dsn: newValue})},
-          }),
-          el_run,
-        ) : null,
-        NSplit(
-          el_editor,
-          el_response,
-        ),
-      ));
+      },
+        NSelect({
+          label: Database[request.database],
+          options: Object.keys(Database).map(db => ({label: Database[db as keyof typeof Database], value: db})),
+          on: {update: (database: string) => update_request({database: database as Database})},
+        }).el,
+        NInput({
+          placeholder: "DSN",
+          value: request.dsn,
+          on: {update: (newValue: string) => update_request({dsn: newValue})},
+        }),
+        el_run,
+      );
+
+      const updateLayout = () => {
+        if (show_request.value) {
+          el.replaceChildren(m("div", {
+              class: "h100",
+              id: "gavno",
+            },
+            el_input_group,
+            NSplit(
+              el_editor,
+              el_response,
+            ),
+          ));
+        } else {
+          el.replaceChildren(m("div", {
+              class: "h100",
+              style: {
+                display: "grid",
+                gridTemplateColumns: "1fr",
+                gridTemplateRows: "1fr",
+              },
+            },
+            el_response,
+          ));
+        }
+      };
+      show_request.sub(() => updateLayout());
     },
     push_history_entry(he: HistoryEntry) {
       push_response(he.response as database.SQLResponse);
