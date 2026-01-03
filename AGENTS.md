@@ -68,20 +68,113 @@ To set up and run the development environment:
     - New kinds can be added by extending the plugin map in `plugin.go` and implementing struct+logic files with the plugin contract.
 - **Cross-cutting Support:** Uses `zerolog` for logging, context-based cancellation, and third-party Go libraries for DB/protocol access (see `go.mod`).
 
-### Frontend
-- **Framework:** Vanilla TypeScript, GoldenLayout for multi-pane UI, and custom controls; packaged with Vite.
-- **Core Files:**
-  - `frontend/src/App.ts`: Main app orchestrator; handles UI structure, modals, command palette, request-management logic.
-  - `frontend/src/store.ts`: Frontend store for requests, layout state, CRUD actions, and syncing with backend.
-  - `frontend/src/api.ts`: API surface/types for requests to the backend via Wails bindings.
-  - `frontend/src/components/`: UI widgets and controls.
-- **Features:**
-  - Interactive request/response panels for each supported kind.
-  - Hierarchical sidebar for organizing requests (tree, drag-n-drop, rename, duplicate, delete).
-  - History tracking per request, request execution and display, tabbed/multi-pane layout via GoldenLayout.
-  - Command palette (modal) for quick actions: create/rename/duplicate/delete requests, navigation, etc.
-  - Modal dialogs for request creation, renaming, managing confirmation, inputs.
-  - Local storage for layout persistence, open tabs, unfolded directories in explorer sidebar.
+### Frontend - Vanilla TypeScript Architecture
+**No frameworks** - pure DOM manipulation and custom reactivity.
+
+#### Core Patterns
+
+##### Reactive Signals (`utils.ts`)
+```typescript
+signal<T>(value: T): Signal<T>
+```
+- Manual pub/sub for UI state
+- `update(fn)` to mutate, `sub(cb)` to react
+- Used for show/hide, input values, layout state
+
+##### DOM Builder (`utils.ts`)
+```typescript
+m(tag, props, ...children): HTMLElement
+```
+- JSX-like syntax without transpiler
+- Returns real DOM elements
+- Handles events (`onclick`, `oninput`), styles, attributes
+
+##### Two Component Patterns
+
+###### Pattern A: Element Creators (`components/input.ts`, `components/layout.ts`, `components/dataview.ts`)
+```typescript
+NInput(props): HTMLElement
+NTabs(props): HTMLElement
+NTree(props): HTMLElement
+```
+- Return DOM elements directly
+- Self-contained, no external dependencies
+- Used for building UI structure
+- Examples: `NButton`, `NSelect`, `NModal`, `NTable`
+
+###### Pattern B: Factory Functions (`RequestHTTP.ts`, `RequestSQL.ts`, `RequestGRPC.ts`, etc.)
+```typescript
+RequestHTTP(el, show_signal, {update, send})
+```
+- Receive container element + signals + handlers
+- Return control interface (`loaded()`, `push_history_entry()`)
+- Manage internal state and DOM mutations
+- One factory per request kind (HTTP, SQL, GRPC, JQ, Redis, MD)
+
+##### Central Store (`store.ts`)
+```typescript
+store = {
+  requests, requests2, requestsTree,
+  createRequest, duplicate, deleteRequest, rename,
+  selectRequest, fetch, layout
+}
+```
+- Manages request data, tree structure, tabs
+- Coordinates with Wails backend
+- Provides CRUD operations
+- Optimistic updates
+
+##### GoldenLayout Integration
+- Tabbed multi-pane interface
+- Component factory registration (`panelkaFactory`)
+- localStorage persistence
+- Dynamic tab creation
+
+#### Data Flow
+```
+User → Signal → Store → Wails API → Store → DOM
+```
+
+#### Core Files
+- `App.ts`: Main orchestrator, layout setup, modals, command palette
+- `store.ts`: State management + backend coordination
+- `api.ts`: Wails bindings wrapper + type definitions
+- `utils.ts`: Signal reactivity + DOM builder
+- `Request*.ts`: Per-kind UI component factories
+- `components/`: Reusable element creators
+
+#### Component Lifecycle
+1. **Factory creation** → `panelkaFactory()` creates container
+2. **Component init** → `RequestHTTP(el, signal, handlers)`
+3. **Data load** → `get_request(id)` → `frame.loaded(r)`
+4. **User interaction** → `on.update()` / `on.send()`
+5. **History push** → `frame.push_history_entry(he)`
+
+#### Extension Points
+- **New Request Type**: Create `RequestNewKind.ts` + register in `App.ts:236-243`
+- **New UI Component**: Follow factory pattern, use `m()` builder
+- **New Backend API**: Add to `api.ts` + Go backend plugin
+
+#### Key Files & Responsibilities
+| File | Purpose |
+|------|---------|
+| `App.ts` | Main orchestrator, layout, modals, command palette |
+| `store.ts` | State + backend coordination |
+| `api.ts` | Wails bindings + types |
+| `utils.ts` | Signal + DOM builder |
+| `Request*.ts` | Per-kind UI component factories |
+| `components/input.ts` | Form controls (Input, Select, Dropdown, Button) |
+| `components/layout.ts` | Tabs, Modals, Scrollbars |
+| `components/dataview.ts` | Tree, Table, List, Empty states |
+| `components/editor.ts` | CodeMirror extensions/config |
+| `components/icons.ts` | SVG icon components |
+
+#### Development Commands
+- `bun run dev` - Vite dev server (port 5174)
+- `bun run build` - Vite build
+- `bun run ci` - Lint + typecheck
+
+**Core Principle**: No frameworks, no VDOM - direct DOM manipulation with manual reactivity.
 
 ## Persistence/Database
 - **File:** `db.json` (adjacent to app binary; JSON, versioned, custom encoded).
