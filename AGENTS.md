@@ -1,10 +1,24 @@
 # AGENTS.md
 
-## Purpose
-This document provides a technical and structural overview of the `apiary` project, empowering AI coding agents with predictable, up-to-date information about the codebase and architectural patterns. Use this for high-level code navigation, understanding main flows and extensibility points, and for quickly orienting automation or refactoring agents. It complements the human-focused `README.md` by focusing on agent-specific details like setup, extensibility, and key flows.
+## General Guidelines
+- Do not update code which does not relate to the change.
+- Do not modify any code, spacing, indentation, line breaks, or formatting outside the specific changes requested.
+- Only edit files and lines directly related to the task at hand.
+- Do not complete additional tasks until explicitly asked.
+- Do not run auto-formatting tools (like `lint:fix` or `format`) unless explicitly requested by the user.
+- Use Chrome MCP to debug changes using dev server running on `http://localhost:34115/`.
+- Do not ever run your own dev server or stop existing one.
+- Run `bun run ci` during and after completing functionality to check for linter and type errors.
+- Include updates to `AGENTS.md` for any structural, architectural, or cross-cutting changes.
+- Use `bd-mcp` for creating and tracking complex task plans
+
+## Commands
+- **Build**: `bun run build`
+- **Lint**: `bun run lint`
+- **Check**: `bun run ci`
 
 ## Project Overview
-`apiary` is a cross-platform desktop application and interactive workspace for creating, executing, managing, and organizing API requests of various kinds, e.g., HTTP, SQL, gRPC, Redis, JQ, Markdown, and others. It is implemented as a desktop application using Go for the backend and Wails/TypeScript for the desktop app. The frontend uses vanilla TypeScript without frameworks.
+`apiary` is a cross-platform desktop application and interactive workspace for creating, executing, managing, and organizing API requests of various kinds, e.g., `HTTP`, `SQL`, `gRPC`, `Redis`, `JQ`, `Markdown`, and others. It is implemented as a desktop application using `Go` for the backend and `Wails`/`TypeScript` for the desktop app. The frontend uses vanilla `TypeScript` without frameworks.
 
 - **Primary Technologies:** Go, TypeScript, Wails, GoldenLayout, CodeMirror.
 - **Major Directories:**
@@ -12,62 +26,34 @@ This document provides a technical and structural overview of the `apiary` proje
   - `internal/app/`: Core backend logic including application struct and initialization.
   - `internal/database/`: All DB logic, the extensible "request/response kind" plugin mechanism, pure-model types.
   - `frontend/`: TypeScript front-end, main UI application and custom components.
-  - `build/`: Platform-specific build outputs.
 
 ## Setup Commands
 To set up and run the development environment:
-
-- Install dependencies and run the app in dev mode:
-  ```bash
-  wails dev
-  ```
-  This starts the desktop app and exposes the frontend at http://localhost:34115/ for browser access.
-
-- Use the process manager configuration (`pm.jsonnet`) to run or stop the app:
-  ```bash
-  pm run --config pm.jsonnet
-  ```
-  ```bash
-  pm stop --config pm.jsonnet
-  ```
-
-- Spin up example databases for testing (e.g., MySQL, Redis) using Docker:
+- Spin up example databases and servers for testing (e.g., `MySQL`, `Redis`) using `Docker`:
   ```bash
   docker-compose up
   ```
   Refer to `docker-compose.yaml` for details on the services.
-
-## Build and Test Commands
+- Stop example services:
+  ```bash
+  docker-compose down
+  ```
 - Build the application for your platform:
   ```bash
   wails build
   ```
   Outputs are placed in `build/`. For platform-specific instructions, see `build/README.md`.
+- No explicit test commands are defined in the core setup; add unit tests in Go (`internal/`) and TypeScript (`frontend/src/`) as needed using standard tools like `go test` or `bun run ci`.
+- Run Go tests in backend modules:
+  ```bash
+  go test ./internal/...
+  ```
 
-- No explicit test commands are defined in the core setup; add unit tests in Go (`internal/`) and TypeScript (`frontend/src/`) as needed using standard tools like `go test` or `vitest` (if integrated).
 
 ## Code Style
 - **Go:** Follow standard Go idioms; use `zerolog` for logging. Prefer context-based cancellation and modular plugin structures.
 - **TypeScript:** Vanilla TypeScript with strict mode enabled. Use single quotes, functional patterns where possible. No frameworks; rely on native DOM APIs and libraries like GoldenLayout and CodeMirror.
 - General: Keep code modular, with clear separation between backend (Go) and frontend (TypeScript). Run linters before committing (e.g., `go vet`, `tsc --noEmit`).
-
-## Testing Instructions
-- Run Go tests in backend modules:
-  ```bash
-  go test ./internal/...
-  ```
-- For frontend, if tests are added, use:
-  ```bash
-  npm test  # Assuming npm scripts in package.json; integrate vitest or jest if needed.
-  ```
-- Always add or update tests for new plugins or features. Linting:
-  ```bash
-  go vet ./...
-  ```
-  ```bash
-  tsc --noEmit  # Type checking
-  ```
-- CI plans: Not specified; assume standard GitHub Actions or similar for PR validation.
 
 ## Key Architecture Points
 ### Backend (Go)
@@ -120,12 +106,3 @@ To set up and run the development environment:
 - All business logic is organized around the concept of **Kind plugins**.
 - DB upgrade and JSON migrations are handled in backend and flushed immediately at startup.
 - The code is designed to make it easy to add new APIs to both the backend and frontend—follow plugin registration and TypeScript extension patterns.
-
-## PR Instructions
-- Use descriptive titles (e.g., "feat: add new SQL kind plugin").
-- Run lint, tests, and build before submitting.
-- Include updates to `AGENTS.md` for any structural changes.
-
-## References
-- For user/external contributor instructions, see `README.md` and docs in the repo root and `build/README.md`.
-- Update this file with any structural, architectural, or cross-cutting changes that may affect code agents or automation tools.
