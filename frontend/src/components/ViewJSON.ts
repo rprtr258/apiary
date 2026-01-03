@@ -1,11 +1,11 @@
 import {EditorState} from "@codemirror/state";
 import {EditorView} from "@codemirror/view";
 import {json} from "@codemirror/lang-json";
-import {transform} from "../utils";
-import {NInput} from "./input";
-import {NTooltip} from "./dataview";
-import {defaultExtensions} from "./editor";
-import {m} from "../utils";
+import {transform} from "../utils.ts";
+import {NInput} from "./input.ts";
+import {NTooltip} from "./dataview.ts";
+import {defaultExtensions} from "./editor.ts";
+import {m} from "../utils.ts";
 
 export default function(init_value: string) {
   const state = {
@@ -15,7 +15,7 @@ export default function(init_value: string) {
   };
 
   function update(value?: string) {
-    if (value) {
+    if (value !== undefined) {
       state.value = value;
       editor.dispatch({
         changes: {from: 0, to: editor.state.doc.length, insert: state.value},
@@ -55,7 +55,7 @@ export default function(init_value: string) {
     el: m("div", {style: {
       height: "100%",
       display: "grid",
-      "grid-template-rows": "auto 1fr",
+      gridTemplateRows: "auto 1fr",
     }},
       // TODO: put input under editor
       NInput({

@@ -1,9 +1,9 @@
-import {DOMNode, m} from "../utils";
+import {DOMNode, m} from "../utils.ts";
 
 export function NScrollbar(...children: HTMLElement[]) {
   return m("div", {
     style: {
-      "overflow-y": "scroll",
+      overflowY: "scroll",
     },
   }, children);
 }
@@ -12,10 +12,10 @@ type NTabsProps = {
   type: "card" | "line",
   size: "small",
   class?: string,
-  style?: any,
+  style?: Partial<CSSStyleDeclaration>,
   tabs: {
     name: DOMNode,
-    style?: any,
+    style?: Partial<CSSStyleDeclaration>,
     class?: string,
     disabled?: boolean,
     elem?: DOMNode,
@@ -23,8 +23,8 @@ type NTabsProps = {
 };
 export function NTabs(props: NTabsProps): HTMLElement {
   const tab_buttons = props.tabs.map((tab, i) => m("button", {
-    disabled: tab.disabled || undefined,
-    style: tab.disabled ? tabStyles.tab.disabled : tabStyles.tab.inactive,
+    disabled: tab.disabled,
+    style: (tab.disabled ?? false) ? tabStyles.tab.disabled : tabStyles.tab.inactive,
     onclick: () => update(i),
   }, tab.name));
   const tabs = props.tabs.map(tab => m("div", {
@@ -42,11 +42,11 @@ export function NTabs(props: NTabsProps): HTMLElement {
     if (tab_idx == new_tab_idx) {
       return;
     }
-    if (props.tabs[new_tab_idx].disabled) {
+    if (props.tabs[new_tab_idx].disabled ?? false) {
       return;
     }
     if (new_tab_idx < 0 || new_tab_idx >= props.tabs.length) {
-      throw new Error(`Tab ${new_tab_idx} not found in ${props.tabs}`);
+      throw new Error(`Tab ${new_tab_idx} not found in ${props.tabs.length} tabs`);
     }
     if (tab_idx >= 0) {
       Object.assign(tab_buttons[tab_idx].style, tabStyles.tab.inactive); // TODO: classes
@@ -56,7 +56,11 @@ export function NTabs(props: NTabsProps): HTMLElement {
     tabs[new_tab_idx].style.display = props.tabs[new_tab_idx].style?.display ?? "block";
     tab_idx = new_tab_idx;
   };
-  update(props.tabs.findIndex(v => !v.disabled)); // init
+  { // init
+    const firstEnabledIndex = props.tabs.findIndex(v => !(v.disabled ?? false));
+    if (firstEnabledIndex >= 0)
+      update(firstEnabledIndex);
+  }
 
   return m("div", {
     class: props.class,
@@ -83,7 +87,7 @@ const tabStyles = (() => {
     container: {
       // fontFamily: "Arial, sans-serif",
       // display: "grid",
-      // "grid-template-rows": "1.8em 1fr",
+      // gridTemplateRows: "1.8em 1fr",
     },
     header: {
       // display: "flex",
@@ -114,7 +118,7 @@ const tabStyles = (() => {
   };
 })();
 
-export function NSpace(props: Record<string, any>, children: DOMNode[]) {
+export function NSpace(props: Record<string, unknown>, children: DOMNode[]) {
   return m("div", props, children);
 };
 
@@ -122,14 +126,14 @@ function Overlay(props: {on: {close: () => void}}, child: HTMLElement) {
   const dom = m("div", {
     class: "overlay",
     style: {
-      "place-self": "center",
+      placeSelf: "center",
       position: "fixed",
-      "z-index": 100,
+      zIndex: "100",
       height: "100%",
       width: "100%",
-      "align-content": "center",
-      "justify-items": "center",
-      "backdrop-filter": "blur(3px)",
+      alignContent: "center",
+      justifyItems: "center",
+      backdropFilter: "blur(3px)",
     },
     onclick: props.on.close,
   }, child);
@@ -200,19 +204,20 @@ export function Modal(
     // When a button is clicked, we omit the Overlay component
     // from this Modal component's next view render, which will
     // trigger Overlay's onbeforeremove hook.
-    return null
+    return null;
   }
   return Overlay(
   {
     on: {close: () => {
-      clickedId && on.close(clickedId);
+      if (clickedId !== null)
+        on.close(clickedId);
       // m.redraw();
     }},
   },
     m("div", {
       class: "modal",
       style: {
-        "background-color": "#646464",
+        backgroundColor: "#646464",
         width: "20%",
         height: "20%",
         padding: "1em",
@@ -227,9 +232,9 @@ export function Modal(
             type: "button",
             disabled: clickedId != null,
             onclick() {
-              clickedId = b.id
-            }
-          }, b.text)
+              clickedId = b.id;
+            },
+          }, b.text),
         ),
       ),
       ...children,

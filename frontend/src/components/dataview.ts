@@ -1,13 +1,13 @@
-import {clone, m, DOMNode} from "../utils";
-import { ResultInfo } from "./icons";
+import {clone, m, DOMNode} from "../utils.ts";
+import {ResultInfo} from "./icons.ts";
 
-export function Json(props: {data: any}) {
+export function Json<T>(props: {data: T}) {
   return m("pre", JSON.stringify(props.data, null, 2));
 };
 
 type NTagProps = {
   type: "success" | "info" | "warning", // TODO: replace with color, use?
-  style?: any,
+  style?: Partial<CSSStyleDeclaration>,
   size: "small",
   round?: true,
 };
@@ -48,10 +48,10 @@ export function NResult(props: NResultProps) {
   return m("div", {
     class: "h100",
     style: {
-      "justify-content": "center",
+      justifyContent: "center",
       display: "flex",
-      "align-items": "center",
-      "flex-direction": "column",
+      alignItems: "center",
+      flexDirection: "column",
     },
   },
     m("h1", {}, el_status, props.title),
@@ -62,7 +62,7 @@ export function NResult(props: NResultProps) {
 type NEmptyProps = {
   description: string,
   class?: string,
-  style?: any,
+  style?: Partial<CSSStyleDeclaration>,
 };
 export function NEmpty(props: NEmptyProps) {
   return m("div", {
@@ -105,8 +105,8 @@ type NTreeProps = {
   "render-suffix": (info: {option: TreeOption}) => DOMNode,
 };
 export function NTree(props: NTreeProps) {
-  const renderElem = (v: TreeOption, level: number): any =>
-    m("div", {style: {"margin-left": `${level == 0 ? 0 : 1}em`}}, [
+  const renderElem = (v: TreeOption, level: number): HTMLDivElement =>
+    m("div", {style: {marginLeft: `${level == 0 ? 0 : 1}em`}}, [
       v.children ?
       m("details", {open: true}, [
         m("summary", {}, [v.label]),
@@ -121,19 +121,19 @@ export function NTree(props: NTreeProps) {
   return m("div", {}, props.data.map(v => renderElem(v, 0)));
 };
 
-export function NTable(props: Record<string, any>, children: DOMNode[]) {
+export function NTable(props: Record<string, unknown>, children: DOMNode[]) {
   return m("table", props, children);
 };
 
 export function NTooltip(
-  props: Record<string, any> & {show?: boolean},
+  props: Record<string, unknown> & {show?: boolean, style?: Record<string, unknown>},
   ...children: DOMNode[]
 ) : DOMNode {
   return m("div", {
+    ...props,
     style: {
       display: props.show === true ? "block" : "none",
       ...props.style,
     },
-    ...props,
   }, children);
 };

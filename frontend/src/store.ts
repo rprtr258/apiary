@@ -1,6 +1,6 @@
-import {ComponentItemConfig, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig} from "golden-layout";
-import {api, type RequestData, type HistoryEntry, ResponseData, Request} from "./api";
-import {app, database} from '../wailsjs/go/models';
+import {ComponentItemConfig, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedLayoutConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig} from "golden-layout";
+import {api, type RequestData, type HistoryEntry, Request} from "./api.ts";
+import {app, database} from "../wailsjs/go/models.ts";
 
 // TODO: <NNotificationProvider :max="1" placement="bottom-right">
 export function useNotification() {
@@ -28,7 +28,7 @@ let layoutConfig: LayoutConfig = {
 (() => {
   const oldTabs = localStorage.getItem("tabs");
   if (oldTabs !== null) {
-    layoutConfig = LayoutConfig.fromResolved(JSON.parse(oldTabs));
+    layoutConfig = LayoutConfig.fromResolved(JSON.parse(oldTabs) as ResolvedLayoutConfig);
   }
 })();
 export function updateLocalstorageTabs() {
@@ -69,7 +69,24 @@ export function last_history_entry(request: get_request): HistoryEntry | null {
   return request.history[request.history.length - 1] ?? null;
 }
 
-export function useStore() {
+export type Store = {
+  requestsTree : app.Tree,
+  requests : Record<string, app.requestPreview>,
+  requests2: Record<string, get_request>,
+  sql_sources: Record<string, UseSQLSource>,
+  load: () => void,
+  layoutConfig: LayoutConfig,
+  layout: GoldenLayout | undefined,
+  clearTabs(): void,
+  requestID(): string | null,
+  selectRequest(id: string): void,
+  fetch(): Promise<void>,
+  createRequest(id: string, kind: RequestData["kind"]): Promise<void>,
+  duplicate(id: string): Promise<void>,
+  deleteRequest(id: string): Promise<void>,
+  rename(id: string, newID: string): Promise<void>,
+};
+export function useStore(): Store {
   const load = () => {
     // if (!tabs.value) {
     //   return;
@@ -92,7 +109,7 @@ export function useStore() {
   };
 
   return {
-    requestsTree : new app.Tree({IDs: [], Dirs: {}}) as app.Tree,
+    requestsTree : new app.Tree({IDs: {}, Dirs: {}}),
     requests : {} as Record<string, app.requestPreview>,
     requests2: {} as Record<string, get_request>,
     sql_sources: {} as Record<string, UseSQLSource>,
@@ -122,11 +139,11 @@ export function useStore() {
         }
       }
       const cfg = this.layout!.saveLayout();
-      if (cfg.root && dfs(cfg.root).find((tabID) => tabID === id)) {
+      if (cfg.root && dfs(cfg.root).find(tabID => tabID === id) !== undefined) {
         return;
       }
       this.layout?.addItem(panelka(id));
-      this.fetch();
+      this.fetch().catch(notify);
     },
     async fetch(): Promise<void> {
       const json = await api.collectionRequests();
@@ -199,7 +216,7 @@ const panelka = (id: string): ComponentItemConfig => ({
   type: "component",
   title: id,
   componentType: "MyComponent",
-  componentState: {id: id} // as panelkaState,
+  componentState: {id: id}, // as panelkaState,
 });
 
 export async function send(id: string): Promise<void> {
@@ -226,9 +243,7 @@ export async function update_request(id: string, patch: Partial<Request>): Promi
   }
 }
 
-export async function get_request<
-  Response extends object,
->(request_id: string): Promise<get_request | null> {
+export async function get_request(request_id: string): Promise<get_request | null> {
   if (store.requests2[request_id] !== undefined) {
     return store.requests2[request_id];
   }
@@ -303,7 +318,7 @@ export function use_sql_source(request_id: string): UseSQLSource {
   };
 
   if (store.sql_sources[request_id].is_loading) {
-    fetchData()//.then(m.redraw);
+    fetchData().catch(notify);//.then(m.redraw);
   }
 
   return store.sql_sources[request_id];
@@ -311,5 +326,5 @@ export function use_sql_source(request_id: string): UseSQLSource {
 
 export const store = useStore();
 (async () => {
-  await store.fetch()
-})()//.then(m.redraw);
+  await store.fetch();
+})().catch(notify);//.then(m.redraw);

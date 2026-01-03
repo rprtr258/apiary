@@ -1,12 +1,12 @@
 import {ChangeSpec, EditorState} from "@codemirror/state";
 import {EditorView} from "@codemirror/view";
 import {markdown} from "@codemirror/lang-markdown";
-import {database} from "../wailsjs/go/models";
-import {NEmpty} from "./components/dataview";
-import {defaultEditorExtensions, defaultExtensions} from "./components/editor";
-import {get_request} from "./store";
-import {api, HistoryEntry} from "./api";
-import {m, Signal} from "./utils";
+import {database} from "../wailsjs/go/models.ts";
+import {NEmpty} from "./components/dataview.ts";
+import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
+import {get_request} from "./store.ts";
+import {api, HistoryEntry} from "./api.ts";
+import {m, Signal} from "./utils.ts";
 
 type Request = {kind: database.Kind.MD} & database.MDRequest;
 
@@ -16,7 +16,7 @@ type Props = {
     update: (value: string) => void,
   },
   class?: string,
-  style?: any,
+  style?: Partial<CSSStyleDeclaration>,
 };
 function EditorMD(props: Props) {
   const el = m("div", {
@@ -24,7 +24,7 @@ function EditorMD(props: Props) {
     style: props.style ?? {},
   });
 
-  let editor = new EditorView({
+  const editor = new EditorView({
     parent: el,
     state: EditorState.create({
       doc: props.value ?? "",
@@ -65,13 +65,13 @@ export default function(
   el.append(NEmpty({
     description: "Loading request...",
     class: "h100",
-    style: {"justify-content": "center"},
+    style: {justifyContent: "center"},
   }));
 
   const el_response = NEmpty({
     description: "Send request or choose one from history.",
     class: "h100",
-    style: {"justify-content": "center"},
+    style: {justifyContent: "center"},
   });
   let Markdownerror: string | null = null; // TODO: use
   let id: string; // TODO: move?
@@ -85,14 +85,14 @@ export default function(
         el_response.replaceChildren(m("div", {
           class: "h100 markdown-body",
           style: {
-            "overflow-y": "scroll",
+            overflowY: "scroll",
             height: "100vh",
           },
           innerHTML: response.data,
         }));
       }
-    });
-  }
+    }).catch(alert);
+  };
 
   return {
     loaded: (r: get_request) => {
@@ -104,23 +104,23 @@ export default function(
         class: "h100",
         style: {
           display: "grid",
-          "grid-template-columns": "1fr" + (show_request ? " 1fr" : ""),
-          "grid-column-gap": ".5em",
+          gridTemplateColumns: "1fr" + (show_request.value ? " 1fr" : ""),
+          gridColumnGap: ".5em",
         },
       },
-        show_request && EditorMD({
+        show_request.value ? EditorMD({
           value: request.data,
           on: {update: (data: string) => on.update({data})},
           class: "h100",
           style: {
-            "overflow-y": "scroll",
+            overflowY: "scroll",
           },
-        }) || null,
+        }) : null,
         // Markdownerror !== null ?  m("div", {style: {position: "fixed", color: "red", bottom: "3em"}}, Markdownerror) :
         el_response,
       ));
     },
-    push_history_entry(he) {
+    push_history_entry(_he) {
       update_response();
     },
     // unmount() { // TODO: uncomment and use

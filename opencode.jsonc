@@ -20,8 +20,7 @@
     // },
     "serena": {
       "type": "local",
-      // "command": ["uvx", "--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--enable-web-dashboard", "false"],
-      "command": ["uvx", "--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"],
+      "command": ["uvx", "--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--enable-web-dashboard", "false"],
     },
     "chrome-devtools": {
       "type": "local",

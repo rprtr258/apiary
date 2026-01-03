@@ -1,11 +1,11 @@
-import {NButton, NInputGroup, NInput} from "./components/input";
-import {NEmpty} from "./components/dataview";
-import ViewJSON from "./components/ViewJSON";
-import EditorJSON from "./components/EditorJSON";
-import {database} from "../wailsjs/go/models";
-import {get_request} from "./store";
-import {m, Signal} from "./utils";
-import {HistoryEntry} from "./api";
+import {NButton, NInputGroup, NInput} from "./components/input.ts";
+import {NEmpty} from "./components/dataview.ts";
+import ViewJSON from "./components/ViewJSON.ts";
+import EditorJSON from "./components/EditorJSON.ts";
+import {database} from "../wailsjs/go/models.ts";
+import {get_request} from "./store.ts";
+import {m, Signal} from "./utils.ts";
+import {HistoryEntry} from "./api.ts";
 
 type Request = {kind: database.Kind.REDIS} & database.RedisRequest;
 
@@ -24,7 +24,7 @@ export default function(
   el.append(NEmpty({
     description: "Loading request...",
     class: "h100",
-    style: {"justify-content": "center"},
+    style: {justifyContent: "center"},
   }));
 
   const el_send = NButton({
@@ -35,7 +35,7 @@ export default function(
   const el_response = NEmpty({
     description: "Send request or choose one from history.",
     class: "h100",
-    style: {"justify-content": "center"},
+    style: {justifyContent: "center"},
   });
   const el_view_response_body = ViewJSON("");
   const update_requestt = (patch: Partial<database.RedisRequest>): void => {
@@ -43,7 +43,7 @@ export default function(
     on.update(patch).then(() => {
       el_send.disabled = false;
     });
-  }
+  };
   const update_response = (r: database.RedisResponse | null): void => {
     if (r === null) {return;} // TODO: replace with empty state
 
@@ -59,12 +59,12 @@ export default function(
         class: "h100",
         style: {
           display: "grid",
-          "grid-template-columns": "1fr 1fr",
-          "grid-template-rows": "34px 1fr",
-          "grid-column-gap": ".5em",
+          gridTemplateColumns: "1fr 1fr",
+          gridTemplateRows: "34px 1fr",
+          gridColumnGap: ".5em",
         },
       },
-        NInputGroup({style: {"grid-column": "span 2"}}, [
+        NInputGroup({style: {gridColumn: "span 2"}}, [
           NInput({
             placeholder: "DSN",
             value: request.dsn,

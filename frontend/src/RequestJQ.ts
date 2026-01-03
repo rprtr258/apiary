@@ -1,11 +1,11 @@
-import {NInput, NButton, NInputGroup} from "./components/input";
-import {NEmpty} from "./components/dataview";
-import ViewJSON from "./components/ViewJSON";
-import EditorJSON from "./components/EditorJSON";
-import {database} from "../wailsjs/go/models";
-import {get_request, last_history_entry} from "./store";
-import {m, Signal} from "./utils";
-import {HistoryEntry} from "./api";
+import {database} from "../wailsjs/go/models.ts";
+import {NInput, NButton, NInputGroup} from "./components/input.ts";
+import {NEmpty} from "./components/dataview.ts";
+import ViewJSON from "./components/ViewJSON.ts";
+import EditorJSON from "./components/EditorJSON.ts";
+import {get_request, last_history_entry} from "./store.ts";
+import {m, Signal} from "./utils.ts";
+import {HistoryEntry} from "./api.ts";
 
 type Request = {kind: database.Kind.JQ} & database.JQRequest;
 
@@ -24,7 +24,7 @@ export default function(
   el.append(NEmpty({
     description: "Loading request...",
     class: "h100",
-    style: { "justify-content": "center" },
+    style: {justifyContent: "center"},
   }));
 
   const jqerror: string | null = null; // TODO: use
@@ -43,7 +43,7 @@ export default function(
   const el_response = NEmpty({
     description: "Send request or choose one from history.",
     class: "h100",
-    style: {"justify-content": "center"},
+    style: {justifyContent: "center"},
   });
   const el_view_response_body = ViewJSON("");
   const update_response = (response: database.JQResponse | null) => {
@@ -56,26 +56,26 @@ export default function(
 
     el_response.replaceChildren(el_view_response_body.el);
     el_view_response_body.update(response.response.join("\n"));
-  }
+  };
 
   return {
     loaded: (r: get_request) => {
-      let request = r.request as Request;
+      const request = r.request as Request;
       update_response((last_history_entry(r)?.response as database.JQResponse | undefined) ?? null);
 
       el.replaceChildren(m("div", {
         class: "h100",
         style: {
           display: "grid",
-          "grid-template-columns": "1fr 1fr",
-          "grid-template-rows": "auto minmax(0, 1fr)",
-          "grid-column-gap": ".5em",
+          gridTemplateColumns: "1fr 1fr",
+          gridTemplateRows: "auto minmax(0, 1fr)",
+          gridColumnGap: ".5em",
         },
       },
-        show_request && [NInputGroup({style: {
+        show_request.value ? [NInputGroup({style: {
           "display": "grid",
-          "grid-template-columns": "11fr 1fr",
-          "grid-column": "span 2",
+          gridTemplateColumns: "11fr 1fr",
+          gridColumn: "span 2",
         }}, [
           NInput({
             placeholder: "JQ query",
@@ -90,7 +90,7 @@ export default function(
           class: "h100",
           value: request.json,
           on: {update: (json: string) => update_requestt({json})},
-        })] || null,
+        })] : null,
         el_response,
       ));
     },

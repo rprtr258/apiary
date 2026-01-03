@@ -1,11 +1,11 @@
-import {database} from "../wailsjs/go/models";
-import {NEmpty, NIcon, NTooltip} from "./components/dataview";
-import {NScrollbar} from "./components/layout";
-import {NButton, NInput, NInputGroup, NSelect} from "./components/input";
-import EditorSQL from "./EditorSQL";
-import {get_request, use_sql_source} from "./store";
-import {Database} from "./api";
-import {DOMNode, m} from "./utils";
+import {database} from "../wailsjs/go/models.ts";
+import {NEmpty, NIcon, NTooltip} from "./components/dataview.ts";
+import {NScrollbar} from "./components/layout.ts";
+import {NButton, NInput, NInputGroup, NSelect} from "./components/input.ts";
+import EditorSQL from "./EditorSQL.ts";
+import {get_request, use_sql_source} from "./store.ts";
+import {Database, RowValue} from "./api.ts";
+import {DOMNode, m} from "./utils.ts";
 
 type Request = {kind: database.Kind.SQLSource} & database.SQLSourceRequest;
 
@@ -14,10 +14,10 @@ function NSplit(children: DOMNode[]) {
     class: "h100",
     style: {
       display: "grid",
-      // "grid-template-columns": "1fr 1fr",
-      // "grid-template-rows": "auto 1fr",
-      "grid-template-rows": "1fr 0px 3fr",
-      "grid-column-gap": ".5em",
+      // gridTemplateColumns: "1fr 1fr",
+      // gridTemplateRows: "auto 1fr",
+      gridTemplateRows: "1fr 0px 3fr",
+      gridColumnGap: ".5em",
     },
   }, [
     children[0],
@@ -29,16 +29,16 @@ function NSplit(children: DOMNode[]) {
 type TableBaseColumn = {
   key: string,
   title: (_: TableBaseColumn) => DOMNode,
-  render: (rowData: any) => DOMNode,
+  render: (rowData: RowValue) => DOMNode,
 };
 type DataTableProps = {
   columns: TableBaseColumn[],
-  data: any[],
+  data: Record<string, RowValue>[],
   "single-line": false,
   size: "small",
   resizable: true,
   "scroll-x": number,
-}
+};
 function DataTable({columns, data}: DataTableProps) {
   const tableBorderStyle = {
     "table-layout": "fixed",
@@ -47,7 +47,7 @@ function DataTable({columns, data}: DataTableProps) {
     padding: "3px 5px",
   };
   return m("div", {
-    "overflow-y": "scroll",
+    style: {overflowY: "scroll"},
   }, [m("table", {style: tableBorderStyle}, [
     m("thead", {}, [
       m("tr", {}, columns.map(({key}) =>
@@ -57,7 +57,7 @@ function DataTable({columns, data}: DataTableProps) {
       m("tr", {}, columns.map(c =>
         m("td", {
           style: tableBorderStyle,
-        }, [c.render(r)]))))),
+        }, [c.render(r[c.key])]))))),
   ])]);
 }
 
@@ -70,7 +70,7 @@ export default function(
     const request = use_sql_source(r.request.id);
 
     const update_request = (patch: Partial<database.SQLSourceRequest>): void => {
-      request.update_request(patch)//.then(m.redraw);
+      request.update_request(patch);//.then(m.redraw);
     };
 
     const columns = (() => {
@@ -85,7 +85,7 @@ export default function(
           title: (_: TableBaseColumn) => {
             const type = resp.types[resp.columns.indexOf(c)];
             return NTooltip({},
-              m("div", [
+              m("div", {}, [
                 NIcon({
                   // size: 15,
                   color: "grey",
@@ -97,24 +97,24 @@ export default function(
                       "QuestionCircleOutlined",
                 }),
                 c,
-              ])
+              ]),
               // default: () => type,
             );
           },
-          render: (rowData: any) => {
-            const v = rowData[c];
+          render: (v: RowValue): DOMNode => {
             switch (true) {
             case v === null:
               return m("span", {style: {color: "grey"}}, ["(NULL)"]);
             case typeof v == "boolean":
               return v ? "true" : "false";
             case typeof v == "number" || typeof v == "string":
-              return v;
+              return String(v);
             default:
-              return rowData[c];
+              alert(`unknown row value type: ${String(v)} : ${typeof v}`);
+              return String(v);
             }
           },
-        }
+        };
       });
     })();
     // TODO: fix duplicate column names
@@ -134,7 +134,7 @@ export default function(
       return NEmpty({
         description: "Loading request...",
         class: "h100",
-        style: {"justify-content": "center"},
+        style: {justifyContent: "center"},
       });
     const select = NSelect({
       label: request.request!.database,
@@ -150,9 +150,9 @@ export default function(
       [
         ...(show_request() ? [NInputGroup({
           style: {
-            "grid-column": "span 2",
+            gridColumn: "span 2",
             display: "grid",
-            "grid-template-columns": "1fr 10fr 1fr",
+            gridTemplateColumns: "1fr 10fr 1fr",
           },
         }, [
           select.el,
@@ -177,17 +177,17 @@ export default function(
           NEmpty({
             description: "Run query or choose one from history.",
             class: "h100",
-            style: {"justify-content": "center"},
+            style: {justifyContent: "center"},
           }) :
           NScrollbar(
             DataTable({
-              columns: columns,
-              data: data,
+              columns,
+              data,
               "single-line": false,
               size: "small",
               resizable: true,
               "scroll-x": request.response.columns.length * 200,
-            })
+            }),
           ),
         ]),
       ],

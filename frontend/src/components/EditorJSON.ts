@@ -1,8 +1,8 @@
 import {EditorState} from "@codemirror/state";
 import {EditorView} from "@codemirror/view";
 import {json} from "@codemirror/lang-json";
-import {defaultEditorExtensions, defaultExtensions} from "./editor";
-import {m} from "../utils";
+import {defaultEditorExtensions, defaultExtensions} from "./editor.ts";
+import {m} from "../utils.ts";
 
 type Props = {
   value: string | null,
@@ -10,7 +10,7 @@ type Props = {
     update: (value: string) => void,
   },
   class?: string,
-  style?: any,
+  style?: Partial<CSSStyleDeclaration>,
 };
 export default function(props: Props) {
   const el = m("div", {

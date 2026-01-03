@@ -1,14 +1,14 @@
-import {NEmpty, NList} from "./dataview";
-import {NInput} from "./input";
-import {Modal} from "./layout";
-import {KeyESC, KeyDown, KeyUp, KeyEnter} from "./icons";
-import {m, DOMNode} from "../utils";
+import {NEmpty, NList} from "./dataview.ts";
+import {NInput} from "./input.ts";
+import {Modal} from "./layout.ts";
+import {KeyESC, KeyDown, KeyUp, KeyEnter} from "./icons.ts";
+import {m, DOMNode} from "../utils.ts";
 
 type CommandDialogProps = {
   visible: boolean,
   on: {
-    close: () => void
-  }
+    close: () => void,
+  },
   header: DOMNode,
   body: DOMNode,
   footer: DOMNode,
@@ -27,7 +27,7 @@ function Dialog(props: CommandDialogProps) {
       m("div", {class: "command-palette-header"}, props.header),
       m("div", {class: "command-palette-body"}, props.body),
       m("div", {class: "command-palette-footer"}, props.footer),
-    ])
+    ]),
   ]);
 };
 
