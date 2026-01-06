@@ -434,7 +434,7 @@ function preApp(root: HTMLElement, store: Store) {
     style: {
       color: "black",
       display: "grid",
-      gridTemplateColumns: "1fr 1fr",
+      gridTemplateColumns: "50% 50%",
       gridColumnGap: ".5em",
     },
   }, [

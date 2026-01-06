@@ -19,7 +19,7 @@ function NSplit(left: HTMLElement, right: HTMLElement) {
     style: {
       display: "grid",
       // gridTemplateRows: "auto 1fr",
-      // gridTemplateColumns: "1fr 1fr",
+      // gridTemplateColumns: "50% 50%",
       gridTemplateRows: "1fr 5px 3fr",
       gridColumnGap: ".5em",
     } as Partial<CSSStyleDeclaration>,

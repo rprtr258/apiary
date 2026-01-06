@@ -12,7 +12,7 @@ function NSplit(children: DOMNode[]) {
     class: "h100",
     style: {
       display: "grid",
-      // gridTemplateColumns: "1fr 1fr",
+      // gridTemplateColumns: "50% 50%",
       // gridTemplateRows: "auto 1fr",
       gridTemplateRows: "1fr 0px 3fr",
       gridColumnGap: ".5em",

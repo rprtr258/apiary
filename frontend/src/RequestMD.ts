@@ -114,7 +114,7 @@ export default function(
             class: "h100",
             style: {
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: "50% 50%",
               gridColumnGap: ".5em",
             },
           },

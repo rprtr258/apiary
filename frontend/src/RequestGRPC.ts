@@ -183,7 +183,7 @@ export default function(
             class: "h100",
             style: {
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: "50% 50%",
               gridTemplateRows: "auto 1fr",
               gridColumnGap: ".5em",
             },
