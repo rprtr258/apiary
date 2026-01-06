@@ -6,6 +6,7 @@ import (
 	_ "embed"
 
 	pikchr "github.com/jchenry/goldmark-pikchr"
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/pkg/errors"
 	img64 "github.com/tenkoh/goldmark-img64"
 	mathml "github.com/wyatt915/goldmark-treeblood"
@@ -83,5 +84,9 @@ func sendMD(ctx context.Context, request EntryData) (EntryData, error) {
 		return MDResponse{}, errors.Wrap(err, "convert")
 	}
 
-	return MDResponse{b.String()}, nil
+	// Sanitize HTML to prevent XSS attacks
+	policy := bluemonday.UGCPolicy()
+	sanitized := policy.Sanitize(b.String())
+
+	return MDResponse{sanitized}, nil
 }
