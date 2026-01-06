@@ -1,5 +1,5 @@
 import {EditorState} from "@codemirror/state";
-import {EditorView} from "@codemirror/view";
+import {EditorView, ViewPlugin, ViewUpdate} from "@codemirror/view";
 import {markdown} from "@codemirror/lang-markdown";
 import {database} from "../wailsjs/go/models.ts";
 import {NEmpty} from "./components/dataview.ts";
@@ -24,28 +24,27 @@ function EditorMD(props: Props) {
     style: props.style ?? {},
   });
 
+  const updateListener = ViewPlugin.fromClass(class {
+    update(update: ViewUpdate) {
+      if (update.docChanged) {
+        props.on.update(update.state.doc.toString());
+      }
+    }
+  });
+
   const editor = new EditorView({
     parent: el,
     state: EditorState.create({
       doc: props.value ?? "",
       extensions: [
         ...defaultExtensions,
-        ...defaultEditorExtensions(props.on.update),
+        ...defaultEditorExtensions(() => {}), // empty function because updateListener handles changes
         markdown(),
+        updateListener,
       ],
     }),
   });
   void editor;
-
-  // if (props.value !== editor.state.doc.toString()) {
-  //   editor.dispatch({
-  //     changes: {
-  //       from: 0,
-  //       to: editor.state.doc.length,
-  //       insert: props.value,
-  //     } as ChangeSpec,
-  //   });
-  // }
 
   return el;
 }
@@ -72,23 +71,56 @@ export default function(
     class: "h100",
     style: {justifyContent: "center"},
   });
-  let Markdownerror: string | null = null; // TODO: use
-  let id: string; // TODO: move?
+
+  const el_error = m("div", {
+    style: {
+      display: "none",
+      background: "rgba(239, 68, 68, 0.15)",
+      color: "#fca5a5",
+      borderLeft: "3px solid #ef4444",
+      padding: "0.5em 0.75em",
+      fontSize: "0.875em",
+      fontWeight: "500",
+      marginBottom: "0.5em",
+    },
+  });
+
+  let id: string | null = null;
+  let responseContainer: HTMLElement | null = null;
+  let lastScrollTop = 0;
+
   const update_response = () => {
+    if (id === null) return; // Guard: id not set yet
     api.requestPerform(id).then(res => {
       if (res.kind === "err") {
-        Markdownerror = `Could not render document: ${res.value}`;
+        el_error.textContent = `Could not render document: ${res.value}`;
+        el_error.style.display = "block";
       } else {
-        Markdownerror = null;
+        el_error.style.display = "none";
         const response = res.value.response as database.MDResponse;
-        el_response.replaceChildren(m("div", {
+        
+         // Save scroll position before update
+        if (responseContainer) {
+          lastScrollTop = responseContainer.scrollTop;
+        }
+        
+         // Create a new container with the result
+        const newContainer = m("div", {
           class: "h100 markdown-body",
           style: {
             overflowY: "scroll",
             height: "100vh",
           },
           innerHTML: response.data,
-        }));
+        });
+        
+          // Restore scroll position after rendering
+          requestAnimationFrame(() => {
+            newContainer.scrollTop = lastScrollTop;
+          });
+        
+        responseContainer = newContainer;
+        el_response.replaceChildren(newContainer);
       }
     }).catch(alert);
   };
@@ -97,11 +129,17 @@ export default function(
     loaded: (r: get_request) => {
       const request = r.request as Request;
       id = r.request.id;
+
       update_response();
 
       const el_editor_md = EditorMD({
         value: request.data,
-        on: {update: (data: string) => on.update({data})},
+        on: {
+          update: async (data: string) => {
+            await on.update({data});
+            update_response();
+          },
+        },
         class: "h100",
         style: {
           overflowY: "scroll",
@@ -119,7 +157,16 @@ export default function(
             },
           },
             el_editor_md,
-            el_response,
+            m("div", {
+              class: "h100",
+              style: {
+                display: "flex",
+                flexDirection: "column",
+              },
+            },
+              el_error,
+              el_response,
+            ),
           ));
         } else {
           el.replaceChildren(m("div", {
@@ -130,8 +177,16 @@ export default function(
               gridTemplateRows: "1fr",
             },
           },
-            // Markdownerror !== null ?  m("div", {style: {position: "fixed", color: "red", bottom: "3em"}}, Markdownerror) :
-            el_response,
+            m("div", {
+              class: "h100",
+              style: {
+                display: "flex",
+                flexDirection: "column",
+              },
+            },
+              el_error,
+              el_response,
+            ),
           ));
         }
       };
@@ -139,6 +194,7 @@ export default function(
       show_request.sub(() => updateLayout());
     },
     push_history_entry(_he) {
+      if (id === null) return; // Guard: id not set yet
       update_response();
     },
     // unmount() { // TODO: uncomment and use

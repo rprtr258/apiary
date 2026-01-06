@@ -11,6 +11,7 @@
 - Run `bun run ci` during and after completing functionality to check for linter and type errors.
 - Include updates to `AGENTS.md` for any structural, architectural, or cross-cutting changes.
 - Use `bd-mcp` for creating and tracking complex task plans
+- Follow effective and correct programming practices.
 
 ## Commands
 - **Build**: `bun run build`
@@ -54,6 +55,8 @@ To set up and run the development environment:
 - **Go:** Follow standard Go idioms; use `zerolog` for logging. Prefer context-based cancellation and modular plugin structures.
 - **TypeScript:** Vanilla TypeScript with strict mode enabled. Use single quotes, functional patterns where possible. No frameworks; rely on native DOM APIs and libraries like GoldenLayout and CodeMirror.
 - General: Keep code modular, with clear separation between backend (Go) and frontend (TypeScript). Run linters before committing (e.g., `go vet`, `tsc --noEmit`).
+- Do not modify or patch 3rd party dependencies, including overwriting their styles, or using `!important`.
+- Do not ever use `overflow: hidden`.
 
 ## Key Architecture Points
 ### Backend (Go)
