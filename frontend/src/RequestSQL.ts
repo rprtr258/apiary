@@ -11,8 +11,6 @@ import {DOMNode, m, Signal} from "./utils.ts";
 
 type Request = database.SQLRequest;
 
-
-
 function render(v: RowValue): DOMNode {
   switch (true) {
   case v === null:
