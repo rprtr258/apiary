@@ -62,8 +62,12 @@ function DataTable({columns, data}: DataTableProps) {
 export default function(
   el: HTMLElement,
   show_request: Signal<boolean>,
-): {loaded: (r: get_request) => void} {
+): {
+  loaded: (r: get_request) => void,
+  unmount(): void,
+} {
   let query = "";
+  let unsub_show = () => {};
   return {loaded: (r: get_request): void => {
     const request = use_sql_source(r.request.id);
 
@@ -186,8 +190,8 @@ export default function(
         }),
       );
 
-    const updateLayout = () => {
-      if (show_request.value) {
+    const updateLayout = (show_request: boolean) => {
+      if (show_request) {
         el.replaceChildren(m("div", {
           class: "h100",
           id: "gavno",
@@ -203,6 +207,10 @@ export default function(
         }, el_response_data));
       }
     };
-    show_request.sub(() => updateLayout());
-  }};
+    unsub_show = show_request.sub(updateLayout);
+  },
+  unmount() {
+    unsub_show();
+  },
+};
 };

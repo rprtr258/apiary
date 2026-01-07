@@ -1,0 +1,40 @@
+name: Check pull request
+
+on:
+  push:
+    branches: ["*"]
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install deps
+        run: cd frontend && bun install
+
+      - name: Run typecheck
+        run: cd frontend && bun run tsc -p tsconfig.json
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install deps
+        run: cd frontend && bun install
+
+      - name: Run ESLint
+        run: cd frontend && bun run lint

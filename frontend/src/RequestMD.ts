@@ -44,9 +44,8 @@ function EditorMD(props: Props) {
       ],
     }),
   });
-  void editor;
 
-  return el;
+  return {el, editor};
 }
 
 export default function(
@@ -59,6 +58,7 @@ export default function(
 ): {
   loaded(r: get_request): void,
   push_history_entry(he: HistoryEntry): void, // show last history entry
+  unmount(): void,
 } {
   el.append(NEmpty({
     description: "Loading request...",
@@ -71,6 +71,7 @@ export default function(
     class: "h100",
     style: {justifyContent: "center"},
   });
+  let unsub_show = () => {};
 
   const el_error = m("div", {
     style: {
@@ -124,6 +125,7 @@ export default function(
     }).catch(alert);
   };
 
+  let editor: EditorView | undefined;
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
@@ -131,7 +133,7 @@ export default function(
 
       update_response();
 
-      const el_editor_md = EditorMD({
+      const {el: el_editor_md, editor: editor_md} = EditorMD({
         value: request.data,
         on: {
           update: async (data: string) => {
@@ -144,9 +146,10 @@ export default function(
           minHeight: "0",
         },
       });
+      editor = editor_md;
 
-      const updateLayout = () => {
-        if (show_request.value) {
+      const updateLayout = (show_request: boolean) => {
+        if (show_request) {
           el.replaceChildren(m("div", {
             class: "h100",
             style: {
@@ -190,14 +193,15 @@ export default function(
         }
       };
 
-      show_request.sub(() => updateLayout());
+      unsub_show = show_request.sub(updateLayout);
     },
     push_history_entry(_he) {
       if (id === null) return; // Guard: id not set yet
       update_response();
     },
-    // unmount() { // TODO: uncomment and use
-    //   el_view_response_body.unmount();
-    // },
+    unmount() {
+      unsub_show();
+      editor?.destroy();
+    },
   };
 }

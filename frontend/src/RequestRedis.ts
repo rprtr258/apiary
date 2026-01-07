@@ -19,6 +19,7 @@ export default function(
 ): {
   loaded(r: get_request): void,
   push_history_entry(he: HistoryEntry): void, // show last history entry
+  unmount(): void,
 } {
   el.append(NEmpty({
     description: "Loading request...",
@@ -37,6 +38,7 @@ export default function(
     style: {justifyContent: "center"},
   });
   const el_view_response_body = ViewJSON("");
+  let unsub_show = () => {};
   const update_request = (patch: Partial<database.RedisRequest>): void => {
     el_send.disabled = true;
     on.update(patch).then(() => {
@@ -69,8 +71,8 @@ export default function(
         on: {update: (value: string) => update_request({query: value})},
       });
 
-      const updateLayout = () => {
-        if (show_request.value) {
+      const updateLayout = (show_request: boolean) => {
+        if (show_request) {
           el.replaceChildren(m("div", {
             class: "h100",
             style: {
@@ -97,13 +99,14 @@ export default function(
           ));
         }
       };
-      show_request.sub(() => updateLayout());
+      unsub_show = show_request.sub(updateLayout);
     },
     push_history_entry(he: HistoryEntry) {
       update_response(he.response as database.RedisResponse);
     },
-    // unmount() { // TODO: uncomment and use
-    //   el_view_response_body.unmount();
-    // },
+    unmount() {
+      unsub_show();
+      el_view_response_body.unmount();
+    },
   };
 }

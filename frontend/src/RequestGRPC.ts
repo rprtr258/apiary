@@ -29,6 +29,7 @@ export default function(
 ): {
   loaded(r: get_request): void,
   push_history_entry(he: HistoryEntry): void, // show last history entry
+  unmount(): void,
 } {
   el.append(NEmpty({
     description: "Loading request...",
@@ -42,6 +43,7 @@ export default function(
     style: {justifyContent: "center"},
   });
   const el_view_response_body = ViewJSON("");
+  let unsub_show = () => {};
   const update_response = (response: database.GRPCResponse | null) => {
     if (response === null) {return;}
 
@@ -177,8 +179,8 @@ export default function(
         ],
       });
 
-      const updateLayout = () => {
-        if (show_request.value) {
+      const updateLayout = (show_request: boolean) => {
+        if (show_request) {
           el.replaceChildren(m("div", {
             class: "h100",
             style: {
@@ -200,10 +202,14 @@ export default function(
         }
       };
 
-      show_request.sub(() => updateLayout());
+      unsub_show = show_request.sub(updateLayout);
     },
     push_history_entry(he) {
       update_response(he.response as database.GRPCResponse);
+    },
+    unmount() {
+      unsub_show();
+      el_view_response_body.unmount();
     },
   };
 }
