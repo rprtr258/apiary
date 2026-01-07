@@ -161,7 +161,7 @@ export default function(
             el_error,
             el_response,
           );
-          el.replaceChildren(NSplit(el_editor_md, right_div, {direction: "horizontal"}));
+          el.replaceChildren(NSplit(el_editor_md, right_div, {direction: "horizontal"}).element);
         } else {
           el.replaceChildren(m("div", {
             class: "h100",

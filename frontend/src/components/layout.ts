@@ -1,4 +1,4 @@
-import Split from "split-grid";
+import Split, {SplitInstance} from "split-grid";
 import {DOMNode, m} from "../utils.ts";
 
 export function NScrollbar(...children: HTMLElement[]) {
@@ -127,15 +127,17 @@ type NSplitOptions = {
   direction?: "horizontal" | "vertical",
   resizable?: boolean,
   sizes?: readonly [string, string],
+  gutterSize?: number,
 };
 
 export function NSplit(left: HTMLElement, right: HTMLElement, options: NSplitOptions) {
-  const {direction = "vertical", resizable = true, sizes: actualSizes = ["1fr", "1fr"]} = options;
+  const {direction = "vertical", resizable = true, sizes: actualSizes = ["1fr", "1fr"], gutterSize = 5} = options;
 
-  const template = actualSizes.join(resizable ? " 5px " : " ");
+  const templateProp = direction === "horizontal" ? "gridTemplateColumns" : "gridTemplateRows";
+  const template = actualSizes.join(resizable ? ` ${gutterSize}px ` : " ");
   const style: Partial<CSSStyleDeclaration> = {
     display: "grid",
-    [direction === "horizontal" ? "gridTemplateColumns" : "gridTemplateRows"]: template,
+    [templateProp]: template,
   };
 
   // Ensure children can shrink
@@ -148,35 +150,70 @@ export function NSplit(left: HTMLElement, right: HTMLElement, options: NSplitOpt
     right.style.minHeight = "0";
   }
 
-  const elements: HTMLElement[] = [];
-  const gutters: {track: number, element: HTMLElement, minSize?: number}[] = [];
+  const el_line = m("hr", {
+    style: {
+      cursor: direction === "horizontal" ? "col-resize" : "row-resize",
+      border: "none",
+      backgroundColor: "white",
+      width: direction === "horizontal" ? `${gutterSize}px` : "100%",
+      height: direction === "vertical" ? `${gutterSize}px` : "100%",
+    },
+  });
 
-  elements.push(left);
+  const el = m("div", {class: "h100", style}, [left, el_line, right]);
+
+  let splitInstance: SplitInstance | null = null;
   if (resizable) {
-    const el_line = m("hr", {
-      style: {
-        cursor: direction === "horizontal" ? "col-resize" : "row-resize",
-        border: "none",
-        backgroundColor: "white",
-        width: direction === "horizontal" ? "2px" : "100%",
-        height: direction === "vertical" ? "2px" : "100%",
-      },
+    splitInstance = Split({
+      [direction === "horizontal" ? "columnGutters" : "rowGutters"]: [
+        {track: 1, element: el_line, minSize: 0},
+      ],
     });
-    elements.push(el_line);
-    gutters.push({track: 1, element: el_line, minSize: 0});
-  }
-  elements.push(right);
-
-  const el = m("div", {class: "h100", style}, elements);
-
-  if (resizable) {
-    const splitOptions = direction === "horizontal"
-      ? {columnGutters: gutters}
-      : {rowGutters: gutters};
-    Split(splitOptions);
   }
 
-  return el;
+  let leftVisible = true;
+  let rightVisible = true;
+
+  const updateVisibility = () => {
+    if (!leftVisible && !rightVisible) {
+      throw new Error("Cannot hide both sides of NSplit");
+    }
+
+    // Update styles based on visibility state
+    if (direction === "horizontal") {
+      left.style.width = leftVisible ? "" : "0";
+      right.style.width = rightVisible ? "" : "0";
+    } else {
+      left.style.height = leftVisible ? "" : "0";
+      right.style.height = rightVisible ? "" : "0";
+    }
+
+    // Separator is visible only when both are shown
+    el_line.style.display = leftVisible && rightVisible ? "" : "none";
+  };
+
+  return {
+    element: el,
+    hideLeft() {
+      leftVisible = false;
+      updateVisibility();
+    },
+    showLeft() {
+      leftVisible = true;
+      updateVisibility();
+    },
+    hideRight() {
+      rightVisible = false;
+      updateVisibility();
+    },
+    showRight() {
+      rightVisible = true;
+      updateVisibility();
+    },
+    unmount() {
+      splitInstance?.destroy?.();
+    },
+  };
 }
 
 function Overlay(props: {on: {close: () => void}}, child: HTMLElement) {

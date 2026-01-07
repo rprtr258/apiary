@@ -181,8 +181,8 @@ export default function(
 
       const updateLayout = (show_request: boolean) => {
         if (show_request) {
-          const top_div = NSplit(el_input_group, el_req_tabs, {direction: "horizontal"});
-          el.replaceChildren(NSplit(top_div, el_response, {sizes: ["auto", "1fr"]}));
+          const top_div = NSplit(el_input_group, el_req_tabs, {direction: "horizontal"}).element;
+          el.replaceChildren(NSplit(top_div, el_response, {sizes: ["auto", "1fr"]}).element);
         } else {
           el.replaceChildren(el_response);
         }
