@@ -165,11 +165,7 @@ export default function(
               class: "h100",
             },
             el_input_group,
-            NSplit({
-              children: [el_editor, el_response],
-              direction: 'vertical',
-              sizes: ['1fr', '3fr'],
-            }),
+            NSplit(el_editor, el_response, {sizes: ["1fr", "3fr"]}),
           ));
         } else {
           el.replaceChildren(m("div", {

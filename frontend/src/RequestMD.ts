@@ -3,6 +3,7 @@ import {EditorView, ViewPlugin, ViewUpdate} from "@codemirror/view";
 import {markdown} from "@codemirror/lang-markdown";
 import {database} from "../wailsjs/go/models.ts";
 import {NEmpty} from "./components/dataview.ts";
+import {NSplit} from "./components/layout.ts";
 import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
 import {get_request} from "./store.ts";
 import {api, HistoryEntry} from "./api.ts";
@@ -149,26 +150,18 @@ export default function(
 
       const updateLayout = (show_request: boolean) => {
         if (show_request) {
-          el.replaceChildren(m("div", {
+          const right_div = m("div", {
             class: "h100",
             style: {
-              display: "grid",
-              gridTemplateColumns: "50% 50%",
+              display: "flex",
+              flexDirection: "column",
+              minHeight: "0",
             },
           },
-            el_editor_md,
-            m("div", {
-              class: "h100",
-              style: {
-                display: "flex",
-                flexDirection: "column",
-                minHeight: "0",
-              },
-            },
-              el_error,
-              el_response,
-            ),
-          ));
+            el_error,
+            el_response,
+          );
+          el.replaceChildren(NSplit(el_editor_md, right_div, {direction: "horizontal"}));
         } else {
           el.replaceChildren(m("div", {
             class: "h100",

@@ -1,6 +1,6 @@
 import {database} from "../wailsjs/go/models.ts";
 import {NInput, NButton, NInputGroup, NSelect} from "./components/input.ts";
-import {NTabs} from "./components/layout.ts";
+import {NTabs, NSplit} from "./components/layout.ts";
 import {NTag, NTable, NEmpty} from "./components/dataview.ts";
 import {GRPCCodes, HistoryEntry} from "./api.ts";
 import ViewJSON from "./components/ViewJSON.ts";
@@ -181,24 +181,10 @@ export default function(
 
       const updateLayout = (show_request: boolean) => {
         if (show_request) {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "50% 50%",
-              gridTemplateRows: "auto 1fr",
-              gridColumnGap: ".5em",
-            },
-          }, el_input_group, el_req_tabs, el_response));
+          const top_div = NSplit(el_input_group, el_req_tabs, {direction: "horizontal"});
+          el.replaceChildren(NSplit(top_div, el_response, {sizes: ["auto", "1fr"]}));
         } else {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "1fr",
-              gridTemplateRows: "1fr",
-            },
-          }, el_response));
+          el.replaceChildren(el_response);
         }
       };
       unmounts.push(show_request.sub(updateLayout));

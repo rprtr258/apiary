@@ -175,7 +175,7 @@ export default function(
         ],
       });
 
-      const el_split = NSplit({children: [el_req_tabs, el_response], direction: 'horizontal'});
+      const el_split = NSplit(el_req_tabs, el_response, {direction: "horizontal"});
       const el_container = m("div", {
         class: "h100",
         style: {

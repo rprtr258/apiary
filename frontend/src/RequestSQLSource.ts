@@ -174,9 +174,10 @@ export default function(
 
       const updateLayout = (show_request: boolean) => {
         if (show_request) {
+          const splitOptions = {resizable: false, sizes: ["1fr", "3fr"] as const};
           el.replaceChildren(m("div", {
             class: "h100",
-          }, el_input_group, NSplit({children: [el_editor_sql, el_response_data], direction: 'vertical', resizable: false, sizes: ['1fr', '3fr']})));
+          }, el_input_group, NSplit(el_editor_sql, el_response_data, splitOptions)));
         } else {
           el.replaceChildren(m("div", {
             class: "h100",
