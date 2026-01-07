@@ -135,7 +135,7 @@ export default function(
       }),
     ));
   };
-  let unsub_show = () => {};
+  const unmounts: (() => void)[] = [];
 
   return {
     loaded: (r: get_request): void => {
@@ -188,7 +188,6 @@ export default function(
         if (show_request) {
           el.replaceChildren(m("div", {
               class: "h100",
-              id: "gavno",
             },
             el_input_group,
             NSplit(
@@ -209,13 +208,15 @@ export default function(
           ));
         }
       };
-      unsub_show = show_request.sub(updateLayout);
+      unmounts.push(show_request.sub(updateLayout));
     },
     push_history_entry(he: HistoryEntry) {
       push_response(he.response as database.SQLResponse);
     },
     unmount() {
-      unsub_show();
+      for (const unmount of unmounts) {
+        unmount();
+      }
     },
   };
 };

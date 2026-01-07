@@ -71,7 +71,7 @@ export default function(
     class: "h100",
     style: {justifyContent: "center"},
   });
-  let unsub_show = () => {};
+  const unmounts: (() => void)[] = [];
 
   const el_error = m("div", {
     style: {
@@ -125,7 +125,6 @@ export default function(
     }).catch(alert);
   };
 
-  let editor: EditorView | undefined;
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
@@ -133,7 +132,7 @@ export default function(
 
       update_response();
 
-      const {el: el_editor_md, editor: editor_md} = EditorMD({
+      const {el: el_editor_md, editor} = EditorMD({
         value: request.data,
         on: {
           update: async (data: string) => {
@@ -146,7 +145,7 @@ export default function(
           minHeight: "0",
         },
       });
-      editor = editor_md;
+      unmounts.push(() => editor.destroy());
 
       const updateLayout = (show_request: boolean) => {
         if (show_request) {
@@ -192,16 +191,16 @@ export default function(
           ));
         }
       };
-
-      unsub_show = show_request.sub(updateLayout);
+      unmounts.push(show_request.sub(updateLayout));
     },
     push_history_entry(_he) {
       if (id === null) return; // Guard: id not set yet
       update_response();
     },
     unmount() {
-      unsub_show();
-      editor?.destroy();
+      for (const unmount of unmounts) {
+        unmount();
+      }
     },
   };
 }

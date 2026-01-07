@@ -46,7 +46,7 @@ export default function(
     style: {justifyContent: "center"},
   });
   const el_view_response_body = ViewJSON("");
-  let unsub_show = () => {};
+  const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
   const update_response = (response: database.JQResponse | null) => {
     if (response === null) {return;}
 
@@ -107,14 +107,15 @@ export default function(
         }
       };
 
-      unsub_show = show_request.sub(updateLayout);
+      unmounts.push(show_request.sub(updateLayout));
     },
     push_history_entry(he) {
       update_response(he.response as database.JQResponse);
     },
     unmount() {
-      unsub_show();
-      el_view_response_body.unmount();
+      for (const unmount of unmounts) {
+        unmount();
+      }
     },
   };
 }
