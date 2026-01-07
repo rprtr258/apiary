@@ -13,7 +13,7 @@ import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs
 import {Method, Kinds, Database, HistoryEntry, Request} from "./api.ts";
 import {app, database} from "../wailsjs/go/models.ts";
 import Command from "./components/CommandPalette.ts";
-import {DOMNode, m, Signal, signal} from "./utils.ts";
+import {DOMNode, m, setDisplay, Signal, signal} from "./utils.ts";
 
 function fromNow(date: Date): string {
   const now = new Date();
@@ -587,18 +587,13 @@ function preApp(root: HTMLElement, store: Store) {
       el_empty_state,
       el_layout,
     ]);
-  const {element: app_container} = NSplit(el_aside, el_main, {direction: "horizontal", sizes: ["300px", "1fr"]});
+  const app_container = NSplit(el_aside, el_main, {direction: "horizontal", sizes: ["300px", "1fr"]}).element;
 
   collapseButton.onclick = () => { // TODO: inline to props
     sidebarHidden = !sidebarHidden;
     app_container.style.gridTemplateColumns = sidebarHidden ? "3em 5px 1fr" : "300px 5px 1fr";
-    if (sidebarHidden) {
-      el_aside.style.gridTemplateRows = "1fr";
-      (el_aside.children[0] as HTMLElement).style.display = "none";
-    } else {
-      el_aside.style.gridTemplateRows = "95% 5%";
-      (el_aside.children[0] as HTMLElement).style.display = "block";
-    }
+    el_aside.style.gridTemplateRows = sidebarHidden ? "1fr" : "95% 5%";
+    setDisplay(el_aside.children[0] as HTMLElement, !sidebarHidden);
     collapseButton.replaceChildren(...collapseButtonStates.get(sidebarHidden)!);
   };
 

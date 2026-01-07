@@ -162,3 +162,22 @@ export function signal<T>(value: T): Signal<T> {
     get value(): T {return _value;},
   };
 }
+
+type ToggleDisplayElement = HTMLElement & {
+  __prevDisplay?: string,
+};
+
+export function setDisplay(el: ToggleDisplayElement, show: boolean): void {
+  if (show) {
+    if (el.__prevDisplay !== undefined) {
+      el.style.display = el.__prevDisplay;
+      delete el.__prevDisplay;
+    }
+    return;
+  }
+
+  if (el.__prevDisplay === undefined) {
+    el.__prevDisplay = el.style.display;
+    el.style.display = "none";
+  }
+}

@@ -1,19 +1,19 @@
 export namespace app {
-
+	
 	export class GetResponse {
 	    Request: database.Request;
 	    History: any[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new GetResponse(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.Request = this.convertValues(source["Request"], database.Request);
 	        this.History = source["History"];
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -35,11 +35,11 @@ export namespace app {
 	export class requestPreview {
 	    Kind: database.Kind;
 	    SubKind: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new requestPreview(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.Kind = source["Kind"];
@@ -49,17 +49,17 @@ export namespace app {
 	export class Tree {
 	    IDs: Record<string, string>;
 	    Dirs: Record<string, Tree>;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new Tree(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.IDs = source["IDs"];
 	        this.Dirs = this.convertValues(source["Dirs"], Tree, true);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -81,17 +81,17 @@ export namespace app {
 	export class ListResponse {
 	    Tree: Tree;
 	    Requests: Record<string, requestPreview>;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ListResponse(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.Tree = this.convertValues(source["Tree"], Tree);
 	        this.Requests = this.convertValues(source["Requests"], requestPreview, true);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -112,25 +112,25 @@ export namespace app {
 	}
 	export class ResponseNewRequest {
 	    id: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ResponseNewRequest(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	    }
 	}
-
+	
 	export class grpcServiceMethods {
 	    service: string;
 	    methods: string[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new grpcServiceMethods(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.service = source["service"];
@@ -141,15 +141,15 @@ export namespace app {
 }
 
 export namespace database {
-
+	
 	export enum Kind {
-	    GRPC = "grpc",
-	    SQLSource = "sql-source",
 	    HTTP = "http",
 	    SQL = "sql",
 	    JQ = "jq",
 	    MD = "md",
 	    REDIS = "redis",
+	    GRPC = "grpc",
+	    SQLSource = "sql-source",
 	}
 	export enum Database {
 	    POSTGRES = "postgres",
@@ -166,11 +166,11 @@ export namespace database {
 	export class KV {
 	    key: string;
 	    value: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new KV(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.key = source["key"];
@@ -182,11 +182,11 @@ export namespace database {
 	    method: string;
 	    payload: string;
 	    metadata: KV[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new GRPCRequest(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.target = source["target"];
@@ -194,7 +194,7 @@ export namespace database {
 	        this.payload = source["payload"];
 	        this.metadata = this.convertValues(source["metadata"], KV);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -217,18 +217,18 @@ export namespace database {
 	    response: string;
 	    code: number;
 	    metadata: KV[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new GRPCResponse(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.response = source["response"];
 	        this.code = source["code"];
 	        this.metadata = this.convertValues(source["metadata"], KV);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -252,11 +252,11 @@ export namespace database {
 	    method: string;
 	    body: string;
 	    headers: KV[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new HTTPRequest(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.url = source["url"];
@@ -264,7 +264,7 @@ export namespace database {
 	        this.body = source["body"];
 	        this.headers = this.convertValues(source["headers"], KV);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -287,18 +287,18 @@ export namespace database {
 	    code: number;
 	    body: string;
 	    headers: KV[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new HTTPResponse(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.code = source["code"];
 	        this.body = source["body"];
 	        this.headers = this.convertValues(source["headers"], KV);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -320,11 +320,11 @@ export namespace database {
 	export class JQRequest {
 	    query: string;
 	    json: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new JQRequest(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.query = source["query"];
@@ -333,24 +333,24 @@ export namespace database {
 	}
 	export class JQResponse {
 	    response: string[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new JQResponse(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.response = source["response"];
 	    }
 	}
-
+	
 	export class MDRequest {
 	    data: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new MDRequest(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = source["data"];
@@ -358,11 +358,11 @@ export namespace database {
 	}
 	export class MDResponse {
 	    data: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new MDResponse(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = source["data"];
@@ -371,11 +371,11 @@ export namespace database {
 	export class RedisRequest {
 	    dsn: string;
 	    query: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new RedisRequest(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.dsn = source["dsn"];
@@ -384,11 +384,11 @@ export namespace database {
 	}
 	export class RedisResponse {
 	    response: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new RedisResponse(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.response = source["response"];
@@ -400,18 +400,18 @@ export namespace database {
 	    // Go type: time
 	    received_at: any;
 	    response: any;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new Response(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.sent_at = this.convertValues(source["sent_at"], null);
 	        this.received_at = this.convertValues(source["received_at"], null);
 	        this.response = source["response"];
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -435,11 +435,11 @@ export namespace database {
 	    Path: string;
 	    Data: any;
 	    Responses: Response[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new Request(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ID = source["ID"];
@@ -447,7 +447,7 @@ export namespace database {
 	        this.Data = source["Data"];
 	        this.Responses = this.convertValues(source["Responses"], Response);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -466,16 +466,16 @@ export namespace database {
 		    return a;
 		}
 	}
-
+	
 	export class SQLRequest {
 	    dsn: string;
 	    database: Database;
 	    query: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new SQLRequest(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.dsn = source["dsn"];
@@ -487,11 +487,11 @@ export namespace database {
 	    columns: string[];
 	    types: string[];
 	    rows: any[][];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new SQLResponse(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.columns = source["columns"];
@@ -502,11 +502,11 @@ export namespace database {
 	export class SQLSourceRequest {
 	    database: Database;
 	    dsn: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new SQLSourceRequest(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.database = source["database"];

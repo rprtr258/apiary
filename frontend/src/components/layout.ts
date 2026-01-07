@@ -125,16 +125,15 @@ export function NSpace(props: Record<string, unknown>, children: DOMNode[]) {
 
 type NSplitOptions = {
   direction?: "horizontal" | "vertical",
-  resizable?: boolean,
   sizes?: readonly [string, string],
   gutterSize?: number,
 };
 
 export function NSplit(left: HTMLElement, right: HTMLElement, options: NSplitOptions) {
-  const {direction = "vertical", resizable = true, sizes: actualSizes = ["1fr", "1fr"], gutterSize = 5} = options;
+  const {direction = "vertical", sizes: actualSizes = ["1fr", "1fr"], gutterSize = 5} = options;
 
   const templateProp = direction === "horizontal" ? "gridTemplateColumns" : "gridTemplateRows";
-  const template = actualSizes.join(resizable ? ` ${gutterSize}px ` : " ");
+  const template = actualSizes.join(` ${gutterSize}px `);
   const style: Partial<CSSStyleDeclaration> = {
     display: "grid",
     [templateProp]: template,
@@ -162,52 +161,53 @@ export function NSplit(left: HTMLElement, right: HTMLElement, options: NSplitOpt
 
   const el = m("div", {class: "h100", style}, [left, el_line, right]);
 
-  let splitInstance: SplitInstance | null = null;
-  if (resizable) {
-    splitInstance = Split({
-      [direction === "horizontal" ? "columnGutters" : "rowGutters"]: [
-        {track: 1, element: el_line, minSize: 0},
-      ],
-    });
-  }
+  const split_option_key = direction === "horizontal" ? "columnGutters" : "rowGutters";
+  let splitInstance: SplitInstance | null = Split({
+    [split_option_key]: [{track: 1, element: el_line, minSize: 0}],
+  });
 
   let leftVisible = true;
   let rightVisible = true;
 
+  const key = direction === "horizontal" ? "gridColumn" : "gridRow";
   const updateVisibility = () => {
     if (!leftVisible && !rightVisible) {
       throw new Error("Cannot hide both sides of NSplit");
     }
 
-    // Update styles based on visibility state
-    if (direction === "horizontal") {
-      left.style.width = leftVisible ? "" : "0";
-      right.style.width = rightVisible ? "" : "0";
+    if (leftVisible && rightVisible) {
+      left.style.display = "";
+      right.style.display = "";
+      el_line.style.display = "";
+      left.style[key] = "";
+      right.style[key] = "";
+      if (splitInstance === null) {
+        splitInstance = Split({
+          [split_option_key]: [{track: 1, element: el_line, minSize: 0}],
+        });
+      }
     } else {
-      left.style.height = leftVisible ? "" : "0";
-      right.style.height = rightVisible ? "" : "0";
+      if (splitInstance !== null) {
+        splitInstance.destroy();
+        splitInstance = null;
+      }
+      left.style.display = leftVisible ? "" : "none";
+      right.style.display = rightVisible ? "" : "none";
+      el_line.style.display = "none";
+      const [el_fill, el_empty] = leftVisible ? [left, right] : [right, left];
+      el_fill.style[key] = "1 / -1";
+      el_empty.style[key] = "";
     }
-
-    // Separator is visible only when both are shown
-    el_line.style.display = leftVisible && rightVisible ? "" : "none";
   };
 
   return {
     element: el,
-    hideLeft() {
-      leftVisible = false;
+    set leftVisible(value: boolean) {
+      leftVisible = value;
       updateVisibility();
     },
-    showLeft() {
-      leftVisible = true;
-      updateVisibility();
-    },
-    hideRight() {
-      rightVisible = false;
-      updateVisibility();
-    },
-    showRight() {
-      rightVisible = true;
+    set rightVisible(value: boolean) {
+      rightVisible = value;
       updateVisibility();
     },
     unmount() {

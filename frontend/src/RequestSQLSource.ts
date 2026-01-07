@@ -172,25 +172,16 @@ export default function(
           }),
         );
 
-      const updateLayout = (show_request: boolean) => {
-        if (show_request) {
-          const splitOptions = {resizable: false, sizes: ["1fr", "3fr"] as const};
-          const split = NSplit(el_editor_sql, el_response_data, splitOptions);
-          el.replaceChildren(m("div", {
-            class: "h100",
-         }, el_input_group, split.element));
-        } else {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "1fr",
-              gridTemplateRows: "1fr",
-            },
-          }, el_response_data));
-        }
-      };
-      unmounts.push(show_request.sub(updateLayout));
+      const splitOptions = {sizes: ["1fr", "3fr"] as const};
+      const split = NSplit(el_editor_sql, el_response_data, splitOptions);
+      unmounts.push(() => split.unmount());
+      const el_split = split.element;
+      const el_container = m("div", {class: "h100"}, el_input_group, el_split);
+      unmounts.push(show_request.sub((show_request: boolean) => {
+        el_input_group.style.display = show_request ? "" : "none";
+        split.leftVisible = show_request;
+        el.replaceChildren(el_container);
+      }));
     },
     unmount() {
       for (const unmount of unmounts) {

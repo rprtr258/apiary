@@ -7,7 +7,7 @@ import EditorJSON from "./components/EditorJSON.ts";
 import ViewJSON from "./components/ViewJSON.ts";
 import ParamsList from "./components/ParamsList.ts";
 import {type get_request, last_history_entry} from "./store.ts";
-import {DOMNode, m, Signal} from "./utils.ts";
+import {DOMNode, m, setDisplay, Signal} from "./utils.ts";
 
 type Request = database.HTTPRequest;
 
@@ -175,7 +175,9 @@ export default function(
         ],
       });
 
-      const {element: el_split} = NSplit(el_req_tabs, el_response, {direction: "horizontal"});
+      const split = NSplit(el_req_tabs, el_response, {direction: "horizontal"});
+      unmounts.push(() => split.unmount());
+      const el_split = split.element;
       const el_container = m("div", {
         class: "h100",
         style: {
@@ -188,13 +190,9 @@ export default function(
       el.replaceChildren(el_container);
 
       const updateLayout = (show_request: boolean) => {
-        if (show_request) {
-          el_container.style.gridTemplateRows = "auto minmax(0, 1fr)";
-          el_container.replaceChildren(el_input_group, el_split);
-        } else {
-          el_container.style.gridTemplateRows = "1fr";
-          el_container.replaceChildren(el_response);
-        }
+        split.leftVisible = show_request;
+        setDisplay(el_input_group, show_request);
+        el_container.style.gridTemplateRows = show_request ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)";
       };
       unmounts.push(show_request.sub(updateLayout));
     },
