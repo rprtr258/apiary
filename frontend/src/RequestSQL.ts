@@ -214,18 +214,3 @@ export default function(
     },
   };
 };
-
-// <style lang="css" scoped>
-// .n-tab-pane {
-//   height: 100% !important;
-// }
-// </style>
-// <style lang="css">
-// /* TODO: как же я ненавижу ебаный цсс блять господи за что */
-// #gavno > .n-layout-scroll-container {
-//   overflow: hidden;
-//   height: 100%;
-//   display: grid;
-//   grid-template-rows: 34px 1fr;
-// }
-// </style>

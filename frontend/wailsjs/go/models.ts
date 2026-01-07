@@ -142,6 +142,12 @@ export namespace app {
 
 export namespace database {
 	
+	export enum Database {
+	    POSTGRES = "postgres",
+	    MYSQL = "mysql",
+	    SQLITE = "sqlite",
+	    CLICKHOUSE = "clickhouse",
+	}
 	export enum ColumnType {
 	    STRING = "string",
 	    NUMBER = "number",
@@ -149,19 +155,13 @@ export namespace database {
 	    BOOLEAN = "boolean",
 	}
 	export enum Kind {
-	    REDIS = "redis",
 	    GRPC = "grpc",
 	    SQLSource = "sql-source",
 	    HTTP = "http",
 	    SQL = "sql",
 	    JQ = "jq",
 	    MD = "md",
-	}
-	export enum Database {
-	    POSTGRES = "postgres",
-	    MYSQL = "mysql",
-	    SQLITE = "sqlite",
-	    CLICKHOUSE = "clickhouse",
+	    REDIS = "redis",
 	}
 	export class KV {
 	    key: string;

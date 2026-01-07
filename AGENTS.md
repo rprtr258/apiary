@@ -57,6 +57,7 @@ To set up and run the development environment:
 - General: Keep code modular, with clear separation between backend (Go) and frontend (TypeScript). Run linters before committing (e.g., `go vet`, `tsc --noEmit`).
 - Do not modify or patch 3rd party dependencies, including overwriting their styles, or using `!important`.
 - Do not ever use `overflow: hidden`.
+- Do not ever disable linter checks until user explicitly requests it.
 
 ## Key Architecture Points
 ### Backend (Go)

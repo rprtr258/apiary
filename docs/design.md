@@ -43,10 +43,9 @@ implementation details
 - codemirror for request body/sql query/etc editors
 - single page, shell layout for whole application, full screen, whole layout consists of:
   - sidebar with all collections tree on left side, there is also tab to view all recently made requests to open them
-  - rest of screen is query tabs layout, inside queries there are 
+  - rest of screen is query tabs layout, inside queries there are
     - "navigation line" with following: "method" selection: method for HTTP, method for GRPC got from reflection, database kind/query lang for SQL queries, etc. then "address bar" with HTTP server address, GRPC server address, SQL DSN, REDIS server address, etc. Then "perform" button to send request and update response view, advanced setting is allowed through modal, e.g. dsn params as key-value pairs, or read only connection
   - under navigation line there is split view with request data on one side, and response on other side
   - request is text editor for SQL, tabbed "body"/"query params"/"headers" etc for HTTP requests, etc.
   - response is syntax highlighted response, with tabs for response HTTP headers/GRPC metadata; for metadata like response time, code, etc there is "pseudo tab" with such info, or informer or status line
 - response components must be reusable, e.g. sql query responses and sql datasource tables are almost same, so should reuse same component; jq response, http json response, grpc response are all json and should reuse same json view component, etc.
-

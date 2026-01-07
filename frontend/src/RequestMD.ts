@@ -98,27 +98,26 @@ export default function(
       } else {
         el_error.style.display = "none";
         const response = res.value.response as database.MDResponse;
-        
+
          // Save scroll position before update
         if (responseContainer) {
           lastScrollTop = responseContainer.scrollTop;
         }
-        
+
          // Create a new container with the result
         const newContainer = m("div", {
           class: "h100 markdown-body",
           style: {
             overflowY: "scroll",
-            height: "100vh",
           },
           innerHTML: response.data,
         });
-        
+
           // Restore scroll position after rendering
           requestAnimationFrame(() => {
             newContainer.scrollTop = lastScrollTop;
           });
-        
+
         responseContainer = newContainer;
         el_response.replaceChildren(newContainer);
       }
@@ -142,7 +141,7 @@ export default function(
         },
         class: "h100",
         style: {
-          overflowY: "scroll",
+          minHeight: "0",
         },
       });
 
@@ -153,7 +152,6 @@ export default function(
             style: {
               display: "grid",
               gridTemplateColumns: "50% 50%",
-              gridColumnGap: ".5em",
             },
           },
             el_editor_md,
@@ -162,6 +160,7 @@ export default function(
               style: {
                 display: "flex",
                 flexDirection: "column",
+                minHeight: "0",
               },
             },
               el_error,

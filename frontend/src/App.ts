@@ -323,6 +323,10 @@ type Panelka = {
 
 type panelkaState = {id: string};
 
+type Frame = {
+  loaded(r: get_request): void,
+  push_history_entry(he: HistoryEntry): void, // show last history entry
+};
 const f = {
   [database.Kind.HTTP ]:     RequestHTTP,
   [database.Kind.SQL  ]:     RequestSQL,
@@ -338,10 +342,7 @@ const f = {
     update: (patch: Partial<Request>) => Promise<void>,
     send: () => Promise<void>,
   },
-) => {
-  loaded(r: get_request): void,
-  push_history_entry(he: HistoryEntry): void, // show last history entry
-}};
+) => Frame};
 const panelkaFactory = (
   container: ComponentContainer,
   {id}: panelkaState,
@@ -379,7 +380,8 @@ const panelkaFactory = (
     }, 100);
   });
   if (store.requests[id] !== undefined) {
-    const frame = f[store.requests[id].Kind](
+    const kind = store.requests[id].Kind;
+    const frame = f[kind](
       el,
       show_request,
       {

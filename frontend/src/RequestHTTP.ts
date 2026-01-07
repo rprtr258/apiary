@@ -103,7 +103,6 @@ export default function(
         },
         {
           name: "Body",
-          style: {overflowY: "auto"},
           elem: el_view_response_body.el,
         },
         {
@@ -184,6 +183,7 @@ export default function(
             name: "Request",
             class: "h100",
             elem: EditorJSON({
+              class: "h100",
               value: request.body ?? null,
               on: {update: (body: string) => update_request({body})},
             }),

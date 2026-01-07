@@ -91,7 +91,6 @@ export default function(
               display: "grid",
               gridTemplateColumns: "50% 50%",
               gridTemplateRows: "auto minmax(0, 1fr)",
-              gridColumnGap: ".5em",
             },
           }, el_input_group, el_editor_json, el_response));
         } else {

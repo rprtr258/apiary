@@ -37,7 +37,7 @@ export default function(init_value: string) {
       });
   }
 
-  const el = m("div");
+  const el = m("div", {style: {minHeight: "0"}});
   const editor: EditorView = new EditorView({
     parent: el,
     state: EditorState.create({
@@ -78,13 +78,3 @@ export default function(init_value: string) {
     },
   };
 }
-
-// <style lang="css" scoped>
-// .n-tab-pane {
-//   height: 100% !important;
-// }
-// </style>
-// <style lang="css">
-// .cm-editor { height: 100% }
-// .cm-scroller { overflow: auto }
-// </style>
