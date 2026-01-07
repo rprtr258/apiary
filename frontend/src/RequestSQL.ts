@@ -111,6 +111,7 @@ export default function(
 ): {
   loaded(r: get_request): void,
   push_history_entry(he: HistoryEntry): void, // show last history entry
+  unmount(): void,
 } {
   el.append(NEmpty({
     description: "Loading request...",
@@ -134,6 +135,7 @@ export default function(
       }),
     ));
   };
+  let unsub_show = () => {};
 
   return {
     loaded: (r: get_request): void => {
@@ -182,8 +184,8 @@ export default function(
         el_run,
       );
 
-      const updateLayout = () => {
-        if (show_request.value) {
+      const updateLayout = (show_request: boolean) => {
+        if (show_request) {
           el.replaceChildren(m("div", {
               class: "h100",
               id: "gavno",
@@ -207,10 +209,13 @@ export default function(
           ));
         }
       };
-      show_request.sub(() => updateLayout());
+      unsub_show = show_request.sub(updateLayout);
     },
     push_history_entry(he: HistoryEntry) {
       push_response(he.response as database.SQLResponse);
+    },
+    unmount() {
+      unsub_show();
     },
   };
 };

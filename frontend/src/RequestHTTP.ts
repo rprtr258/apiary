@@ -75,7 +75,7 @@ export default function(
 ): {
   loaded(r: get_request): void,
   push_history_entry(he: HistoryEntry): void, // show last history entry
-  // TODO: hide/show request
+  unmount(): void,
 } {
   el.append(NEmpty({
     description: "Loading request...",
@@ -89,6 +89,7 @@ export default function(
     style: {justifyContent: "center"},
   });
   const el_view_response_body = ViewJSON("");
+  let unsub_show = () => {};
   const update_response = (response: database.HTTPResponse | null) => {
     if (response === null) {return;}
 
@@ -203,36 +204,35 @@ export default function(
         ],
       });
 
-      const updateLayout = () => {
-        if (show_request.value) {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "1fr",
-              gridTemplateRows: "auto minmax(0, 1fr)",
-              gridColumnGap: ".5em",
-            },
-          }, el_input_group, NSplit(el_req_tabs, el_response)));
+      const el_split = NSplit(el_req_tabs, el_response);
+      const el_container = m("div", {
+        class: "h100",
+        style: {
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gridTemplateRows: "auto minmax(0, 1fr)",
+          gridColumnGap: ".5em",
+        },
+      }, el_input_group, el_split);
+      el.replaceChildren(el_container);
+
+      const updateLayout = (show_request: boolean) => {
+        if (show_request) {
+          el_container.style.gridTemplateRows = "auto minmax(0, 1fr)";
+          el_container.replaceChildren(el_input_group, el_split);
         } else {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "1fr",
-              gridTemplateRows: "1fr",
-            },
-          }, el_response));
+          el_container.style.gridTemplateRows = "1fr";
+          el_container.replaceChildren(el_response);
         }
       };
-      show_request.sub(() => updateLayout());
+      unsub_show = show_request.sub(updateLayout);
     },
     push_history_entry(he: HistoryEntry) {
       update_response(he.response as database.HTTPResponse);
     },
-    // unmount() { // TODO: uncomment and use
-    //   // TODO: destroy split
-    //   el_view_response_body.unmount();
-    // },
+    unmount() {
+      unsub_show();
+      el_view_response_body.unmount();
+    },
   };
 }

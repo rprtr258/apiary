@@ -326,6 +326,7 @@ type panelkaState = {id: string};
 type Frame = {
   loaded(r: get_request): void,
   push_history_entry(he: HistoryEntry): void, // show last history entry
+  unmount(): void,
 };
 const f = {
   [database.Kind.HTTP ]:     RequestHTTP,
@@ -349,6 +350,8 @@ const panelkaFactory = (
 ): Panelka => {
   const el = container.element;
   const show_request = signal(true);
+  let eye_unsub = () => {};
+  let frame_unsub = () => {};
   container.on("tab", (tab: Tab): void => {
     const eye = m("span", {
       title: "Hide request",
@@ -360,7 +363,7 @@ const panelkaFactory = (
       class: "highlight-red",
     }));
 
-    show_request.sub(value => {
+    eye_unsub = show_request.sub(value => {
       eye.title = value ? "Hide request" : "Show request";
       eye.replaceChildren(NIcon({
         component: value ? Eye : EyeClosed,
@@ -369,6 +372,10 @@ const panelkaFactory = (
     });
 
     tab.element.prepend(eye);
+    container.on("destroy", () => {
+      eye_unsub();
+      frame_unsub();
+    });
     // TODO: ebanij rot etogo kazino, we have to use timeout for now, since request is not yet loaded (???)
     setTimeout(() => {
       const req = store.requests2[id];
@@ -391,6 +398,7 @@ const panelkaFactory = (
         }),
       },
     );
+    frame_unsub = () => frame.unmount();
     get_request(id).then(r => r && frame.loaded(r));
   }
   return {el};
