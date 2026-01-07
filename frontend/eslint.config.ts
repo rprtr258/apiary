@@ -35,6 +35,10 @@ export default defineConfig([
       "object-curly-spacing": ["error", "never"],
       "semi": ["error", "always"],
       "comma-dangle": ["error", "always-multiline"],
+      "quotes": ["error", "double", {
+        allowTemplateLiterals: true,
+        avoidEscape: false,
+      }],
       "@stylistic/semi": ["error", "always"],
       "@stylistic/member-delimiter-style": ["error", {
         "multiline": {delimiter: "comma", requireLast: true},

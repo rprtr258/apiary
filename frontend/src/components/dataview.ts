@@ -39,7 +39,7 @@ export function NIcon(props: NIconProps) {
 };
 
 type NResultProps = {
-  status: 'info' | 'success' | 'warning' | 'error' | '404' | '403' | '500' | '418',
+  status: "info" | "success" | "warning" | "error" | "404" | "403" | "500" | "418",
   title: string,
   description: string,
 };

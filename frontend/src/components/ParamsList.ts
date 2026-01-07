@@ -34,7 +34,7 @@ export default function(props: Props) {
       type: "text",
       placeholder: "Header",
       value: kv.key,
-      oninput: (e: Event) => update_kv(id, 'key', (e.target as HTMLInputElement).value),
+      oninput: (e: Event) => update_kv(id, "key", (e.target as HTMLInputElement).value),
       onblur: () => unfocus_kv(id),
       style: {...input_style, gridColumn: "1/2"},
     }),
@@ -42,7 +42,7 @@ export default function(props: Props) {
       type: "text",
       placeholder: "Value",
       value: kv.value,
-      oninput: (e: Event) => update_kv(id, 'value', (e.target as HTMLInputElement).value),
+      oninput: (e: Event) => update_kv(id, "value", (e.target as HTMLInputElement).value),
       onblur: () => unfocus_kv(id),
       style: {...input_style, gridColumn: "2/3"},
     }),
@@ -108,7 +108,7 @@ export default function(props: Props) {
     }),
   ];
 
-  const update_kv = (id: ID, field: 'key' | 'value', new_value: string) => {
+  const update_kv = (id: ID, field: "key" | "value", new_value: string) => {
     const i = ids.findIndex(id2 => id2 === id);
     value[i][field] = new_value;
 

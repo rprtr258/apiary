@@ -582,7 +582,7 @@ function preApp(root: HTMLElement, store: Store) {
                     class: ["history-card", "card"].join(" "),
                     // on: {click: () => selectRequest(r.request.id)},
                   }, [
-                    m("span", {style: {color: "grey"}, class: 'date'}, fromNow(r.sent_at)),
+                    m("span", {style: {color: "grey"}, class: "date"}, fromNow(r.sent_at)),
                   ]),
                 )),
               ];

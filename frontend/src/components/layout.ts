@@ -161,8 +161,8 @@ export function NModal(props: NModalProps, ...children: DOMNode[]) {
     title: props.title,
     content: children,
     buttons: [
-      {id: 'positive', text: props.text.positive},
-      {id: 'negative', text: props.text.negative},
+      {id: "positive", text: props.text.positive},
+      {id: "negative", text: props.text.negative},
     ],
     on: {close: (id: "positive" | "negative") => {
       switch (id) {
