@@ -1,8 +1,7 @@
-import Split from "split-grid";
 import {database} from "../wailsjs/go/models.ts";
 import {HistoryEntry, Method as Methods} from "./api.ts";
 import {NInputGroup, NInput, NSelect, NButton} from "./components/input.ts";
-import {NTabs} from "./components/layout.ts";
+import {NTabs, NSplit} from "./components/layout.ts";
 import {NTag, NTable, NEmpty} from "./components/dataview.ts";
 import EditorJSON from "./components/EditorJSON.ts";
 import ViewJSON from "./components/ViewJSON.ts";
@@ -35,34 +34,6 @@ function responseBadge(response: database.HTTPResponse): DOMNode {
     size: "small",
     round: true,
   }, `${code ?? "N/A"}`);
-}
-
-function NSplit(left: HTMLElement, right: HTMLElement) {
-  const el_line = m("hr", {style: {
-    cursor: "col-resize",
-    border: "none",
-    backgroundColor: "white",
-    width: "2px",
-  }});
-  const el = m("div", {
-    class: "h100",
-    id: "split-request-http",
-    style: {
-      display: "grid",
-      gridTemplateColumns: "1fr 5px 1fr",
-      gridTemplateRows: "100%",
-    },
-  },
-    left,
-    el_line,
-    right,
-  );
-  Split({
-    columnGutters: [
-      {track: 1, element: el_line},
-    ],
-  });
-  return el;
 }
 
 export default function(
@@ -204,7 +175,7 @@ export default function(
         ],
       });
 
-      const el_split = NSplit(el_req_tabs, el_response);
+      const el_split = NSplit({children: [el_req_tabs, el_response], direction: 'horizontal'});
       const el_container = m("div", {
         class: "h100",
         style: {

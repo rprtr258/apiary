@@ -1,8 +1,8 @@
-import Split from "split-grid";
+
 import {database} from "../wailsjs/go/models.ts";
 import {NEmpty, NIcon} from "./components/dataview.ts";
 import {NButton, NInput, NInputGroup, NSelect} from "./components/input.ts";
-import {NScrollbar} from "./components/layout.ts";
+import {NScrollbar, NSplit} from "./components/layout.ts";
 import {CheckSquareOutlined, ClockCircleOutlined, FieldNumberOutlined, ItalicOutlined, QuestionCircleOutlined} from "./components/icons.ts";
 import EditorSQL from "./EditorSQL.ts";
 import {get_request, last_history_entry} from "./store.ts";
@@ -11,30 +11,7 @@ import {DOMNode, m, Signal} from "./utils.ts";
 
 type Request = database.SQLRequest;
 
-function NSplit(left: HTMLElement, right: HTMLElement) {
-  const el_line = m("hr", {style: {cursor: "row-resize"}});
-  const el = m("div", {
-    class: "h100",
-    id: "split",
-    style: {
-      display: "grid",
-      // gridTemplateRows: "auto 1fr",
-      // gridTemplateColumns: "50% 50%",
-      gridTemplateRows: "1fr 5px 3fr",
-      gridColumnGap: ".5em",
-    } as Partial<CSSStyleDeclaration>,
-  },
-    left,
-    el_line,
-    right,
-  );
-  Split({
-    rowGutters: [
-      {track: 1, element: el_line},
-    ],
-  });
-  return el;
-}
+
 
 function render(v: RowValue): DOMNode {
   switch (true) {
@@ -188,10 +165,11 @@ export default function(
               class: "h100",
             },
             el_input_group,
-            NSplit(
-              el_editor,
-              el_response,
-            ),
+            NSplit({
+              children: [el_editor, el_response],
+              direction: 'vertical',
+              sizes: ['1fr', '3fr'],
+            }),
           ));
         } else {
           el.replaceChildren(m("div", {

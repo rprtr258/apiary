@@ -1,3 +1,4 @@
+import Split from "split-grid";
 import {DOMNode, m} from "../utils.ts";
 
 export function NScrollbar(...children: HTMLElement[]) {
@@ -121,6 +122,62 @@ const tabStyles = (() => {
 export function NSpace(props: Record<string, unknown>, children: DOMNode[]) {
   return m("div", props, children);
 };
+
+type NSplitOptions = {
+  direction?: "horizontal" | "vertical",
+  resizable?: boolean,
+  sizes?: readonly [string, string],
+};
+
+export function NSplit(left: HTMLElement, right: HTMLElement, options: NSplitOptions) {
+  const {direction = "vertical", resizable = true, sizes: actualSizes = ["1fr", "1fr"]} = options;
+
+  const template = actualSizes.join(resizable ? " 5px " : " ");
+  const style: Partial<CSSStyleDeclaration> = {
+    display: "grid",
+    [direction === "horizontal" ? "gridTemplateColumns" : "gridTemplateRows"]: template,
+  };
+
+  // Ensure children can shrink
+  if (direction === "horizontal") {
+    left.style.minWidth = "0";
+    right.style.minWidth = "0";
+  }
+  if (direction === "vertical") {
+    left.style.minHeight = "0";
+    right.style.minHeight = "0";
+  }
+
+  const elements: HTMLElement[] = [];
+  const gutters: {track: number, element: HTMLElement, minSize?: number}[] = [];
+
+  elements.push(left);
+  if (resizable) {
+    const el_line = m("hr", {
+      style: {
+        cursor: direction === "horizontal" ? "col-resize" : "row-resize",
+        border: "none",
+        backgroundColor: "white",
+        width: direction === "horizontal" ? "2px" : "100%",
+        height: direction === "vertical" ? "2px" : "100%",
+      },
+    });
+    elements.push(el_line);
+    gutters.push({track: 1, element: el_line, minSize: 0});
+  }
+  elements.push(right);
+
+  const el = m("div", {class: "h100", style}, elements);
+
+  if (resizable) {
+    const splitOptions = direction === "horizontal"
+      ? {columnGutters: gutters}
+      : {rowGutters: gutters};
+    Split(splitOptions);
+  }
+
+  return el;
+}
 
 function Overlay(props: {on: {close: () => void}}, child: HTMLElement) {
   const dom = m("div", {
