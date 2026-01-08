@@ -7,9 +7,11 @@ type NInputProps = {
   on?: {
     update: (value: string) => void,
   },
+  style?: Partial<CSSStyleDeclaration>,
 };
 export function NInput(props: NInputProps) {
   return m("input", {
+    style: props.style,
     value: props.value,
     placeholder: props.placeholder,
     oninput: (e: Event) => props.on?.update((e.target as HTMLInputElement).value),
@@ -44,7 +46,7 @@ export function NDropdown(props: NDropdownProps, children: HTMLElement[]) {
       m("div", {
         onclick: () => {open = false; props.on.select(opt.key);},
       }, [
-        ...(opt.icon ? [opt.icon] : []),
+        ...(opt.icon !== undefined ? [opt.icon] : []),
         opt.label,
       ]))),
   ]);

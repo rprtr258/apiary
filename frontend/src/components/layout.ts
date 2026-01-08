@@ -3,7 +3,7 @@ import {DOMNode, m} from "../utils.ts";
 export function NScrollbar(...children: HTMLElement[]) {
   return m("div", {
     style: {
-      overflowY: "scroll",
+      overflowY: "auto",
     },
   }, children);
 }
