@@ -6,13 +6,14 @@ import {m} from "./utils.ts";
 
 type Props = {
   class?: string,
+  style?: Partial<CSSStyleDeclaration>,
   value: string,
   on: {
     update: (value: string) => void,
   },
 };
 export default function(props: Props) {
-  const el = m("div", {class: props.class});
+  const el = m("div", {class: props.class, style: props.style ?? {}});
   const editor = new EditorView({
     parent: el,
     state: EditorState.create({

@@ -4,11 +4,14 @@ import {app, database} from "../wailsjs/go/models.ts";
 
 export const Method = {
   GET:     "GET",
+  HEAD:    "HEAD",
   POST:    "POST",
   PUT:     "PUT",
   DELETE:  "DELETE",
-  PATCH:   "PATCH",
+  CONNECT: "CONNECT",
   OPTIONS: "OPTIONS",
+  TRACE:   "TRACE",
+  PATCH:   "PATCH",
 };
 export type Method = keyof typeof Method;
 

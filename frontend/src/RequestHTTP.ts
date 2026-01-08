@@ -136,6 +136,7 @@ export default function(
         NSelect({
           label: request.method,
           options: Object.keys(Methods).map(method => ({label: method, value: method})),
+          placeholder: request.method,
           on: {update: (method: string) => update_request({method})},
         }).el,
         NInput({

@@ -133,8 +133,7 @@ function badge(req: app.requestPreview): [string, string] {
   case database.Kind.SQLSource: return ["SQL Source", "blue"];
   }
 }
-function renderSuffix(info: {option: TreeOption}): DOMNode {
-  const option = info.option;
+function render_suffix(option: TreeOption): DOMNode {
   const id = option.key;
   return NDropdown({
     trigger: "click", // "hover",
@@ -515,18 +514,7 @@ function preApp(root: HTMLElement, store: Store) {
                   "update:expanded-keys": (keys: string[]) => {expandedKeys = keys;},
                   drop: drag,
                 },
-                "node-props": ({option}: {option: TreeOption}): {onclick: () => void} => {
-                  return {
-                    onclick: () => {
-                      const id = option.key;
-                      if (option.children === undefined && !(option.disabled ?? false)) {
-                        store.selectRequest(id);
-                      }
-                    },
-                  };
-                },
-                "render-prefix": (info: {option: TreeOption, checked: boolean, selected: boolean}): DOMNode => {
-                  const option = info.option;
+                render: (option: TreeOption, _checked: boolean, _selected: boolean): DOMNode => {
                   if (option.key === undefined) {
                     return null;
                   }
@@ -535,13 +523,23 @@ function preApp(root: HTMLElement, store: Store) {
                     return null;
                   }
                   const [method, color] = badge(req);
-                  return NTag({
-                    type: (req.Kind === database.Kind.HTTP ? "success" : "info") as "success" | "info" | "warning",
-                    style: {width: "4em", justifyContent: "center", color},
-                    size: "small",
-                  }, method);
+                  return [
+                    NTag({
+                      type: (req.Kind === database.Kind.HTTP ? "success" : "info") as "success" | "info" | "warning",
+                      style: {width: "4em", justifyContent: "center", color},
+                      size: "small",
+                    }, method),
+                    m("button", {
+                      onclick: () => {
+                        const id = option.key;
+                        if (option.children === undefined && !(option.disabled ?? false)) {
+                          store.selectRequest(id);
+                        }
+                      },
+                    }, [option.label]),
+                    render_suffix(option),
+                  ];
                 },
-                "render-suffix": renderSuffix,
               }),
             ),
           ],

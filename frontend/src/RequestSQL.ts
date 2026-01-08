@@ -127,7 +127,7 @@ export default function(
       const el_editor = EditorSQL({
         value: request.query,
         on: {update: (query: string) => update_request({query})},
-        // class: "h100",
+        class: "h100",
       });
       const update_request = (patch: Partial<Request>): void => {
         el_run.disabled = true;
@@ -156,14 +156,17 @@ export default function(
         el_run,
       );
 
-      const split = NSplit(el_editor, el_response, {sizes: ["1fr", "1fr"]});
+      const split = NSplit(el_editor, el_response, {style: {minHeight: "0"}});
       const el_split = split.element;
-      const el_container = m("div", {class: "h100"}, el_input_group, el_split);
+      const el_container = m("div", {class: "h100", style: {
+        display: "flex",
+        flexDirection: "column",
+      }}, el_input_group, el_split);
       unmounts.push(show_request.sub((show_request: boolean) => {
         split.leftVisible = show_request;
         setDisplay(el_input_group, show_request);
-        el.replaceChildren(el_container);
       }));
+      el.replaceChildren(el_container);
     },
     push_history_entry(he: HistoryEntry) {
       push_response(he.response as database.SQLResponse);

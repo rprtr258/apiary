@@ -100,9 +100,7 @@ type NTreeProps = {
       dropPosition: "before" | "inside" | "after",
     }) => void,
   },
-  "node-props": (x: {option: TreeOption}) => {onclick: () => void},
-  "render-prefix": (info: {option: TreeOption, checked: boolean, selected: boolean}) => DOMNode,
-  "render-suffix": (info: {option: TreeOption}) => DOMNode,
+  render: (option: TreeOption, checked: boolean, selected: boolean) => DOMNode,
 };
 export function NTree(props: NTreeProps) {
   const renderElem = (v: TreeOption, level: number): HTMLDivElement =>
@@ -112,11 +110,7 @@ export function NTree(props: NTreeProps) {
         m("summary", {}, [v.label]),
         ...v.children.map(w => renderElem(w, level+1)),
       ]) :
-      m("span", {}, [
-        props["render-prefix"]({option: v, checked: false, selected: false}),
-        m("button", props["node-props"]({option: v}), [v.label]),
-        props["render-suffix"]({option: v}),
-      ]),
+      m("span", {}, props.render(v, false, false)),
     ]);
   return m("div", {}, props.data.map(v => renderElem(v, 0)));
 };

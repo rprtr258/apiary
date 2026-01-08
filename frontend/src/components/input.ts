@@ -81,8 +81,8 @@ export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () 
   }, props.placeholder ?? "");
   const el_opts = props.options.map(({label, value}, i) => m("option", {
     value: String(i),
-    selected: i == current,
-    disabled: value === undefined,
+    selected: i == current ? true : undefined, // NOTE: any value makes selected, so we explicitly set undefined
+    disabled: value === undefined ? true : undefined,
   }, label));
 
   return {
@@ -103,7 +103,8 @@ export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () 
       ...el_opts,
     ),
     reset() {
-      if (current === null) {return;}
+      if (current === null)
+        return;
 
       el_opts[current].selected = false;
       el_placeholder.selected = true;

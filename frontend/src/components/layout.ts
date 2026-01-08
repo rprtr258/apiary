@@ -1,10 +1,12 @@
 import Split, {SplitInstance} from "split-grid";
-import {DOMNode, m} from "../utils.ts";
+import {DOMNode, m, setDisplay} from "../utils.ts";
 
 export function NScrollbar(...children: HTMLElement[]) {
   return m("div", {
+    class: "h100",
     style: {
       overflowY: "auto",
+      minHeight: "0",
     },
   }, children);
 }
@@ -74,80 +76,72 @@ export function NTabs(props: NTabsProps): HTMLElement {
   );
 }
 
-const tabStyles = (() => {
-  const base = {
-      // padding: "4px 5px",
-      // cursor: "pointer",
-      // border: "1px solid transparent",
-      // borderBottom: "none",
-      // borderRadius: "3px 3px 0 0",
-      // position: "relative",
-  };
-
-  return {
-    container: {
-      // fontFamily: "Arial, sans-serif",
-      // display: "grid",
-      // gridTemplateRows: "1.8em 1fr",
-    },
-    header: {
-      // display: "flex",
-      // borderBottom: "1px solid #303030",
-    },
-    tab: {
-      disabled: {
-        ...base,
-        // background: "gray",
-        // fontWeight: "italic",
-      },
-      inactive: {
-        ...base,
-        // background: "#7068ab",
-        // borderColor: "#454566",
-      },
-      active: {
-        ...base,
-        // background: "#ddd3f5",
-        // borderColor: "#656596",
-        // borderBottom: "3px solid white",
-        // fontWeight: "bold",
-      },
-    },
-    content: {
-      // padding: "2px",
-    },
-  };
-})();
-
-export function NSpace(props: Record<string, unknown>, children: DOMNode[]) {
-  return m("div", props, children);
+const tabStylesBase = {
+  // padding: "4px 5px",
+  // cursor: "pointer",
+  // border: "1px solid transparent",
+  // borderBottom: "none",
+  // borderRadius: "3px 3px 0 0",
+  // position: "relative",
 };
 
-type NSplitOptions = {
+const tabStyles = {
+  container: {
+    // fontFamily: "Arial, sans-serif",
+    display: "flex",
+    flexDirection: "column",
+  },
+  header: {
+    // display: "flex",
+    // borderBottom: "1px solid #303030",
+  },
+  tab: {
+    disabled: {
+      ...tabStylesBase,
+      // background: "gray",
+      // fontWeight: "italic",
+    },
+    inactive: {
+      ...tabStylesBase,
+      // background: "#7068ab",
+      // borderColor: "#454566",
+    },
+    active: {
+      ...tabStylesBase,
+      // background: "#ddd3f5",
+      // borderColor: "#656596",
+      // borderBottom: "3px solid white",
+      // fontWeight: "bold",
+    },
+  },
+  content: {
+    flexShrink: "1",
+    minHeight: "0",
+    // padding: "2px",
+  },
+};
+
+type NSplitProps = {
   direction?: "horizontal" | "vertical",
   sizes?: readonly [string, string],
   gutterSize?: number,
+  style?: Partial<CSSStyleDeclaration>,
 };
-
-export function NSplit(left: HTMLElement, right: HTMLElement, options: NSplitOptions) {
-  const {direction = "vertical", sizes: actualSizes = ["1fr", "1fr"], gutterSize = 5} = options;
+export function NSplit(left: HTMLElement, right: HTMLElement, props: NSplitProps) {
+  const {direction = "vertical", sizes: actualSizes = ["1fr", "1fr"], gutterSize = 5} = props;
 
   const templateProp = direction === "horizontal" ? "gridTemplateColumns" : "gridTemplateRows";
   const template = actualSizes.join(` ${gutterSize}px `);
   const style: Partial<CSSStyleDeclaration> = {
+    ...props.style,
     display: "grid",
     [templateProp]: template,
   };
 
-  // Ensure children can shrink
-  if (direction === "horizontal") {
-    left.style.minWidth = "0";
-    right.style.minWidth = "0";
-  }
-  if (direction === "vertical") {
-    left.style.minHeight = "0";
-    right.style.minHeight = "0";
-  }
+  left.style.minWidth = "0";
+  left.style.minHeight = "0";
+  right.style.minWidth = "0";
+  right.style.minHeight = "0";
 
   const el_line = m("hr", {
     style: {
@@ -176,15 +170,15 @@ export function NSplit(left: HTMLElement, right: HTMLElement, options: NSplitOpt
     }
 
     if (leftVisible && rightVisible) {
-      left.style.display = "";
-      right.style.display = "";
-      el_line.style.display = "";
+      setDisplay(left, true);
+      setDisplay(right, true);
+      setDisplay(el_line, true);
       left.style[key] = "";
       right.style[key] = "";
     } else {
-      left.style.display = leftVisible ? "" : "none";
-      right.style.display = rightVisible ? "" : "none";
-      el_line.style.display = "none";
+      setDisplay(left, leftVisible);
+      setDisplay(right, rightVisible);
+      setDisplay(el_line, false);
       const [el_fill, el_empty] = leftVisible ? [left, right] : [right, left];
       el_fill.style[key] = "1 / -1";
       el_empty.style[key] = "";
