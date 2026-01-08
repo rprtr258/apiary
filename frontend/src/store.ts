@@ -262,4 +262,4 @@ export async function get_request(request_id: string): Promise<get_request | nul
 export const store = useStore();
 (async () => {
   await store.fetch();
-})().catch(notify);//.then(m.redraw);
+})().catch(notify);
