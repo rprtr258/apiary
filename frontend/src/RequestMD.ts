@@ -101,7 +101,7 @@ export default function(
         const response = res.value.response as database.MDResponse;
 
          // Save scroll position before update
-        if (responseContainer) {
+        if (responseContainer !== null) {
           lastScrollTop = responseContainer.scrollTop;
         }
 

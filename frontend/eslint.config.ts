@@ -52,6 +52,12 @@ export default defineConfig([
       "@typescript-eslint/strict-boolean-expressions": ["error", {
         allowNumber: false,
         allowString: false,
+        allowAny: false,
+        allowNullableBoolean: false,
+        allowNullableEnum: false,
+        allowNullableNumber: false,
+        allowNullableObject: false,
+        allowNullableString: false,
       }],
     },
   },

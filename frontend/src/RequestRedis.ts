@@ -31,6 +31,7 @@ export default function(
     type: "primary",
     on: {click: on.send},
     disabled: false,
+    style: {width: "10em"},
   }, "Send");
   const el_response = NEmpty({
     description: "Send request or choose one from history.",
@@ -56,8 +57,14 @@ export default function(
     loaded: (r: get_request) => {
       const request = r.request as Request;
 
-      const el_input_group = NInputGroup({style: {gridColumn: "span 2"}}, [
+      const el_input_group = NInputGroup({style: {
+        gridColumn: "span 2",
+        display: "flex",
+      }}, [
         NInput({
+          style: {
+            flexGrow: "1",
+          },
           placeholder: "DSN",
           value: request.dsn,
           on: {update: (dsn: string) => update_request({dsn})},
@@ -78,8 +85,7 @@ export default function(
             style: {
               display: "grid",
               gridTemplateColumns: "50% 50%",
-              gridTemplateRows: "34px 1fr",
-              gridColumnGap: ".5em",
+              gridTemplateRows: "auto 1fr",
             },
           },
             el_input_group,

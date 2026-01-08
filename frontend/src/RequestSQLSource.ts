@@ -44,9 +44,7 @@ function DataTable({columns, data}: DataTableProps) {
     "border-collapse": "collapse",
     padding: "3px 5px",
   };
-  return m("div", {
-    style: {overflowY: "scroll"},
-  }, [m("table", {style: tableBorderStyle}, [
+  return m("table", {style: tableBorderStyle}, [
     m("thead", {}, [
       m("tr", {}, columns.map(({key}) =>
         m("th", {style: tableBorderStyle}, [key]))),
@@ -56,7 +54,7 @@ function DataTable({columns, data}: DataTableProps) {
         m("td", {
           style: tableBorderStyle,
         }, [c.render(r[c.key])]))))),
-  ])]);
+  ]);
 }
 
 export default function(

@@ -139,7 +139,7 @@ export function useStore(): Store {
         }
       }
       const cfg = this.layout!.saveLayout();
-      if (cfg.root && dfs(cfg.root).find(tabID => tabID === id) !== undefined) {
+      if (cfg.root !== undefined && dfs(cfg.root).find(tabID => tabID === id) !== undefined) {
         return;
       }
       this.layout?.addItem(panelka(id));

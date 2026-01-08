@@ -399,7 +399,7 @@ const panelkaFactory = (
       },
     );
     frame_unsub = () => frame.unmount();
-    get_request(id).then(r => r && frame.loaded(r));
+    get_request(id).then(r => r !== null && frame.loaded(r));
   }
   return {el};
 };
@@ -533,7 +533,7 @@ function preApp(root: HTMLElement, store: Store) {
                     return {
                       onclick: () => {
                         const id = option.key;
-                        if (!option.children && !(option.disabled ?? false)) {
+                        if (option.children === undefined && !(option.disabled ?? false)) {
                           store.selectRequest(id);
                         }
                       },
