@@ -4,7 +4,7 @@ import {NSplit} from "./components/layout.ts";
 import ViewJSON from "./components/ViewJSON.ts";
 import EditorJSON from "./components/EditorJSON.ts";
 import {database} from "../wailsjs/go/models.ts";
-import {get_request} from "./store.ts";
+import {get_request, last_history_entry} from "./store.ts";
 import {m, Signal, setDisplay} from "./utils.ts";
 import {HistoryEntry} from "./api.ts";
 
@@ -28,7 +28,6 @@ export default function(
     type: "primary",
     on: {click: on.send},
     disabled: false,
-    style: {width: "10em"},
   }, "Send");
   const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
@@ -40,7 +39,8 @@ export default function(
     });
   };
   const update_response = (r: database.RedisResponse | undefined): void => {
-    if (r === undefined) return; // TODO: replace with empty state
+    if (r === undefined)
+      return; // TODO: replace with empty state
 
     el_response.replaceChildren(el_view_response_body.el);
     el_view_response_body.update(r.response);
@@ -49,10 +49,11 @@ export default function(
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
+      update_response(last_history_entry(r)?.response as database.RedisResponse | undefined);
 
       const el_input_group = NInputGroup({style: {
-        gridColumn: "span 2",
-        display: "flex",
+        display: "grid",
+        gridTemplateColumns: "11fr 1fr",
       }}, [
         NInput({
           style: {

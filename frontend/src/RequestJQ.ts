@@ -3,8 +3,9 @@ import {NInput, NButton, NInputGroup} from "./components/input.ts";
 import {NEmpty} from "./components/dataview.ts";
 import ViewJSON from "./components/ViewJSON.ts";
 import EditorJSON from "./components/EditorJSON.ts";
+import {NSplit} from "./components/layout.ts";
 import {get_request, last_history_entry} from "./store.ts";
-import {m, Signal} from "./utils.ts";
+import {m, setDisplay, Signal} from "./utils.ts";
 import {HistoryEntry} from "./api.ts";
 
 type Request = {kind: database.Kind.JQ} & database.JQRequest;
@@ -24,7 +25,7 @@ export default function(
   el.append(NEmpty({description: "Loading request..."}));
 
   const jqerror: string | undefined = undefined;
-  const el_send = NButton({
+  const el_send = NButton({ // TODO: autosend
     type: "primary",
     on: {click: on.send},
     disabled: true,
@@ -58,9 +59,8 @@ export default function(
       update_response(last_history_entry(r)?.response as database.JQResponse | undefined);
 
       const el_input_group = NInputGroup({style: {
-        "display": "grid",
+        display: "grid",
         gridTemplateColumns: "11fr 1fr",
-        gridColumn: "span 2",
       }}, [
         NInput({
           placeholder: "JQ query",
@@ -68,7 +68,6 @@ export default function(
           value: request.query,
           on: {update: (query: string) => update_request({query})},
         }),
-        // TODO: autosend
         el_send,
       ]);
 
@@ -78,27 +77,20 @@ export default function(
         on: {update: (json: string) => update_request({json})},
       });
 
+      const split = NSplit(el_editor_json, el_response, {direction: "horizontal", style: {minHeight: "0"}});
+      unmounts.push(() => split.unmount());
+      const el_container = m("div", {
+        class: "h100",
+        style: {
+          display: "flex",
+          flexDirection: "column",
+        },
+      }, el_input_group, split.element);
       unmounts.push(show_request.sub(show_request => {
-        if (show_request) {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "50% 50%",
-              gridTemplateRows: "auto minmax(0, 1fr)",
-            },
-          }, el_input_group, el_editor_json, el_response));
-        } else {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "1fr",
-              gridTemplateRows: "1fr",
-            },
-          }, el_response));
-        }
+        split.leftVisible = show_request;
+        setDisplay(el_input_group, show_request);
       }, true));
+      el.replaceChildren(el_container);
     },
     push_history_entry(he) {
       update_response(he.response as database.JQResponse);

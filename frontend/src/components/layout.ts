@@ -1,5 +1,6 @@
 import Split, {SplitInstance} from "split-grid";
 import {DOMNode, m, setDisplay} from "../utils.ts";
+import {NButton} from "./input.ts";
 
 export function NScrollbar(...children: HTMLElement[]) {
   return m("div", {
@@ -63,14 +64,9 @@ export function NTabs(props: NTabsProps): HTMLElement {
       update(firstEnabledIndex);
   }
 
-  return m("div", {
-    class: props.class,
-    style: props.style,
-  },
-    m("div", {class: "h100", style: tabStyles.container},
-      m("div", {style: tabStyles.header}, tab_buttons),
-      tabs,
-    ),
+  return m("div", {class: "h100" + " " + (props.class ?? ""), style: {...tabStyles.container, ...props.style}},
+    m("div", {style: tabStyles.header}, tab_buttons),
+    tabs,
   );
 }
 
@@ -85,9 +81,9 @@ const tabStylesBase = {
 
 const tabStyles = {
   container: {
-    // fontFamily: "Arial, sans-serif",
     display: "flex",
     flexDirection: "column",
+    width: "100%",
   },
   header: {
     // display: "flex",
@@ -208,68 +204,82 @@ type NModalProps = {
   on: {
     positive_click: () => void,
     negative_click: () => void,
-    close: () => void, // TODO: call on close/outer click
+    close: () => void,
   },
 };
-export function NModal(props: NModalProps, ...children: DOMNode[]) {
+export function NModal({title, text, on}: NModalProps, ...children: DOMNode[]) {
   const modal = Modal({
-    title: props.title,
+    title,
     children,
     buttons: [
-      {id: "positive", text: props.text.positive},
-      {id: "negative", text: props.text.negative},
+      {id: "positive", text: text.positive},
+      {id: "negative", text: text.negative},
     ],
-    on: {close: (id: "positive" | "negative") => {
+    on: {close: (id?: "positive" | "negative") => {
+      if (id === undefined)
+        return on.close();
+
       switch (id) {
-        case "positive": return props.on.positive_click();
-        case "negative": return props.on.negative_click();
-        default: return props.on.close();
+        case "positive": on.positive_click(); break;
+        case "negative": on.negative_click(); break;
       }
+      modal.hide();
     }},
   });
-  return modal;
+  return {
+    element: modal.element,
+    show(): void {
+      modal.show();
+    },
+    hide(): void {
+      modal.hide();
+    },
+  };
 };
+
 type ModalProps = {
   title: DOMNode,
   children: DOMNode[],
   buttons: {id: string, text: string}[],
   on: {
-    close(id: string): void,
+    close(id?: string): void,
   },
 };
+// TODO: use https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog
 export function Modal(
   {title, children: content, buttons, on}: ModalProps,
   children: DOMNode[] = [],
 ) {
-  let clickedId: string | null = null;
   const overlayStyle = {
     placeSelf: "center",
     position: "fixed",
     zIndex: "100",
-    height: "100%",
-    width: "100%",
+    height: "100vh",
+    width: "100vw",
+    left: "0",
+    top: "0",
     alignContent: "center",
     justifyItems: "center",
     backdropFilter: "blur(3px)",
   };
   const modalStyle = {
-    backgroundColor: "#646464",
-    width: "20%",
+    backgroundColor: "#444444",
+    width: "40%",
     height: "20%",
     padding: "1em",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
   };
   const el_modal = m("div", {style: modalStyle},
     m("h3", {}, title),
     m("div", {}, content),
     m("div",
-      {},
+      {style: {display: "flex", justifyContent: "space-around"}},
       buttons.map(b =>
-        m("button", {
-          type: "button",
-          disabled: clickedId != null,
-          onclick() {
-            clickedId = b.id;
-          },
+        NButton({
+          style: {padding: "0.5em 1em"},
+          on: {click: () => on.close(b.id)},
         }, b.text),
       ),
     ),
@@ -277,11 +287,22 @@ export function Modal(
   );
   const element = m("div", {
     style: overlayStyle,
-    onclick: () => {
-    if (clickedId !== null)
-      on.close(clickedId);
+    onclick: e => {
+      // clicking on overlay outside of modal, hides everything
+      const elementAtPoint = document.elementFromPoint(e.clientX, e.clientY);
+      if (el_modal.contains(elementAtPoint))
+        return;
+      on.close();
     },
   }, el_modal);
-  setDisplay(element, false);
-  return element;
+  return {
+    element,
+    show() {
+      setDisplay(element, true);
+    },
+    hide() {
+      on.close();
+      setDisplay(element, false);
+    },
+  };
 }

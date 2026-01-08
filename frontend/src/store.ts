@@ -1,6 +1,7 @@
 import {ComponentItemConfig, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedLayoutConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig} from "golden-layout";
 import {api, type RequestData, type HistoryEntry, Request} from "./api.ts";
 import {app} from "../wailsjs/go/models.ts";
+import {signal, Signal} from "./utils.ts";
 
 // TODO: <NNotificationProvider :max="1" placement="bottom-right">
 export function useNotification() {
@@ -70,7 +71,7 @@ export function last_history_entry(request: get_request): HistoryEntry | undefin
 }
 
 export type Store = {
-  requestsTree : app.Tree,
+  requestsTree : Signal<app.Tree>,
   requests : Record<string, app.requestPreview>,
   requests2: Record<string, get_request>,
   load: () => void,
@@ -108,7 +109,7 @@ export function useStore(): Store {
   };
 
   return {
-    requestsTree : new app.Tree({IDs: {}, Dirs: {}}),
+    requestsTree : signal(new app.Tree({IDs: {}, Dirs: {}})),
     requests : {} as Record<string, app.requestPreview>,
     requests2: {} as Record<string, get_request>,
     load,
@@ -151,7 +152,7 @@ export function useStore(): Store {
       }
 
       const res = json.value;
-      this.requestsTree = res.Tree;
+      this.requestsTree.update(() => res.Tree);
 
       const currentRequestId = this.requestID();
 

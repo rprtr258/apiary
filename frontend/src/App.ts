@@ -16,6 +16,15 @@ import Command from "./components/CommandPalette.ts";
 import {DOMNode, m, setDisplay, signal} from "./utils.ts";
 import RequestSQLSource from "./RequestSQLSource.ts";
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function cutEnd(str: string, suffix: string) {
+  if (!str.endsWith(suffix))
+    throw new Error(`String ${str} does not end with ${suffix}`);
+  return str.slice(0, -suffix.length);
+}
 
 function Dropdown() {
   const open = signal(false);
@@ -39,6 +48,10 @@ function Dropdown() {
     el,
     show() {
       open.update(() => true);
+      const x = clamp(parseFloat(cutEnd(el.style.left, "px")), 0, window.innerWidth - el.offsetWidth);
+      const y = clamp(parseFloat(cutEnd(el.style.top, "px")), 0, window.innerHeight - el.offsetHeight);
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
     },
     hide() {
       open.update(() => false);
@@ -74,50 +87,56 @@ function fromNow(date: Date): string {
   }
 }
 
-function useLocalStorage<T>(key: string, init: T): T {
+function useLocalStorage<T>(key: string, init: T): {
+  get value(): T,
+  set value(value: T),
+} {
   const value = localStorage.getItem(key);
-  if (value === null) {
-    localStorage.setItem(key, JSON.stringify(init));
-    return init;
-  }
-  return JSON.parse(value) as T;
+  let curValue = value === null ? init : JSON.parse(value) as T;
+  return {
+    get value() {
+      return curValue;
+    },
+    set value(value) {
+      localStorage.setItem(key, JSON.stringify(value));
+      curValue = value;
+    },
+  };
 }
 
 type Kind = typeof Kinds[number];
-let newRequestKind: Kind | undefined = undefined;
-let newRequestName: string | undefined = undefined;
+const newRequestKind = signal<Kind | undefined>(undefined);
+const newRequestName = signal<string | undefined>(undefined);
 function create() {
-  newRequestName = new Date().toUTCString();
-
-  const kind = newRequestKind!;
-  const name = newRequestName;
+  const kind = newRequestKind.value!;
+  const name = newRequestName.value!;
   store.createRequest(name, kind);
   createCancel();
   // TODO: show new request in list
 }
 function createCancel() {
-  newRequestKind = undefined;
-  newRequestName = undefined;
+  newRequestKind.update(() => undefined);
+  newRequestName.update(() => undefined);
 }
 
-let renameID : string | undefined = undefined;
-let renameValue : string | undefined = undefined;
+const renameID = signal<string | undefined>(undefined);
+const renameValue = signal<string | undefined>(undefined);
 function renameInit(id: string) {
-  renameID = id;
-  renameValue = id;
+  renameID.update(() => id);
+  renameValue.update(() => id);
 }
 function renameCancel() {
-  renameID = undefined;
-  renameValue = undefined;
+  renameID.update(() => undefined);
+  renameValue.update(() => undefined);
 }
 function rename() {
-  const fromID = renameID;
+  const fromID = renameID.value;
   if (fromID === undefined) {
-    notification.error({title: "Invalid request", content: `No request to rename: ${renameID} -> ${renameValue}`});
+    notification.error({title: "Invalid request", content: `No request to rename: ${renameID.value} -> ${renameValue.value}`});
     return;
   }
 
-  const toID = renameValue;
+  const toID = renameValue.value;
   if (toID === undefined) {
     notification.error({title: "Invalid request", content: "No new name"});
     return;
@@ -133,7 +152,7 @@ function rename() {
 
 // TODO: fix editing request headers
 
-let expandedKeys = useLocalStorage<string[]>("expanded-keys", []);
+const expandedKeys = useLocalStorage<string[]>("expanded-keys", []);
 function dirname(id: string): string {
   return id.split("/").slice(0, -1).join("/");
 }
@@ -162,7 +181,7 @@ function drag({node, dragNode, dropPosition}: {
 function badge(req: app.requestPreview): [string, string] {
   switch (req.Kind) {
   case database.Kind.HTTP:      return [Method[req.SubKind as keyof typeof Method], "lime"];
-  case database.Kind.SQL:       return ["SQL", "bluewhite"];
+  case database.Kind.SQL:       return ["SQL", "lightblue"];
   case database.Kind.GRPC:      return ["GRPC", "cyan"];
   case database.Kind.JQ:        return ["JQ", "violet"];
   case database.Kind.REDIS:     return ["REDIS", "red"];
@@ -176,15 +195,13 @@ function render_suffix({key: id}: TreeOption): DOMNode {
     style: {display: "inline-block", cursor: "pointer"},
     onclick: (e: Event) => {
       e.stopPropagation();
-      const rect = (e.target as HTMLElement).getBoundingClientRect();
-      globalDropdown.moveTo(rect.left, rect.bottom);
       const preOptions: {
         label: string,
         key: string,
         icon?: DOMNode,
         show?: boolean,
-        on?: {
-          click?: () => void,
+        on: {
+          click: () => void,
         },
       }[] = [
         {
@@ -260,7 +277,9 @@ function render_suffix({key: id}: TreeOption): DOMNode {
         }, opt.icon ?? null, opt.label);
         return res;
       });
+      const rect = (e.target as HTMLElement).getBoundingClientRect();
       globalDropdown.el.replaceChildren(...options);
+      globalDropdown.moveTo(rect.left, rect.bottom);
       globalDropdown.show();
     },
   }, NIcon({component: DownOutlined})); // TODO: instead, show on RMB click
@@ -427,14 +446,14 @@ const panelkaFactory = (
       frame_unsub();
     });
     // TODO: ebanij rot etogo kazino, we have to use timeout for now, since request is not yet loaded (???)
-    setTimeout(() => {
-      const req = store.requests2[id];
-      if (req === undefined) {
-        tab.componentItem.close();
-        return;
-      }
-      tab.setTitle(req.request.path);
-    }, 100);
+     setTimeout(() => {
+       const req = store.requests2[id];
+       if (req === undefined) {
+         tab.componentItem.close();
+         return;
+       }
+       tab.setTitle(req.request.path);
+     }, 100);
   });
   if (store.requests[id] !== undefined) {
     const on = {
@@ -475,6 +494,64 @@ function preApp(root: HTMLElement, store: Store) {
 
   const el_layout = m("div", {id: "layoutContainer", style: {height: "100%", width: "100%"}});
 
+  const treeContainer = m("div", {style: {minHeight: "0"}});
+  const updateTree = () => {
+    const data = (() => {
+      const mapper = (tree: app.Tree): TreeOption[] =>
+        Object.entries(tree.Dirs ?? {}).map(([k, v]) => ({
+          key: k,
+          label: basename(k),
+          children: mapper(v),
+        } as TreeOption)).concat(Object.entries(tree.IDs).map(([id, basename]) => {
+          return {
+            key: id,
+            label: basename,
+          } as TreeOption;
+        }));
+      return mapper(store.requestsTree.value);
+    })();
+    treeContainer.replaceChildren(NScrollbar(
+      NTree({
+        "selected-keys": [],
+        "default-expanded-keys": expandedKeys.value,
+        data,
+        on: {
+          "update:expanded-keys": (keys: string[]) => {
+            expandedKeys.value = keys;
+          },
+          drop: drag,
+        },
+        render: (option: TreeOption, _checked: boolean, _selected: boolean): DOMNode => {
+          if (option.key === undefined) {
+            return null;
+          }
+          const req = store.requests[option.key];
+          if (req === undefined)
+            return null;
+
+          const [method, color] = badge(req);
+          return [
+            NTag({
+              type: (req.Kind === database.Kind.HTTP ? "success" : "info") as "success" | "info" | "warning",
+              style: {width: "4em", justifyContent: "center", color},
+              size: "small",
+            }, method),
+            m("button", {
+              onclick: () => {
+                const id = option.key;
+                if (option.children === undefined && !(option.disabled ?? false)) {
+                  store.selectRequest(id);
+                }
+              },
+            }, option.label),
+            render_suffix(option),
+          ];
+        },
+      }),
+    ));
+  };
+  store.requestsTree.sub(updateTree, true);
+
   const golden_layout: GoldenLayout = new GoldenLayout(el_layout);
   golden_layout.resizeWithContainerAutomatically = true;
   golden_layout.resizeDebounceInterval = 0;
@@ -489,6 +566,51 @@ function preApp(root: HTMLElement, store: Store) {
     el_empty_state.style.display = show ? "flex" : "none";
   };
   update_empty_state(golden_layout.saveLayout().root === undefined);
+
+  const modalCreate = NModal({
+    title: "Create request",
+    text: {positive: "Create", negative: "Cancel"},
+    on: {
+      close: createCancel,
+      positive_click: create,
+      negative_click: createCancel,
+    },
+  }, NInput({
+    value: newRequestName.value,
+    on: {update: (value: string) => newRequestName.update(() => value)},
+    style: {width: "100%", boxSizing: "border-box", padding: "0.5em"},
+  }));
+  const inputRename = NInput({
+    value: renameValue.value,
+    on: {update: (value: string) => renameValue.update(() => value)},
+    style: {width: "100%", boxSizing: "border-box", padding: "0.5em"},
+  });
+  const modalRename = NModal({
+    title: "Rename request",
+    text: {positive: "Rename", negative: "Cancel"},
+    on: {
+      close: renameCancel,
+      positive_click: rename,
+      negative_click: renameCancel,
+    },
+  }, inputRename);
+  const updateModals = () => {
+    if (newRequestKind.value !== undefined) {
+      if (newRequestName.value !== undefined) {
+        newRequestName.update(() => new Date().toUTCString());
+      }
+      modalCreate.show();
+    } else
+      modalCreate.hide();
+    if (renameID.value !== undefined) {
+      inputRename.value = store.requestsTree.value.IDs[renameID.value];
+      modalRename.show();
+    } else
+      modalRename.hide();
+  };
+  newRequestKind.sub(updateModals, false);
+  renameID.sub(updateModals, false);
+  updateModals();
 
   // TODO: whole history in reverse order
   const history = [] as HistoryEntry[];
@@ -518,10 +640,9 @@ function preApp(root: HTMLElement, store: Store) {
   }, collapseButtonStates.get(sidebarHidden)!);
 
   const new_select = NSelect<database.Kind>({
-    label: newRequestKind?.toUpperCase(),
+    label: newRequestKind.value?.toUpperCase(),
     on: {update: (value: database.Kind) => {
-      newRequestKind = value;
-      create();
+      newRequestKind.update(() => value);
       new_select.reset();
     }},
     placeholder: "New",
@@ -539,65 +660,15 @@ function preApp(root: HTMLElement, store: Store) {
       tabs: [
         {
           name: "Collection",
+          class: "h100",
           style: {
-            display: "grid",
-            paddingTop: "0px",
-            gridTemplateRows: "2em auto",
-            height: "100%",
+            display: "flex",
+            flexDirection: "column",
           },
-          elem: [
-            new_select.el,
-            NScrollbar(
-              NTree({
-                "selected-keys": [/*(store.tabs.value ? store.tabs.value.map.list[store.tabs.value.index] : "")*/],
-                "default-expanded-keys": expandedKeys,
-                data: ((): TreeOption[] => {
-                  const mapper = (tree: app.Tree): TreeOption[] =>
-                    Object.entries(tree.Dirs ?? {}).map(([k, v]) => ({
-                      key: k,
-                      label: basename(k),
-                      children: mapper(v),
-                    } as TreeOption)).concat(Object.entries(tree.IDs).map(([id, basename]) => {
-                      return {
-                        key: id,
-                        label: basename,
-                      } as TreeOption;
-                    }));
-                  return mapper(store.requestsTree);
-                })(),
-                on: {
-                  "update:expanded-keys": (keys: string[]) => {expandedKeys = keys;},
-                  drop: drag,
-                },
-                render: (option: TreeOption, _checked: boolean, _selected: boolean): DOMNode => {
-                  if (option.key === undefined) {
-                    return null;
-                  }
-                  const req = store.requests[option.key];
-                  if (req === undefined) {
-                    return null;
-                  }
-                  const [method, color] = badge(req);
-                  return [
-                    NTag({
-                      type: (req.Kind === database.Kind.HTTP ? "success" : "info") as "success" | "info" | "warning",
-                      style: {width: "4em", justifyContent: "center", color},
-                      size: "small",
-                    }, method),
-                    m("button", {
-                      onclick: () => {
-                        const id = option.key;
-                        if (option.children === undefined && !(option.disabled ?? false)) {
-                          store.selectRequest(id);
-                        }
-                      },
-                    }, [option.label]),
-                    render_suffix(option),
-                  ];
-                },
-              }),
-            ),
-          ],
+           elem: [
+             new_select.el,
+             treeContainer,
+           ],
         },
         {
           name: "History",
@@ -645,36 +716,11 @@ function preApp(root: HTMLElement, store: Store) {
     collapseButton.style.cursor = sidebarHidden ? "e-resize" : "w-resize";
   };
 
-  root.append(m("div", {style: {
-    height: "100%",
+  root.append(m("div", {class: "h100", style: {
     width: "100%",
   }},
-    NModal({
-      // show: newRequestKind !== undefined,
-      title: "Create request",
-      text: {positive: "Create", negative: "Cancel"},
-      on: {
-        close: createCancel,
-        positive_click: create,
-        negative_click: createCancel,
-      },
-    }, NInput({
-      value: newRequestName,
-      on: {update: (value: string) => newRequestName = value},
-    })),
-    NModal({
-      // show: renameID !== undefined,
-      title: "Rename request",
-      text: {positive: "Rename", negative: "Cancel"},
-      on: {
-        close: renameCancel,
-        positive_click: rename,
-        negative_click: renameCancel,
-      },
-    }, NInput({
-      value: renameValue,
-      on: {update: (value: string) => renameValue = value},
-    })),
+    modalCreate.element,
+    modalRename.element,
     Command.Dialog({
       visible: commandBarVisible,
       on: {close: () => commandBarVisible = false},
@@ -716,7 +762,7 @@ function preApp(root: HTMLElement, store: Store) {
           Command.Item({
             value: kind,
             on: {select: () => {
-              newRequestKind = kind;
+              newRequestKind.update(() => kind);
               command_bar_new_request_kind_visible = false;
             }},
           }, kind),

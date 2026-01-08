@@ -11,7 +11,7 @@ export default function(init_value: string) {
   const state = {
     value: "",
     query: ".",
-    jqerror: null as  string | null,
+    jqerror: undefined as  string | undefined,
   };
 
   function update(value?: string) {
@@ -28,7 +28,7 @@ export default function(init_value: string) {
           editor.dispatch({
             changes: {from: 0, to: editor.state.doc.length, insert: v.value},
           });
-          state.jqerror = null;
+          state.jqerror = undefined;
           break;
         case "err":
           state.jqerror = v.value;
@@ -37,7 +37,7 @@ export default function(init_value: string) {
       });
   }
 
-  const el = m("div", {style: {minHeight: "0"}});
+  const el = m("div", {style: {minHeight: "0", flexGrow: "1"}});
   const editor: EditorView = new EditorView({
     parent: el,
     state: EditorState.create({
@@ -52,10 +52,10 @@ export default function(init_value: string) {
   update(init_value);
 
   return {
-    el: m("div", {style: {
-      height: "100%",
-      display: "grid",
-      gridTemplateRows: "auto 1fr",
+    el: m("div", {class: "h100", style: {
+      width: "100%",
+      display: "flex",
+      flexDirection: "column",
     }},
       // TODO: put input under editor
       NInput({
@@ -67,9 +67,9 @@ export default function(init_value: string) {
         }},
       }),
       NTooltip({ // TODO: show over input
-        show: state.jqerror !== null,
+        show: state.jqerror !== undefined,
         placement: "bottom",
-      }, state.jqerror),
+      }, state.jqerror ?? ""),
       el,
     ),
     update,
