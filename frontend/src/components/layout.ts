@@ -1,3 +1,4 @@
+import Split, {SplitInstance} from "split-grid";
 import {DOMNode, m} from "../utils.ts";
 
 export function NScrollbar(...children: HTMLElement[]) {
@@ -121,6 +122,99 @@ const tabStyles = (() => {
 export function NSpace(props: Record<string, unknown>, children: DOMNode[]) {
   return m("div", props, children);
 };
+
+type NSplitOptions = {
+  direction?: "horizontal" | "vertical",
+  sizes?: readonly [string, string],
+  gutterSize?: number,
+};
+
+export function NSplit(left: HTMLElement, right: HTMLElement, options: NSplitOptions) {
+  const {direction = "vertical", sizes: actualSizes = ["1fr", "1fr"], gutterSize = 5} = options;
+
+  const templateProp = direction === "horizontal" ? "gridTemplateColumns" : "gridTemplateRows";
+  const template = actualSizes.join(` ${gutterSize}px `);
+  const style: Partial<CSSStyleDeclaration> = {
+    display: "grid",
+    [templateProp]: template,
+  };
+
+  // Ensure children can shrink
+  if (direction === "horizontal") {
+    left.style.minWidth = "0";
+    right.style.minWidth = "0";
+  }
+  if (direction === "vertical") {
+    left.style.minHeight = "0";
+    right.style.minHeight = "0";
+  }
+
+  const el_line = m("hr", {
+    style: {
+      cursor: direction === "horizontal" ? "col-resize" : "row-resize",
+      border: "none",
+      backgroundColor: "white",
+      width: direction === "horizontal" ? `${gutterSize}px` : "100%",
+      height: direction === "vertical" ? `${gutterSize}px` : "100%",
+    },
+  });
+
+  const el = m("div", {class: "h100", style}, [left, el_line, right]);
+
+  const split_option_key = direction === "horizontal" ? "columnGutters" : "rowGutters";
+  let splitInstance: SplitInstance | null = Split({
+    [split_option_key]: [{track: 1, element: el_line, minSize: 0}],
+  });
+
+  let leftVisible = true;
+  let rightVisible = true;
+
+  const key = direction === "horizontal" ? "gridColumn" : "gridRow";
+  const updateVisibility = () => {
+    if (!leftVisible && !rightVisible) {
+      throw new Error("Cannot hide both sides of NSplit");
+    }
+
+    if (leftVisible && rightVisible) {
+      left.style.display = "";
+      right.style.display = "";
+      el_line.style.display = "";
+      left.style[key] = "";
+      right.style[key] = "";
+      if (splitInstance === null) {
+        splitInstance = Split({
+          [split_option_key]: [{track: 1, element: el_line, minSize: 0}],
+        });
+      }
+    } else {
+      if (splitInstance !== null) {
+        splitInstance.destroy();
+        splitInstance = null;
+      }
+      left.style.display = leftVisible ? "" : "none";
+      right.style.display = rightVisible ? "" : "none";
+      el_line.style.display = "none";
+      const [el_fill, el_empty] = leftVisible ? [left, right] : [right, left];
+      el_fill.style[key] = "1 / -1";
+      el_empty.style[key] = "";
+    }
+  };
+
+  return {
+    element: el,
+    set leftVisible(value: boolean) {
+      leftVisible = value;
+      updateVisibility();
+    },
+    set rightVisible(value: boolean) {
+      rightVisible = value;
+      updateVisibility();
+    },
+    unmount() {
+      splitInstance?.destroy?.();
+    },
+  };
+}
 
 function Overlay(props: {on: {close: () => void}}, child: HTMLElement) {
   const dom = m("div", {

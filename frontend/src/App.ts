@@ -1,9 +1,8 @@
-import Split from "split-grid";
 import {ComponentContainer, GoldenLayout, Tab} from "golden-layout";
 import {NDropdown, NInput, NSelect} from "./components/input.ts";
-import {NModal, NScrollbar, NTabs} from "./components/layout.ts";
+import {NModal, NScrollbar, NTabs, NSplit} from "./components/layout.ts";
 import {TreeOption, NTree, NList, NListItem, NIcon, NTag, NEmpty, NResult} from "./components/dataview.ts";
-import {DownOutlined, Eye, EyeClosed} from "./components/icons.ts";
+import {DoubleLeftOutlined, DoubleRightOutlined, DownOutlined, Eye, EyeClosed} from "./components/icons.ts";
 import RequestHTTP from "./RequestHTTP.ts";
 import RequestSQL from "./RequestSQL.ts";
 import RequestGRPC from "./RequestGRPC.ts";
@@ -14,7 +13,7 @@ import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs
 import {Method, Kinds, Database, HistoryEntry, Request} from "./api.ts";
 import {app, database} from "../wailsjs/go/models.ts";
 import Command from "./components/CommandPalette.ts";
-import {DOMNode, m, Signal, signal} from "./utils.ts";
+import {DOMNode, m, setDisplay, Signal, signal} from "./utils.ts";
 
 function fromNow(date: Date): string {
   const now = new Date();
@@ -436,6 +435,15 @@ function preApp(root: HTMLElement, store: Store) {
   const history = [] as HistoryEntry[];
 
   let sidebarHidden = false;
+  const collapseButtonStates: Map<boolean, (string | DOMNode & Node)[]> = new Map([
+    [true, [
+      NIcon({component: DoubleRightOutlined}),
+    ]],
+    [false, [
+      NIcon({component: DoubleLeftOutlined}),
+      "hide",
+    ]],
+  ]);
   const collapseButton = m("button", {
     id: "collapse-button",
     type: "button",
@@ -447,16 +455,7 @@ function preApp(root: HTMLElement, store: Store) {
       justifyContent: "center",
       alignItems: "center",
     },
-  }, [
-    "hide",
-    // NSpace(this.sidebarHidden ? [
-    //   NIcon({component: m(DoubleLeftOutlined)}),
-    //   "hide",
-    // ] : [
-    //   NIcon({component: m(DoubleRightOutlined)})
-    // ]),
-  ]);
-  // const buttonCollapse = Button.getOrCreateInstance(collapseButton);
+  }, collapseButtonStates.get(sidebarHidden)!);
 
   const new_select = NSelect<database.Kind>({
     label: newRequestKind?.toUpperCase(),
@@ -469,159 +468,133 @@ function preApp(root: HTMLElement, store: Store) {
     options: Kinds.map((kind: database.Kind) => ({label: kind.toUpperCase(), value: kind})),
   });
 
-  const el_line = m("hr", {style: {
-    cursor: "col-resize",
-    border: "none",
-    backgroundColor: "white",
-    width: "2px",
-  }});
-  const app_container = m("div", {
-    class: "h100",
+  const el_aside = m("aside", {
     style: {
+      overflow: "auto",
+      color: "rgba(255, 255, 255, 0.82)",
+      backgroundColor: "rgb(24, 24, 28)",
       display: "grid",
-      gridTemplateColumns: `300px ${el_line.style.width} 6fr`,
+      gridTemplateRows: "95% 5%",
+      height: "100vh",
     },
   },
-    m("aside", {
-      style: {
-        overflow: "auto",
-        color: "rgba(255, 255, 255, 0.82)",
-        backgroundColor: "rgb(24, 24, 28)",
-        display: "grid",
-        gridTemplateRows: "95% 5%",
-        height: "100vh",
-      },
-    },
-      NTabs({
-        type: "card",
-        size: "small",
-        tabs: [
-          {
-            name: "Collection",
-            style: {
-              overflow: "auto",
-              display: "grid",
-              paddingTop: "0px",
-              gridTemplateRows: "2em auto",
-              height: "100%",
-            },
-            elem: [
-              new_select.el,
-              NScrollbar(
-                NTree({
-                  "selected-keys": [/*(store.tabs.value ? store.tabs.value.map.list[store.tabs.value.index] : "")*/],
-                  data: ((): TreeOption[] => {
-                    const mapper = (tree: app.Tree): TreeOption[] =>
-                      Object.entries(tree.Dirs ?? {}).map(([k, v]) => ({
-                        key: k,
-                        label: basename(k),
-                        children: mapper(v),
-                      } as TreeOption)).concat(Object.entries(tree.IDs).map(([id, basename]) => {
-                        return {
-                          key: id,
-                          label: basename,
-                        } as TreeOption;
-                      }));
-                    return mapper(store.requestsTree);
-                  })(),
-                  "default-expanded-keys": expandedKeys,
-                  on: {
-                    "update:expanded-keys": (keys: string[]) => {expandedKeys = keys;},
-                    drop: drag,
-                  },
-                  "node-props": ({option}: {option: TreeOption}): {onclick: () => void} => {
-                    return {
-                      onclick: () => {
-                        const id = option.key;
-                        if (option.children === undefined && !(option.disabled ?? false)) {
-                          store.selectRequest(id);
-                        }
-                      },
-                    };
-                  },
-                  "render-prefix": (info: {option: TreeOption, checked: boolean, selected: boolean}): DOMNode => {
-                    const option = info.option;
-                    if (option.key === undefined) {
-                      return null;
-                    }
-                    const req = store.requests[option.key];
-                    if (req === undefined) {
-                      return null;
-                    }
-                    const [method, color] = badge(req);
-                    return NTag({
-                      type: (req.Kind === database.Kind.HTTP ? "success" : "info") as "success" | "info" | "warning",
-                      style: {width: "4em", justifyContent: "center", color},
-                      size: "small",
-                    }, method);
-                  },
-                  "render-suffix": renderSuffix,
-                }),
-              ),
-            ],
+    NTabs({
+      type: "card",
+      size: "small",
+      tabs: [
+        {
+          name: "Collection",
+          style: {
+            overflow: "auto",
+            display: "grid",
+            paddingTop: "0px",
+            gridTemplateRows: "2em auto",
+            height: "100%",
           },
-          {
-            name: "History",
-            style: {flexGrow: "1"},
-            elem: (() => {
-              if (store.requestID() === null)
-                return NEmpty({
-                  description: "Not implemented",
-                  class: "h100",
-                  style: {justifyContent: "center"},
-                });
-              if (history.length === 0)
-                return NEmpty({
-                  description: "No history yet",
-                  class: "h100",
-                  style: {justifyContent: "center"},
-                });
-              return [
-                NList(history.map(r =>
-                  NListItem({
-                    class: ["history-card", "card"].join(" "),
-                    // on: {click: () => selectRequest(r.request.id)},
-                  }, [
-                    m("span", {style: {color: "grey"}, class: "date"}, fromNow(r.sent_at)),
-                  ]),
-                )),
-              ];
-            })(),
-          },
-        ],
-      }),
-      collapseButton,
-    ),
-    el_line,
-    m("div", {style: {
+          elem: [
+            new_select.el,
+            NScrollbar(
+              NTree({
+                "selected-keys": [/*(store.tabs.value ? store.tabs.value.map.list[store.tabs.value.index] : "")*/],
+                data: ((): TreeOption[] => {
+                  const mapper = (tree: app.Tree): TreeOption[] =>
+                    Object.entries(tree.Dirs ?? {}).map(([k, v]) => ({
+                      key: k,
+                      label: basename(k),
+                      children: mapper(v),
+                    } as TreeOption)).concat(Object.entries(tree.IDs).map(([id, basename]) => {
+                      return {
+                        key: id,
+                        label: basename,
+                      } as TreeOption;
+                    }));
+                  return mapper(store.requestsTree);
+                })(),
+                "default-expanded-keys": expandedKeys,
+                on: {
+                  "update:expanded-keys": (keys: string[]) => {expandedKeys = keys;},
+                  drop: drag,
+                },
+                "node-props": ({option}: {option: TreeOption}): {onclick: () => void} => {
+                  return {
+                    onclick: () => {
+                      const id = option.key;
+                      if (option.children === undefined && !(option.disabled ?? false)) {
+                        store.selectRequest(id);
+                      }
+                    },
+                  };
+                },
+                "render-prefix": (info: {option: TreeOption, checked: boolean, selected: boolean}): DOMNode => {
+                  const option = info.option;
+                  if (option.key === undefined) {
+                    return null;
+                  }
+                  const req = store.requests[option.key];
+                  if (req === undefined) {
+                    return null;
+                  }
+                  const [method, color] = badge(req);
+                  return NTag({
+                    type: (req.Kind === database.Kind.HTTP ? "success" : "info") as "success" | "info" | "warning",
+                    style: {width: "4em", justifyContent: "center", color},
+                    size: "small",
+                  }, method);
+                },
+                "render-suffix": renderSuffix,
+              }),
+            ),
+          ],
+        },
+        {
+          name: "History",
+          style: {flexGrow: "1"},
+          elem: (() => {
+            if (store.requestID() === null)
+              return NEmpty({
+                description: "Not implemented",
+                class: "h100",
+                style: {justifyContent: "center"},
+              });
+            if (history.length === 0)
+              return NEmpty({
+                description: "No history yet",
+                class: "h100",
+                style: {justifyContent: "center"},
+              });
+            return [
+              NList(history.map(r =>
+                NListItem({
+                  class: ["history-card", "card"].join(" "),
+                  // on: {click: () => selectRequest(r.request.id)},
+                }, [
+                  m("span", {style: {color: "grey"}, class: "date"}, fromNow(r.sent_at)),
+                ]),
+              )),
+            ];
+          })(),
+        },
+      ],
+    }),
+    collapseButton,
+  );
+  const el_main = m("div", {
+    style: {
       color: "rgba(255, 255, 255, 0.82)",
       backgroundColor: "rgb(16, 16, 20)",
       overflow: "hidden",
     }}, [
       el_empty_state,
       el_layout,
-    ]),
-  );
+    ]);
+  const app_container = NSplit(el_aside, el_main, {direction: "horizontal", sizes: ["300px", "1fr"]}).element;
 
-  Split({
-    columnGutters: [
-      {track: 1, element: el_line},
-    ],
-  });
   collapseButton.onclick = () => { // TODO: inline to props
     sidebarHidden = !sidebarHidden;
-    const el_aside = app_container.children[0].children[0];
-    if (sidebarHidden) {
-      app_container.style.setProperty("grid-template-columns", "3em 6fr"); // TODO: toggle classes instead
-      (el_aside.children[1] as HTMLElement).style.setProperty("display", "none"); // hide requests tree
-      (el_aside.children[0] as HTMLElement).style.setProperty("display", "block"); // show "nothing" instead
-      collapseButton.innerText = ">>"; // TODO: toggle classes instead
-    } else {
-      app_container.style.setProperty("grid-template-columns", "300px 6fr");
-      (el_aside.children[1] as HTMLElement).style.setProperty("display", "block"); // show requests tree
-      (el_aside.children[0] as HTMLElement).style.setProperty("display", "none"); // hide "nothing"
-      collapseButton.innerText = "<< hide";
-    }
+    app_container.style.gridTemplateColumns = sidebarHidden ? "3em 5px 1fr" : "300px 5px 1fr";
+    el_aside.style.gridTemplateRows = sidebarHidden ? "1fr" : "95% 5%";
+    setDisplay(el_aside.children[0] as HTMLElement, !sidebarHidden);
+    collapseButton.replaceChildren(...collapseButtonStates.get(sidebarHidden)!);
   };
 
   root.append(m("div", {style: {

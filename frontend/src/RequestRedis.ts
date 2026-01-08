@@ -1,10 +1,11 @@
 import {NButton, NInputGroup, NInput} from "./components/input.ts";
 import {NEmpty} from "./components/dataview.ts";
+import {NSplit} from "./components/layout.ts";
 import ViewJSON from "./components/ViewJSON.ts";
 import EditorJSON from "./components/EditorJSON.ts";
 import {database} from "../wailsjs/go/models.ts";
 import {get_request} from "./store.ts";
-import {m, Signal} from "./utils.ts";
+import {m, Signal, setDisplay} from "./utils.ts";
 import {HistoryEntry} from "./api.ts";
 
 type Request = {kind: database.Kind.REDIS} & database.RedisRequest;
@@ -78,34 +79,24 @@ export default function(
         on: {update: (value: string) => update_request({query: value})},
       });
 
-      const updateLayout = (show_request: boolean) => {
-        if (show_request) {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "50% 50%",
-              gridTemplateRows: "auto 1fr",
-            },
-          },
-            el_input_group,
-            el_editor_json,
-            el_response,
-          ));
-        } else {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "1fr",
-              gridTemplateRows: "1fr",
-            },
-          },
-            el_response,
-          ));
-        }
-      };
-      unmounts.push(show_request.sub(updateLayout));
+      const split = NSplit(el_editor_json, el_response, {direction: "horizontal"});
+      unmounts.push(() => split.unmount());
+      const el_container = m("div", {
+        class: "h100",
+        style: {
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gridTemplateRows: "auto minmax(0, 1fr)",
+          gridColumnGap: ".5em",
+        },
+      }, el_input_group, split.element);
+      el.replaceChildren(el_container);
+
+      unmounts.push(show_request.sub((show_request: boolean) => {
+        split.leftVisible = show_request;
+        setDisplay(el_input_group, show_request);
+        el_container.style.gridTemplateRows = show_request ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)";
+      }));
     },
     push_history_entry(he: HistoryEntry) {
       update_response(he.response as database.RedisResponse);

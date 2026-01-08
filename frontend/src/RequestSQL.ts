@@ -1,40 +1,15 @@
-import Split from "split-grid";
+
 import {database} from "../wailsjs/go/models.ts";
 import {NEmpty, NIcon} from "./components/dataview.ts";
 import {NButton, NInput, NInputGroup, NSelect} from "./components/input.ts";
-import {NScrollbar} from "./components/layout.ts";
+import {NScrollbar, NSplit} from "./components/layout.ts";
 import {CheckSquareOutlined, ClockCircleOutlined, FieldNumberOutlined, ItalicOutlined, QuestionCircleOutlined} from "./components/icons.ts";
 import EditorSQL from "./EditorSQL.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {Database, HistoryEntry, RowValue} from "./api.ts";
-import {DOMNode, m, Signal} from "./utils.ts";
+import {DOMNode, m, setDisplay, Signal} from "./utils.ts";
 
 type Request = database.SQLRequest;
-
-function NSplit(left: HTMLElement, right: HTMLElement) {
-  const el_line = m("hr", {style: {cursor: "row-resize"}});
-  const el = m("div", {
-    class: "h100",
-    id: "split",
-    style: {
-      display: "grid",
-      // gridTemplateRows: "auto 1fr",
-      // gridTemplateColumns: "50% 50%",
-      gridTemplateRows: "1fr 5px 3fr",
-      gridColumnGap: ".5em",
-    } as Partial<CSSStyleDeclaration>,
-  },
-    left,
-    el_line,
-    right,
-  );
-  Split({
-    rowGutters: [
-      {track: 1, element: el_line},
-    ],
-  });
-  return el;
-}
 
 function render(v: RowValue): DOMNode {
   switch (true) {
@@ -122,16 +97,15 @@ export default function(
     style: {justifyContent: "center"},
   });
   const push_response = (response: database.SQLResponse | null) => {
-    if (response === null) {return;}
+    if (response === null) return;
 
     // TODO: fix duplicate column names
-    el_response.replaceChildren(NScrollbar(
-      DataTable({
-        columns: response.columns,
-        rows: response.rows as RowValue[][],
-        types: response.types,
-      }),
-    ));
+    el_response.style.justifyContent = "";
+    el_response.replaceChildren(NScrollbar(DataTable({
+      columns: response.columns,
+      rows: response.rows as RowValue[][],
+      types: response.types,
+    })));
   };
   const unmounts: (() => void)[] = [];
 
@@ -182,31 +156,14 @@ export default function(
         el_run,
       );
 
-      const updateLayout = (show_request: boolean) => {
-        if (show_request) {
-          el.replaceChildren(m("div", {
-              class: "h100",
-            },
-            el_input_group,
-            NSplit(
-              el_editor,
-              el_response,
-            ),
-          ));
-        } else {
-          el.replaceChildren(m("div", {
-              class: "h100",
-              style: {
-                display: "grid",
-                gridTemplateColumns: "1fr",
-                gridTemplateRows: "1fr",
-              },
-            },
-            el_response,
-          ));
-        }
-      };
-      unmounts.push(show_request.sub(updateLayout));
+      const split = NSplit(el_editor, el_response, {sizes: ["1fr", "1fr"]});
+      const el_split = split.element;
+      const el_container = m("div", {class: "h100"}, el_input_group, el_split);
+      unmounts.push(show_request.sub((show_request: boolean) => {
+        split.leftVisible = show_request;
+        setDisplay(el_input_group, show_request);
+        el.replaceChildren(el_container);
+      }));
     },
     push_history_entry(he: HistoryEntry) {
       push_response(he.response as database.SQLResponse);

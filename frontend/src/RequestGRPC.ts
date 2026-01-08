@@ -1,12 +1,12 @@
 import {database} from "../wailsjs/go/models.ts";
 import {NInput, NButton, NInputGroup, NSelect} from "./components/input.ts";
-import {NTabs} from "./components/layout.ts";
+import {NTabs, NSplit} from "./components/layout.ts";
 import {NTag, NTable, NEmpty} from "./components/dataview.ts";
 import {GRPCCodes, HistoryEntry} from "./api.ts";
 import ViewJSON from "./components/ViewJSON.ts";
 import ParamsList from "./components/ParamsList.ts";
 import {get_request, last_history_entry} from "./store.ts";
-import {m, Signal} from "./utils.ts";
+import {m, setDisplay, Signal} from "./utils.ts";
 
 type Request = {kind: database.Kind.GRPC} & database.GRPCRequest;
 
@@ -141,7 +141,6 @@ export default function(
           options: selectOptions,
           placeholder: "Method",
           disabled: loading_methods,
-          style: {width: "10%", minWidth: "18em"},
           on: {update: (method: string) => update_request({method})},
         }).el,
         NInput({
@@ -179,29 +178,24 @@ export default function(
         ],
       });
 
-      const updateLayout = (show_request: boolean) => {
-        if (show_request) {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "50% 50%",
-              gridTemplateRows: "auto 1fr",
-              gridColumnGap: ".5em",
-            },
-          }, el_input_group, el_req_tabs, el_response));
-        } else {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "1fr",
-              gridTemplateRows: "1fr",
-            },
-          }, el_response));
-        }
-      };
-      unmounts.push(show_request.sub(updateLayout));
+      const split = NSplit(el_req_tabs, el_response, {direction: "horizontal"});
+      unmounts.push(() => split.unmount());
+      const el_split = split.element;
+      const el_container = m("div", {
+        class: "h100",
+        style: {
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gridTemplateRows: "auto minmax(0, 1fr)",
+          gridColumnGap: ".5em",
+        },
+      }, el_input_group, el_split);
+      el.replaceChildren(el_container);
+      unmounts.push(show_request.sub((show_request: boolean) => {
+        split.leftVisible = show_request;
+        setDisplay(el_input_group, show_request);
+        el_container.style.gridTemplateRows = show_request ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)";
+      }));
     },
     push_history_entry(he) {
       update_response(he.response as database.GRPCResponse);

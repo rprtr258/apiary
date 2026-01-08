@@ -3,6 +3,7 @@ import {EditorView, ViewPlugin, ViewUpdate} from "@codemirror/view";
 import {markdown} from "@codemirror/lang-markdown";
 import {database} from "../wailsjs/go/models.ts";
 import {NEmpty} from "./components/dataview.ts";
+import {NSplit} from "./components/layout.ts";
 import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
 import {get_request} from "./store.ts";
 import {api, HistoryEntry} from "./api.ts";
@@ -71,7 +72,6 @@ export default function(
     class: "h100",
     style: {justifyContent: "center"},
   });
-  const unmounts: (() => void)[] = [];
 
   const el_error = m("div", {
     style: {
@@ -89,6 +89,7 @@ export default function(
   let id: string | null = null;
   let responseContainer: HTMLElement | null = null;
   let lastScrollTop = 0;
+  const unmounts: (() => void)[] = [];
 
   const update_response = () => {
     if (id === null) return; // Guard: id not set yet
@@ -147,51 +148,26 @@ export default function(
       });
       unmounts.push(() => editor.destroy());
 
-      const updateLayout = (show_request: boolean) => {
-        if (show_request) {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "50% 50%",
-            },
-          },
-            el_editor_md,
-            m("div", {
-              class: "h100",
-              style: {
-                display: "flex",
-                flexDirection: "column",
-                minHeight: "0",
-              },
-            },
-              el_error,
-              el_response,
-            ),
-          ));
-        } else {
-          el.replaceChildren(m("div", {
-            class: "h100",
-            style: {
-              display: "grid",
-              gridTemplateColumns: "1fr",
-              gridTemplateRows: "1fr",
-            },
-          },
-            m("div", {
-              class: "h100",
-              style: {
-                display: "flex",
-                flexDirection: "column",
-              },
-            },
-              el_error,
-              el_response,
-            ),
-          ));
-        }
-      };
-      unmounts.push(show_request.sub(updateLayout));
+      const right_div = m("div", {
+        class: "h100",
+        style: {
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "0",
+        },
+      },
+        el_error,
+        el_response,
+      );
+
+      const split = NSplit(el_editor_md, right_div, {direction: "horizontal"});
+      unmounts.push(() => split.unmount());
+      const el_split = split.element;
+      el.replaceChildren(el_split);
+
+      unmounts.push(show_request.sub((show_request: boolean) => {
+        split.leftVisible = show_request;
+      }));
     },
     push_history_entry(_he) {
       if (id === null) return; // Guard: id not set yet
