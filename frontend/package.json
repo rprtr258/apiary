@@ -13,7 +13,7 @@
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/lang-markdown": "^6.4.0",
     "@codemirror/lang-sql": "^6.9.0",
-    "@codemirror/theme-one-dark": "^6.1.2",
+    "@fsegurai/codemirror-theme-github-dark": "^6.2.3",
     "codemirror": "^6.0.1",
     "golden-layout": "^2.6.0",
     "split-grid": "^1.0.11"

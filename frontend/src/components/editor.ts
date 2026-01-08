@@ -6,6 +6,7 @@ import {indentOnInput} from "@codemirror/language";
 import {highlightSelectionMatches, searchKeymap} from "@codemirror/search";
 import {autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap} from "@codemirror/autocomplete";
 import {lintKeymap} from "@codemirror/lint";
+import {githubDark} from "@fsegurai/codemirror-theme-github-dark";
 
 export const defaultExtensions = [
   keymap.of([
@@ -22,7 +23,7 @@ export const defaultExtensions = [
   bracketMatching(),
   highlightSelectionMatches(),
   EditorState.allowMultipleSelections.of(true),
-  EditorView.darkTheme.of(true),
+  githubDark,
   EditorView.lineWrapping,
 ];
 export function defaultEditorExtensions(onChange: (doc: string) => void): Extension[] {
