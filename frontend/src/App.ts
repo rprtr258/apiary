@@ -13,7 +13,8 @@ import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs
 import {Method, Kinds, Database, HistoryEntry, Request} from "./api.ts";
 import {app, database} from "../wailsjs/go/models.ts";
 import Command from "./components/CommandPalette.ts";
-import {DOMNode, m, setDisplay, Signal, signal} from "./utils.ts";
+import {DOMNode, m, setDisplay, signal} from "./utils.ts";
+import RequestSQLSource from "./RequestSQLSource.ts";
 
 function fromNow(date: Date): string {
   const now = new Date();
@@ -323,25 +324,9 @@ type panelkaState = {id: string};
 
 type Frame = {
   loaded(r: get_request): void,
-  push_history_entry(he: HistoryEntry): void, // show last history entry
+  push_history_entry?(he: HistoryEntry): void, // show last history entry
   unmount(): void,
 };
-const f = {
-  [database.Kind.HTTP ]:     RequestHTTP,
-  [database.Kind.SQL  ]:     RequestSQL,
-  [database.Kind.GRPC ]:     RequestGRPC,
-  [database.Kind.JQ   ]:     RequestJQ,
-  [database.Kind.REDIS]:     RequestRedis,
-  [database.Kind.MD   ]:     RequestMD,
-  // [database.Kind.SQLSource]: RequestSQLSource,
-} as {[key in database.Kind]: (
-  el: HTMLElement,
-  show_request: Signal<boolean>,
-  on: {
-    update: (patch: Partial<Request>) => Promise<void>,
-    send: () => Promise<void>,
-  },
-) => Frame};
 const panelkaFactory = (
   container: ComponentContainer,
   {id}: panelkaState,
@@ -350,17 +335,17 @@ const panelkaFactory = (
   const show_request = signal(true);
   let eye_unsub = () => {};
   let frame_unsub = () => {};
-  container.on("tab", (tab: Tab): void => {
-    const eye = m("span", {
-      title: "Hide request",
-      onclick: () => {
-        show_request.update(b => !b);
-      },
-    }, NIcon({
-      component: show_request.value ? Eye : EyeClosed,
-      class: "highlight-red",
-    }));
+  const eye = m("span", {
+    title: "Hide request",
+    onclick: () => {
+      show_request.update(b => !b);
+    },
+  }, NIcon({
+    component: show_request.value ? Eye : EyeClosed,
+    class: "highlight-red",
+  }));
 
+  container.on("tab", (tab: Tab): void => {
     eye_unsub = show_request.sub(value => {
       eye.title = value ? "Hide request" : "Show request";
       eye.replaceChildren(NIcon({
@@ -385,17 +370,25 @@ const panelkaFactory = (
     }, 100);
   });
   if (store.requests[id] !== undefined) {
-    const kind = store.requests[id].Kind;
-    const frame = f[kind](
-      el,
-      show_request,
-      {
-        update: (patch: Partial<Request>) => update_request(id, patch),
-        send: () => send(id).then(_ => {
-          frame.push_history_entry(last_history_entry(store.requests2[id])!);
-        }),
-      },
-    );
+    const on = {
+      update: (patch: Partial<Request>) => update_request(id, patch),
+      send: () => send(id).then(_ => {
+        frame.push_history_entry?.(last_history_entry(store.requests2[id])!);
+      }),
+    };
+    const frame: Frame = (() => {
+      switch (store.requests[id].Kind) {
+        case database.Kind.HTTP: return RequestHTTP(el, show_request, on);
+        case database.Kind.SQL: return RequestSQL(el, show_request, on);
+        case database.Kind.GRPC: return RequestGRPC(el, show_request, on);
+        case database.Kind.JQ: return RequestJQ(el, show_request, on);
+        case database.Kind.REDIS: return RequestRedis(el, show_request, on);
+        case database.Kind.MD: return RequestMD(el, show_request, on);
+        case database.Kind.SQLSource:
+          setDisplay(eye, false); // TODO: dont draw eye in the first place?
+          return RequestSQLSource(el, {update: on.update});
+      }
+    })();
     frame_unsub = () => frame.unmount();
     get_request(id).then(r => r !== null && frame.loaded(r));
   }
@@ -478,8 +471,6 @@ function preApp(root: HTMLElement, store: Store) {
     },
   },
     NTabs({
-      type: "card",
-      size: "small",
       tabs: [
         {
           name: "Collection",
@@ -549,17 +540,9 @@ function preApp(root: HTMLElement, store: Store) {
           style: {flexGrow: "1"},
           elem: (() => {
             if (store.requestID() === null)
-              return NEmpty({
-                description: "Not implemented",
-                class: "h100",
-                style: {justifyContent: "center"},
-              });
+              return NEmpty({description: "Not implemented"});
             if (history.length === 0)
-              return NEmpty({
-                description: "No history yet",
-                class: "h100",
-                style: {justifyContent: "center"},
-              });
+              return NEmpty({description: "No history yet"});
             return [
               NList(history.map(r =>
                 NListItem({

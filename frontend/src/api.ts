@@ -37,10 +37,10 @@ export const GRPCCodes = {
 export type GRPCCode = keyof typeof GRPCCodes;
 
 export const Database: Record<database.Database, string> = {
-  [database.Database.POSTGRES]:   "PG",
-  [database.Database.MYSQL]:      "MY",
-  [database.Database.SQLITE]:     "LITE",
-  [database.Database.CLICKHOUSE]: "CH",
+  [database.Database.POSTGRES]:   "PostgreSQL",
+  [database.Database.MYSQL]:      "MySQL",
+  [database.Database.SQLITE]:     "SQLite",
+  [database.Database.CLICKHOUSE]: "ClickHouse",
 } as const;
 export type Database = keyof typeof Database;
 

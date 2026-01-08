@@ -61,13 +61,18 @@ export function NResult(props: NResultProps) {
 
 type NEmptyProps = {
   description: string,
-  class?: string,
+  class?: string[],
   style?: Partial<CSSStyleDeclaration>,
 };
 export function NEmpty(props: NEmptyProps) {
   return m("div", {
-    class: props.class,
-    style: props.style,
+    class: ["h100", ...(props.class ?? [])].join(" "),
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      ...props.style,
+    },
   }, [props.description]);
 };
 

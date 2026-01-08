@@ -12,8 +12,6 @@ export function NScrollbar(...children: HTMLElement[]) {
 }
 
 type NTabsProps = {
-  type: "card" | "line",
-  size: "small",
   class?: string,
   style?: Partial<CSSStyleDeclaration>,
   tabs: {

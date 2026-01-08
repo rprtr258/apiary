@@ -86,16 +86,8 @@ export default function(
   push_history_entry(he: HistoryEntry): void, // show last history entry
   unmount(): void,
 } {
-  el.append(NEmpty({
-    description: "Loading request...",
-    class: "h100",
-    style: {justifyContent: "center"},
-  }));
-  const el_response = NEmpty({
-    description: "Run query or choose one from history.",
-    // class: "h100",
-    style: {justifyContent: "center"},
-  });
+  el.append(NEmpty({description: "Loading request..."}));
+  const el_response = NEmpty({description: "Run query or choose one from history."});
   const push_response = (response: database.SQLResponse | null) => {
     if (response === null) return;
 
@@ -113,7 +105,7 @@ export default function(
     loaded: (r: get_request): void => {
       push_response(last_history_entry(r)?.response as database.SQLResponse | null);
 
-      const request = r.request as database.SQLRequest;
+      const request = r.request as Request;
       const el_run = NButton({
         type: "primary",
         on: {click: () => {

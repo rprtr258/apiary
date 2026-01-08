@@ -1,6 +1,6 @@
 import {ComponentItemConfig, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedLayoutConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig} from "golden-layout";
 import {api, type RequestData, type HistoryEntry, Request} from "./api.ts";
-import {app, database} from "../wailsjs/go/models.ts";
+import {app} from "../wailsjs/go/models.ts";
 
 // TODO: <NNotificationProvider :max="1" placement="bottom-right">
 export function useNotification() {
@@ -73,7 +73,6 @@ export type Store = {
   requestsTree : app.Tree,
   requests : Record<string, app.requestPreview>,
   requests2: Record<string, get_request>,
-  sql_sources: Record<string, UseSQLSource>,
   load: () => void,
   layoutConfig: LayoutConfig,
   layout: GoldenLayout | undefined,
@@ -112,7 +111,6 @@ export function useStore(): Store {
     requestsTree : new app.Tree({IDs: {}, Dirs: {}}),
     requests : {} as Record<string, app.requestPreview>,
     requests2: {} as Record<string, get_request>,
-    sql_sources: {} as Record<string, UseSQLSource>,
     load,
     layoutConfig,
     layout: undefined as GoldenLayout | undefined,
@@ -259,69 +257,6 @@ export async function get_request(request_id: string): Promise<get_request | nul
   const history = res.value.History as unknown as HistoryEntry[];
   store.requests2[request_id] = {request, history};
   return store.requests2[request_id];
-}
-
-type UseSQLSource = {
-  request: database.SQLSourceRequest | null,
-  response: database.SQLResponse | null,
-  is_loading: boolean,
-  update_request: (patch: Partial<database.SQLSourceRequest>) => Promise<void>,
-  send: (query: string) => Promise<void>,
-};
-export function use_sql_source(request_id: string): UseSQLSource {
-  const notify = notification.error;
-
-  store.sql_sources[request_id] = store.sql_sources[request_id] ?? {
-    is_loading: true,
-    request: null,
-    response: null,
-    send: async (query: string) => {
-      if (store.sql_sources[request_id].request === null || store.sql_sources[request_id].is_loading) return;
-
-      store.sql_sources[request_id].is_loading = true;
-      const res = await api.requestPerformSQLSource(request_id, query);
-      store.sql_sources[request_id].is_loading = false;
-      if (res.kind === "err") {
-        notify(`Could not perform request ${request_id}: ${res.value}`);
-        return;
-      }
-
-      store.sql_sources[request_id].response = res.value.response as database.SQLResponse;
-    },
-    update_request: async (patch: Partial<database.SQLSourceRequest>) => {
-      if (store.sql_sources[request_id].request === null || store.sql_sources[request_id].is_loading) return;
-
-      store.sql_sources[request_id].is_loading = true;
-      const old_request = store.sql_sources[request_id].request;
-      const new_request = {...store.sql_sources[request_id].request, ...patch} as RequestData;
-      store.sql_sources[request_id].request = new_request as database.SQLSourceRequest; // NOTE: optimistic update
-      const res = await api.request_update(request_id, new_request.kind, new_request);
-      store.sql_sources[request_id].is_loading = false;
-      if (res.kind === "err") {
-        store.sql_sources[request_id].request = old_request; // NOTE: undo change
-        notify(`Could not save current request: ${res.value}`);
-        return;
-      }
-    },
-  } as UseSQLSource;
-  const fetchData = async () => {
-    store.sql_sources[request_id].is_loading = true;
-    console.log("fetch", request_id);
-    const res = await api.get(request_id);
-    store.sql_sources[request_id].is_loading = false;
-    if (res.kind === "err") {
-      notify("load request", request_id, res.value);
-      return;
-    }
-
-    store.sql_sources[request_id].request = res.value.Request.Data as database.SQLSourceRequest;
-  };
-
-  if (store.sql_sources[request_id].is_loading) {
-    fetchData().catch(notify);//.then(m.redraw);
-  }
-
-  return store.sql_sources[request_id];
 }
 
 export const store = useStore();

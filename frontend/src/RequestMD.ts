@@ -61,17 +61,9 @@ export default function(
   push_history_entry(he: HistoryEntry): void, // show last history entry
   unmount(): void,
 } {
-  el.append(NEmpty({
-    description: "Loading request...",
-    class: "h100",
-    style: {justifyContent: "center"},
-  }));
+  el.append(NEmpty({description: "Loading request..."}));
 
-  const el_response = NEmpty({
-    description: "Send request or choose one from history.",
-    class: "h100",
-    style: {justifyContent: "center"},
-  });
+  const el_response = NEmpty({description: "Send request or choose one from history."});
 
   const el_error = m("div", {
     style: {

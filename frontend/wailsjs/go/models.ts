@@ -155,13 +155,13 @@ export namespace database {
 	    BOOLEAN = "boolean",
 	}
 	export enum Kind {
-	    GRPC = "grpc",
-	    SQLSource = "sql-source",
-	    HTTP = "http",
 	    SQL = "sql",
 	    JQ = "jq",
 	    MD = "md",
 	    REDIS = "redis",
+	    GRPC = "grpc",
+	    SQLSource = "sql-source",
+	    HTTP = "http",
 	}
 	export class KV {
 	    key: string;

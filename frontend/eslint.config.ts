@@ -47,8 +47,15 @@ export default defineConfig([
       "import/extensions": ["error", "always"],
       "@typescript-eslint/no-floating-promises": ["off"],
       "@typescript-eslint/no-misused-promises": ["off"],
-      "@typescript-eslint/no-unused-vars": ["off"], // TODO: remove
-      // "@typescript-eslint/no-unused-vars": ["error", {argsIgnorePattern: "^_"}],
+      "@typescript-eslint/no-unused-vars": ["off"/*"error", {argsIgnorePattern: "^_"}*/], // TODO: get back
+      "@typescript-eslint/restrict-plus-operands": ["error", {
+        allowAny: false,
+        allowBoolean: false,
+        allowNullish: false,
+        allowNumberAndString: false,
+        allowRegExp: false,
+        skipCompoundAssignments: false,
+      }],
       "@typescript-eslint/strict-boolean-expressions": ["error", {
         allowNumber: false,
         allowString: false,

@@ -31,26 +31,16 @@ export default function(
   push_history_entry(he: HistoryEntry): void, // show last history entry
   unmount(): void,
 } {
-  el.append(NEmpty({
-    description: "Loading request...",
-    class: "h100",
-    style: {justifyContent: "center"},
-  }));
+  el.append(NEmpty({description: "Loading request..."}));
 
-  const el_response = NEmpty({
-    description: "Send request or choose one from history.",
-    class: "h100",
-    style: {justifyContent: "center"},
-  });
+  const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
   const update_response = (response: database.GRPCResponse | null) => {
     if (response === null) {return;}
 
     el_response.replaceChildren(NTabs({
-      type: "card",
-      size: "small",
-      style: {overflowY: "auto"},
+      class: "h100",
       tabs: [
         {
           name: responseBadge(response),
@@ -58,7 +48,6 @@ export default function(
         },
         {
           name: "Body",
-          style: {overflowY: "auto"},
           elem: el_view_response_body.el,
         },
         {
@@ -152,8 +141,6 @@ export default function(
       );
 
       const el_req_tabs = NTabs({
-        type: "line",
-        size: "small",
         class: "h100",
         tabs: [
           {
@@ -178,23 +165,20 @@ export default function(
         ],
       });
 
-      const split = NSplit(el_req_tabs, el_response, {direction: "horizontal"});
+      const split = NSplit(el_req_tabs, el_response, {direction: "horizontal", style: {minHeight: "0"}});
       unmounts.push(() => split.unmount());
       const el_split = split.element;
       const el_container = m("div", {
         class: "h100",
         style: {
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gridTemplateRows: "auto minmax(0, 1fr)",
-          gridColumnGap: ".5em",
+          display: "flex",
+          flexDirection: "column",
         },
       }, el_input_group, el_split);
       el.replaceChildren(el_container);
       unmounts.push(show_request.sub((show_request: boolean) => {
         split.leftVisible = show_request;
         setDisplay(el_input_group, show_request);
-        el_container.style.gridTemplateRows = show_request ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)";
       }));
     },
     push_history_entry(he) {

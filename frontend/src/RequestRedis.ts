@@ -22,11 +22,7 @@ export default function(
   push_history_entry(he: HistoryEntry): void, // show last history entry
   unmount(): void,
 } {
-  el.append(NEmpty({
-    description: "Loading request...",
-    class: "h100",
-    style: {justifyContent: "center"},
-  }));
+  el.append(NEmpty({description: "Loading request..."}));
 
   const el_send = NButton({
     type: "primary",
@@ -34,11 +30,7 @@ export default function(
     disabled: false,
     style: {width: "10em"},
   }, "Send");
-  const el_response = NEmpty({
-    description: "Send request or choose one from history.",
-    class: "h100",
-    style: {justifyContent: "center"},
-  });
+  const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
   const update_request = (patch: Partial<database.RedisRequest>): void => {

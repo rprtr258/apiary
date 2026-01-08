@@ -21,11 +21,7 @@ export default function(
   push_history_entry(he: HistoryEntry): void, // show last history entry
   unmount(): void,
 } {
-  el.append(NEmpty({
-    description: "Loading request...",
-    class: "h100",
-    style: {justifyContent: "center"},
-  }));
+  el.append(NEmpty({description: "Loading request..."}));
 
   const jqerror: string | null = null; // TODO: use
   const el_send = NButton({
@@ -40,11 +36,7 @@ export default function(
     });
   };
 
-  const el_response = NEmpty({
-    description: "Send request or choose one from history.",
-    class: "h100",
-    style: {justifyContent: "center"},
-  });
+  const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
   const update_response = (response: database.JQResponse | null) => {

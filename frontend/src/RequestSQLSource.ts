@@ -1,129 +1,34 @@
 import {database} from "../wailsjs/go/models.ts";
-import {NEmpty, NIcon, NTooltip} from "./components/dataview.ts";
-import {NScrollbar, NSplit} from "./components/layout.ts";
-import {NButton, NInput, NInputGroup, NSelect} from "./components/input.ts";
-import EditorSQL from "./EditorSQL.ts";
-import {get_request, use_sql_source} from "./store.ts";
-import {Database, RowValue} from "./api.ts";
-import {DOMNode, m, Signal} from "./utils.ts";
+import {NEmpty} from "./components/dataview.ts";
+import {NInput, NInputGroup, NSelect} from "./components/input.ts";
+import {get_request} from "./store.ts";
+import {Database} from "./api.ts";
 
-type TableBaseColumn = {
-  key: string,
-  title: (_: TableBaseColumn) => DOMNode,
-  render: (rowData: RowValue) => DOMNode,
-};
-type DataTableProps = {
-  columns: TableBaseColumn[],
-  data: Record<string, RowValue>[],
-  "single-line": false,
-  size: "small",
-  resizable: true,
-  "scroll-x": number,
-};
-function DataTable({columns, data}: DataTableProps) {
-  const tableBorderStyle = {
-    "table-layout": "fixed",
-    border: "1px solid #888",
-    "border-collapse": "collapse",
-    padding: "3px 5px",
-  };
-  return m("table", {style: tableBorderStyle}, [
-    m("thead", {}, [
-      m("tr", {}, columns.map(({key}) =>
-        m("th", {style: tableBorderStyle}, [key]))),
-    ]),
-    m("tbody", {}, data.map(r =>
-      m("tr", {}, columns.map(c =>
-        m("td", {
-          style: tableBorderStyle,
-        }, [c.render(r[c.key])]))))),
-  ]);
-}
+type Request = database.SQLSourceRequest;
 
 export default function(
   el: HTMLElement,
-  show_request: Signal<boolean>,
+  on: {
+    update: (patch: Partial<Request>) => Promise<void>,
+  },
 ): {
   loaded: (r: get_request) => void,
   unmount(): void,
 } {
-  let query = "";
+  el.replaceChildren(NEmpty({description: "Loading source..."}));
+
+  // let query = ""; // TODO: query datasource/scratch request?
   const unmounts: (() => void)[] = [];
   return {
     loaded: (r: get_request): void => {
-      const request = use_sql_source(r.request.id);
+      const request = r.request as Request;
 
-      const update_request = (patch: Partial<database.SQLSourceRequest>): void => {
-        request.update_request(patch);//.then(m.redraw);
+      const update_request = (patch: Partial<Request>): void => {
+        on.update(patch);
       };
 
-      const columns = (() => {
-        const resp = request.response;
-        if (resp === null) {
-          return [];
-        }
-
-        return (resp.columns ?? []).map((c: string): TableBaseColumn => {
-          return {
-            key: c,
-            title: (_: TableBaseColumn) => {
-              const type = resp.types[resp.columns.indexOf(c)];
-              return NTooltip({},
-                m("div", {}, [
-                  NIcon({
-                    // size: 15,
-                    color: "grey",
-                    component:
-                      type === "number" ? "FieldNumberOutlined" :
-                      type === "string" ? "ItalicOutlined" :
-                      type === "bool" ? "CheckSquareOutlined" :
-                      type === "time" ? "ClockCircleOutlined" :
-                        "QuestionCircleOutlined",
-                  }),
-                  c,
-                ]),
-                // default: () => type,
-              );
-            },
-            render: (v: RowValue): DOMNode => {
-              switch (true) {
-              case v === null:
-                return m("span", {style: {color: "grey"}}, ["(NULL)"]);
-              case typeof v == "boolean":
-                return v ? "true" : "false";
-              case typeof v == "number" || typeof v == "string":
-                return String(v);
-              default:
-                alert(`unknown row value type: ${String(v)} : ${typeof v}`);
-                return String(v);
-              }
-            },
-          };
-        });
-      })();
-      // TODO: fix duplicate column names
-      const data = (() => {
-        const resp = request.response;
-        if (resp === null) {
-          return [];
-        }
-
-        return (resp.rows ?? [])
-          .map(row =>
-            Object.fromEntries(row
-              .map((v, i) => [resp.columns[i], v])));
-      })();
-
-      if (r.request === null) {
-        el.replaceChildren(NEmpty({
-          description: "Loading request...",
-          class: "h100",
-          style: {justifyContent: "center"},
-        }));
-        return;
-      }
       const select = NSelect({
-        label: request.request!.database,
+        label: Database[request.database],
         options: Object.keys(Database).map(db => ({label: Database[db as keyof typeof Database], value: db})),
         on: {update: (database: string) => update_request({database: database as Database})},
         // style: {width: "10%"},
@@ -133,55 +38,19 @@ export default function(
         style: {
           gridColumn: "span 2",
           display: "grid",
-          gridTemplateColumns: "1fr 10fr 1fr",
+          gridTemplateColumns: "1fr 10fr",
         },
       }, [
         select.el,
         NInput({
           placeholder: "DSN",
-          value: request.request?.dsn,
+          value: request?.dsn,
           on: {update: (newValue: string) => update_request({dsn: newValue})},
         }),
-        NButton({
-          type: "primary",
-          on: {click: () => request.send(query)},
-          disabled: request.is_loading,
-        }, ["Run"]),
       ]);
 
-      const el_editor_sql = EditorSQL({
-        value: query,
-        on: {update: (q: string) => query = q},
-        class: "h100",
-      });
-
-      const el_response_data = request.response === null ?
-        NEmpty({
-          description: "Run query or choose one from history.",
-          class: "h100",
-          style: {justifyContent: "center"},
-        }) :
-        NScrollbar(
-          DataTable({
-            columns,
-            data,
-            "single-line": false,
-            size: "small",
-            resizable: true,
-            "scroll-x": request.response.columns.length * 200,
-          }),
-        );
-
-      const splitOptions = {sizes: ["1fr", "3fr"] as const};
-      const split = NSplit(el_editor_sql, el_response_data, splitOptions);
-      unmounts.push(() => split.unmount());
-      const el_split = split.element;
-      const el_container = m("div", {class: "h100"}, el_input_group, el_split);
-      unmounts.push(show_request.sub((show_request: boolean) => {
-        el_input_group.style.display = show_request ? "" : "none";
-        split.leftVisible = show_request;
-        el.replaceChildren(el_container);
-      }));
+      const el_container = el_input_group;
+      el.replaceChildren(el_container);
     },
     unmount() {
       for (const unmount of unmounts) {
