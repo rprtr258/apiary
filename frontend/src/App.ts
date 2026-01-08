@@ -409,8 +409,6 @@ export default function(root: HTMLElement) {
 }
 
 function preApp(root: HTMLElement, store: Store) {
-  let sidebarHidden = false;
-
   const el_empty_state = NResult({
     status: "info",
     title: "Pick request",
@@ -437,15 +435,17 @@ function preApp(root: HTMLElement, store: Store) {
   // TODO: whole history in reverse order
   const history = [] as HistoryEntry[];
 
+  let sidebarHidden = false;
   const collapseButton = m("button", {
     id: "collapse-button",
     type: "button",
     class: "h100",
     style: {
       color: "black",
-      display: "grid",
-      gridTemplateColumns: "50% 50%",
-      gridColumnGap: ".5em",
+      display: "flex",
+      gap: ".5em",
+      justifyContent: "center",
+      alignItems: "center",
     },
   }, [
     "hide",
