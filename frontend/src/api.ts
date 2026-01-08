@@ -174,4 +174,10 @@ export const api = {
   ): Promise<Result<HistoryEntry>> {
     return await wrap(() => App.PerformSQLSource(id, query), {reqId: id}) as Result<HistoryEntry>;
   },
+
+  async requestTestSQLSource(
+    id: string,
+  ): Promise<Result<void>> {
+    return await wrap(() => App.TestSQLSource(id), {reqId: id});
+  },
 };

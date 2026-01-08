@@ -54,6 +54,10 @@ export function Rename(arg1, arg2) {
   return window['go']['app']['App']['Rename'](arg1, arg2);
 }
 
+export function TestSQLSource(arg1) {
+  return window['go']['app']['App']['TestSQLSource'](arg1);
+}
+
 export function Update(arg1, arg2, arg3) {
   return window['go']['app']['App']['Update'](arg1, arg2, arg3);
 }

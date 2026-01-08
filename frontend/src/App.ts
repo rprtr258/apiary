@@ -10,7 +10,7 @@ import RequestJQ from "./RequestJQ.ts";
 import RequestRedis from "./RequestRedis.ts";
 import RequestMD from "./RequestMD.ts";
 import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs, update_request, send, last_history_entry, Store} from "./store.ts";
-import {Method, Kinds, Database, HistoryEntry, Request} from "./api.ts";
+import {Method, Kinds, HistoryEntry, Request} from "./api.ts";
 import {app, database} from "../wailsjs/go/models.ts";
 import Command from "./components/CommandPalette.ts";
 import {DOMNode, m, setDisplay, signal} from "./utils.ts";
@@ -126,7 +126,7 @@ function drag({node, dragNode, dropPosition}: {
 function badge(req: app.requestPreview): [string, string] {
   switch (req.Kind) {
   case database.Kind.HTTP:      return [Method[req.SubKind as keyof typeof Method], "lime"];
-  case database.Kind.SQL:       return [Database[req.SubKind as keyof typeof Database], "bluewhite"];
+  case database.Kind.SQL:       return ["SQL", "bluewhite"]; // TODO: db icon
   case database.Kind.GRPC:      return ["GRPC", "cyan"];
   case database.Kind.JQ:        return ["JQ", "violet"];
   case database.Kind.REDIS:     return ["REDIS", "red"];
@@ -446,6 +446,7 @@ function preApp(root: HTMLElement, store: Store) {
       gap: ".5em",
       justifyContent: "center",
       alignItems: "center",
+      cursor: "w-resize",
     },
   }, collapseButtonStates.get(sidebarHidden)!);
 
@@ -576,6 +577,7 @@ function preApp(root: HTMLElement, store: Store) {
     el_aside.style.gridTemplateRows = sidebarHidden ? "1fr" : "95% 5%";
     setDisplay(el_aside.children[0] as HTMLElement, !sidebarHidden);
     collapseButton.replaceChildren(...collapseButtonStates.get(sidebarHidden)!);
+    collapseButton.style.cursor = sidebarHidden ? "e-resize" : "w-resize";
   };
 
   root.append(m("div", {style: {

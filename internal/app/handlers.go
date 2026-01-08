@@ -1,6 +1,7 @@
 package app
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/fullstorydev/grpcurl"
 	"github.com/jhump/protoreflect/desc"
 	"github.com/pkg/errors"
@@ -306,6 +308,42 @@ func (a *App) PerformSQLSource(requestID, query string) (D, error) {
 		"request":     request,
 		"response":    response,
 	}, nil
+}
+
+func (a *App) TestSQLSource(requestID string) error {
+	request, err := a.get(database.RequestID(requestID))
+	if err != nil {
+		return errors.Wrapf(err, "get request id=%q", requestID)
+	}
+	if request.Data.Kind() != database.KindSQLSource {
+		return errors.Errorf("request %s is not SQLSource", requestID)
+	}
+
+	req := request.Data.(database.SQLSourceRequest)
+	switch req.Database {
+	case database.DBClickhouse:
+		opts, err := clickhouse.ParseDSN(req.DSN)
+		if err != nil {
+			return errors.Wrap(err, "parse DSN")
+		}
+
+		db := clickhouse.OpenDB(opts)
+		defer db.Close()
+
+		db.SetMaxIdleConns(5)
+		db.SetMaxOpenConns(10)
+		db.SetConnMaxLifetime(time.Hour)
+
+		return errors.Wrap(db.PingContext(a.ctx), "ping database")
+	default:
+		db, err := sql.Open(string(req.Database), req.DSN)
+		if err != nil {
+			return errors.Wrap(err, "connect to database")
+		}
+		defer db.Close()
+
+		return errors.Wrap(db.PingContext(a.ctx), "ping database")
+	}
 }
 
 type grpcServiceMethods struct {

@@ -2,9 +2,21 @@ import {database} from "../wailsjs/go/models.ts";
 import {NEmpty} from "./components/dataview.ts";
 import {NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {get_request} from "./store.ts";
-import {Database} from "./api.ts";
+import {Database, api} from "./api.ts";
+import {m} from "./utils.ts";
 
 type Request = database.SQLSourceRequest;
+
+function StatusLabel() {
+  const el = m("div", {style: {fontSize: ".8em", height: "1.2em"}});
+  return {
+    el,
+    setStatus(message: string, isSuccess: boolean) {
+      el.textContent = message;
+      el.style.color = isSuccess ? "green" : "red";
+    },
+  };
+}
 
 export default function(
   el: HTMLElement,
@@ -15,42 +27,85 @@ export default function(
   loaded: (r: get_request) => void,
   unmount(): void,
 } {
-  el.replaceChildren(NEmpty({description: "Loading source..."}));
-
   // let query = ""; // TODO: query datasource/scratch request?
+
+  el.replaceChildren(NEmpty({description: "Loading source..."}));
   const unmounts: (() => void)[] = [];
+
   return {
     loaded: (r: get_request): void => {
+      const requestID = r.request.id;
       const request = r.request as Request;
+      const statusLabel = StatusLabel();
 
-      const update_request = (patch: Partial<Request>): void => {
-        on.update(patch);
+      const updateConnectionStatus = async (): Promise<void> => {
+        const res = await api.requestTestSQLSource(requestID);
+        res.map_or_else(
+          _ => statusLabel.setStatus("Database connection successful!", true),
+          err => statusLabel.setStatus(`Database connection failed: ${err}`, false),
+        );
       };
 
-      const select = NSelect({
-        label: Database[request.database],
-        options: Object.keys(Database).map(db => ({label: Database[db as keyof typeof Database], value: db})),
-        on: {update: (database: string) => update_request({database: database as Database})},
-        // style: {width: "10%"},
-      });
-
-      const el_input_group = NInputGroup({
+      const update_request = async (patch: Partial<Request>): Promise<void> => {
+        await on.update(patch);
+        await updateConnectionStatus();
+      };
+      const el_container = NInputGroup({
         style: {
-          gridColumn: "span 2",
-          display: "grid",
-          gridTemplateColumns: "1fr 10fr",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          gap: ".8em",
+          padding: "0 3em",
         },
       }, [
-        select.el,
-        NInput({
-          placeholder: "DSN",
-          value: request?.dsn,
-          on: {update: (newValue: string) => update_request({dsn: newValue})},
-        }),
+        NSelect({
+          label: Database[request.database],
+          options: Object
+            .keys(Database)
+            .map(db => db as keyof typeof Database)
+            .map(db => ({label: Database[db], value: db})),
+          on: {update: (database: string) => update_request({database: database as Database})},
+        }).el,
+        m("div", {style: {
+          display: "flex",
+          width: "100%",
+        }},
+          NInput({
+            style: {
+              flexGrow: "1",
+            },
+            placeholder: "DSN",
+            value: request?.dsn,
+            on: {update: (newValue: string) => update_request({dsn: newValue})},
+          }),
+          // TODO: file picker for sqlite
+          // m("button", {
+          //   style: {
+          //     border: "2px",
+          //     padding: "4px 8px",
+          //     cursor: "pointer",
+          //   },
+          //   onclick: () => {
+          //     window.showOpenFilePicker().then(fs => {
+          //       if (fs.length !== 1) return;
+          //       console.log(fs[0]);
+          //     });
+          //   },
+          // }, "Choose File"),
+        ),
+        m("div", {style: {display: "flex", gap: "1em", color: "#666", fontSize: ".8em"}},
+          m("input", {
+            type: "checkbox",
+            disabled: true,
+          }), // TODO: implement
+          "Read Only Mode",
+        ),
+        statusLabel.el,
       ]);
-
-      const el_container = el_input_group;
       el.replaceChildren(el_container);
+      updateConnectionStatus(); // Initial check
     },
     unmount() {
       for (const unmount of unmounts) {
