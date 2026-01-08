@@ -1,20 +1,55 @@
 import {ComponentContainer, GoldenLayout, Tab} from "golden-layout";
-import {NDropdown, NInput, NSelect} from "./components/input.ts";
+import {NInput, NSelect} from "./components/input.ts";
 import {NModal, NScrollbar, NTabs, NSplit} from "./components/layout.ts";
 import {TreeOption, NTree, NList, NListItem, NIcon, NTag, NEmpty, NResult} from "./components/dataview.ts";
-import {DoubleLeftOutlined, DoubleRightOutlined, DownOutlined, Eye, EyeClosed} from "./components/icons.ts";
+import {DoubleLeftOutlined, DoubleRightOutlined, DownOutlined, Eye, EyeClosed, EditOutlined, DeleteOutlined, CopySharp, ContentCopyFilled} from "./components/icons.ts";
 import RequestHTTP from "./RequestHTTP.ts";
 import RequestSQL from "./RequestSQL.ts";
 import RequestGRPC from "./RequestGRPC.ts";
 import RequestJQ from "./RequestJQ.ts";
 import RequestRedis from "./RequestRedis.ts";
 import RequestMD from "./RequestMD.ts";
-import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs, update_request, send, last_history_entry, Store} from "./store.ts";
-import {Method, Kinds, HistoryEntry, Request} from "./api.ts";
+import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs, update_request, send, last_history_entry, Store, useNotification} from "./store.ts";
+import {Method, Kinds, HistoryEntry, Request, api} from "./api.ts";
 import {app, database} from "../wailsjs/go/models.ts";
 import Command from "./components/CommandPalette.ts";
 import {DOMNode, m, setDisplay, signal} from "./utils.ts";
 import RequestSQLSource from "./RequestSQLSource.ts";
+
+
+function Dropdown() {
+  const open = signal(false);
+  const el: HTMLElement = m("div", {style: {
+    position: "fixed",
+    zIndex: "1000",
+    background: "#2a2a2a",
+    color: "#ffffff",
+    border: "1px solid #404040",
+    borderRadius: "4px",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+    minWidth: "120px",
+  }});
+  open.sub(v => setDisplay(el, v));
+  document.addEventListener("click", e => {
+    if (!el.contains(e.target as Node) && open.value)
+      open.update(() => false);
+  });
+
+  return {
+    el,
+    show() {
+      open.update(() => true);
+    },
+    hide() {
+      open.update(() => false);
+    },
+    moveTo(x: number, y: number) {
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+    },
+  };
+}
+const globalDropdown = Dropdown();
 
 function fromNow(date: Date): string {
   const now = new Date();
@@ -123,6 +158,7 @@ function drag({node, dragNode, dropPosition}: {
       break;
   }
 }
+
 function badge(req: app.requestPreview): [string, string] {
   switch (req.Kind) {
   case database.Kind.HTTP:      return [Method[req.SubKind as keyof typeof Method], "lime"];
@@ -134,69 +170,100 @@ function badge(req: app.requestPreview): [string, string] {
   case database.Kind.SQLSource: return ["SQL Source", "blue"];
   }
 }
-function render_suffix(option: TreeOption): DOMNode {
-  const id = option.key;
-  return NDropdown({
-    trigger: "click", // "hover",
-    on: {select: (key: string | number) => {
-      console.log(key);
-      // message.info(String(key))
-    }},
-    options: [
-      {
-        label: "Rename",
-        key: "rename",
-        icon: NIcon({component: "EditOutlined"}),
-        on: {
-          // onclick: () => renameInit(id),
-        },
-      },
-      {
-        label: "Duplicate",
-        key: "duplicate",
-        icon: NIcon({component: "CopySharp"}),
-        on: {
-          click: () => {
-            store.duplicate(id);
-          },
-        },
-      },
-      {
-        label: "Copy as curl",
-        key: "copy-as-curl",
-        icon: NIcon({component: "ContentCopyFilled"}),
-        show: store.requests[id]?.Kind === database.Kind.HTTP,
-        on: {
-          click: () => {
-            // api.get(id).then((r) => {
-            //   if (r.kind === "err") {
-            //     useNotification().error({title: "Error", content: `Failed to load request: ${r.value}`});
-            //     return;
-            //   }
 
-            //   const req = r.value as unknown as database.HTTPRequest; // TODO: remove unknown cast
-            //   const httpToCurl = ({url, method, body, headers}: database.HTTPRequest) => {
-            //     const headersStr = headers?.length > 0 ? " " + headers.map(({key, value}) => `-H "${key}: ${value}"`).join(" ") : "";
-            //     const bodyStr = (body) ? ` -d '${body}'` : "";
-            //     return `curl -X ${method} ${url}${headersStr}${bodyStr}`;
-            //   };
-            //   navigator.clipboard.writeText(httpToCurl(req));
-            // });
+function render_suffix({key: id}: TreeOption): DOMNode {
+  return m("span", {
+    style: {display: "inline-block", cursor: "pointer"},
+    onclick: (e: Event) => {
+      e.stopPropagation();
+      const rect = (e.target as HTMLElement).getBoundingClientRect();
+      globalDropdown.moveTo(rect.left, rect.bottom);
+      const options = ([
+        {
+          label: "Rename",
+          key: "rename",
+          icon: NIcon({component: EditOutlined}),
+          on: {
+            onclick: () => renameInit(id),
           },
         },
-      },
-      {
-        label: "Delete",
-        key: "delete",
-        icon: NIcon({color: "red", component: "DeleteOutlined"}),
-        on: {
-          click: () => {
-            store.deleteRequest(id);
+        {
+          label: "Duplicate",
+          key: "duplicate",
+          icon: NIcon({component: CopySharp}),
+          on: {
+            click: () => {
+              store.duplicate(id);
+            },
           },
         },
-      },
-    ],
-  }, [NIcon({component: DownOutlined})]);
+        {
+          label: "Copy as curl",
+          key: "copy-as-curl",
+          icon: NIcon({component: ContentCopyFilled}),
+          show: store.requests[id]?.Kind === database.Kind.HTTP,
+          on: {
+            click: () => {
+              api.get(id).then(r => {
+                if (r.kind === "err") {
+                  useNotification().error({title: "Error", content: `Failed to load request: ${r.value}`});
+                  return;
+                }
+
+                const req = r.value.Request as unknown as database.HTTPRequest; // TODO: remove unknown cast
+                const httpToCurl = ({url, method, body, headers}: database.HTTPRequest) => {
+                  const headersStr = headers?.length > 0 ? " " + headers.map(({key, value}) => `-H "${key}: ${value}"`).join(" ") : "";
+                  const bodyStr = body !== "" ? ` -d '${body}'` : "";
+                  return `curl -X ${method} ${url}${headersStr}${bodyStr}`;
+                };
+                navigator.clipboard.writeText(httpToCurl(req));
+              });
+            },
+          },
+        },
+        {
+          label: "Delete",
+          key: "delete",
+          icon: NIcon({color: "red", component: DeleteOutlined}),
+          on: {
+            click: () => {
+              store.deleteRequest(id);
+            },
+          },
+        },
+      ] as {
+          label: string,
+          key: string,
+          icon?: DOMNode,
+          show?: boolean,
+          on?: {
+            click?: () => void,
+          },
+        }[]
+      ).filter(opt => opt.show === undefined || opt.show).map(opt => {
+        const res = m("div", {
+          style: {
+            padding: "8px 12px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            color: "#ffffff",
+          },
+          // TODO: remove, put to styles
+          onmouseover: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "#404040";},
+          onmouseout: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "";},
+          onclick: () => {
+            opt.on?.click?.();
+            globalDropdown.hide();
+          },
+        }, opt.icon ?? null, opt.label);
+        return res;
+      });
+      globalDropdown.el.replaceChildren(...options);
+      globalDropdown.show();
+    },
+  }, NIcon({component: DownOutlined})); // TODO: instead, show on RMB click
 }
 
 let command_bar_new_request_kind_visible = false;
@@ -461,22 +528,18 @@ function preApp(root: HTMLElement, store: Store) {
     options: Kinds.map((kind: database.Kind) => ({label: kind.toUpperCase(), value: kind})),
   });
 
-  const el_aside = m("aside", {
-    style: {
-      overflow: "auto",
-      color: "rgba(255, 255, 255, 0.82)",
-      backgroundColor: "rgb(24, 24, 28)",
-      display: "grid",
-      gridTemplateRows: "95% 5%",
-      height: "100vh",
-    },
-  },
+  const el_aside = m("aside", {style: {
+    color: "rgba(255, 255, 255, 0.82)",
+    backgroundColor: "rgb(24, 24, 28)",
+    display: "grid",
+    gridTemplateRows: "95% 5%",
+    height: "100vh",
+  }},
     NTabs({
       tabs: [
         {
           name: "Collection",
           style: {
-            overflow: "auto",
             display: "grid",
             paddingTop: "0px",
             gridTemplateRows: "2em auto",
@@ -487,6 +550,7 @@ function preApp(root: HTMLElement, store: Store) {
             NScrollbar(
               NTree({
                 "selected-keys": [/*(store.tabs.value ? store.tabs.value.map.list[store.tabs.value.index] : "")*/],
+                "default-expanded-keys": expandedKeys,
                 data: ((): TreeOption[] => {
                   const mapper = (tree: app.Tree): TreeOption[] =>
                     Object.entries(tree.Dirs ?? {}).map(([k, v]) => ({
@@ -501,7 +565,6 @@ function preApp(root: HTMLElement, store: Store) {
                     }));
                   return mapper(store.requestsTree);
                 })(),
-                "default-expanded-keys": expandedKeys,
                 on: {
                   "update:expanded-keys": (keys: string[]) => {expandedKeys = keys;},
                   drop: drag,
@@ -570,6 +633,8 @@ function preApp(root: HTMLElement, store: Store) {
       el_layout,
     ]);
   const app_container = NSplit(el_aside, el_main, {direction: "horizontal", sizes: ["300px", "1fr"]}).element;
+
+  document.body.appendChild(globalDropdown.el);
 
   collapseButton.onclick = () => { // TODO: inline to props
     sidebarHidden = !sidebarHidden;

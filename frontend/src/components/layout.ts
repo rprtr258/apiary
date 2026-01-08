@@ -288,7 +288,6 @@ export function Modal(
     on: {close: () => {
       if (clickedId !== null)
         on.close(clickedId);
-      // m.redraw();
     }},
   },
     m("div", {

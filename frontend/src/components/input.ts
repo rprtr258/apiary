@@ -1,4 +1,4 @@
-import {m, DOMNode} from "../utils.ts";
+import {m, DOMNode, Signal, setDisplay} from "../utils.ts";
 
 type NInputProps = {
   placeholder?: string,
@@ -24,6 +24,7 @@ export function NInputGroup(props: {style: Partial<CSSStyleDeclaration>}, ...chi
 
 type NDropdownProps = {
   trigger: "hover" | "click",
+  open: Signal<boolean>,
   options: {
     label: string,
     key: string,
@@ -36,20 +37,56 @@ type NDropdownProps = {
   on: {select: (key: string) => void},
 };
 export function NDropdown(props: NDropdownProps, children: HTMLElement[]) {
-  let open = false;
-  return m("span", {
-    onclick:     () => {if (props.trigger !== "click") return; open = !open;},
-    onmouseover: () => {if (props.trigger !== "hover") return; open = !open;},
+  // TODO: append to document body?
+  const dropdownEl = m("div", {
+    style: {
+      display: props.open.value ? "block" : "none",
+      position: "fixed",
+      zIndex: "1000",
+      background: "#2a2a2a",
+      color: "#ffffff",
+      border: "1px solid #404040",
+      borderRadius: "4px",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+      minWidth: "120px",
+    },
+  }, props.options.map(opt =>
+    m("div", {
+      style: {
+        padding: "8px 12px",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        color: "#ffffff",
+        ...(opt.show === false ? {display: "none"} : {}),
+      },
+      onclick: () => {props.open.update(() => false); opt.on?.click?.(); props.on.select(opt.key);},
+      onmouseover: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "#404040";},
+      onmouseout: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "";},
+    }, [
+      ...(opt.icon !== undefined ? [opt.icon] : []),
+      opt.label,
+    ])));
+  const span = m("span", {
+    style: {display: "inline-block"},
+    onclick:     _ => {if (props.trigger !== "click") return; props.open.update(_ => true);},
+    onmouseover: _ => {if (props.trigger !== "hover") return; props.open.update(_ => true);},
+    onmouseout:  e => {if (props.trigger !== "hover" || !span.contains(e.relatedTarget as Node)) return; props.open.update(() => false);},
   }, [
     ...children,
-    m("div", {style: {display: open ? "block" : "none"}}, props.options.map(opt =>
-      m("div", {
-        onclick: () => {open = false; props.on.select(opt.key);},
-      }, [
-        ...(opt.icon !== undefined ? [opt.icon] : []),
-        opt.label,
-      ]))),
+    dropdownEl,
   ]);
+  props.open.sub(open => {
+    setDisplay(dropdownEl, open);
+    if (!open)
+      return;
+
+    const rect = span.getBoundingClientRect();
+    dropdownEl.style.top = `${rect.bottom}px`;
+    dropdownEl.style.left = `${rect.left}px`;
+  });
+  return span;
 };
 
 type SelectOption<T> = {
