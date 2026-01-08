@@ -162,7 +162,7 @@ export function NSplit(left: HTMLElement, right: HTMLElement, options: NSplitOpt
   const el = m("div", {class: "h100", style}, [left, el_line, right]);
 
   const split_option_key = direction === "horizontal" ? "columnGutters" : "rowGutters";
-  let splitInstance: SplitInstance | null = Split({
+  const splitInstance: SplitInstance = Split({
     [split_option_key]: [{track: 1, element: el_line, minSize: 0}],
   });
 
@@ -181,16 +181,7 @@ export function NSplit(left: HTMLElement, right: HTMLElement, options: NSplitOpt
       el_line.style.display = "";
       left.style[key] = "";
       right.style[key] = "";
-      if (splitInstance === null) {
-        splitInstance = Split({
-          [split_option_key]: [{track: 1, element: el_line, minSize: 0}],
-        });
-      }
     } else {
-      if (splitInstance !== null) {
-        splitInstance.destroy();
-        splitInstance = null;
-      }
       left.style.display = leftVisible ? "" : "none";
       right.style.display = rightVisible ? "" : "none";
       el_line.style.display = "none";
