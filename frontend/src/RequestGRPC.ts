@@ -175,11 +175,11 @@ export default function(
           flexDirection: "column",
         },
       }, el_input_group, el_split);
-      el.replaceChildren(el_container);
       unmounts.push(show_request.sub(show_request => {
         split.leftVisible = show_request;
         setDisplay(el_input_group, show_request);
       }, true));
+      el.replaceChildren(el_container);
     },
     push_history_entry(he) {
       update_response(he.response as database.GRPCResponse);

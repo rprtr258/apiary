@@ -2,7 +2,7 @@ import {NEmpty, NList} from "./dataview.ts";
 import {NInput} from "./input.ts";
 import {Modal} from "./layout.ts";
 import {KeyESC, KeyDown, KeyUp, KeyEnter} from "./icons.ts";
-import {m, DOMNode, setDisplay} from "../utils.ts";
+import {m, DOMNode} from "../utils.ts";
 
 type DialogProps = {
   visible: boolean,
@@ -28,8 +28,9 @@ function Dialog(props: DialogProps) {
       m("div", {class: "command-palette-footer"}, props.footer),
     ]),
   ]);
-  setDisplay(modal, props.visible);
-  return modal;
+  if (!props.visible) // TODO: use reactively
+    modal.hide();
+  return modal.element;
 };
 
 function Group(props: {heading: string}, children: DOMNode[] = []) {

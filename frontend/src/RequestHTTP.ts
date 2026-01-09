@@ -50,14 +50,31 @@ export default function(
 } {
   el.append(NEmpty({description: "Loading request..."}));
 
+  const el_send = NButton({
+    type: "primary",
+    on: {click: () => {
+      el_send.disabled = true;
+      on.send().then(() => {
+        el_send.disabled = false;
+        // TODO: refetch
+      });
+    }},
+  }, "Send");
+  const update_request = (patch: Partial<database.HTTPRequest>): void => {
+    el_send.disabled = true;
+    on.update(patch).then(() => {
+      el_send.disabled = false;
+    });
+  };
+
   const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
   const update_response = (response: database.HTTPResponse | undefined) => {
-    if (response === undefined) return;
+    if (response === undefined)
+      return;
 
     el_response.replaceChildren(NTabs({
-      class: "h100",
       tabs: [
         {
           name: responseBadge(response),
@@ -100,26 +117,9 @@ export default function(
   return {
     loaded(r: get_request) {
       const request = r.request as Request;
-      const el_send = NButton({
-        type: "primary",
-        on: {click: () => {
-          el_send.disabled = true;
-          on.send().then(() => {
-            el_send.disabled = false;
-            // TODO: refetch
-          });
-        }},
-      }, "Send");
-      const update_request = (patch: Partial<database.HTTPRequest>): void => {
-        el_send.disabled = true;
-        on.update(patch).then(() => {
-          el_send.disabled = false;
-        });
-      };
       update_response(last_history_entry(r)?.response as database.HTTPResponse | undefined);
 
       const el_input_group = NInputGroup({style: {
-        gridColumn: "span 2",
         display: "grid",
         gridTemplateColumns: "1fr 10fr 1fr",
       }},
@@ -164,21 +164,19 @@ export default function(
         ],
       });
 
-      const split = NSplit(el_req_tabs, el_response, {direction: "horizontal"});
+      const split = NSplit(el_req_tabs, el_response, {direction: "horizontal", style: {minHeight: "0"}});
       unmounts.push(() => split.unmount());
       const el_container = m("div", {
         class: "h100",
         style: {
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gridTemplateRows: "auto minmax(0, 1fr)",
-          gridColumnGap: ".5em",
+          display: "flex",
+          flexDirection: "column",
+          width: "100%",
         },
       }, el_input_group, split.element);
       unmounts.push(show_request.sub(show_request => {
         split.leftVisible = show_request;
         setDisplay(el_input_group, show_request);
-        el_container.style.gridTemplateRows = show_request ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)";
       }, true));
       el.replaceChildren(el_container);
     },
