@@ -166,7 +166,6 @@ export default function(
 
       const split = NSplit(el_req_tabs, el_response, {direction: "horizontal"});
       unmounts.push(() => split.unmount());
-      const el_split = split.element;
       const el_container = m("div", {
         class: "h100",
         style: {
@@ -175,13 +174,12 @@ export default function(
           gridTemplateRows: "auto minmax(0, 1fr)",
           gridColumnGap: ".5em",
         },
-      }, el_input_group, el_split);
-      const updateLayout = (show_request: boolean) => {
+      }, el_input_group, split.element);
+      unmounts.push(show_request.sub(show_request => {
         split.leftVisible = show_request;
         setDisplay(el_input_group, show_request);
         el_container.style.gridTemplateRows = show_request ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)";
-      };
-      unmounts.push(show_request.sub(updateLayout, true));
+      }, true));
       el.replaceChildren(el_container);
     },
     push_history_entry(he: HistoryEntry) {

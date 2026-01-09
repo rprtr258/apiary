@@ -162,7 +162,7 @@ function drag({node, dragNode, dropPosition}: {
 function badge(req: app.requestPreview): [string, string] {
   switch (req.Kind) {
   case database.Kind.HTTP:      return [Method[req.SubKind as keyof typeof Method], "lime"];
-  case database.Kind.SQL:       return ["SQL", "bluewhite"]; // TODO: db icon
+  case database.Kind.SQL:       return ["SQL", "bluewhite"];
   case database.Kind.GRPC:      return ["GRPC", "cyan"];
   case database.Kind.JQ:        return ["JQ", "violet"];
   case database.Kind.REDIS:     return ["REDIS", "red"];
@@ -178,13 +178,21 @@ function render_suffix({key: id}: TreeOption): DOMNode {
       e.stopPropagation();
       const rect = (e.target as HTMLElement).getBoundingClientRect();
       globalDropdown.moveTo(rect.left, rect.bottom);
-      const options = ([
+      const preOptions: {
+        label: string,
+        key: string,
+        icon?: DOMNode,
+        show?: boolean,
+        on?: {
+          click?: () => void,
+        },
+      }[] = [
         {
           label: "Rename",
           key: "rename",
           icon: NIcon({component: EditOutlined}),
           on: {
-            onclick: () => renameInit(id),
+            click: () => renameInit(id),
           },
         },
         {
@@ -231,16 +239,8 @@ function render_suffix({key: id}: TreeOption): DOMNode {
             },
           },
         },
-      ] as {
-          label: string,
-          key: string,
-          icon?: DOMNode,
-          show?: boolean,
-          on?: {
-            click?: () => void,
-          },
-        }[]
-      ).filter(opt => opt.show === undefined || opt.show).map(opt => {
+      ];
+      const options = preOptions.filter(opt => opt.show === undefined || opt.show).map(opt => {
         const res = m("div", {
           style: {
             padding: "8px 12px",
@@ -650,8 +650,7 @@ function preApp(root: HTMLElement, store: Store) {
     width: "100%",
   }},
     NModal({
-      show: newRequestKind !== undefined,
-      preset: "dialog",
+      // show: newRequestKind !== undefined,
       title: "Create request",
       text: {positive: "Create", negative: "Cancel"},
       on: {
@@ -664,8 +663,7 @@ function preApp(root: HTMLElement, store: Store) {
       on: {update: (value: string) => newRequestName = value},
     })),
     NModal({
-      show: renameID !== undefined,
-      preset: "dialog",
+      // show: renameID !== undefined,
       title: "Rename request",
       text: {positive: "Rename", negative: "Cancel"},
       on: {

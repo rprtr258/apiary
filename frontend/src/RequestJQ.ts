@@ -40,7 +40,8 @@ export default function(
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
   const update_response = (response: database.JQResponse | undefined) => {
-    if (response === undefined) return;
+    if (response === undefined)
+      return;
 
     if (jqerror !== undefined) {
       el_response.replaceChildren(m("div", {style: {position: "fixed", color: "red", bottom: "3em"}}, jqerror));
@@ -77,7 +78,7 @@ export default function(
         on: {update: (json: string) => update_request({json})},
       });
 
-      const updateLayout = (show_request: boolean) => {
+      unmounts.push(show_request.sub(show_request => {
         if (show_request) {
           el.replaceChildren(m("div", {
             class: "h100",
@@ -97,9 +98,7 @@ export default function(
             },
           }, el_response));
         }
-      };
-
-      unmounts.push(show_request.sub(updateLayout, true));
+      }, true));
     },
     push_history_entry(he) {
       update_response(he.response as database.JQResponse);

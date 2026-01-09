@@ -199,27 +199,7 @@ export function NSplit(left: HTMLElement, right: HTMLElement, props: NSplitProps
   };
 }
 
-function Overlay(props: {on: {close: () => void}}, child: HTMLElement) {
-  const dom = m("div", {
-    class: "overlay",
-    style: {
-      placeSelf: "center",
-      position: "fixed",
-      zIndex: "100",
-      height: "100%",
-      width: "100%",
-      alignContent: "center",
-      justifyItems: "center",
-      backdropFilter: "blur(3px)",
-    },
-    onclick: props.on.close,
-  }, child);
-  document.body.appendChild(dom);
-  return dom;
-};
 type NModalProps = {
-  show: boolean,
-  preset: "dialog",
   title: string,
   text: {
     positive: string,
@@ -232,8 +212,7 @@ type NModalProps = {
   },
 };
 export function NModal(props: NModalProps, ...children: DOMNode[]) {
-  return Modal({
-    show: props.show,
+  const modal = Modal({
     title: props.title,
     children,
     buttons: [
@@ -248,9 +227,9 @@ export function NModal(props: NModalProps, ...children: DOMNode[]) {
       }
     }},
   });
+  return modal;
 };
 type ModalProps = {
-  show: boolean,
   title: DOMNode,
   children: DOMNode[],
   buttons: {id: string, text: string}[],
@@ -259,53 +238,50 @@ type ModalProps = {
   },
 };
 export function Modal(
-  {show, title, children: content, buttons, on}: ModalProps,
+  {title, children: content, buttons, on}: ModalProps,
   children: DOMNode[] = [],
 ) {
   let clickedId: string | null = null;
-
-  if (!show || clickedId != null) {
-    // We need to allow the Overlay component execute its
-    // exit animation. Because it is a child of this component,
-    // it will not fire when this component is removed.
-    // Instead, we need to remove it first before this component
-    // goes away.
-    // When a button is clicked, we omit the Overlay component
-    // from this Modal component's next view render, which will
-    // trigger Overlay's onbeforeremove hook.
-    return null;
-  }
-  return Overlay(
-  {
-    on: {close: () => {
-      if (clickedId !== null)
-        on.close(clickedId);
-    }},
-  },
-    m("div", {
-      class: "modal",
-      style: {
-        backgroundColor: "#646464",
-        width: "20%",
-        height: "20%",
-        padding: "1em",
-      },
-    },
-      m("h3", {}, title),
-      m("div", {class: "modal-content"}, content),
-      m("div",
-        {class: "modal-buttons"},
-        buttons.map(b =>
-          m("button", {
-            type: "button",
-            disabled: clickedId != null,
-            onclick() {
-              clickedId = b.id;
-            },
-          }, b.text),
-        ),
+  const overlayStyle = {
+    placeSelf: "center",
+    position: "fixed",
+    zIndex: "100",
+    height: "100%",
+    width: "100%",
+    alignContent: "center",
+    justifyItems: "center",
+    backdropFilter: "blur(3px)",
+  };
+  const modalStyle = {
+    backgroundColor: "#646464",
+    width: "20%",
+    height: "20%",
+    padding: "1em",
+  };
+  const el_modal = m("div", {style: modalStyle},
+    m("h3", {}, title),
+    m("div", {}, content),
+    m("div",
+      {},
+      buttons.map(b =>
+        m("button", {
+          type: "button",
+          disabled: clickedId != null,
+          onclick() {
+            clickedId = b.id;
+          },
+        }, b.text),
       ),
-      ...children,
     ),
+    ...children,
   );
+  const element = m("div", {
+    style: overlayStyle,
+    onclick: () => {
+    if (clickedId !== null)
+      on.close(clickedId);
+    },
+  }, el_modal);
+  setDisplay(element, false);
+  return element;
 }

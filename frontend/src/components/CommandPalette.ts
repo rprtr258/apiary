@@ -2,7 +2,7 @@ import {NEmpty, NList} from "./dataview.ts";
 import {NInput} from "./input.ts";
 import {Modal} from "./layout.ts";
 import {KeyESC, KeyDown, KeyUp, KeyEnter} from "./icons.ts";
-import {m, DOMNode} from "../utils.ts";
+import {m, DOMNode, setDisplay} from "../utils.ts";
 
 type DialogProps = {
   visible: boolean,
@@ -15,7 +15,6 @@ type DialogProps = {
 };
 function Dialog(props: DialogProps) {
   const modal = Modal({
-    show: props.visible,
     title: "COMMAND PALETTE",
     children: [""],
     buttons: [{id: "", text: ""}],
@@ -29,6 +28,7 @@ function Dialog(props: DialogProps) {
       m("div", {class: "command-palette-footer"}, props.footer),
     ]),
   ]);
+  setDisplay(modal, props.visible);
   return modal;
 };
 
