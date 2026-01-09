@@ -232,27 +232,19 @@ type NModalProps = {
   },
 };
 export function NModal(props: NModalProps, ...children: DOMNode[]) {
-  // return m("dialog", vnode.children);
   return Modal({
     show: props.show,
     title: props.title,
-    content: children,
+    children,
     buttons: [
       {id: "positive", text: props.text.positive},
       {id: "negative", text: props.text.negative},
     ],
     on: {close: (id: "positive" | "negative") => {
       switch (id) {
-        case "positive":
-          props.on.positive_click();
-          break;
-        case "negative":
-          props.on.negative_click();
-          break;
-        default:
-          // TODO: never called, see not on on.close prop
-          props.on.close();
-          break;
+        case "positive": return props.on.positive_click();
+        case "negative": return props.on.negative_click();
+        default: return props.on.close();
       }
     }},
   });
@@ -260,14 +252,14 @@ export function NModal(props: NModalProps, ...children: DOMNode[]) {
 type ModalProps = {
   show: boolean,
   title: DOMNode,
-  content: DOMNode[],
+  children: DOMNode[],
   buttons: {id: string, text: string}[],
   on: {
     close(id: string): void,
   },
 };
 export function Modal(
-  {show, title, content, buttons, on}: ModalProps,
+  {show, title, children: content, buttons, on}: ModalProps,
   children: DOMNode[] = [],
 ) {
   let clickedId: string | null = null;

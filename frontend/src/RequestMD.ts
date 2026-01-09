@@ -78,13 +78,13 @@ export default function(
     },
   });
 
-  let id: string | null = null;
-  let responseContainer: HTMLElement | null = null;
+  let id: string | undefined = undefined;
+  let responseContainer: HTMLElement | undefined = undefined;
   let lastScrollTop = 0;
   const unmounts: (() => void)[] = [];
 
   const update_response = () => {
-    if (id === null) return; // Guard: id not set yet
+    if (id === undefined) return; // Guard: id not set yet
     api.requestPerform(id).then(res => {
       if (res.kind === "err") {
         el_error.textContent = `Could not render document: ${res.value}`;
@@ -94,7 +94,7 @@ export default function(
         const response = res.value.response as database.MDResponse;
 
          // Save scroll position before update
-        if (responseContainer !== null) {
+        if (responseContainer !== undefined) {
           lastScrollTop = responseContainer.scrollTop;
         }
 
@@ -157,12 +157,12 @@ export default function(
       const el_split = split.element;
       el.replaceChildren(el_split);
 
-      unmounts.push(show_request.sub((show_request: boolean) => {
+      unmounts.push(show_request.sub(show_request => {
         split.leftVisible = show_request;
-      }));
+      }, true));
     },
     push_history_entry(_he) {
-      if (id === null) return; // Guard: id not set yet
+      if (id === undefined) return; // Guard: id not set yet
       update_response();
     },
     unmount() {

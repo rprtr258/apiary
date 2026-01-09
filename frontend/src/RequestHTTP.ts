@@ -53,8 +53,8 @@ export default function(
   const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
-  const update_response = (response: database.HTTPResponse | null) => {
-    if (response === null) {return;}
+  const update_response = (response: database.HTTPResponse | undefined) => {
+    if (response === undefined) return;
 
     el_response.replaceChildren(NTabs({
       class: "h100",
@@ -116,7 +116,7 @@ export default function(
           el_send.disabled = false;
         });
       };
-      update_response(last_history_entry(r)?.response as database.HTTPResponse | null);
+      update_response(last_history_entry(r)?.response as database.HTTPResponse | undefined);
 
       const el_input_group = NInputGroup({style: {
         gridColumn: "span 2",
@@ -176,14 +176,13 @@ export default function(
           gridColumnGap: ".5em",
         },
       }, el_input_group, el_split);
-      el.replaceChildren(el_container);
-
       const updateLayout = (show_request: boolean) => {
         split.leftVisible = show_request;
         setDisplay(el_input_group, show_request);
         el_container.style.gridTemplateRows = show_request ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)";
       };
-      unmounts.push(show_request.sub(updateLayout));
+      unmounts.push(show_request.sub(updateLayout, true));
+      el.replaceChildren(el_container);
     },
     push_history_entry(he: HistoryEntry) {
       update_response(he.response as database.HTTPResponse);

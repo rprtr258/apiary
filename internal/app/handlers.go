@@ -115,7 +115,7 @@ func (a *App) Get(id string) (GetResponse, error) {
 			"received_at": h.ReceivedAt.Format(time.RFC3339),
 			"response":    h.Response,
 		}
-	}, request.Responses...)
+	}, Emptize(request.Responses)...)
 	slices.SortFunc(history, func(i, j D) int {
 		return strings.Compare(i["sent_at"].(string), j["sent_at"].(string))
 	})
@@ -165,12 +165,8 @@ func (a *App) Read(requestID string) (database.Request, error) {
 	return request, nil
 }
 
-func (a *App) Rename(requestID, newRequestID string) error {
-	if err := a.DB.Rename(a.ctx, database.RequestID(requestID), database.RequestID(newRequestID)); err != nil {
-		return errors.Wrap(err, "rename request")
-	}
-
-	return nil
+func (a *App) Rename(requestID, newName string) error {
+	return errors.Wrap(a.DB.Rename(a.ctx, database.RequestID(requestID), newName), "rename request")
 }
 
 func parse[T database.EntryData](b []byte) (database.EntryData, error) {
@@ -221,11 +217,7 @@ func (a *App) Update(
 }
 
 func (a *App) Delete(requestID string) error {
-	if err := a.DB.Delete(a.ctx, database.RequestID(requestID)); err != nil {
-		return errors.Wrap(err, "delete request")
-	}
-
-	return nil
+	return errors.Wrap(a.DB.Delete(a.ctx, database.RequestID(requestID)), "delete request")
 }
 
 // Perform create a handler that performs call and save result to history

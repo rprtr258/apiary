@@ -1,4 +1,3 @@
-
 import {database} from "../wailsjs/go/models.ts";
 import {NEmpty, NIcon} from "./components/dataview.ts";
 import {NButton, NInput, NInputGroup, NSelect} from "./components/input.ts";
@@ -88,8 +87,8 @@ export default function(
 } {
   el.append(NEmpty({description: "Loading request..."}));
   const el_response = NEmpty({description: "Run query or choose one from history."});
-  const push_response = (response: database.SQLResponse | null) => {
-    if (response === null) return;
+  const push_response = (response: database.SQLResponse | undefined) => {
+    if (response === undefined) return;
 
     // TODO: fix duplicate column names
     el_response.style.justifyContent = "";
@@ -103,7 +102,7 @@ export default function(
 
   return {
     loaded: (r: get_request): void => {
-      push_response(last_history_entry(r)?.response as database.SQLResponse | null);
+      push_response(last_history_entry(r)?.response as database.SQLResponse | undefined);
 
       const request = r.request as Request;
       const el_run = NButton({
@@ -154,10 +153,10 @@ export default function(
         display: "flex",
         flexDirection: "column",
       }}, el_input_group, el_split);
-      unmounts.push(show_request.sub((show_request: boolean) => {
+      unmounts.push(show_request.sub(show_request => {
         split.leftVisible = show_request;
         setDisplay(el_input_group, show_request);
-      }));
+      }, true));
       el.replaceChildren(el_container);
     },
     push_history_entry(he: HistoryEntry) {

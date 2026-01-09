@@ -17,7 +17,7 @@ require (
 	github.com/matoous/go-nanoid/v2 v2.1.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pkg/errors v0.9.1
-	github.com/redis/go-redis/v9 v9.14.1
+	github.com/redis/go-redis/v9 v9.17.2
 	github.com/rprtr258/fun v0.0.32
 	github.com/rs/zerolog v1.34.0
 	github.com/tenkoh/goldmark-img64 v0.1.2

@@ -23,7 +23,7 @@ export default function(
 } {
   el.append(NEmpty({description: "Loading request..."}));
 
-  const jqerror: string | null = null; // TODO: use
+  const jqerror: string | undefined = undefined;
   const el_send = NButton({
     type: "primary",
     on: {click: on.send},
@@ -39,10 +39,10 @@ export default function(
   const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
-  const update_response = (response: database.JQResponse | null) => {
-    if (response === null) {return;}
+  const update_response = (response: database.JQResponse | undefined) => {
+    if (response === undefined) return;
 
-    if (jqerror !== null) {
+    if (jqerror !== undefined) {
       el_response.replaceChildren(m("div", {style: {position: "fixed", color: "red", bottom: "3em"}}, jqerror));
       return;
     }
@@ -54,7 +54,7 @@ export default function(
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
-      update_response((last_history_entry(r)?.response as database.JQResponse | undefined) ?? null);
+      update_response(last_history_entry(r)?.response as database.JQResponse | undefined);
 
       const el_input_group = NInputGroup({style: {
         "display": "grid",
@@ -63,7 +63,7 @@ export default function(
       }}, [
         NInput({
           placeholder: "JQ query",
-          status: jqerror !== null ? "error" : "success",
+          status: jqerror !== undefined ? "error" : "success",
           value: request.query,
           on: {update: (query: string) => update_request({query})},
         }),
@@ -99,7 +99,7 @@ export default function(
         }
       };
 
-      unmounts.push(show_request.sub(updateLayout));
+      unmounts.push(show_request.sub(updateLayout, true));
     },
     push_history_entry(he) {
       update_response(he.response as database.JQResponse);
