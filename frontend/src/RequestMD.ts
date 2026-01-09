@@ -154,12 +154,10 @@ export default function(
 
       const split = NSplit(el_editor_md, right_div, {direction: "horizontal"});
       unmounts.push(() => split.unmount());
-      const el_split = split.element;
-      el.replaceChildren(el_split);
-
       unmounts.push(show_request.sub(show_request => {
         split.leftVisible = show_request;
       }, true));
+      el.replaceChildren(split.element);
     },
     push_history_entry(_he) {
       if (id === undefined) return; // Guard: id not set yet

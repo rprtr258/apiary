@@ -82,13 +82,12 @@ export default function(
           gridColumnGap: ".5em",
         },
       }, el_input_group, split.element);
-      el.replaceChildren(el_container);
-
       unmounts.push(show_request.sub(show_request => {
         split.leftVisible = show_request;
         setDisplay(el_input_group, show_request);
         el_container.style.gridTemplateRows = show_request ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)";
       }, true));
+      el.replaceChildren(el_container);
     },
     push_history_entry(he: HistoryEntry) {
       update_response(he.response as database.RedisResponse);

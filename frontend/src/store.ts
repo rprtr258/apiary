@@ -65,8 +65,8 @@ export type get_request = {
   request: Request,
   history: HistoryEntry[],
 };
-export function last_history_entry(request: get_request): HistoryEntry | null {
-  return request.history[request.history.length - 1] ?? null;
+export function last_history_entry(request: get_request): HistoryEntry | undefined {
+  return request.history[request.history.length - 1];
 }
 
 export type Store = {
