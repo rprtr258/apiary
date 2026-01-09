@@ -190,7 +190,7 @@ function badge(req: app.requestPreview): [string, string] {
   }
 }
 
-function render_suffix({key: id}: TreeOption): DOMNode {
+function render_suffix(id: string): DOMNode {
   return m("span", {
     style: {display: "inline-block", cursor: "pointer"},
     onclick: (e: Event) => {
@@ -512,8 +512,7 @@ function preApp(root: HTMLElement, store: Store) {
     })();
     treeContainer.replaceChildren(NScrollbar(
       NTree({
-        "selected-keys": [],
-        "default-expanded-keys": expandedKeys.value,
+        defaultExpandedKeys: expandedKeys.value,
         data,
         on: {
           "update:expanded-keys": (keys: string[]) => {
@@ -539,12 +538,12 @@ function preApp(root: HTMLElement, store: Store) {
             m("button", {
               onclick: () => {
                 const id = option.key;
-                if (option.children === undefined && !(option.disabled ?? false)) {
+                if (option.children === undefined && !option.disabled) {
                   store.selectRequest(id);
                 }
               },
             }, option.label),
-            render_suffix(option),
+            render_suffix(option.key),
           ];
         },
       }),

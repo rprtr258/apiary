@@ -91,12 +91,11 @@ export type TreeOption = {
   key: string,
   label: string,
   children?: TreeOption[],
-  disabled?: boolean,
+  disabled: boolean,
 };
 type NTreeProps = {
-  "selected-keys": string[],
   data: TreeOption[],
-  "default-expanded-keys": string[],
+  defaultExpandedKeys: string[],
   on: {
     "update:expanded-keys": (keys: string[]) => void,
     drop: (_: {
