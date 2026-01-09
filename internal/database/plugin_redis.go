@@ -37,7 +37,7 @@ var pluginRedis = plugin{
 
 var RedisEmptyRequest = RedisRequest{
 	"localhost:6379",
-	`KEYS`,
+	`KEYS *`,
 }
 
 func sendRedis(ctx context.Context, request EntryData) (EntryData, error) {

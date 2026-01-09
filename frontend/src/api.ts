@@ -140,9 +140,9 @@ export const api = {
 
   async rename(
     id: string,
-    newID: string,
+    newName: string,
   ): Promise<Result<void>> {
-    return await wrap(() => App.Rename(id, newID), {reqId: id, newID});
+    return await wrap(() => App.Rename(id, newName), {reqId: id, newName});
   },
 
   async requestPerform(

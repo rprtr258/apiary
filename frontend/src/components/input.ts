@@ -85,7 +85,7 @@ export function NDropdown(props: NDropdownProps, children: HTMLElement[]) {
     const rect = span.getBoundingClientRect();
     dropdownEl.style.top = `${rect.bottom}px`;
     dropdownEl.style.left = `${rect.left}px`;
-  });
+  }, true);
   return span;
 };
 

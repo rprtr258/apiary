@@ -4,7 +4,7 @@ import {Modal} from "./layout.ts";
 import {KeyESC, KeyDown, KeyUp, KeyEnter} from "./icons.ts";
 import {m, DOMNode} from "../utils.ts";
 
-type CommandDialogProps = {
+type DialogProps = {
   visible: boolean,
   on: {
     close: () => void,
@@ -13,11 +13,11 @@ type CommandDialogProps = {
   body: DOMNode,
   footer: DOMNode,
 };
-function Dialog(props: CommandDialogProps) {
-  return Modal({
+function Dialog(props: DialogProps) {
+  const modal = Modal({
     show: props.visible,
     title: "COMMAND PALETTE",
-    content: [""],
+    children: [""],
     buttons: [{id: "", text: ""}],
     on: {
       close: props.on.close,
@@ -29,6 +29,7 @@ function Dialog(props: CommandDialogProps) {
       m("div", {class: "command-palette-footer"}, props.footer),
     ]),
   ]);
+  return modal;
 };
 
 function Group(props: {heading: string}, children: DOMNode[] = []) {

@@ -39,8 +39,8 @@ export default function(
       el_send.disabled = false;
     });
   };
-  const update_response = (r: database.RedisResponse | null): void => {
-    if (r === null) {return;} // TODO: replace with empty state
+  const update_response = (r: database.RedisResponse | undefined): void => {
+    if (r === undefined) return; // TODO: replace with empty state
 
     el_response.replaceChildren(el_view_response_body.el);
     el_view_response_body.update(r.response);
@@ -84,11 +84,11 @@ export default function(
       }, el_input_group, split.element);
       el.replaceChildren(el_container);
 
-      unmounts.push(show_request.sub((show_request: boolean) => {
+      unmounts.push(show_request.sub(show_request => {
         split.leftVisible = show_request;
         setDisplay(el_input_group, show_request);
         el_container.style.gridTemplateRows = show_request ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)";
-      }));
+      }, true));
     },
     push_history_entry(he: HistoryEntry) {
       update_response(he.response as database.RedisResponse);

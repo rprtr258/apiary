@@ -184,18 +184,21 @@ func (db *DB) Create(
 
 func (db *DB) Delete(ctx context.Context, id RequestID) error {
 	delete(db.Data, id)
-	return nil
+	return db.Flush()
 }
 
-func (db *DB) Rename(ctx context.Context, id, newID RequestID) error {
+func (db *DB) Rename(ctx context.Context, id RequestID, newName string) error {
 	if _, ok := db.Data[id]; !ok {
 		return errors.Errorf("request %s not found", id)
 	}
-	if _, ok := db.Data[newID]; ok {
-		return errors.Errorf("request %s already exists", newID)
+	for k, v := range db.Data {
+		if k != id && v.Path == newName {
+			return errors.Errorf("request with name %s already exists: id=%s", newName, k)
+		}
 	}
-	db.Data[newID] = db.Data[id]
-	delete(db.Data, id)
+	tmp := db.Data[id]
+	tmp.Path = newName
+	db.Data[id] = tmp
 	return db.Flush()
 }
 

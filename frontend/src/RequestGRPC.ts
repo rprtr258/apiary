@@ -36,8 +36,8 @@ export default function(
   const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
-  const update_response = (response: database.GRPCResponse | null) => {
-    if (response === null) {return;}
+  const update_response = (response: database.GRPCResponse | undefined) => {
+    if (response === undefined) return;
 
     el_response.replaceChildren(NTabs({
       class: "h100",
@@ -118,7 +118,7 @@ export default function(
           el_send.disabled = false;
         });
       };
-      update_response((last_history_entry(r)?.response as database.GRPCResponse | undefined) ?? null);
+      update_response(last_history_entry(r)?.response as database.GRPCResponse | undefined);
 
       const el_input_group = NInputGroup({style: {
         gridColumn: "span 2",
@@ -176,10 +176,10 @@ export default function(
         },
       }, el_input_group, el_split);
       el.replaceChildren(el_container);
-      unmounts.push(show_request.sub((show_request: boolean) => {
+      unmounts.push(show_request.sub(show_request => {
         split.leftVisible = show_request;
         setDisplay(el_input_group, show_request);
-      }));
+      }, true));
     },
     push_history_entry(he) {
       update_response(he.response as database.GRPCResponse);

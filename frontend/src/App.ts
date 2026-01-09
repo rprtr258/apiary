@@ -29,7 +29,7 @@ function Dropdown() {
     boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
     minWidth: "120px",
   }});
-  open.sub(v => setDisplay(el, v));
+  open.sub(v => setDisplay(el, v), true);
   document.addEventListener("click", e => {
     if (!el.contains(e.target as Node) && open.value)
       open.update(() => false);
@@ -288,7 +288,7 @@ const items = [
           commandBarVisible = false;
 
           const currentID = store.requestID();
-          if (currentID === null) {return;}
+          if (currentID === null) return;
           renameInit(currentID);
         },
       },
@@ -329,7 +329,7 @@ const items = [
         perform: () => {
           commandBarVisible = false;
           const currentID = store.requestID();
-          if (currentID === null) {return;}
+          if (currentID === null) return;
           handleCloseTab(currentID);
         },
       },
@@ -419,7 +419,7 @@ const panelkaFactory = (
         component: value ? Eye : EyeClosed,
         class: "highlight-red",
       }));
-    });
+    }, true);
 
     tab.element.prepend(eye);
     container.on("destroy", () => {
