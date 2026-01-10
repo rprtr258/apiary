@@ -32,6 +32,7 @@ export default defineConfig([
       import: importPlugin,
     },
     rules: {
+      "eqeqeq": ["error", "always"],
       "object-curly-spacing": ["error", "never"],
       "semi": ["error", "always"],
       "comma-dangle": ["error", "always-multiline"],
@@ -48,6 +49,9 @@ export default defineConfig([
       "@typescript-eslint/no-floating-promises": ["off"],
       "@typescript-eslint/no-misused-promises": ["off"],
       "@typescript-eslint/no-unused-vars": ["off"/*"error", {argsIgnorePattern: "^_"}*/], // TODO: get back
+      "@typescript-eslint/strict-boolean-expressions": "error",
+      "@typescript-eslint/no-unnecessary-condition": "error",
+      // "@typescript-eslint/no-non-null-assertion": "error", // TODO: get back maybe
       "@typescript-eslint/restrict-plus-operands": ["error", {
         allowAny: false,
         allowBoolean: false,
@@ -55,16 +59,6 @@ export default defineConfig([
         allowNumberAndString: false,
         allowRegExp: false,
         skipCompoundAssignments: false,
-      }],
-      "@typescript-eslint/strict-boolean-expressions": ["error", {
-        allowNumber: false,
-        allowString: false,
-        allowAny: false,
-        allowNullableBoolean: false,
-        allowNullableEnum: false,
-        allowNullableNumber: false,
-        allowNullableObject: false,
-        allowNullableString: false,
       }],
     },
   },

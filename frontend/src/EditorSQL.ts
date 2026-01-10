@@ -17,7 +17,7 @@ export default function(props: Props) {
   const editor = new EditorView({
     parent: el,
     state: EditorState.create({
-      doc: props.value ?? "",
+      doc: props.value,
       extensions: [
         ...defaultExtensions,
         ...defaultEditorExtensions(props.on.update),

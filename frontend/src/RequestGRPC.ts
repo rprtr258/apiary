@@ -16,7 +16,7 @@ function responseBadge(response: {code: number}) {
     type: (code === 0 ? "success" : "error") as "success" | "info" | "warning",
     size: "small",
     round: true,
-  }, `${code ?? "N/A"} ${GRPCCodes[code as keyof typeof GRPCCodes]}`);
+  }, `${code} ${GRPCCodes[code as keyof typeof GRPCCodes]}`);
 }
 
 export default function(

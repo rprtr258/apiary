@@ -219,8 +219,6 @@ const panelka = (id: string): ComponentItemConfig => ({
 });
 
 export async function send(id: string): Promise<void> {
-  if (store.requests2[id].request === null) return;
-
   const res = await api.requestPerform(id);
   if (res.kind === "err") {
     notify(`Could not perform request ${id}: ${res.value}`);
@@ -243,7 +241,7 @@ export async function update_request(id: string, patch: Partial<Request>): Promi
 }
 
 export async function get_request(request_id: string): Promise<get_request | null> {
-  if (store.requests2[request_id] !== undefined) {
+  if (request_id in store.requests2) {
     return store.requests2[request_id];
   }
 

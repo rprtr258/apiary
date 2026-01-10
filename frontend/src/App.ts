@@ -218,15 +218,15 @@ const panelkaFactory = (
     });
     // TODO: ebanij rot etogo kazino, we have to use timeout for now, since request is not yet loaded (???)
     setTimeout(() => {
-      const req = store.requests2[id];
-      if (req === undefined) {
+      if (!(id in store.requests2)) {
         tab.componentItem.close();
         return;
       }
+      const req = store.requests2[id];
       tab.setTitle(req.request.path);
     }, 100);
   });
-  if (store.requests[id] !== undefined) {
+  if (id in store.requests) {
     const on = {
       update: (patch: Partial<Request>) => update_request(id, patch),
       send: () => send(id).then(_ => {

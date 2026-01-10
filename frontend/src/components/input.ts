@@ -102,8 +102,8 @@ type NSelectProps<T> = {
   on: {update: (value: T) => void},
 };
 export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () => void} {
-  let current: number | null = props.options.findIndex(opt => opt.label == props.label);
-  if (current == -1) {
+  let current: number | null = props.options.findIndex(opt => opt.label === props.label);
+  if (current === -1) {
     if (props.placeholder === undefined) {
       throw new Error(`Option ${props.label} not found in ${JSON.stringify(props.options)}`);
     }
@@ -118,7 +118,7 @@ export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () 
   }, props.placeholder ?? "");
   const el_opts = props.options.map(({label, value}, i) => m("option", {
     value: String(i),
-    selected: i == current ? true : undefined, // NOTE: any value makes selected, so we explicitly set undefined
+    selected: i === current ? true : undefined, // NOTE: any value makes selected, so we explicitly set undefined
     disabled: value === undefined ? true : undefined,
   }, label));
 

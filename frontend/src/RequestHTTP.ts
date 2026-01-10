@@ -33,7 +33,7 @@ function responseBadge(response: database.HTTPResponse): DOMNode {
     ) as "success" | "info" | "warning",
     size: "small",
     round: true,
-  }, `${code ?? "N/A"}`);
+  }, `${code}`);
 }
 
 export default function(
@@ -145,7 +145,7 @@ export default function(
             class: "h100",
             elem: EditorJSON({
               class: "h100",
-              value: request.body ?? null,
+              value: request.body,
               on: {update: (body: string) => update_request({body})},
             }),
           },

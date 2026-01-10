@@ -109,7 +109,7 @@ export const api = {
     // TODO: it seems that is not needed, remove if so
     return y.map((y: app.GetResponse) => {
       // NOTE: BEWARE, DIRTY TYPESCRIPT HACKS HERE
-      const history = y.History as unknown as HistoryEntry[] ?? [];
+      const history = y.History as unknown as HistoryEntry[];
       for (const req of history) {
         req.sent_at = parseTime(req.sent_at as unknown as string);
       }

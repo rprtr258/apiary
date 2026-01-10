@@ -41,7 +41,7 @@ export function NTabs(props: NTabsProps): HTMLElement {
 
   let tab_idx = -1;
   const update = (new_tab_idx: number): void => {
-    if (tab_idx == new_tab_idx) {
+    if (tab_idx === new_tab_idx) {
       return;
     }
     if (props.tabs[new_tab_idx].disabled ?? false) {
@@ -190,7 +190,7 @@ export function NSplit(left: HTMLElement, right: HTMLElement, props: NSplitProps
       updateVisibility();
     },
     unmount() {
-      splitInstance?.destroy?.();
+      splitInstance.destroy();
     },
   };
 }

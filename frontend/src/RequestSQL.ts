@@ -14,11 +14,11 @@ function render(v: RowValue): DOMNode {
   switch (true) {
   case v === null:
     return m("span", {style: {color: "grey"}}, "(NULL)");
-  case typeof v == "boolean":
+  case typeof v === "boolean":
     return v ? "true" : "false";
-  case typeof v == "number":
+  case typeof v === "number":
     return m("span", {style: {color: "#e84e40"}}, String(v));
-  case typeof v == "string":
+  case typeof v === "string":
     return v;
   default:
     alert(`unknown row value type: ${String(v)} : ${typeof v}`);

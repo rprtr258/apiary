@@ -60,7 +60,7 @@ export default function(init_value: string) {
       // TODO: put input under editor
       NInput({
         placeholder: "JQ query",
-        status: state.jqerror !== null ? "error" : "success", // TODO: update
+        status: state.jqerror !== undefined ? "error" : "success", // TODO: update
         on: {update: (v: string) => {
           state.query = v;
           update(state.value);

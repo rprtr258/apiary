@@ -142,7 +142,7 @@ function render_suffix(id: string): DOMNode {
           label: "Copy as curl",
           key: "copy-as-curl",
           icon: NIcon({component: ContentCopyFilled}),
-          show: store.requests[id]?.Kind === database.Kind.HTTP,
+          show: store.requests[id].Kind === database.Kind.HTTP,
           on: {
             click: () => {
               api.get(id).then(r => {
@@ -153,7 +153,7 @@ function render_suffix(id: string): DOMNode {
 
                 const req = r.value.Request as unknown as database.HTTPRequest; // TODO: remove unknown cast
                 const httpToCurl = ({url, method, body, headers}: database.HTTPRequest) => {
-                  const headersStr = headers?.length > 0 ? " " + headers.map(({key, value}) => `-H "${key}: ${value}"`).join(" ") : "";
+                  const headersStr = headers.length > 0 ? " " + headers.map(({key, value}) => `-H "${key}: ${value}"`).join(" ") : "";
                   const bodyStr = body !== "" ? ` -d '${body}'` : "";
                   return `curl -X ${method} ${url}${headersStr}${bodyStr}`;
                 };
@@ -187,7 +187,7 @@ function render_suffix(id: string): DOMNode {
           onmouseover: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "#404040";},
           onmouseout: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "";},
           onclick: () => {
-            opt.on?.click?.();
+            opt.on.click();
             globalDropdown.hide();
           },
         }, opt.icon ?? null, opt.label);
@@ -273,7 +273,7 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
   const updateTree = () => {
     const data = (() => {
       const mapper = (tree: app.Tree): TreeOption[] =>
-        Object.entries(tree.Dirs ?? {}).map(([k, v]) => ({
+        Object.entries(tree.Dirs).map(([k, v]) => ({
           key: k,
           label: basename(k),
           children: mapper(v),
@@ -296,13 +296,10 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
           drop: drag,
         },
         render: (option: TreeOption, _checked: boolean, _selected: boolean): DOMNode => {
-          if (option.key === undefined) {
-            return null;
-          }
-          const req = store.requests[option.key];
-          if (req === undefined)
+          if (!(option.key in store.requests))
             return null;
 
+          const req = store.requests[option.key];
           const [method, color] = badge(req);
           return [
             NTag({

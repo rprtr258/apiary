@@ -77,7 +77,7 @@ export default function(
               flexGrow: "1",
             },
             placeholder: "DSN",
-            value: request?.dsn,
+            value: request.dsn,
             on: {update: (newValue: string) => update_request({dsn: newValue})},
           }),
           // TODO: file picker for sqlite
