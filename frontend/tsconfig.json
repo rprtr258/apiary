@@ -1,8 +1,10 @@
 {
   "include": [
-    "src/**/*",
+    "src/**/*.ts",
+    "e2e/**/*.ts",
     "wailsjs/go/**/*.ts",
     "eslint.config.ts",
+    "playwright.config.ts",
     "vite.config.ts"
   ],
   "compilerOptions": {
@@ -10,6 +12,8 @@
     "module": "ESNext",
     "moduleResolution": "node",
     "strict": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
     "sourceMap": true,
     "resolveJsonModule": true,
     "esModuleInterop": false,
@@ -17,7 +21,6 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
-    "strictNullChecks": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "useDefineForClassFields": true,

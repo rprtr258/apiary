@@ -90,8 +90,8 @@ export function NListItem(props: NListItemProps, children: DOMNode[]) {
 export type TreeOption = {
   key: string,
   label: string,
+  disabled?: boolean,
   children?: TreeOption[],
-  disabled: boolean,
 };
 type NTreeProps = {
   data: TreeOption[],

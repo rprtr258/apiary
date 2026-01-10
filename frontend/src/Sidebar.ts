@@ -273,16 +273,14 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
   const updateTree = () => {
     const data = (() => {
       const mapper = (tree: app.Tree): TreeOption[] =>
-        Object.entries(tree.Dirs).map(([k, v]) => ({
+        Object.entries(tree.Dirs).map(([k, v]): TreeOption => ({
           key: k,
           label: basename(k),
           children: mapper(v),
-        } as TreeOption)).concat(Object.entries(tree.IDs).map(([id, basename]) => {
-          return {
+        })).concat(Object.entries(tree.IDs).map(([id, basename]) => ({
             key: id,
             label: basename,
-          } as TreeOption;
-        }));
+        })));
       return mapper(store.requestsTree.value);
     })();
     treeContainer.replaceChildren(NScrollbar(
@@ -310,7 +308,7 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
             m("button", {
               onclick: () => {
                 const id = option.key;
-                if (option.children === undefined && !option.disabled) {
+                if (option.children === undefined && option.disabled !== true) {
                   store.selectRequest(id);
                 }
               },

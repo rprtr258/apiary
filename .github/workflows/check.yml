@@ -9,12 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.2.5"
 
       - name: Install deps
         run: cd frontend && bun install
@@ -26,15 +24,65 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.2.5"
 
       - name: Install deps
         run: cd frontend && bun install
 
       - name: Run ESLint
         run: cd frontend && bun run lint
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.2.5"
+
+      - name: Install deps
+        run: cd frontend && bun install
+
+      - name: Run unit tests
+        run: cd frontend && bun run test
+
+  e2e-tests:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.2.5"
+
+      - name: Install go
+        uses: actions/setup-go@v4
+        with:
+          cache: true
+
+      - name: Install frontend deps
+        run: cd frontend && bun install
+
+      - name: Install Playwright browsers
+        run: cd frontend && bunx playwright install --with-deps
+
+      - name: Install Wails
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          sudo apt-get install libgtk-3-dev libwebkit2gtk-4.0-dev xvfb
+          $(go env GOPATH)/bin/wails doctor
+
+      - name: Add Go bin to PATH
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Install Go deps
+        run: go mod tidy
+
+      - name: Run E2E tests
+        env:
+          CI: "1"
+        run: cd frontend && bun run test:e2e
