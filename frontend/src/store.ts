@@ -298,7 +298,3 @@ store.requestsTree.sub(() => {
     item.remove();
   }
 }, false);
-
-(async () => {
-  await store.fetch();
-})().catch(notify);
