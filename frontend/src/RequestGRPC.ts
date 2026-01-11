@@ -37,7 +37,8 @@ export default function(
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
   const update_response = (response: database.GRPCResponse | undefined) => {
-    if (response === undefined) return;
+    if (response === undefined)
+      return;
 
     el_response.replaceChildren(NTabs({
       class: "h100",

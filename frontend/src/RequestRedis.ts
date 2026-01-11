@@ -77,16 +77,13 @@ export default function(
       const el_container = m("div", {
         class: "h100",
         style: {
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gridTemplateRows: "auto minmax(0, 1fr)",
-          gridColumnGap: ".5em",
+          display: "flex",
+          flexDirection: "column",
         },
       }, el_input_group, split.element);
       unmounts.push(show_request.sub(show_request => {
         split.leftVisible = show_request;
         setDisplay(el_input_group, show_request);
-        el_container.style.gridTemplateRows = show_request ? "auto minmax(0, 1fr)" : "minmax(0, 1fr)";
       }, true));
       el.replaceChildren(el_container);
     },

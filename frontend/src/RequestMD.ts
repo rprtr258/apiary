@@ -84,7 +84,8 @@ export default function(
   const unmounts: (() => void)[] = [];
 
   const update_response = () => {
-    if (id === undefined) return; // Guard: id not set yet
+    if (id === undefined)
+      return; // Guard: id not set yet
     api.requestPerform(id).then(res => {
       if (res.kind === "err") {
         el_error.textContent = `Could not render document: ${res.value}`;
@@ -93,12 +94,12 @@ export default function(
         el_error.style.display = "none";
         const response = res.value.response as database.MDResponse;
 
-         // Save scroll position before update
+        // Save scroll position before update
         if (responseContainer !== undefined) {
           lastScrollTop = responseContainer.scrollTop;
         }
 
-         // Create a new container with the result
+        // Create a new container with the result
         const newContainer = m("div", {
           class: "h100 markdown-body",
           style: {
@@ -107,10 +108,10 @@ export default function(
           innerHTML: response.data,
         });
 
-          // Restore scroll position after rendering
-          requestAnimationFrame(() => {
-            newContainer.scrollTop = lastScrollTop;
-          });
+        // Restore scroll position after rendering
+        requestAnimationFrame(() => {
+          newContainer.scrollTop = lastScrollTop;
+        });
 
         responseContainer = newContainer;
         el_response.replaceChildren(newContainer);

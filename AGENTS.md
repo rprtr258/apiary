@@ -172,11 +172,6 @@ User → Signal → Store → Wails API → Store → DOM
 | `components/editor.ts` | CodeMirror extensions/config |
 | `components/icons.ts` | SVG icon components |
 
-#### Development Commands
-- `bun run dev` - Vite dev server (port 5174)
-- `bun run build` - Vite build
-- `bun run ci` - Lint + typecheck
-
 **Core Principle**: No frameworks, no VDOM - direct DOM manipulation with manual reactivity.
 
 ## Persistence/Database
