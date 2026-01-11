@@ -1,4 +1,4 @@
-import {ComponentItemConfig, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedLayoutConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig} from "golden-layout";
+import {ComponentItem, ComponentItemConfig, ContentItem, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedLayoutConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig} from "golden-layout";
 import {api, type RequestData, type HistoryEntry, Request} from "./api.ts";
 import {app} from "../wailsjs/go/models.ts";
 import {signal, Signal} from "./utils.ts";
@@ -195,6 +195,9 @@ export function useStore(): Store {
       if (this.requests.hasOwnProperty(id)) {
         delete this.requests[id];
       }
+      if (this.requests2.hasOwnProperty(id)) {
+        delete this.requests2[id];
+      }
       await this.fetch();
     },
     async rename(id: string, newID: string): Promise<void> {
@@ -260,6 +263,42 @@ export async function get_request(request_id: string): Promise<get_request | nul
 }
 
 export const store = useStore();
+
+store.requestsTree.sub(() => {
+  const cfg = store.layout;
+  if (cfg?.rootItem === undefined)
+    return;
+
+  const openTabIds = new Map<string, ComponentItem>();
+  function dfs(c: ContentItem): void {
+    if (((c): c is ComponentItem => c.isComponent)(c)) {
+      openTabIds.set((c.toConfig().componentState as {id: string}).id, c);
+    } else {
+      for (const child of c.contentItems) {
+        dfs(child);
+      }
+    }
+  }
+  dfs(cfg.rootItem);
+
+  const treeIds = new Set<string>();
+  function collectIds(tree: app.Tree): void {
+    for (const id in tree.IDs) {
+      treeIds.add(id);
+    }
+    for (const dir in tree.Dirs) {
+      collectIds(tree.Dirs[dir]);
+    }
+  }
+  collectIds(store.requestsTree.value);
+
+  for (const [id, item] of openTabIds.entries()) {
+    if (treeIds.has(id))
+      continue;
+    item.remove();
+  }
+}, false);
+
 (async () => {
   await store.fetch();
 })().catch(notify);

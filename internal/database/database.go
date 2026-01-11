@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"sync"
 
 	nanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/pkg/errors"
@@ -110,6 +111,7 @@ func encoder(v dbInner) ([]byte, error) {
 type DB struct {
 	filename string
 	Data     dbInner
+	mu       sync.RWMutex
 }
 
 func New(filename string) (*DB, error) {
@@ -126,7 +128,7 @@ func New(filename string) (*DB, error) {
 		return nil, errors.Wrap(err, "parse file")
 	}
 
-	return &DB{filename, db}, nil
+	return &DB{filename, db, sync.RWMutex{}}, nil
 }
 
 func (db *DB) Flush() error {
@@ -147,6 +149,9 @@ func (db *DB) Close() error {
 }
 
 func (db *DB) List(ctx context.Context, ids []RequestID) ([]Request, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
 	if ids == nil {
 		return fun.Values(db.Data), nil
 	}
@@ -274,6 +279,9 @@ func (db *DB) createResponse(
 	id RequestID,
 	response Response,
 ) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
 	tmp := db.Data[id]
 	tmp.Responses = append(db.Data[id].Responses, response)
 	db.Data[id] = tmp
