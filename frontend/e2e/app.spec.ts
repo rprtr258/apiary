@@ -23,7 +23,6 @@ test("creates HTTP request via sidebar dropdown", async ({page}) => {
   const createButton = page.getByRole("button", {name: "Create", exact: true});
   await createButton.click();
 
-  return; // TODO: get back
   // Wait for request to appear in sidebar
   await page.waitForSelector("text=test-request-dropdown");
 
@@ -31,7 +30,7 @@ test("creates HTTP request via sidebar dropdown", async ({page}) => {
   await page.click("text=test-request-dropdown");
 
   // Fill in request details (URL)
-  const urlInput = page.locator("input[type='text']").first();
+  const urlInput = page.locator("input[placeholder='URL']");
   await urlInput.fill("https://httpbin.org/get");
 
   // Click send button

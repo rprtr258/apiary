@@ -152,7 +152,6 @@ export function useStore(): Store {
       }
 
       const res = json.value;
-      this.requestsTree.update(() => res.Tree);
 
       const currentRequestId = this.requestID();
 
@@ -166,6 +165,8 @@ export function useStore(): Store {
           delete this.requests[id];
         }
       }
+
+      this.requestsTree.update(() => res.Tree);
     },
     async createRequest(id: string, kind: RequestData["kind"]): Promise<void> {
       const res = await api.requestCreate(id, kind);
