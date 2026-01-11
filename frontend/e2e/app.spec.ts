@@ -121,3 +121,49 @@ test("handles invalid URL error", async ({page}) => {
   expect(dialog.message()).toContain("Could not perform request");
   await dialog.accept();
 });
+
+test("tab closes when request is deleted via sidebar menu", async ({page}) => {
+  await page.goto("/");
+
+  // Wait for app to load
+  await page.waitForSelector("body");
+
+  // Find the select element for new request kind in sidebar
+  const kindSelect = page.locator("select").first();
+
+  // Select HTTP from dropdown
+  await kindSelect.selectOption({label: "HTTP"});
+
+  // Wait for create modal to appear
+  await page.waitForSelector("input");
+
+  // Enter request name
+  const input = page.locator("input").first();
+  await input.fill("test-delete-request");
+
+  // Click Create button
+  const createButton = page.getByRole("button", {name: "Create", exact: true});
+  await createButton.click();
+
+  // Wait for request to appear in sidebar
+  await page.waitForSelector("text=test-delete-request");
+
+  // Click on request to open it
+  await page.click("text=test-delete-request");
+
+  // Wait for tab to open (check for tab title or content)
+  await page.waitForSelector(".lm_header .lm_tab", {timeout: 5000}); // GoldenLayout tab
+
+  // Find the dropdown icon (DownOutlined) next to the request name
+  const dropdownIcon = page.locator("div").filter({hasText: /^GETtest-delete-request$/}).first().locator("span:nth-child(3)"); // badge, request name, dropdown icon
+  await dropdownIcon.click();
+
+  // Wait for dropdown menu to appear
+  await page.waitForSelector("text=Delete");
+
+  // Click Delete
+  await page.click("text=Delete");
+
+  // Wait for tab to close - check that tab with title "test-delete-request" is detached
+  await page.locator(".lm_tab").filter({hasText: "test-delete-request"}).waitFor({state: "detached"});
+});
