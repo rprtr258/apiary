@@ -34,7 +34,7 @@ func (export) ExportTypes(
 
 func run() error {
 	app, startup, close := app.New("db.json")
-	if err := app.DB.Flush(); err != nil { // NOTE: immediately flush db to migrate to latest version
+	if err := app.DB.Close(); err != nil { // NOTE: immediately flush db to migrate to latest version
 		return errors.Wrap(err, "migrate db")
 	}
 	defer close()

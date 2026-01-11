@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"sync"
 
 	nanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/pkg/errors"
@@ -110,6 +111,7 @@ func encoder(v dbInner) ([]byte, error) {
 type DB struct {
 	filename string
 	Data     dbInner
+	mu       sync.RWMutex
 }
 
 func New(filename string) (*DB, error) {
@@ -126,10 +128,10 @@ func New(filename string) (*DB, error) {
 		return nil, errors.Wrap(err, "parse file")
 	}
 
-	return &DB{filename, db}, nil
+	return &DB{filename, db, sync.RWMutex{}}, nil
 }
 
-func (db *DB) Flush() error {
+func (db *DB) flush() error {
 	b, err := encoder(db.Data)
 	if err != nil {
 		return errors.Wrap(err, "encode db")
@@ -143,10 +145,16 @@ func (db *DB) Flush() error {
 }
 
 func (db *DB) Close() error {
-	return db.Flush()
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	return db.flush()
 }
 
 func (db *DB) List(ctx context.Context, ids []RequestID) ([]Request, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
 	if ids == nil {
 		return fun.Values(db.Data), nil
 	}
@@ -167,6 +175,9 @@ func (db *DB) Create(
 	path string,
 	request EntryData,
 ) (RequestID, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
 	kind := request.Kind()
 	plugin, ok := Plugins[kind]
 	if !ok {
@@ -179,15 +190,21 @@ func (db *DB) Create(
 		return "", err
 	}
 
-	return id, db.Flush()
+	return id, db.flush()
 }
 
 func (db *DB) Delete(ctx context.Context, id RequestID) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
 	delete(db.Data, id)
-	return db.Flush()
+	return db.flush()
 }
 
 func (db *DB) Rename(ctx context.Context, id RequestID, newName string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
 	if _, ok := db.Data[id]; !ok {
 		return errors.Errorf("request %s not found", id)
 	}
@@ -199,7 +216,7 @@ func (db *DB) Rename(ctx context.Context, id RequestID, newName string) error {
 	tmp := db.Data[id]
 	tmp.Path = newName
 	db.Data[id] = tmp
-	return db.Flush()
+	return db.flush()
 }
 
 func (db *DB) Update(
@@ -207,6 +224,9 @@ func (db *DB) Update(
 	id RequestID,
 	request EntryData,
 ) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
 	if _, ok := db.Data[id]; !ok {
 		return errors.Errorf("request %s not found", id)
 	}
@@ -221,7 +241,7 @@ func (db *DB) Update(
 		return err
 	}
 
-	return db.Flush()
+	return db.flush()
 }
 
 func (db *DB) CreateResponse(
@@ -229,6 +249,9 @@ func (db *DB) CreateResponse(
 	id RequestID,
 	entry Response,
 ) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
 	req, ok := db.Data[id]
 	if !ok {
 		return errors.Errorf("request %s not found", id)
@@ -244,7 +267,7 @@ func (db *DB) CreateResponse(
 		return err
 	}
 
-	return db.Flush()
+	return db.flush()
 }
 
 func (db *DB) create(

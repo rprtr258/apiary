@@ -42,7 +42,7 @@ func run(ctx context.Context) error {
 		return errors.Wrap(err, "open db")
 	}
 	defer func() {
-		if err := db.Flush(); err != nil { // NOTE: immediately flush db to migrate to latest version
+		if err := db.Close(); err != nil { // NOTE: immediately flush db to migrate to latest version
 			log.Error().Err(err).Msg("failed to migrate db")
 		}
 	}()
