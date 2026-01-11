@@ -49,7 +49,6 @@ export default function(
       return;
     }
 
-    el_response.replaceChildren(el_view_response_body.el);
     el_view_response_body.update(response.response.join("\n"));
   };
 
@@ -57,6 +56,7 @@ export default function(
     loaded: (r: get_request) => {
       const request = r.request as Request;
       update_response(last_history_entry(r)?.response as database.JQResponse | undefined);
+      el_response.replaceChildren(el_view_response_body.el);
 
       const el_input_group = NInputGroup({style: {
         display: "grid",
