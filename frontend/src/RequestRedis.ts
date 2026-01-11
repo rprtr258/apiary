@@ -5,7 +5,7 @@ import ViewJSON from "./components/ViewJSON.ts";
 import EditorJSON from "./components/EditorJSON.ts";
 import {database} from "../wailsjs/go/models.ts";
 import {get_request, last_history_entry} from "./store.ts";
-import {m, Signal, setDisplay} from "./utils.ts";
+import {m, signal, Signal, setDisplay} from "./utils.ts";
 import {HistoryEntry} from "./api.ts";
 
 type Request = {kind: database.Kind.REDIS} & database.RedisRequest;
@@ -29,7 +29,8 @@ export default function(
     on: {click: on.send},
     disabled: false,
   }, "Send");
-  const el_response = NEmpty({description: "Send request or choose one from history."});
+  const el_empty_response = NEmpty({description: "Send request or choose one from history."});
+  const response = signal<database.RedisResponse | undefined>(undefined);
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
   const update_request = (patch: Partial<database.RedisRequest>): void => {
@@ -38,18 +39,23 @@ export default function(
       el_send.disabled = false;
     });
   };
-  const update_response = (r: database.RedisResponse | undefined): void => {
-    if (r === undefined)
-      return; // TODO: replace with empty state
+  const el_response = m("div", {class: "h100"});
+  unmounts.push(response.sub((r, old, first) => {
+    if (r === undefined) {
+      if (old !== undefined || first)
+        el_response.replaceChildren(el_empty_response);
+      return;
+    }
 
-    el_response.replaceChildren(el_view_response_body.el);
     el_view_response_body.update(r.response);
-  };
+    if (old === undefined)
+      el_response.replaceChildren(el_view_response_body.el);
+  }, true));
 
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
-      update_response(last_history_entry(r)?.response as database.RedisResponse | undefined);
+      response.update(() => last_history_entry(r)?.response as database.RedisResponse | undefined);
 
       const el_input_group = NInputGroup({style: {
         display: "grid",
@@ -88,7 +94,7 @@ export default function(
       el.replaceChildren(el_container);
     },
     push_history_entry(he: HistoryEntry) {
-      update_response(he.response as database.RedisResponse);
+      response.update(() => he.response as database.RedisResponse);
     },
     unmount() {
       for (const unmount of unmounts) {

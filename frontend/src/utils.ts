@@ -135,17 +135,17 @@ export function s<K extends keyof SVGAttrs>(
 
 export type Signal<T> = {
   update: (f: (value: T) => T) => void,
-  sub: (cb: (value: T) => void, immediate: boolean) => () => void,
+  sub: (cb: (value: T, old: T, first: boolean) => void, immediate: boolean) => () => void,
   get value(): T, // TODO: remove?
 };
 export function signal<T>(value: T): Signal<T> {
   let _value = value;
-  const subs = new Set<(value: T) => void>();
+  const subs = new Set<(value: T, old: T, first: boolean) => void>();
   return {
     sub: (cb, immediate) => {
       subs.add(cb);
       if (immediate)
-        cb(_value);
+        cb(_value, undefined as T, true);
       return () => {
         subs.delete(cb);
       };
@@ -155,9 +155,10 @@ export function signal<T>(value: T): Signal<T> {
       if (value === _value) {
         return;
       }
+      const old = _value;
       _value = value;
       for (const cb of subs) {
-        cb(value);
+        cb(value, old, false);
       }
     },
     get value(): T {return _value;},
