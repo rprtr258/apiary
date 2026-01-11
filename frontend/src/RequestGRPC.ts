@@ -35,45 +35,56 @@ export default function(
 
   const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
+  const tbody = m("tbody", {});
+  const el_metadata_table = NTable({striped: true, size: "small", "single-column": true, "single-line": false}, [
+    m("colgroup", {},
+      m("col", {style: {width: "50%"}}),
+      m("col", {style: {width: "50%"}}),
+    ),
+    m("thead", {},
+      m("tr", {},
+        m("th", {}, "NAME"),
+        m("th", {}, "VALUE"),
+      ),
+    ),
+    tbody,
+  ]);
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
+  const badgeContainer = m("span", {});
+  let tabsReplaced = false;
+  const tabsElement = NTabs({
+    class: "h100",
+    tabs: [
+      {
+        name: badgeContainer,
+        disabled: true,
+      },
+      {
+        name: "Body",
+        elem: el_view_response_body.el,
+      },
+      {
+        name: "Metadata",
+        style: {flexGrow: "1"},
+        elem: el_metadata_table,
+      },
+    ],
+  });
   const update_response = (response: database.GRPCResponse | undefined) => {
     if (response === undefined)
       return;
 
-    el_response.replaceChildren(NTabs({
-      class: "h100",
-      tabs: [
-        {
-          name: responseBadge(response),
-          disabled: true,
-        },
-        {
-          name: "Body",
-          elem: el_view_response_body.el,
-        },
-        {
-          name: "Metadata",
-          style: {flexGrow: "1"},
-          elem: NTable({striped: true, size: "small", "single-column": true, "single-line": false}, [
-            m("colgroup", {},
-              m("col", {style: {width: "50%"}}),
-              m("col", {style: {width: "50%"}}),
-            ),
-            m("thead", {},
-              m("tr", {},
-                m("th", {}, "NAME"),
-                m("th", {}, "VALUE"),
-              ),
-            ),
-            ...response.metadata.map(header => m("tr", {},
-              m("td", {}, header.key),
-              m("td", {}, header.value),
-            )),
-          ]),
-        },
-      ],
-    }));
+    badgeContainer.replaceChildren(responseBadge(response));
     el_view_response_body.update(response.response);
+    tbody.replaceChildren(...response.metadata.map(header => m("tr", {},
+      m("td", {}, header.key),
+      m("td", {}, header.value),
+    )));
+
+    if (!tabsReplaced) {
+      el_response.replaceChildren(tabsElement);
+      tabsReplaced = true;
+    }
   };
 
   const methods : {
