@@ -133,33 +133,29 @@ export function s<K extends keyof SVGAttrs>(
   return el;
 }
 
+type Sub<T> = Generator<undefined, never, T>;
 export type Signal<T> = {
-  update: (f: (value: T) => T) => void,
-  sub: (cb: (value: T, old: T, first: boolean) => void, immediate: boolean) => () => void,
+  update(f: (value: T) => T): void,
+  sub(sub: Sub<T>): () => void,
   get value(): T, // TODO: remove?
 };
 export function signal<T>(value: T): Signal<T> {
   let _value = value;
-  const subs = new Set<(value: T, old: T, first: boolean) => void>();
+  const subs = new Set<Sub<T>>();
   return {
-    sub: (cb, immediate) => {
-      subs.add(cb);
-      if (immediate)
-        cb(_value, undefined as T, true);
-      return () => {
-        subs.delete(cb);
-      };
+    sub(g) {
+      subs.add(g);
+      if (g.next(_value).done === true) { subs.delete(g); return () => {}; } // NOTE: run until first yield
+      if (g.next(_value).done === true) { subs.delete(g); return () => {}; } // NOTE: trigger first yield
+      return () => subs.delete(g);
     },
-    update: (f: (value: T) => T) => {
+    update(f: (value: T) => T) {
       const value = f(_value);
-      if (value === _value) {
+      if (value === _value)
         return;
-      }
-      const old = _value;
       _value = value;
-      for (const cb of subs) {
-        cb(value, old, false);
-      }
+      for (const sub of subs)
+        sub.next(value);
     },
     get value(): T {return _value;},
   };

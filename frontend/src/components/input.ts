@@ -40,7 +40,6 @@ export function NDropdown(props: NDropdownProps, children: HTMLElement[]) {
   // TODO: append to document body?
   const dropdownEl = m("div", {
     style: {
-      display: props.open.value ? "block" : "none",
       position: "fixed",
       zIndex: "1000",
       background: "#2a2a2a",
@@ -77,15 +76,18 @@ export function NDropdown(props: NDropdownProps, children: HTMLElement[]) {
     ...children,
     dropdownEl,
   ]);
-  props.open.sub(open => {
-    setDisplay(dropdownEl, open);
-    if (!open)
-      return;
+  props.open.sub(function*() {
+    while (true) {
+      const open = yield;
+      setDisplay(dropdownEl, open);
+      if (!open)
+        continue;
 
-    const rect = span.getBoundingClientRect();
-    dropdownEl.style.top = `${rect.bottom}px`;
-    dropdownEl.style.left = `${rect.left}px`;
-  }, true);
+      const rect = span.getBoundingClientRect();
+      dropdownEl.style.top = `${rect.bottom}px`;
+      dropdownEl.style.left = `${rect.left}px`;
+    }
+  }());
   return span;
 };
 

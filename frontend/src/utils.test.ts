@@ -79,19 +79,32 @@ describe("signal", () => {
     const sig = signal(0);
     const callback = mock((v: number, old: number) => void [v, old]);
 
-    sig.sub(callback, false);
+    sig.sub(function*() {
+      let old: number = yield;
+      while (true) {
+        const v = yield;
+        callback(v, old);
+        old = v;
+      }
+    }());
     sig.update(v => v + 1);
 
     expect(sig.value).toBe(1);
     expect(callback).toHaveBeenCalledTimes(1);
-    expect(callback).toHaveBeenCalledWith(1, 0, false);
+    expect(callback).toHaveBeenCalledWith(1, 0);
   });
 
   test("unsubscribes correctly", () => {
     const sig = signal(0);
     const callback = mock(() => {});
 
-    const unsub = sig.sub(callback, false);
+    const unsub = sig.sub(function*() {
+      yield;
+      while (true) {
+        yield;
+        callback();
+      }
+    }());
     unsub();
     sig.update(v => v + 1);
 
@@ -102,20 +115,32 @@ describe("signal", () => {
     const sig = signal(0);
     const callback = mock(() => {});
 
-    const unsub = sig.sub(callback, false);
+    const unsub = sig.sub(function*() {
+      yield;
+      while (true) {
+        yield;
+        callback();
+      }
+    }());
     sig.update(v => v + 1);
     unsub();
     sig.update(v => v + 1);
 
     expect(callback).toHaveBeenCalledTimes(1);
-    expect(callback).toHaveBeenCalledWith(1, 0, false);
+    expect(callback).toHaveBeenCalledWith();
   });
 
   test("does not notify if value unchanged", () => {
     const sig = signal(42);
     const callback = mock(() => {});
 
-    sig.sub(callback, false);
+    sig.sub(function*() {
+      yield;
+      while (true) {
+        yield;
+        callback();
+      }
+    }());
     sig.update(v => v); // same value
 
     expect(callback).toHaveBeenCalledTimes(0);
@@ -123,11 +148,16 @@ describe("signal", () => {
 
   test("calls subscriber immediately when immediate is true", () => {
     const sig = signal(42);
-    const callback = mock((v: number, old: number) => void [v, old]);
+    const callback = mock((v: number) => void v);
 
-    sig.sub(callback, true);
+    sig.sub(function*() {
+      while (true) {
+        const v = yield;
+        callback(v);
+      }
+    }());
 
     expect(callback).toHaveBeenCalledTimes(1);
-    expect(callback).toHaveBeenCalledWith(42, undefined, true);
+    expect(callback).toHaveBeenCalledWith(42);
   });
 });

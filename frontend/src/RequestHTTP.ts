@@ -189,10 +189,13 @@ export default function(
           width: "100%",
         },
       }, el_input_group, split.element);
-      unmounts.push(show_request.sub(show_request => {
-        split.leftVisible = show_request;
-        setDisplay(el_input_group, show_request);
-      }, true));
+      unmounts.push(show_request.sub(function*() {
+        while (true) {
+          const show_request = yield;
+          split.leftVisible = show_request;
+          setDisplay(el_input_group, show_request);
+        }
+      }()));
       el.replaceChildren(el_container);
     },
     push_history_entry(he: HistoryEntry) {

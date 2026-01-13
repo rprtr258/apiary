@@ -146,9 +146,12 @@ export default function(
 
       const split = NSplit(el_editor_md, right_div, {direction: "horizontal"});
       unmounts.push(() => split.unmount());
-      unmounts.push(show_request.sub(show_request => {
-        split.leftVisible = show_request;
-      }, true));
+      unmounts.push(show_request.sub(function*() {
+        while (true) {
+          const show_request = yield;
+          split.leftVisible = show_request;
+        }
+      }()));
       el.replaceChildren(split.element);
     },
     push_history_entry(_he) {

@@ -35,22 +35,20 @@ function renameCancel() {
 }
 function rename() {
   const fromID = renameID.value;
-  if (fromID === undefined) {
-    notification.error({title: "Invalid request", content: `No request to rename: ${renameID.value} -> ${renameValue.value}`});
-    return;
+  const newName = renameValue.value;
+  switch (true) {
+    case fromID === undefined && newName === undefined:
+      notification.error({title: "Invalid request", content: "No request to rename"});
+      return;
+    case newName === undefined:
+      notification.error({title: "Invalid request", content: "No new name"});
+      return;
+    case fromID === undefined:
+      notification.error({title: "Invalid request", content: `No request to rename to ${newName}`});
+      return;
   }
 
-  const toID = renameValue.value;
-  if (toID === undefined) {
-    notification.error({title: "Invalid request", content: "No new name"});
-    return;
-  }
-
-  if (toID === fromID) {
-    return;
-  }
-
-  store.rename(fromID, toID);
+  store.rename(fromID, newName);
   renameCancel();
 }
 
@@ -197,19 +195,19 @@ const panelkaFactory = (
     onclick: () => {
       show_request.update(b => !b);
     },
-  }, NIcon({
-    component: show_request.value ? Eye : EyeClosed,
-    class: "highlight-red",
-  }));
+  });
 
   container.on("tab", (tab: Tab): void => {
-    eye_unsub = show_request.sub(value => {
-      eye.title = value ? "Hide request" : "Show request";
-      eye.replaceChildren(NIcon({
-        component: value ? Eye : EyeClosed,
-        class: "highlight-red",
-      }));
-    }, true);
+    eye_unsub = show_request.sub(function*() {
+      while (true) {
+        const value = yield;
+        eye.title = value ? "Hide request" : "Show request";
+        eye.replaceChildren(NIcon({
+          component: value ? Eye : EyeClosed,
+          class: "highlight-red",
+        }));
+      }
+    }());
 
     tab.element.prepend(eye);
     container.on("destroy", () => {
@@ -265,11 +263,25 @@ function preApp(root: HTMLElement, store: Store) {
 
   const el_layout = m("div", {id: "layoutContainer", style: {height: "100%", width: "100%"}});
 
+  const el_main = m("div", {
+    style: {
+      color: "rgba(255, 255, 255, 0.82)",
+      backgroundColor: "rgb(16, 16, 20)",
+    }}, [
+      el_empty_state,
+      el_layout,
+    ]);
   const sidebarHidden = signal(false);
   const {el: el_aside} = Sidebar(sidebarHidden);
-  sidebarHidden.sub(sidebarHidden => {
-    app_container.style.gridTemplateColumns = sidebarHidden ? "3em 5px 1fr" : "300px 5px 1fr";
-  }, false);
+  const app_container = NSplit(el_aside, el_main, {direction: "horizontal", sizes: ["300px", "1fr"]}).element;
+
+  sidebarHidden.sub(function*() {
+    yield;
+    while (true) {
+      const sidebarHidden = yield;
+      app_container.style.gridTemplateColumns = sidebarHidden ? "3em 5px 1fr" : "300px 5px 1fr";
+    }
+  }());
 
   const golden_layout: GoldenLayout = new GoldenLayout(el_layout);
   golden_layout.resizeWithContainerAutomatically = true;
@@ -286,6 +298,10 @@ function preApp(root: HTMLElement, store: Store) {
   };
   update_empty_state(golden_layout.saveLayout().root === undefined);
 
+  const inputCreate = NInput({
+    on: {update: (value: string) => newRequestName.update(() => value)},
+    style: {width: "100%", boxSizing: "border-box", padding: "0.5em"},
+  });
   const modalCreate = NModal({
     title: "Create request",
     text: {positive: "Create", negative: "Cancel"},
@@ -294,13 +310,8 @@ function preApp(root: HTMLElement, store: Store) {
       positive_click: create,
       negative_click: createCancel,
     },
-  }, NInput({
-    value: newRequestName.value,
-    on: {update: (value: string) => newRequestName.update(() => value)},
-    style: {width: "100%", boxSizing: "border-box", padding: "0.5em"},
-  }));
+  }, inputCreate);
   const inputRename = NInput({
-    value: renameValue.value,
     on: {update: (value: string) => renameValue.update(() => value)},
     style: {width: "100%", boxSizing: "border-box", padding: "0.5em"},
   });
@@ -313,35 +324,46 @@ function preApp(root: HTMLElement, store: Store) {
       negative_click: renameCancel,
     },
   }, inputRename);
-  const updateModals = () => {
-    if (newRequestKind.value !== undefined) {
-      if (newRequestName.value !== undefined) {
-        newRequestName.update(() => new Date().toUTCString());
+  newRequestKind.sub(function*() {
+    let shown = true; // NOTE: to trigger first call to set it to false
+    while (true) {
+      const newRequestKind = yield;
+      if (newRequestKind === undefined) {
+        if (shown) {
+        modalCreate.hide();
+        shown = false;
+        }
+        continue;
       }
-      modalCreate.show();
-    } else
-      modalCreate.hide();
-    if (renameID.value !== undefined) {
-      inputRename.value = store.requestsTree.value.IDs[renameID.value];
-      modalRename.show();
-    } else
-      modalRename.hide();
-  };
-  newRequestKind.sub(updateModals, false);
-  renameID.sub(updateModals, false);
-  updateModals();
 
+      if (!shown) {
+        const newName = new Date().toUTCString();
+        inputCreate.value = newName;
+        newRequestName.update(() => newName);
+        modalCreate.show();
+        shown = true;
+      }
+    }
+  }());
+  renameID.sub(function*() {
+    let shown = true; // NOTE: to trigger first call to set it to false
+    while (true) {
+      const renameID = yield;
+      if (renameID === undefined) {
+        if (shown) {
+          modalRename.hide();
+          shown = false;
+        }
+        continue;
+      }
 
-  const el_main = m("div", {
-    style: {
-      color: "rgba(255, 255, 255, 0.82)",
-      backgroundColor: "rgb(16, 16, 20)",
-      overflow: "hidden",
-    }}, [
-      el_empty_state,
-      el_layout,
-    ]);
-  const app_container = NSplit(el_aside, el_main, {direction: "horizontal", sizes: ["300px", "1fr"]}).element;
+      inputRename.value = store.requestsTree.value.IDs[renameID];
+      if (!shown) {
+        modalRename.show();
+        shown = true;
+      }
+    }
+  }());
 
   document.body.appendChild(globalDropdown.el);
 
