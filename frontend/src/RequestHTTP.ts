@@ -7,7 +7,7 @@ import EditorJSON from "./components/EditorJSON.ts";
 import ViewJSON from "./components/ViewJSON.ts";
 import ParamsList from "./components/ParamsList.ts";
 import {type get_request, last_history_entry} from "./store.ts";
-import {DOMNode, m, setDisplay, Signal} from "./utils.ts";
+import {m, setDisplay, Signal} from "./utils.ts";
 
 type Request = database.HTTPRequest;
 
@@ -23,7 +23,7 @@ type Request = database.HTTPRequest;
 //   return "text";
 // };
 
-function responseBadge(response: database.HTTPResponse): DOMNode {
+function responseBadge(response: database.HTTPResponse): HTMLElement {
   const code = response.code;
   return NTag({
     type: (
@@ -69,49 +69,64 @@ export default function(
 
   const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
+  const tbody = m("tbody", {});
+  const el_headers_table = NTable({
+    size: "small",
+    "single-column": true,
+    "single-line": false,
+    style: {
+      borderCollapse: "collapse",
+    },
+  }, [
+    m("colgroup", {},
+      m("col", {style: {width: "30%"}}),
+      m("col", {style: {width: "70%"}}),
+    ),
+    m("thead", {},
+      m("tr", {},
+        m("th", {}, "NAME"),
+        m("th", {}, "VALUE"),
+      ),
+    ),
+    tbody,
+  ]);
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
+  const badgeContainer = m("span", {});
+  let tabsReplaced = false;
+  const tabsElement = NTabs({
+    tabs: [
+      {
+        name: badgeContainer,
+        disabled: true,
+      },
+      {
+        name: "Body",
+        elem: el_view_response_body.el,
+      },
+      {
+        name: "Headers",
+        style: {
+          flexGrow: "1",
+          overflowY: "auto",
+        },
+        elem: el_headers_table,
+      },
+    ],
+  });
   const update_response = (response: database.HTTPResponse | undefined) => {
     if (response === undefined)
       return;
 
-    el_response.replaceChildren(NTabs({
-      tabs: [
-        {
-          name: responseBadge(response),
-          disabled: true,
-        },
-        {
-          name: "Body",
-          elem: el_view_response_body.el,
-        },
-        {
-          name: "Headers",
-          style: {
-            flexGrow: "1",
-            overflowY: "auto",
-          },
-          elem: NTable({
-            size: "small",
-            "single-column": true,
-            "single-line": false,
-            style: {
-              "border-collapse": "collapse",
-            },
-          }, [
-            m("colgroup", {},
-              m("col", {style: {width: "30%"}}),
-              m("col", {style: {width: "70%"}}),
-            ),
-            m("thead", m("tr", {}, m("th", {}, "NAME"), m("th", {}, "VALUE"))),
-            ...response.headers.map(header => m("tr", {},
-              m("td", {style: {border: "1px solid #444"}}, header.key),
-              m("td", {style: {border: "1px solid #444", wordBreak: "break-word"}}, header.value),
-            )),
-          ]),
-        },
-      ],
-    }));
+    badgeContainer.replaceChildren(responseBadge(response));
     el_view_response_body.update(response.body);
+    tbody.replaceChildren(...response.headers.map(header => m("tr", {},
+      m("td", {style: {border: "1px solid #444"}}, header.key),
+      m("td", {style: {border: "1px solid #444", wordBreak: "break-word"}}, header.value),
+    )));
+    if (!tabsReplaced) {
+      el_response.replaceChildren(tabsElement);
+      tabsReplaced = true;
+    }
   };
 
   return {
