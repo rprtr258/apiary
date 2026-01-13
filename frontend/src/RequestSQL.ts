@@ -53,24 +53,26 @@ type DataTableProps = {
   rows: RowValue[][],
   types: string[],
 };
-function DataTable({columns, rows, types}: DataTableProps) {
+function DataTable() {
   const tableBorderStyle: Partial<CSSStyleDeclaration> = {
     tableLayout: "fixed",
     border: "1px solid #888",
     borderCollapse: "collapse",
     padding: "3px 5px",
   };
-  return m("table", {style: tableBorderStyle}, [
-    m("thead", {}, [
-      m("tr", {}, columns.map((c, i) =>
-        m("th", {style: tableBorderStyle}, render_column(c, types[i])))),
-    ]),
-    m("tbody", {}, rows.map(r =>
-      m("tr", {}, columns.map((_, i) =>
-        m("td", {
-          style: tableBorderStyle,
-        }, render(r[i])))))),
-  ]);
+  const thead = m("thead", {});
+  const tbody = m("tbody", {});
+  const el = m("table", {style: tableBorderStyle}, [thead, tbody]);
+  return {
+    el,
+    update({columns, rows, types}: DataTableProps) {
+      thead.replaceChildren(m("tr", {}, columns.map((c, i) =>
+        m("th", {style: tableBorderStyle}, render_column(c, types[i])))));
+      tbody.replaceChildren(...rows.map(r =>
+        m("tr", {}, columns.map((_, i) =>
+          m("td", {style: tableBorderStyle}, render(r[i]))))));
+    },
+  };
 }
 
 export default function(
@@ -86,23 +88,23 @@ export default function(
   unmount(): void,
 } {
   el.append(NEmpty({description: "Loading request..."}));
+  const dataTable = DataTable();
+  const el_scrollable = NScrollbar(dataTable.el);
   const el_response = NEmpty({description: "Run query or choose one from history."});
   const push_response = (response: database.SQLResponse | undefined) => {
-    if (response === undefined) return;
+    if (response === undefined)
+      return;
 
     // TODO: fix duplicate column names
     el_response.style.justifyContent = "";
-    el_response.replaceChildren(NScrollbar(DataTable({
-      columns: response.columns,
-      rows: response.rows as RowValue[][],
-      types: response.types,
-    })));
+    dataTable.update({columns: response.columns, rows: response.rows as RowValue[][], types: response.types});
   };
   const unmounts: (() => void)[] = [];
 
   return {
     loaded: (r: get_request): void => {
       push_response(last_history_entry(r)?.response as database.SQLResponse | undefined);
+      el_response.replaceChildren(el_scrollable);
 
       const request = r.request as Request;
       const el_run = NButton({
