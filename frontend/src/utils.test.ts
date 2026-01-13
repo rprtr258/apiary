@@ -77,14 +77,14 @@ describe("signal", () => {
 
   test("updates value and notifies subscribers", () => {
     const sig = signal(0);
-    const callback = mock((v: number) => void v);
+    const callback = mock((v: number, old: number) => void [v, old]);
 
     sig.sub(callback, false);
     sig.update(v => v + 1);
 
     expect(sig.value).toBe(1);
     expect(callback).toHaveBeenCalledTimes(1);
-    expect(callback).toHaveBeenCalledWith(1);
+    expect(callback).toHaveBeenCalledWith(1, 0, false);
   });
 
   test("unsubscribes correctly", () => {
@@ -108,7 +108,7 @@ describe("signal", () => {
     sig.update(v => v + 1);
 
     expect(callback).toHaveBeenCalledTimes(1);
-    expect(callback).toHaveBeenCalledWith(1);
+    expect(callback).toHaveBeenCalledWith(1, 0, false);
   });
 
   test("does not notify if value unchanged", () => {
@@ -119,5 +119,15 @@ describe("signal", () => {
     sig.update(v => v); // same value
 
     expect(callback).toHaveBeenCalledTimes(0);
+  });
+
+  test("calls subscriber immediately when immediate is true", () => {
+    const sig = signal(42);
+    const callback = mock((v: number, old: number) => void [v, old]);
+
+    sig.sub(callback, true);
+
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledWith(42, undefined, true);
   });
 });
