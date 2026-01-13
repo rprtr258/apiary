@@ -63,8 +63,6 @@ export default function(
 } {
   el.append(NEmpty({description: "Loading request..."}));
 
-  const el_response = NEmpty({description: "Send request or choose one from history."});
-
   const el_error = m("div", {
     style: {
       display: "none",
@@ -79,8 +77,12 @@ export default function(
   });
 
   let id: string | undefined = undefined;
-  let responseContainer: HTMLElement | undefined = undefined;
-  let lastScrollTop = 0;
+  const el_response = m("div", {
+    class: "h100 markdown-body",
+    style: {
+      overflowY: "auto",
+    },
+  });
   const unmounts: (() => void)[] = [];
 
   const update_response = () => {
@@ -95,26 +97,15 @@ export default function(
         const response = res.value.response as database.MDResponse;
 
         // Save scroll position before update
-        if (responseContainer !== undefined) {
-          lastScrollTop = responseContainer.scrollTop;
-        }
+        const lastScrollTop = el_response.scrollTop;
 
-        // Create a new container with the result
-        const newContainer = m("div", {
-          class: "h100 markdown-body",
-          style: {
-            overflowY: "scroll",
-          },
-          innerHTML: response.data,
-        });
+        // Update innerHTML of existing container
+        el_response.innerHTML = response.data;
 
         // Restore scroll position after rendering
         requestAnimationFrame(() => {
-          newContainer.scrollTop = lastScrollTop;
+          el_response.scrollTop = lastScrollTop;
         });
-
-        responseContainer = newContainer;
-        el_response.replaceChildren(newContainer);
       }
     }).catch(alert);
   };
