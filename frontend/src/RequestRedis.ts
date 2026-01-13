@@ -5,7 +5,7 @@ import ViewJSON from "./components/ViewJSON.ts";
 import EditorJSON from "./components/EditorJSON.ts";
 import {database} from "../wailsjs/go/models.ts";
 import {get_request, last_history_entry} from "./store.ts";
-import {m, signal, Signal, setDisplay} from "./utils.ts";
+import {m, Signal, setDisplay, signal} from "./utils.ts";
 import {HistoryEntry} from "./api.ts";
 
 type Request = {kind: database.Kind.REDIS} & database.RedisRequest;
@@ -23,13 +23,13 @@ export default function(
   unmount(): void,
 } {
   el.append(NEmpty({description: "Loading request..."}));
+  const el_empty_response = NEmpty({description: "Send request or choose one from history."});
 
   const el_send = NButton({
     type: "primary",
     on: {click: on.send},
     disabled: false,
   }, "Send");
-  const el_empty_response = NEmpty({description: "Send request or choose one from history."});
   const response = signal<database.RedisResponse | undefined>(undefined);
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
@@ -40,17 +40,25 @@ export default function(
     });
   };
   const el_response = m("div", {class: "h100"});
-  unmounts.push(response.sub((r, old, first) => {
-    if (r === undefined) {
-      if (old !== undefined || first)
-        el_response.replaceChildren(el_empty_response);
-      return;
-    }
+  unmounts.push(response.sub(function*() {
+    let is_empty = false; // NOTE: to trigger first call to set it to true
+    while (true) {
+      const r = yield;
+      if (r === undefined) {
+        if (!is_empty) {
+          el_response.replaceChildren(el_empty_response);
+          is_empty = true;
+        }
+        continue;
+      }
 
-    el_view_response_body.update(r.response);
-    if (old === undefined)
-      el_response.replaceChildren(el_view_response_body.el);
-  }, true));
+      el_view_response_body.update(r.response);
+      if (is_empty) {
+        el_response.replaceChildren(el_view_response_body.el);
+        is_empty = false;
+      }
+    }
+  }()));
 
   return {
     loaded: (r: get_request) => {
@@ -87,10 +95,13 @@ export default function(
           flexDirection: "column",
         },
       }, el_input_group, split.element);
-      unmounts.push(show_request.sub(show_request => {
-        split.leftVisible = show_request;
-        setDisplay(el_input_group, show_request);
-      }, true));
+      unmounts.push(show_request.sub(function*() {
+        while (true) {
+          const show_request = yield;
+          split.leftVisible = show_request;
+          setDisplay(el_input_group, show_request);
+        }
+      }()));
       el.replaceChildren(el_container);
     },
     push_history_entry(he: HistoryEntry) {

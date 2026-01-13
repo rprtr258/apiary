@@ -213,9 +213,9 @@ function Dropdown() {
     boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
     minWidth: "120px",
   }});
-  open.sub(v => setDisplay(el, v), true);
+  open.sub(function*() {while(true) setDisplay(el, yield);}());
   document.addEventListener("click", e => {
-    if (!el.contains(e.target as Node) && open.value)
+    if (!el.contains(e.target as Node))
       open.update(() => false);
   });
 
@@ -241,36 +241,30 @@ function Dropdown() {
 export const globalDropdown = Dropdown();
 
 export function Sidebar(sidebarHidden: Signal<boolean>) {
-  const collapseButtonStates: Map<boolean, (string | DOMNode & Node)[]> = new Map([
-    [true, [
-      NIcon({component: DoubleRightOutlined}),
-    ]],
-    [false, [
-      NIcon({component: DoubleLeftOutlined}),
-      "hide",
-    ]],
-  ]);
+  const collapseButtonClosed = [NIcon({component: DoubleRightOutlined})];
+  const collapseButtonOpen = [NIcon({component: DoubleLeftOutlined}), "hide"];
   const collapseButton = m("button", {
     id: "collapse-button",
     type: "button",
-    class: "h100",
     style: {
+      height: "3em",
       color: "black",
       display: "flex",
       gap: ".5em",
       justifyContent: "center",
       alignItems: "center",
-      cursor: "w-resize",
     },
-  }, collapseButtonStates.get(sidebarHidden.value)!);
-
-  const updateCollapseButton = () => {
-    collapseButton.replaceChildren(...collapseButtonStates.get(sidebarHidden.value)!);
-    collapseButton.style.cursor = sidebarHidden.value ? "e-resize" : "w-resize";
-  };
+  });
+  sidebarHidden.sub(function*() {
+    while (true) {
+      const sidebarHidden = yield;
+      collapseButton.replaceChildren(...(sidebarHidden ? collapseButtonClosed : collapseButtonOpen));
+      collapseButton.style.cursor = sidebarHidden ? "e-resize" : "w-resize";
+    }
+  }());
 
   const treeContainer = m("div", {style: {minHeight: "0"}});
-  const updateTree = () => {
+  const updateTree = (requestsTree: app.Tree) => {
     const data = (() => {
       const mapper = (tree: app.Tree): TreeOption[] =>
         Object.entries(tree.Dirs).map(([k, v]): TreeOption => ({
@@ -281,7 +275,7 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
             key: id,
             label: basename,
         })));
-      return mapper(store.requestsTree.value);
+      return mapper(requestsTree);
     })();
     treeContainer.replaceChildren(NScrollbar(
       NTree({
@@ -319,10 +313,9 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
       }),
     ));
   };
-  store.requestsTree.sub(updateTree, true);
+  store.requestsTree.sub(function*() {while (true) updateTree(yield);}());
 
   const new_select = NSelect<database.Kind>({
-    label: newRequestKind.value?.toUpperCase(),
     on: {update: (value: database.Kind) => {
       newRequestKind.update(() => value);
       new_select.reset();
@@ -337,11 +330,13 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
   const el_aside = m("aside", {style: {
     color: "rgba(255, 255, 255, 0.82)",
     backgroundColor: "rgb(24, 24, 28)",
-    display: "grid",
-    gridTemplateRows: "95% 5%",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
     height: "100vh",
   }},
     NTabs({
+      style: {minHeight: "0"},
       tabs: [
         {
           name: "Collection",
@@ -379,13 +374,15 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
     }),
     collapseButton,
   );
+  sidebarHidden.sub(function*() {
+    while (true) {
+      const sidebarHidden = yield;
+      el_aside.style.gridTemplateRows = sidebarHidden ? "1fr" : "95% 5%";
+      setDisplay(el_aside.children[0] as HTMLElement, !sidebarHidden);
+    }
+  }());
 
-  collapseButton.onclick = () => {
-    sidebarHidden.update(v => !v);
-    el_aside.style.gridTemplateRows = sidebarHidden.value ? "1fr" : "95% 5%";
-    setDisplay(el_aside.children[0] as HTMLElement, !sidebarHidden.value);
-    updateCollapseButton();
-  };
+  collapseButton.onclick = () => sidebarHidden.update(v => !v);
 
   return {
     el: el_aside,

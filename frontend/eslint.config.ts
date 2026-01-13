@@ -50,7 +50,7 @@ export default defineConfig([
       "@typescript-eslint/no-misused-promises": ["off"],
       "@typescript-eslint/no-unused-vars": ["off"/*"error", {argsIgnorePattern: "^_"}*/], // TODO: get back
       "@typescript-eslint/strict-boolean-expressions": "error",
-      "@typescript-eslint/no-unnecessary-condition": "error",
+      "@typescript-eslint/no-unnecessary-condition": ["error", {"allowConstantLoopConditions": true}],
       // "@typescript-eslint/no-non-null-assertion": "error", // TODO: get back maybe
       "@typescript-eslint/restrict-plus-operands": ["error", {
         allowAny: false,
