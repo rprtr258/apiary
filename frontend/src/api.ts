@@ -83,6 +83,8 @@ export type HistoryEntry = {
 
 export type RowValue = string | number | boolean | null;
 
+export type TableInfo = database.TableInfo;
+
 function parseTime(s: string): Date {
   const d = new Date();
   d.setTime(Date.parse(s));
@@ -95,6 +97,7 @@ async function wrap<T>(f: () => Promise<T>, args: unknown): Promise<Result<T>> {
     console.log("FETCH", f, args, res);
     return ok(res);
   } catch (e) {
+    console.log("FETCH FAIL", f, args, e);
     return err(String(e));
   }
 }
@@ -172,12 +175,32 @@ export const api = {
     id: string,
     query: string,
   ): Promise<Result<HistoryEntry>> {
-    return await wrap(() => App.PerformSQLSource(id, query), {reqId: id}) as Result<HistoryEntry>;
+    return await wrap(() => App.PerformSQLSource(id, query), {reqId: id, query}) as Result<HistoryEntry>;
   },
 
   async requestTestSQLSource(
     id: string,
   ): Promise<Result<void>> {
     return await wrap(() => App.TestSQLSource(id), {reqId: id});
+  },
+
+  async requestListTablesSQLSource(
+    id: string,
+  ): Promise<Result<TableInfo[]>> {
+    return await wrap(() => App.ListTablesSQLSource(id), {reqId: id});
+  },
+
+  async requestDescribeTableSQLSource(
+    id: string,
+    tableName: string,
+  ): Promise<Result<database.TableSchema>> {
+    return await wrap(() => App.DescribeTableSQLSource(id, tableName), {reqId: id, tableName});
+  },
+
+  async requestCountRowsSQLSource(
+    id: string,
+    tableName: string,
+  ): Promise<Result<number>> {
+    return await wrap(() => App.CountRowsSQLSource(id, tableName), {reqId: id, tableName});
   },
 };

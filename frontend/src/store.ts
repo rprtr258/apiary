@@ -1,5 +1,5 @@
 import {ComponentItem, ComponentItemConfig, ContentItem, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedLayoutConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig} from "golden-layout";
-import {api, type RequestData, type HistoryEntry, Request} from "./api.ts";
+import {api, type RequestData, type HistoryEntry, Request, TableInfo} from "./api.ts";
 import {app} from "../wailsjs/go/models.ts";
 import {signal, Signal} from "./utils.ts";
 
@@ -17,15 +17,22 @@ export const notification = useNotification();
 
 type ConfigNode = ResolvedRowOrColumnItemConfig | ResolvedStackItemConfig | ResolvedComponentItemConfig;
 
-function* dfs(c: ConfigNode): Generator<string, void, void> {
+function* dfs<State>(c: ConfigNode): Generator<State, void, void> {
   if (c.type === "component") {
-    yield (c.componentState! as {id: string}).id;
+    yield (c.componentState! as State);
   } else {
     for (const child of c.content) {
       yield* dfs(child);
     }
   }
 };
+
+export type viewerState = {
+  sqlSourceID: string,
+  tableName: string,
+  tableInfo: TableInfo,
+};
+export type panelkaState = {id: string};
 
 let layoutConfig: LayoutConfig = {
   header: {
@@ -86,6 +93,7 @@ export type Store = {
   requestsTree : Signal<app.Tree>,
   requests : Record<string, app.requestPreview>,
   requests2: Record<string, get_request>,
+  requestNames: Record<string, string>,
   load: () => void,
   layoutConfig: LayoutConfig,
   layout: GoldenLayout | undefined,
@@ -97,6 +105,7 @@ export type Store = {
   duplicate(id: string): Promise<void>,
   deleteRequest(id: string): Promise<void>,
   rename(id: string, newID: string): Promise<void>,
+  openTableViewer(sqlSourceID: string, tableName: string, tableInfo: TableInfo): void,
 };
 export function useStore(): Store {
   const load = () => {
@@ -124,6 +133,7 @@ export function useStore(): Store {
     requestsTree : signal(new app.Tree({IDs: {}, Dirs: {}})),
     requests : {} as Record<string, app.requestPreview>,
     requests2: {} as Record<string, get_request>,
+    requestNames: {} as Record<string, string>,
     load,
     layoutConfig,
     layout: undefined as GoldenLayout | undefined,
@@ -140,7 +150,7 @@ export function useStore(): Store {
     },
     selectRequest(id: string): void {
       const cfg = this.layout!.saveLayout();
-      if (cfg.root !== undefined && dfs(cfg.root).find(tabID => tabID === id) !== undefined) {
+      if (cfg.root !== undefined && dfs<panelkaState>(cfg.root).find(t => t.id === id) !== undefined) {
         return;
       }
       this.layout?.addItem(panelka(id));
@@ -169,6 +179,13 @@ export function useStore(): Store {
       }
 
       this.requestsTree.update(() => res.Tree);
+
+      function* mapper(tree: app.Tree): Generator<[string, string]> {
+        yield* Object.entries(tree.IDs);
+        for (const subtree of Object.values(tree.Dirs))
+          yield* mapper(subtree);
+      };
+      this.requestNames = Object.fromEntries(mapper(res.Tree));
     },
     async createRequest(id: string, kind: RequestData["kind"]): Promise<void> {
       const res = await api.requestCreate(id, kind);
@@ -213,6 +230,19 @@ export function useStore(): Store {
       this.requests[newID] = Object.assign({}, this.requests[id]);
       // tabs.value?.map.rename(id, newID);
       await this.fetch();
+    },
+    openTableViewer(sqlSourceID: string, tableName: string, tableInfo: TableInfo): void {
+      const cfg = this.layout!.saveLayout();
+      if (cfg.root !== undefined && dfs<viewerState>(cfg.root).find(t => t.sqlSourceID === sqlSourceID && t.tableName === tableName) !== undefined)
+        return;
+
+      const sourceName = this.requestNames[sqlSourceID] || sqlSourceID;
+      this.layout?.addItem({
+        type: "component",
+        title: `${sourceName}/${tableName}`,
+        componentType: "TableViewer",
+        componentState: {sqlSourceID, tableName, tableInfo},
+      });
     },
   };
 }
@@ -277,9 +307,9 @@ store.requestsTree.sub(function*() {
 
     const openTabIds = new Map<string, ComponentItem>();
     function dfs(c: ContentItem): void {
-      if (((c): c is ComponentItem => c.isComponent)(c)) {
-        openTabIds.set((c.toConfig().componentState as {id: string}).id, c);
-      } else {
+      if (((c): c is ComponentItem => c.isComponent)(c) && c.componentType === "MyComponent") {
+        openTabIds.set((c.toConfig().componentState as panelkaState).id, c);
+      } else if (!c.isComponent) {
         for (const child of c.contentItems) {
           dfs(child);
         }

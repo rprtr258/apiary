@@ -142,15 +142,6 @@ export namespace app {
 
 export namespace database {
 	
-	export enum Kind {
-	    HTTP = "http",
-	    SQL = "sql",
-	    JQ = "jq",
-	    MD = "md",
-	    REDIS = "redis",
-	    GRPC = "grpc",
-	    SQLSource = "sql-source",
-	}
 	export enum Database {
 	    POSTGRES = "postgres",
 	    MYSQL = "mysql",
@@ -162,6 +153,49 @@ export namespace database {
 	    NUMBER = "number",
 	    TIME = "time",
 	    BOOLEAN = "boolean",
+	}
+	export enum Kind {
+	    MD = "md",
+	    REDIS = "redis",
+	    GRPC = "grpc",
+	    SQLSource = "sql-source",
+	    HTTP = "http",
+	    SQL = "sql",
+	    JQ = "jq",
+	}
+	export class ColumnInfo {
+	    name: string;
+	    type: string;
+	    nullable: boolean;
+	    defaultValue: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ColumnInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.type = source["type"];
+	        this.nullable = source["nullable"];
+	        this.defaultValue = source["defaultValue"];
+	    }
+	}
+	export class ConstraintInfo {
+	    name: string;
+	    type: string;
+	    definition: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConstraintInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.type = source["type"];
+	        this.definition = source["definition"];
+	    }
 	}
 	export class KV {
 	    key: string;
@@ -316,6 +350,20 @@ export namespace database {
 		    }
 		    return a;
 		}
+	}
+	export class IndexInfo {
+	    name: string;
+	    definition: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new IndexInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.definition = source["definition"];
+	    }
 	}
 	export class JQRequest {
 	    query: string;
@@ -512,6 +560,56 @@ export namespace database {
 	        this.database = source["database"];
 	        this.dsn = source["dsn"];
 	    }
+	}
+	export class TableInfo {
+	    name: string;
+	    rowCount: number;
+	    sizeBytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new TableInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.rowCount = source["rowCount"];
+	        this.sizeBytes = source["sizeBytes"];
+	    }
+	}
+	export class TableSchema {
+	    columns: ColumnInfo[];
+	    constraints: ConstraintInfo[];
+	    indexes: IndexInfo[];
+	
+	    static createFrom(source: any = {}) {
+	        return new TableSchema(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.columns = this.convertValues(source["columns"], ColumnInfo);
+	        this.constraints = this.convertValues(source["constraints"], ConstraintInfo);
+	        this.indexes = this.convertValues(source["indexes"], IndexInfo);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

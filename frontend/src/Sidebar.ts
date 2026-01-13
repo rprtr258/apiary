@@ -3,8 +3,8 @@ import {NEmpty, NIcon, NList, NListItem, NTag, NTree, treeLabelClass, TreeOption
 import {ContentCopyFilled, CopySharp, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, EditOutlined} from "./components/icons.ts";
 import {NSelect} from "./components/input.ts";
 import {NScrollbar, NTabs} from "./components/layout.ts";
-import {api, HistoryEntry, Kinds, Method} from "./api.ts";
-import {store, useNotification} from "./store.ts";
+import {api, HistoryEntry, Kinds, Method, TableInfo} from "./api.ts";
+import {notification, store, useNotification} from "./store.ts";
 import {DOMNode, m, setDisplay, signal, Signal} from "./utils.ts";
 
 function basename(id: string): string {
@@ -13,6 +13,46 @@ function basename(id: string): string {
 
 function dirname(id: string): string {
   return id.split("/").slice(0, -1).join("/");
+}
+
+const units = ["B", "KiB", "MiB", "GiB", "TiB"] as const;
+function formatSize(bytes: number): string {
+  if (bytes < 1024)
+    return `${bytes} B`;
+
+  const unitIndex = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
+  const size = bytes / Math.pow(1024, unitIndex);
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
+}
+
+function formatTableLabel(args: {
+  name: string,
+  rowCount: number,
+  sizeBytes: number,
+}): string {
+  const {name, rowCount: rows, sizeBytes: bytes} = args;
+  return `${name} (${rows.toLocaleString()} rows, ${formatSize(bytes)})`;
+}
+
+const tableCache: Record<string, {tables: Record<string, TableInfo>, lastFetch: number}> = {};
+
+async function fetchTables(sqlSourceID: string): Promise<void> {
+  // Clear cache to force fresh fetch
+  delete tableCache[sqlSourceID];
+
+  const res = await api.requestListTablesSQLSource(sqlSourceID);
+  if (res.kind === "err") {
+    notification.error({title: "Could not fetch tables", error: res.value});
+    return;
+  }
+
+  tableCache[sqlSourceID] = {
+    lastFetch: Date.now(),
+    tables: Object.fromEntries(res.value.map(t => [t.name, t])),
+  };
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -178,7 +218,7 @@ function showContextMenu(id: string, event: MouseEvent): void {
       },
     },
   ];
-  const options = preOptions.filter(opt => opt.show === undefined || opt.show).map(opt => {
+  const options = preOptions.filter(opt => opt.show !== false).map(opt => {
     const res = m("div", {
       style: {
         padding: "8px 12px",
@@ -198,9 +238,7 @@ function showContextMenu(id: string, event: MouseEvent): void {
     }, opt.icon ?? null, opt.label);
     return res;
   });
-  globalDropdown.el.replaceChildren(...options);
-  globalDropdown.moveTo(event.clientX, event.clientY);
-  globalDropdown.show();
+  globalDropdown.show(event.clientX, event.clientY, options);
 }
 
 function Dropdown() {
@@ -223,19 +261,28 @@ function Dropdown() {
 
   return {
     el,
-    show() {
-      open.update(() => true);
-      const x = clamp(parseFloat(cutEnd(el.style.left, "px")), 0, window.innerWidth - el.offsetWidth);
-      const y = clamp(parseFloat(cutEnd(el.style.top, "px")), 0, window.innerHeight - el.offsetHeight);
+    show(
+      x: number,
+      y: number,
+      options: HTMLElement[],
+    ) {
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
+
+      el.replaceChildren(...options);
+      open.update(() => true);
+
+      // NOTE: we can go out of window (literally),
+      // so we have to adjust dropdown position to be inside if possible
+      {
+        const x = clamp(parseFloat(cutEnd(el.style.left, "px")), 0, window.innerWidth - el.offsetWidth);
+        const y = clamp(parseFloat(cutEnd(el.style.top, "px")), 0, window.innerHeight - el.offsetHeight);
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+      }
     },
     hide() {
       open.update(() => false);
-    },
-    moveTo(x: number, y: number) {
-      el.style.left = `${x}px`;
-      el.style.top = `${y}px`;
     },
   };
 }
@@ -266,18 +313,26 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
   }());
 
   const treeContainer = m("div", {style: {minHeight: "0"}});
-  const updateTree = () => {
-    const requestsTree = store.requestsTree.value;
+  function updateTree(requestsTree: app.Tree) {
     const data = (() => {
       const mapper = (tree: app.Tree): TreeOption[] =>
         Object.entries(tree.Dirs).map(([k, v]): TreeOption => ({
           key: k,
           label: basename(k),
           children: mapper(v),
-        })).concat(Object.entries(tree.IDs).map(([id, basename]) => ({
-            key: id,
-            label: basename,
-        })));
+        })).concat(Object.entries(tree.IDs).map(([id, basename]) => {
+            const req = store.requests[id];
+            const isSQLSource = id in store.requests && req.Kind === database.Kind.SQLSource;
+            const children = isSQLSource && id in tableCache && Object.keys(tableCache[id].tables).length > 0
+              ? Object.values(tableCache[id].tables).map(table => ({
+                  key: `virtual:${id}:${table.name}`,
+                  label: formatTableLabel(table),
+                }))
+              : undefined;
+            const item: TreeOption = {key: id, label: basename};
+            if (children) item.children = children;
+            return item;
+        }));
       return mapper(requestsTree);
     })();
     treeContainer.replaceChildren(NScrollbar(
@@ -285,8 +340,15 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
         defaultExpandedKeys: expandedKeysSignal.value,
         data,
         on: {
-          "update:expanded-keys": (keys: string[]) => {
+          "update:expanded-keys": async (keys: string[]) => {
             expandedKeysSignal.update(() => keys);
+            // Fetch tables for newly expanded SQLSource
+            const sqlSourceKeys = keys.filter(key =>
+              key in store.requests
+              && store.requests[key].Kind === database.Kind.SQLSource
+              && (!(key in tableCache) || Date.now() - tableCache[key].lastFetch > 300000)); // 5 min cache
+            await Promise.all(sqlSourceKeys.map(key => fetchTables(key)));
+            updateTree(store.requestsTree.value); // Re-render after fetch
           },
           drop: drag,
           context_menu: (option: TreeOption, event: MouseEvent) => {
@@ -294,22 +356,46 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
           },
           click: (v: TreeOption) => {
             const id = v.key;
-            if (v.disabled !== true) {
+            if (id.startsWith("virtual:")) {
+              const parts = id.split(":");
+              if (parts.length !== 3)
+                return;
+              const [, sqlSourceID, tableName] = parts;
+              if (!(tableName in tableCache[sqlSourceID].tables))
+                return;
+              const tableInfo = tableCache[sqlSourceID].tables[tableName];
+              store.openTableViewer(sqlSourceID, tableName, tableInfo);
+            } else if (v.disabled !== true) {
               store.selectRequest(id);
             }
           },
         },
         render: (option: TreeOption, _level: number, _expanded: boolean): DOMNode => {
-          if (option.children !== undefined) { // Directory
+          if (option.children !== undefined && !(option.key in store.requests)) // Directory
             return m("span", {class: treeLabelClass}, option.label);
-          }
 
           // Request
-          if (!(option.key in store.requests))
+          const isVirtual = option.key.startsWith("virtual:");
+          if (!isVirtual && !(option.key in store.requests))
             return null;
+
+          if (isVirtual) {
+            // Virtual table item
+            return m("span", {
+              style: {fontStyle: "italic"},
+            },
+            NTag({
+              type: "info",
+              style: {width: "4em", justifyContent: "center", color: "grey", fontStyle: "italic"},
+              size: "small",
+            }, "TABLE"),
+            option.label);
+          }
 
           const req = store.requests[option.key];
           const [method, color] = badge(req);
+          const isSQLSource = req.Kind === database.Kind.SQLSource;
+
           return [
             NTag({
               type: (req.Kind === database.Kind.HTTP ? "success" : "info") as "success" | "info" | "warning",
@@ -326,14 +412,29 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
             }, method),
             m("span", {
               class: treeLabelClass,
+              style: {flex: "1", minWidth: "0"},
+              onclick: (e: MouseEvent) => {
+                e.stopPropagation();
+                store.selectRequest(option.key);
+              },
             }, option.label),
+            ...(isSQLSource ?  [m("button", {
+              onclick: e => {
+                e.stopPropagation();
+                fetchTables(option.key).then(() => {
+                  updateTree(store.requestsTree.value); // Re-render
+                });
+              },
+              style: {fontSize: "12px", width: "1.5em", height: "1.5em"},
+              title: "Refresh tables",
+            }, "↻")] : []),
           ];
         },
       }),
     ));
-  };
-  store.requestsTree.sub(function*() {while (true) { updateTree(); yield; }}());
-  expandedKeysSignal.sub(function*() {while (true) { updateTree(); yield; }}());
+  }
+  store.requestsTree.sub(function*() {while (true) { updateTree(store.requestsTree.value); yield; }}());
+  expandedKeysSignal.sub(function*() {while (true) { updateTree(store.requestsTree.value); yield; }}());
 
   const new_select = NSelect<database.Kind>({
     on: {update: (value: database.Kind) => {

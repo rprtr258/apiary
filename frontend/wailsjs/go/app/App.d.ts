@@ -3,9 +3,13 @@
 import {database} from '../models';
 import {app} from '../models';
 
+export function CountRowsSQLSource(arg1:string,arg2:string):Promise<number>;
+
 export function Create(arg1:string,arg2:database.Kind):Promise<app.ResponseNewRequest>;
 
 export function Delete(arg1:string):Promise<void>;
+
+export function DescribeTableSQLSource(arg1:string,arg2:string):Promise<database.TableSchema>;
 
 export function Duplicate(arg1:string):Promise<app.ResponseNewRequest>;
 
@@ -20,6 +24,8 @@ export function Get(arg1:string):Promise<app.GetResponse>;
 export function JQ(arg1:string,arg2:string):Promise<Array<string>>;
 
 export function List():Promise<app.ListResponse>;
+
+export function ListTablesSQLSource(arg1:string):Promise<Array<database.TableInfo>>;
 
 export function Perform(arg1:string):Promise<Record<string, any>>;
 

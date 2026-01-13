@@ -92,7 +92,7 @@ export const treeLabelClass = css(`
   cursor: pointer;
   text-overflow: ellipsis;
   white-space: nowrap;
-  overflow: hidden;
+  overflow: clip;
 `);
 const treeButtonClass = css(`
   width: 100%;
@@ -138,10 +138,18 @@ export function NTree(props: NTreeProps) {
     const isExpanded = props.defaultExpandedKeys.includes(v.key);
     const isDir = v.children !== undefined;
 
-    const button = m("button", {
+    const button = m("span", {
       class: `${treeButtonHoverClass} ${treeButtonClass}`,
       style: {
         paddingLeft: `${level * 1.5}em`,
+        boxSizing: "border-box",
+      },
+      tabIndex: 0,
+      onkeydown: (e: KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          (e.target as HTMLElement).click();
+        }
       },
       onclick: (e: Event) => {
         e.stopPropagation();

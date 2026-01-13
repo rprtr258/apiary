@@ -35,6 +35,8 @@
       margin: 0;
       --row-even: #020202;
       --row-odd: #101010;
+      --row-highlight: #202020;
+      --col-highlight: #202020;
     }
 
     table {
@@ -44,12 +46,19 @@
       column-width: 50%;
       text-align: left; */
     }
+    th:hover {
+      background-color: var(--col-highlight) !important; /* NOTE: in order to override inline styles */
+    }
     table tr:nth-child(odd) {
       background-color: var(--row-odd);
     }
     table tr:nth-child(even) {
       background-color: var(--row-even);
     }
+    td:hover {
+      background-color: var(--row-highlight);
+    }
+
     textarea {
       height: 100%;
     }

@@ -9,13 +9,14 @@ import RequestGRPC from "./RequestGRPC.ts";
 import RequestJQ from "./RequestJQ.ts";
 import RequestRedis from "./RequestRedis.ts";
 import RequestMD from "./RequestMD.ts";
-import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs, update_request, send, last_history_entry, Store} from "./store.ts";
+import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs, update_request, send, last_history_entry, Store, viewerState, panelkaState} from "./store.ts";
 import {Kinds, HistoryEntry, Request} from "./api.ts";
 import {database} from "../wailsjs/go/models.ts";
 import Command from "./components/CommandPalette.ts";
 import {m, setDisplay, signal} from "./utils.ts";
 import RequestSQLSource from "./RequestSQLSource.ts";
 import {globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, Sidebar} from "./Sidebar.ts";
+import RequestTableViewer from "./components/TableView.ts";
 
 function create() {
   const kind = newRequestKind.value!;
@@ -175,8 +176,6 @@ type Panelka = {
   el: HTMLElement,
 };
 
-type panelkaState = {id: string};
-
 type Frame = {
   loaded(r: get_request): void,
   push_history_entry?(he: HistoryEntry): void, // show last history entry
@@ -288,6 +287,7 @@ function preApp(root: HTMLElement, store: Store) {
   golden_layout.resizeWithContainerAutomatically = true;
   golden_layout.resizeDebounceInterval = 0;
   golden_layout.registerComponentFactoryFunction("MyComponent", (container, state, _) => panelkaFactory(container, state as panelkaState));
+  golden_layout.registerComponentFactoryFunction("TableViewer", (container, state, _) => RequestTableViewer(container.element, state as viewerState));
   golden_layout.loadLayout(store.layoutConfig);
   golden_layout.on("stateChanged", () => {
     update_empty_state(golden_layout.saveLayout().root === undefined);

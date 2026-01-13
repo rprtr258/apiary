@@ -567,3 +567,42 @@ func (a *App) GRPCQueryValidate(
 ) error {
 	return errors.New("not implemented")
 }
+
+func (a *App) ListTablesSQLSource(requestID string) ([]database.TableInfo, error) {
+	request, err := a.get(database.RequestID(requestID))
+	if err != nil {
+		return nil, errors.Wrapf(err, "get request id=%q", requestID)
+	}
+	if request.Data.Kind() != database.KindSQLSource {
+		return nil, errors.Errorf("request %s is not SQLSource", requestID)
+	}
+
+	req := request.Data.(database.SQLSourceRequest)
+	return database.ListTables(a.ctx, req.Database, req.DSN)
+}
+
+func (a *App) DescribeTableSQLSource(requestID, tableName string) (database.TableSchema, error) {
+	request, err := a.get(database.RequestID(requestID))
+	if err != nil {
+		return database.TableSchema{}, errors.Wrapf(err, "get request id=%q", requestID)
+	}
+	if request.Data.Kind() != database.KindSQLSource {
+		return database.TableSchema{}, errors.Errorf("request %s is not SQLSource", requestID)
+	}
+
+	req := request.Data.(database.SQLSourceRequest)
+	return database.DescribeTable(a.ctx, req.Database, req.DSN, tableName)
+}
+
+func (a *App) CountRowsSQLSource(requestID, tableName string) (int64, error) {
+	request, err := a.get(database.RequestID(requestID))
+	if err != nil {
+		return 0, errors.Wrapf(err, "get request id=%q", requestID)
+	}
+	if request.Data.Kind() != database.KindSQLSource {
+		return 0, errors.Errorf("request %s is not SQLSource", requestID)
+	}
+
+	req := request.Data.(database.SQLSourceRequest)
+	return database.CountRows(a.ctx, req.Database, req.DSN, tableName)
+}
