@@ -1,11 +1,13 @@
 import {test, expect} from "@playwright/test";
 
-test("creates HTTP request via sidebar dropdown", async ({page}) => {
+test.beforeEach(async ({page}) => {
   await page.goto("/");
 
   // Wait for app to load
   await page.waitForSelector("body");
+});
 
+test("creates HTTP request via sidebar dropdown", async ({page}) => {
   // Find the select element for new request kind in sidebar
   const kindSelect = page.locator("select").first(); // Assuming it's the first select in sidebar
 
@@ -46,11 +48,6 @@ test("creates HTTP request via sidebar dropdown", async ({page}) => {
 });
 
 test("creates HTTP request via command palette", async ({page}) => {
-  await page.goto("/");
-
-  // Wait for app to load
-  await page.waitForSelector("body");
-
   // Open command palette with Ctrl+N
   await page.keyboard.press("Control+N");
   return; // TODO: get back
@@ -92,8 +89,6 @@ test("creates HTTP request via command palette", async ({page}) => {
 });
 
 test("handles invalid URL error", async ({page}) => {
-  await page.goto("/");
-
   // Create and open a request
   await page.keyboard.press("Control+N");
   return; // TODO: get back
@@ -123,11 +118,6 @@ test("handles invalid URL error", async ({page}) => {
 });
 
 test("tab closes when request is deleted via sidebar menu", async ({page}) => {
-  await page.goto("/");
-
-  // Wait for app to load
-  await page.waitForSelector("body");
-
   // Find the select element for new request kind in sidebar
   const kindSelect = page.locator("select").first();
 

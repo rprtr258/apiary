@@ -35,10 +35,12 @@ export function clone(n: DOMNode): DOMNode {
 }
 
 function flatten(n: DOMNode): BaseDOMNode[] {
-  return n === null ? [] :
-    n instanceof Node ? [n] :
-    typeof n === "string" ? [n] :
-      n.flatMap(flatten);
+  switch (true) {
+    case n === null: return [];
+    case n instanceof Node: return [n];
+    case typeof n === "string": return [n];
+    default: return n.flatMap(flatten);
+  }
 }
 
 type ElementProps<K extends keyof HTMLElementTagNameMap> =

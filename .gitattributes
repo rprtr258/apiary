@@ -1,3 +1,5 @@
+# TODO: does not work
+frontend/wailsjs/* linguist-generated -diff
 
 # Use bd merge for beads JSONL files
 .beads/issues.jsonl merge=beads

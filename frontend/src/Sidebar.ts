@@ -260,6 +260,7 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
       const sidebarHidden = yield;
       collapseButton.replaceChildren(...(sidebarHidden ? collapseButtonClosed : collapseButtonOpen));
       collapseButton.style.cursor = sidebarHidden ? "e-resize" : "w-resize";
+      collapseButton.style.height = sidebarHidden ? "100%" : "3em";
     }
   }());
 

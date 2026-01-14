@@ -267,6 +267,7 @@ function preApp(root: HTMLElement, store: Store) {
     style: {
       color: "rgba(255, 255, 255, 0.82)",
       backgroundColor: "rgb(16, 16, 20)",
+      overflow: "hidden", // TODO: fix hiding golden-layout element
     }}, [
       el_empty_state,
       el_layout,

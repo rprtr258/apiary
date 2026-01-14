@@ -107,15 +107,15 @@ type NTreeProps = {
   render: (option: TreeOption, checked: boolean, selected: boolean) => DOMNode,
 };
 export function NTree(props: NTreeProps) {
-  const renderElem = (v: TreeOption, level: number): HTMLDivElement =>
-    m("div", {style: {marginLeft: `${level === 0 ? 0 : 1}em`}}, [
-      v.children !== undefined ?
+  function renderElem(v: TreeOption, level: number): HTMLDivElement {
+    const child = v.children !== undefined ?
       m("details", {open: true}, [
         m("summary", {}, [v.label]),
         ...v.children.map(w => renderElem(w, level+1)),
       ]) :
-      m("span", {}, props.render(v, false, false)),
-    ]);
+      m("span", {}, props.render(v, false, false));
+    return m("div", {style: {marginLeft: `${level === 0 ? 0 : 1}em`}}, child);
+  }
   return m("div", {}, props.data.map(v => renderElem(v, 0)));
 };
 
