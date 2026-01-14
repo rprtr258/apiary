@@ -1,5 +1,6 @@
+import {css} from "../styles.ts";
 import {clone, m, DOMNode} from "../utils.ts";
-import {ResultInfo} from "./icons.ts";
+import {ResultInfo, FolderOpenOutlined, FolderOutlined} from "./icons.ts";
 
 export function Json<T>(props: {data: T}) {
   return m("pre", JSON.stringify(props.data, null, 2));
@@ -32,7 +33,7 @@ type NIconProps = {
 };
 export function NIcon(props: NIconProps) {
   return m("div", {class: props.class, style: {
-    width: "1em",
+    width: props.size !== undefined ? `${props.size}px` : "1em",
     display: "inline-block",
     color: props.color,
   }}, [clone(props.component)]);
@@ -87,6 +88,30 @@ export function NListItem(props: NListItemProps, children: DOMNode[]) {
   return m("li", {class: props.class}, children);
 };
 
+export const treeLabelClass = css(`
+  cursor: pointer;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+`);
+const treeButtonClass = css(`
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: inherit;
+  font-size: inherit;
+  padding-top: 1px;
+  padding-bottom: 1px;
+`);
+const treeButtonHoverClass = css.raw(`:hover {
+  background-color: #404040 !important;
+}`);
+
 export type TreeOption = {
   key: string,
   label: string,
@@ -103,20 +128,47 @@ type NTreeProps = {
       dragNode: TreeOption,
       dropPosition: "before" | "inside" | "after",
     }) => void,
+    click: (v: TreeOption) => void,
+    context_menu?: (option: TreeOption, event: MouseEvent) => void,
   },
-  render: (option: TreeOption, checked: boolean, selected: boolean) => DOMNode,
+  render: (option: TreeOption, level: number, expanded: boolean) => DOMNode,
 };
 export function NTree(props: NTreeProps) {
-  function renderElem(v: TreeOption, level: number): HTMLDivElement {
-    const child = v.children !== undefined ?
-      m("details", {open: true}, [
-        m("summary", {}, [v.label]),
-        ...v.children.map(w => renderElem(w, level+1)),
-      ]) :
-      m("span", {}, props.render(v, false, false));
-    return m("div", {style: {marginLeft: `${level === 0 ? 0 : 1}em`}}, child);
+  function renderElem(v: TreeOption, level: number): HTMLElement[] {
+    const isExpanded = props.defaultExpandedKeys.includes(v.key);
+    const isDir = v.children !== undefined;
+
+    const button = m("button", {
+      class: `${treeButtonHoverClass} ${treeButtonClass}`,
+      style: {
+        paddingLeft: `${level * 1.5}em`,
+      },
+      onclick: (e: Event) => {
+        e.stopPropagation();
+        if (isDir) {
+          const newKeys = isExpanded
+            ? props.defaultExpandedKeys.filter(k => k !== v.key)
+            : [...props.defaultExpandedKeys, v.key];
+          props.on["update:expanded-keys"](newKeys);
+        } else {
+          props.on.click(v);
+        }
+      },
+      oncontextmenu: props.on.context_menu ? (e: MouseEvent) => {
+        e.preventDefault();
+        props.on.context_menu!(v, e);
+      } : undefined,
+    },
+      isDir ? NIcon({
+        component: isExpanded ? FolderOpenOutlined : FolderOutlined,
+        size: 20,
+      }) : null,
+      props.render(v, level, isExpanded),
+    );
+    const children = isDir && isExpanded ? v.children!.flatMap(w => renderElem(w, level + 1)) : [];
+    return [button, ...children];
   }
-  return m("div", {}, props.data.map(v => renderElem(v, 0)));
+  return m("div", {}, props.data.flatMap(v => renderElem(v, 0)));
 };
 
 export function NTable(props: Record<string, unknown>, children: DOMNode[]) {

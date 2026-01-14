@@ -1,4 +1,13 @@
-import {test, expect} from "@playwright/test";
+import {test, expect, Page} from "@playwright/test";
+
+function useErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on("console", msg => {
+    if (["error", "warning", "info"].includes(msg.type()))
+      errors.push(msg.text());
+  });
+  return errors;
+}
 
 test.beforeEach(async ({page}) => {
   await page.goto("/");
@@ -8,6 +17,8 @@ test.beforeEach(async ({page}) => {
 });
 
 test("creates HTTP request via sidebar dropdown", async ({page}) => {
+  const errors = useErrors(page);
+
   // Find the select element for new request kind in sidebar
   const kindSelect = page.locator("select").first(); // Assuming it's the first select in sidebar
 
@@ -45,11 +56,17 @@ test("creates HTTP request via sidebar dropdown", async ({page}) => {
   // Verify response appears
   const responseText = await page.textContent("body");
   expect(responseText).toContain("200");
+
+  expect(errors).toEqual([]); // fails if any console.error occurred
 });
 
 test("creates HTTP request via command palette", async ({page}) => {
+  const errors = useErrors(page);
+
   // Open command palette with Ctrl+N
   await page.keyboard.press("Control+N");
+
+  expect(errors).toEqual([]); // fails if any console.error occurred
   return; // TODO: get back
 
   // Wait for kind selection dialog
@@ -89,6 +106,8 @@ test("creates HTTP request via command palette", async ({page}) => {
 });
 
 test("handles invalid URL error", async ({page}) => {
+  const errors = useErrors(page);
+
   // Create and open a request
   await page.keyboard.press("Control+N");
   return; // TODO: get back
@@ -115,9 +134,13 @@ test("handles invalid URL error", async ({page}) => {
   const dialog = await dialogPromise;
   expect(dialog.message()).toContain("Could not perform request");
   await dialog.accept();
+
+  expect(errors).toEqual([]); // fails if any console.error occurred
 });
 
 test("tab closes when request is deleted via sidebar menu", async ({page}) => {
+  const errors = useErrors(page);
+
   // Find the select element for new request kind in sidebar
   const kindSelect = page.locator("select").first();
 
@@ -145,8 +168,8 @@ test("tab closes when request is deleted via sidebar menu", async ({page}) => {
   await page.waitForSelector(".lm_header .lm_tab", {timeout: 5000}); // GoldenLayout tab
 
   // Find the dropdown icon (DownOutlined) next to the request name
-  const dropdownIcon = page.locator("div").filter({hasText: /^GETtest-delete-request$/}).first().locator("span:nth-child(3)"); // badge, request name, dropdown icon
-  await dropdownIcon.click();
+  const dropdownIcon = page.getByRole("button", {name: "GET test-delete-request"});
+  await dropdownIcon.click({button: "right"});
 
   // Wait for dropdown menu to appear
   await page.waitForSelector("text=Delete");
@@ -156,4 +179,6 @@ test("tab closes when request is deleted via sidebar menu", async ({page}) => {
 
   // Wait for tab to close - check that tab with title "test-delete-request" is detached
   await page.locator(".lm_tab").filter({hasText: "test-delete-request"}).waitFor({state: "detached"});
+
+  expect(errors).toEqual([]); // fails if any console.error occurred
 });

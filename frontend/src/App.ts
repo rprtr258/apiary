@@ -274,7 +274,7 @@ function preApp(root: HTMLElement, store: Store) {
     ]);
   const sidebarHidden = signal(false);
   const {el: el_aside} = Sidebar(sidebarHidden);
-  const app_container = NSplit(el_aside, el_main, {direction: "horizontal", sizes: ["300px", "1fr"]}).element;
+  const app_container = NSplit(el_aside, el_main, {direction: "horizontal", sizes: ["300px", "1fr"], snap: 100}).element;
 
   sidebarHidden.sub(function*() {
     yield;

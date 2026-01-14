@@ -1,6 +1,7 @@
 import Split, {SplitInstance} from "split-grid";
 import {DOMNode, m, setDisplay} from "../utils.ts";
 import {NButton} from "./input.ts";
+import {css} from "../styles.ts";
 
 export function NScrollbar(...children: HTMLElement[]) {
   return m("div", {
@@ -86,7 +87,8 @@ const tabStyles = {
     width: "100%",
   },
   header: {
-    // display: "flex",
+    display: "flex",
+    gap: "0.5em",
     // borderBottom: "1px solid #303030",
   },
   tab: {
@@ -120,9 +122,16 @@ type NSplitProps = {
   sizes?: readonly [string, string],
   gutterSize?: number,
   style?: Partial<CSSStyleDeclaration>,
+  snap?: number,
 };
+const s = css.raw(`:hover {background-color: mediumblue;}`);
 export function NSplit(left: HTMLElement, right: HTMLElement, props: NSplitProps) {
-  const {direction = "vertical", sizes: actualSizes = ["1fr", "1fr"], gutterSize = 5} = props;
+  const {
+    direction = "vertical",
+    sizes: actualSizes = ["1fr", "1fr"],
+    gutterSize = 5,
+    snap: snapOffset = 50,
+  } = props;
 
   const templateProp = direction === "horizontal" ? "gridTemplateColumns" : "gridTemplateRows";
   const template = actualSizes.join(` ${gutterSize}px `);
@@ -138,10 +147,10 @@ export function NSplit(left: HTMLElement, right: HTMLElement, props: NSplitProps
   right.style.minHeight = "0";
 
   const el_line = m("hr", {
+    class: s,
     style: {
       cursor: direction === "horizontal" ? "col-resize" : "row-resize",
       border: "none",
-      backgroundColor: "white",
       width: direction === "horizontal" ? `${gutterSize}px` : "100%",
       height: direction === "vertical" ? `${gutterSize}px` : "100%",
     },
@@ -152,6 +161,7 @@ export function NSplit(left: HTMLElement, right: HTMLElement, props: NSplitProps
   const split_option_key = direction === "horizontal" ? "columnGutters" : "rowGutters";
   const splitInstance: SplitInstance = Split({
     [split_option_key]: [{track: 1, element: el_line, minSize: 0}],
+    snapOffset,
   });
 
   let leftVisible = true;
