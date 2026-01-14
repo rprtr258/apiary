@@ -3,17 +3,29 @@ import {api, type RequestData, type HistoryEntry, Request} from "./api.ts";
 import {app} from "../wailsjs/go/models.ts";
 import {signal, Signal} from "./utils.ts";
 
+
 // TODO: <NNotificationProvider :max="1" placement="bottom-right">
 export function useNotification() {
-  const notify = (...args: readonly unknown[]): void => {
-    alert(JSON.stringify({title: "Error", content: args.map(arg => String(arg)).join("\n")}));
+  const notify = (args: Record<string, unknown>): void => {
+    alert(Object.entries({title: "Error", ...args}).map(([k, arg]) => k+": "+String(arg)).join("\n"));
   };
   return {
     error: notify,
   };
 }
 export const notification = useNotification();
-const notify = notification.error;
+
+type ConfigNode = ResolvedRowOrColumnItemConfig | ResolvedStackItemConfig | ResolvedComponentItemConfig;
+
+function* dfs(c: ConfigNode): Generator<string, void, void> {
+  if (c.type === "component") {
+    yield (c.componentState! as {id: string}).id;
+  } else {
+    for (const child of c.content) {
+      yield* dfs(child);
+    }
+  }
+};
 
 let layoutConfig: LayoutConfig = {
   header: {
@@ -127,27 +139,17 @@ export function useStore(): Store {
       // return requestIDs.list[index] ?? null;
     },
     selectRequest(id: string): void {
-      type ConfigNode = ResolvedRowOrColumnItemConfig | ResolvedStackItemConfig | ResolvedComponentItemConfig;
-      function* dfs(c: ConfigNode): Generator<string, void, void> {
-        if (c.type === "component") {
-          yield (c.componentState! as {id: string}).id;
-        } else {
-          for (const child of c.content) {
-            yield* dfs(child);
-          }
-        }
-      }
       const cfg = this.layout!.saveLayout();
       if (cfg.root !== undefined && dfs(cfg.root).find(tabID => tabID === id) !== undefined) {
         return;
       }
       this.layout?.addItem(panelka(id));
-      this.fetch().catch(notify);
+      this.fetch().catch(notification.error);
     },
     async fetch(): Promise<void> {
       const json = await api.collectionRequests();
       if (json.kind === "err") {
-        notification.error(`Could not fetch requests: ${json.value}`);
+        notification.error({title: "Could not fetch requests", error: json.value});
         return;
       }
 
@@ -171,7 +173,7 @@ export function useStore(): Store {
     async createRequest(id: string, kind: RequestData["kind"]): Promise<void> {
       const res = await api.requestCreate(id, kind);
       if (res.kind === "err") {
-        notify(`Could not create request: ${res.value}`);
+        notification.error({title: "Could not create request", error: res.value});
         return;
       }
 
@@ -180,7 +182,7 @@ export function useStore(): Store {
     async duplicate(id: string): Promise<void> {
       const res = await api.requestDuplicate(id);
       if (res.kind === "err") {
-        notify(`Could not duplicate: ${res.value}`);
+        notification.error({title: "Could not duplicate", error: res.value});
         return;
       }
 
@@ -189,7 +191,7 @@ export function useStore(): Store {
     async deleteRequest(id: string): Promise<void> {
       const res = await api.requestDelete(id);
       if (res.kind === "err") {
-        notify(`Could not delete request: ${res.value}`);
+        notification.error({title: "Could not delete request", error: res.value});
         return;
       }
       if (this.requests.hasOwnProperty(id)) {
@@ -204,7 +206,7 @@ export function useStore(): Store {
       console.log("rename", id, newID);
       const res = await api.rename(id, newID);
       if (res.kind === "err") {
-        notify(`Could not rename request: ${res.value}`);
+        notification.error({title: "Could not rename request", error: res.value});
         return;
       }
 
@@ -225,7 +227,7 @@ const panelka = (id: string): ComponentItemConfig => ({
 export async function send(id: string): Promise<void> {
   const res = await api.requestPerform(id);
   if (res.kind === "err") {
-    notify(`Could not perform request ${id}: ${res.value}`);
+    notification.error({title: "Could not perform request", id, error: res.value});
     return;
   }
 
@@ -239,7 +241,7 @@ export async function update_request(id: string, patch: Partial<Request>): Promi
   const res = await api.request_update(id, new_request.kind, new_request);
   if (res.kind === "err") {
     store.requests2[id].request = old_request; // NOTE: undo change
-    notify(`Could not save current request: ${res.value}`);
+    notification.error({title: "Could not save current request", error: res.value});
     return;
   }
 }
@@ -251,7 +253,7 @@ export async function get_request(request_id: string): Promise<get_request | nul
 
   const res = await api.get(request_id);
   if (res.kind === "err") {
-    notify("load request", request_id, res.value);
+    notification.error({title: "load request", id: request_id, error: res.value});
     return null;
   }
 
