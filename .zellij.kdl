@@ -8,6 +8,14 @@ layout {
       plugin location="zellij:status-bar"
     }
   }
+  tab name="services" {
+    pane {
+      command "docker"
+      args "compose"
+      args "up"
+      start_suspended true
+    }
+  }
   tab name="dev" {
     pane {
       command "wails"
@@ -16,14 +24,6 @@ layout {
   }
   tab name="ai" {
     pane command="opencode"
-  }
-  tab name="services" {
-    pane {
-      command "docker"
-      args "compose"
-      args "up"
-      start_suspended true
-    }
   }
   tab name="shell" {
     pane

@@ -3,7 +3,7 @@ import {NEmpty, NIcon, NList, NListItem, NTag, NTree, treeLabelClass, TreeOption
 import {ContentCopyFilled, CopySharp, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, EditOutlined} from "./components/icons.ts";
 import {NSelect} from "./components/input.ts";
 import {NScrollbar, NTabs} from "./components/layout.ts";
-import {api, HistoryEntry, Kinds, Method, TableInfo} from "./api.ts";
+import {api, HistoryEntry, Kinds, Method} from "./api.ts";
 import {notification, store, useNotification} from "./store.ts";
 import {DOMNode, m, setDisplay, signal, Signal} from "./utils.ts";
 
@@ -37,7 +37,7 @@ function formatTableLabel(args: {
   return `${name} (${rows.toLocaleString()} rows, ${formatSize(bytes)})`;
 }
 
-const tableCache: Record<string, {tables: Record<string, TableInfo>, lastFetch: number}> = {};
+const tableCache: Record<string, {tables: Record<string, database.TableInfo>, lastFetch: number}> = {};
 
 async function fetchTables(sqlSourceID: string): Promise<void> {
   // Clear cache to force fresh fetch
@@ -436,7 +436,7 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
       }),
     ));
   }
-  store.requestsTree.sub(function*() {while (true) { updateTree(store.requestsTree.value); yield; }}());
+  store.requestsTree.sub(function*() {while (true) { updateTree(yield); }}());
   expandedKeysSignal.sub(function*() {while (true) { updateTree(store.requestsTree.value); yield; }}());
 
   const new_select = NSelect<database.Kind>({

@@ -83,8 +83,6 @@ export type HistoryEntry = {
 
 export type RowValue = string | number | boolean | null;
 
-export type TableInfo = database.TableInfo;
-
 function parseTime(s: string): Date {
   const d = new Date();
   d.setTime(Date.parse(s));
@@ -186,7 +184,7 @@ export const api = {
 
   async requestListTablesSQLSource(
     id: string,
-  ): Promise<Result<TableInfo[]>> {
+  ): Promise<Result<database.TableInfo[]>> {
     return await wrap(() => App.ListTablesSQLSource(id), {reqId: id});
   },
 

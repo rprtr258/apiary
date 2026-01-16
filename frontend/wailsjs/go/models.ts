@@ -143,13 +143,13 @@ export namespace app {
 export namespace database {
 	
 	export enum Kind {
+	    SQLSource = "sql-source",
+	    HTTP = "http",
+	    SQL = "sql",
 	    JQ = "jq",
 	    MD = "md",
 	    REDIS = "redis",
 	    GRPC = "grpc",
-	    SQLSource = "sql-source",
-	    HTTP = "http",
-	    SQL = "sql",
 	}
 	export enum Database {
 	    POSTGRES = "postgres",
@@ -195,6 +195,22 @@ export namespace database {
 	        this.name = source["name"];
 	        this.type = source["type"];
 	        this.definition = source["definition"];
+	    }
+	}
+	export class ForeignKey {
+	    column: string;
+	    table: string;
+	    to: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ForeignKey(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.column = source["column"];
+	        this.table = source["table"];
+	        this.to = source["to"];
 	    }
 	}
 	export class KV {
@@ -580,6 +596,7 @@ export namespace database {
 	export class TableSchema {
 	    columns: ColumnInfo[];
 	    constraints: ConstraintInfo[];
+	    foreign_keys: ForeignKey[];
 	    indexes: IndexInfo[];
 	
 	    static createFrom(source: any = {}) {
@@ -590,6 +607,7 @@ export namespace database {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.columns = this.convertValues(source["columns"], ColumnInfo);
 	        this.constraints = this.convertValues(source["constraints"], ConstraintInfo);
+	        this.foreign_keys = this.convertValues(source["foreign_keys"], ForeignKey);
 	        this.indexes = this.convertValues(source["indexes"], IndexInfo);
 	    }
 	
