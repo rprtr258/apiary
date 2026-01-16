@@ -124,7 +124,7 @@ export function s<K extends keyof SVGAttrs>(
   const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
   for (const [key, value] of Object.entries(props)) {
     if (key === "style") { // inline styles
-      Object.assign(el.style, value ?? {});
+      Object.assign(el.style, value);
     } else {
       el.setAttribute(key, String(value));
     }

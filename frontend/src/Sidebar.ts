@@ -329,8 +329,11 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
                   label: formatTableLabel(table),
                 }))
               : undefined;
-            const item: TreeOption = {key: id, label: basename};
-            if (children) item.children = children;
+            const item: TreeOption = {
+              key: id,
+              label: basename,
+              ...(children !== undefined ? {children} : {}),
+            };
             return item;
         }));
       return mapper(requestsTree);

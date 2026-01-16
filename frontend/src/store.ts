@@ -236,7 +236,7 @@ export function useStore(): Store {
       if (cfg.root !== undefined && dfs<viewerState>(cfg.root).find(t => t.sqlSourceID === sqlSourceID && t.tableName === tableName) !== undefined)
         return;
 
-      const sourceName = this.requestNames[sqlSourceID] || sqlSourceID;
+      const sourceName = this.requestNames[sqlSourceID] ?? sqlSourceID;
       this.layout?.addItem({
         type: "component",
         title: `${sourceName}/${tableName}`,

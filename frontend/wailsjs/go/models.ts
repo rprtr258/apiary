@@ -142,6 +142,15 @@ export namespace app {
 
 export namespace database {
 	
+	export enum Kind {
+	    JQ = "jq",
+	    MD = "md",
+	    REDIS = "redis",
+	    GRPC = "grpc",
+	    SQLSource = "sql-source",
+	    HTTP = "http",
+	    SQL = "sql",
+	}
 	export enum Database {
 	    POSTGRES = "postgres",
 	    MYSQL = "mysql",
@@ -153,15 +162,6 @@ export namespace database {
 	    NUMBER = "number",
 	    TIME = "time",
 	    BOOLEAN = "boolean",
-	}
-	export enum Kind {
-	    MD = "md",
-	    REDIS = "redis",
-	    GRPC = "grpc",
-	    SQLSource = "sql-source",
-	    HTTP = "http",
-	    SQL = "sql",
-	    JQ = "jq",
 	}
 	export class ColumnInfo {
 	    name: string;
