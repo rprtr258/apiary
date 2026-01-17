@@ -8,6 +8,7 @@ type NInputProps = {
     update: (value: string) => void,
   },
   style?: Partial<CSSStyleDeclaration>,
+  disabled?: boolean,
 };
 export function NInput(props: NInputProps) {
   return m("input", {
@@ -15,6 +16,7 @@ export function NInput(props: NInputProps) {
     value: props.value,
     placeholder: props.placeholder,
     oninput: (e: Event) => props.on?.update((e.target as HTMLInputElement).value),
+    disabled: props.disabled,
   });
 }
 

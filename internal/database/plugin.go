@@ -13,17 +13,18 @@ type plugin struct {
 	Perform        func(context.Context, EntryData) (EntryData, error)
 	create         func(*DB, context.Context, RequestID, string, EntryData) error
 	update         func(*DB, context.Context, RequestID, EntryData) error
-	createResponse func(*DB, context.Context, RequestID, Response) error
+	createResponse func(*DB, context.Context, RequestID, EntryData) (EntryData, error)
 }
 
 var Plugins = map[Kind]plugin{
-	KindHTTP:      pluginHTTP,
-	KindSQL:       pluginSQL,
-	KindJQ:        pluginJQ,
-	KindMD:        pluginMD,
-	KindRedis:     pluginRedis,
-	KindGRPC:      pluginGRPC,
-	KindSQLSource: pluginSQLSource,
+	KindHTTP:       pluginHTTP,
+	KindSQL:        pluginSQL,
+	KindJQ:         pluginJQ,
+	KindMD:         pluginMD,
+	KindRedis:      pluginRedis,
+	KindGRPC:       pluginGRPC,
+	KindSQLSource:  pluginSQLSource,
+	KindHTTPSource: pluginHTTPSource,
 }
 
 var KindEnums = func() []enumElem[Kind] {

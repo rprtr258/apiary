@@ -22,6 +22,10 @@ export function Duplicate(arg1) {
   return window['go']['app']['App']['Duplicate'](arg1);
 }
 
+export function FetchSpecHTTPSource(arg1) {
+  return window['go']['app']['App']['FetchSpecHTTPSource'](arg1);
+}
+
 export function GRPCMethods(arg1) {
   return window['go']['app']['App']['GRPCMethods'](arg1);
 }
@@ -32,6 +36,10 @@ export function GRPCQueryFake(arg1, arg2) {
 
 export function GRPCQueryValidate(arg1, arg2, arg3) {
   return window['go']['app']['App']['GRPCQueryValidate'](arg1, arg2, arg3);
+}
+
+export function GenerateExampleRequestHTTPSource(arg1, arg2) {
+  return window['go']['app']['App']['GenerateExampleRequestHTTPSource'](arg1, arg2);
 }
 
 export function Get(arg1) {
@@ -46,6 +54,10 @@ export function List() {
   return window['go']['app']['App']['List']();
 }
 
+export function ListEndpointsHTTPSource(arg1) {
+  return window['go']['app']['App']['ListEndpointsHTTPSource'](arg1);
+}
+
 export function ListTablesSQLSource(arg1) {
   return window['go']['app']['App']['ListTablesSQLSource'](arg1);
 }
@@ -58,12 +70,20 @@ export function PerformSQLSource(arg1, arg2) {
   return window['go']['app']['App']['PerformSQLSource'](arg1, arg2);
 }
 
+export function PerformVirtualEndpointHTTPSource(arg1, arg2, arg3) {
+  return window['go']['app']['App']['PerformVirtualEndpointHTTPSource'](arg1, arg2, arg3);
+}
+
 export function Read(arg1) {
   return window['go']['app']['App']['Read'](arg1);
 }
 
 export function Rename(arg1, arg2) {
   return window['go']['app']['App']['Rename'](arg1, arg2);
+}
+
+export function TestHTTPSource(arg1) {
+  return window['go']['app']['App']['TestHTTPSource'](arg1);
 }
 
 export function TestSQLSource(arg1) {

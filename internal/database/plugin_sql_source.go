@@ -58,6 +58,10 @@ type SQLSourceRequest struct {
 
 func (SQLSourceRequest) Kind() Kind { return KindSQLSource }
 
+type SQLSourceResponse struct{}
+
+func (SQLSourceResponse) Kind() Kind { return KindSQLSource }
+
 var pluginSQLSource = plugin{
 	EmptyRequest:   SQLSourceEmptyRequest,
 	enum:           enumElem[Kind]{KindSQLSource, "SQLSource"},
@@ -638,9 +642,9 @@ func CountRows(ctx context.Context, db Database, dsn, tableName string) (int64, 
 }
 
 func (db *DB) createResponseSQLSource(
-	context.Context,
-	RequestID,
-	Response,
-) error {
-	return nil // no history for sql source
+	ctx context.Context,
+	id RequestID,
+	req EntryData,
+) (EntryData, error) {
+	return req, nil
 }

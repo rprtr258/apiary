@@ -65,7 +65,11 @@ var pluginGRPC = plugin{
 	Perform:        sendGRPC,
 	create:         (*DB).create,
 	update:         (*DB).update,
-	createResponse: (*DB).createResponse,
+	createResponse: (*DB).createResponseGRPC,
+}
+
+func (db *DB) createResponseGRPC(ctx context.Context, id RequestID, req EntryData) (EntryData, error) {
+	return req, nil
 }
 
 var GRPCEmptyRequest = GRPCRequest{

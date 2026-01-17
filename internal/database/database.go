@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"sync"
+	"time"
 
 	nanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/pkg/errors"
@@ -97,6 +98,18 @@ func encoder(v dbInner) ([]byte, error) {
 			requests := make(map[RequestID]SQLSourceRequest, len(v))
 			for id, req := range v {
 				reqData, ok := req.Data.(SQLSourceRequest)
+				if !ok {
+					continue
+				}
+
+				requests[id] = reqData
+			}
+			return requests
+		}(),
+		"http-source": func() map[RequestID]HTTPSourceRequest {
+			requests := make(map[RequestID]HTTPSourceRequest, len(v))
+			for id, req := range v {
+				reqData, ok := req.Data.(HTTPSourceRequest)
 				if !ok {
 					continue
 				}
@@ -263,7 +276,16 @@ func (db *DB) CreateResponse(
 		return errors.Errorf("unknown response kind %s", kind)
 	}
 
-	if err := plugin.createResponse(db, ctx, id, entry); err != nil {
+	resp, err := plugin.createResponse(db, ctx, id, entry.Response)
+	if err != nil {
+		return err
+	}
+
+	if err := db.createResponse(ctx, id, Response{
+		SentAt:     time.Now(),
+		ReceivedAt: time.Now(),
+		Response:   resp,
+	}); err != nil {
 		return err
 	}
 
@@ -293,7 +315,7 @@ func (db *DB) update(ctx context.Context, id RequestID, request EntryData) error
 }
 
 func (db *DB) createResponse(
-	ctx context.Context,
+	_ context.Context,
 	id RequestID,
 	response Response,
 ) error {
@@ -301,4 +323,14 @@ func (db *DB) createResponse(
 	tmp.Responses = append(db.Data[id].Responses, response)
 	db.Data[id] = tmp
 	return nil
+}
+
+func (db *DB) Get(ctx context.Context, id RequestID) (Request, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	req, ok := db.Data[id]
+	if !ok {
+		return Request{}, errors.Errorf("request %s not found", id)
+	}
+	return req, nil
 }

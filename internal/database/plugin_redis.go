@@ -32,7 +32,11 @@ var pluginRedis = plugin{
 	Perform:        sendRedis,
 	create:         (*DB).create,
 	update:         (*DB).update,
-	createResponse: (*DB).createResponse,
+	createResponse: (*DB).createResponseRedis,
+}
+
+func (db *DB) createResponseRedis(ctx context.Context, id RequestID, req EntryData) (EntryData, error) {
+	return req, nil
 }
 
 var RedisEmptyRequest = RedisRequest{

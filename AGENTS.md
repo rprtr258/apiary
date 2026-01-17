@@ -26,7 +26,7 @@
 
 ## Project Overview
 
-apiary is a cross-platform desktop application for managing API requests (HTTP, SQL, gRPC, Redis, JQ, Markdown, SQLSource) using Go backend and vanilla TypeScript frontend via Wails.
+apiary is a cross-platform desktop application for managing API requests (HTTP, SQL, gRPC, Redis, JQ, Markdown, SQLSource, HTTPSource) using Go backend and vanilla TypeScript frontend via Wails.
 
 - **Tech Stack**: Go, TypeScript, Wails, GoldenLayout, CodeMirror, JSON DB.
 - **Directories**:
@@ -43,7 +43,7 @@ apiary is a cross-platform desktop application for managing API requests (HTTP, 
 
 ## Architecture Patterns
 
-- **Backend Plugins**: Each request kind (HTTP, SQL, etc.) has a plugin in `internal/database/` with `Perform`, `create`, `update`, `createResponse` functions, and Request/Response structs implementing `Kind()` and `MarshalJSON()`.
+- **Backend Plugins**: Each request kind (HTTP, SQL, etc.) has a plugin in `internal/database/` with `Perform`, `create`, `update`, `createResponse` functions, and Request/Response structs implementing `Kind()` and `MarshalJSON()`. HTTPSource is a source plugin for generating HTTP requests from OpenAPI specs.
 - **Frontend Factories**: Each request kind has a `Request*.ts` factory function taking `(el, signal, handlers)` and returning `{loaded, push_history_entry, unmount}`. See `frontend` skill for detailed frontend engineering guidelines.
 - **Reactivity**: Use `signal<T>()` for state, `m()` for DOM building, no VDOM.
 - **Components**: `N*` functions return DOM elements; `Request*` functions manage state in provided container.
