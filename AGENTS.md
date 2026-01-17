@@ -11,7 +11,7 @@
 - Never modify or patch 3rd-party dependencies, including overwriting styles or using `!important`.
 - Never use `overflow: hidden`, `Array.forEach`.
 - Never disable linter checks unless explicitly requested.
-- Run `bun run ci` and `bun run build` after any code changes to ensure linting, typechecking, and build succeed.
+- Run `bun run ci` and `bun run build` (in frontend/) after any code changes to ensure linting, typechecking, and build succeed.
 - Include updates to `AGENTS.md` for structural or architectural changes.
 - Use context-based cancellation in Go code.
 - Use zerolog for logging in Go.
@@ -19,8 +19,8 @@
 
 ## Commands
 
-- **Lint and Typecheck**: `bun run ci`
-- **Build Frontend**: `bun run build`
+- **Lint and Typecheck**: `bun run ci` (run in frontend/)
+- **Build Frontend**: `bun run build` (run in frontend/)
 - **Build Desktop App**: `wails build`
 - **Run Go Tests**: `go test ./internal/...`
 
@@ -38,13 +38,13 @@ apiary is a cross-platform desktop application for managing API requests (HTTP, 
 ## Code Style
 
 - **Go**: Standard idioms, zerolog logging, context cancellation, plugin modularity.
-- **TypeScript**: Strict mode, single quotes, const over let, functional style (e.g., `data.map(item => item.value)` not loops), no frameworks, direct DOM APIs.
+- **TypeScript**: Strict mode, double quotes, const over let, prefer functional style (e.g., `data.map(item => item.value)`), no frameworks, direct DOM APIs.
 - **General**: Modular code, backend/frontend separation, immutable variables, pure functions where possible.
 
 ## Architecture Patterns
 
 - **Backend Plugins**: Each request kind (HTTP, SQL, etc.) has a plugin in `internal/database/` with `Perform`, `create`, `update`, `createResponse` functions, and Request/Response structs implementing `Kind()` and `MarshalJSON()`.
-- **Frontend Factories**: Each request kind has a `Request*.ts` factory function taking `(el, signal, handlers)` and returning `{loaded, push_history_entry, unmount}`.
+- **Frontend Factories**: Each request kind has a `Request*.ts` factory function taking `(el, signal, handlers)` and returning `{loaded, push_history_entry, unmount}`. See `frontend` skill for detailed frontend engineering guidelines.
 - **Reactivity**: Use `signal<T>()` for state, `m()` for DOM building, no VDOM.
 - **Components**: `N*` functions return DOM elements; `Request*` functions manage state in provided container.
 - **Store**: Central state management in `store.ts` with CRUD operations and backend coordination.
@@ -61,8 +61,8 @@ apiary is a cross-platform desktop application for managing API requests (HTTP, 
 
 ## Post-Task Checks
 
-- Run `bun run ci` for linting and typechecking.
-- Run `bun run build` for frontend build.
+- Run `bun run ci` for linting and typechecking (in frontend/).
+- Run `bun run build` for frontend build (in frontend/).
 - Run `go test ./internal/...` for backend tests.
 - Run `wails build` for full app build.
 - Verify new request kinds work end-to-end.
