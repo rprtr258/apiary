@@ -2,6 +2,7 @@
   "include": [
     "src/**/*.ts",
     "e2e/**/*.ts",
+    "scripts/**/*.ts",
     "wailsjs/go/**/*.ts",
     "eslint.config.ts",
     "playwright.config.ts",
