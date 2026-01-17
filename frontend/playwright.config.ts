@@ -1,4 +1,4 @@
-import {defineConfig, devices} from "@playwright/test";
+import {defineConfig} from "@playwright/test";
 
 const isCI = process.env.CI !== undefined;
 
@@ -9,15 +9,18 @@ export default defineConfig({
   retries: 0,
   workers: isCI ? undefined : 1,
   reporter: "html",
-  timeout: 6000,
+  timeout: 6*1000,
+  globalTimeout: 5*60*1000,
+  quiet: false,
   use: {
     baseURL: "http://localhost:34116",
-    trace: "on-first-retry",
+    trace: "on",
+    browserName: "chromium",
+    headless: true,
   },
   projects: [
     {
       name: "chromium",
-      use: {...devices["Desktop Chrome"]},
     },
   ],
   webServer: {
