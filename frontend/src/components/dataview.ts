@@ -162,7 +162,7 @@ export function NTree(props: NTreeProps) {
           props.on.click(v);
         }
       },
-      oncontextmenu: props.on.context_menu ? (e: MouseEvent) => {
+      oncontextmenu: props.on.context_menu !== undefined ? (e: MouseEvent) => {
         e.preventDefault();
         props.on.context_menu!(v, e);
       } : undefined,

@@ -12,6 +12,7 @@
 - Include updates to `AGENTS.md` for any structural, architectural, or cross-cutting changes.
 - Use `bd-mcp` for creating and tracking complex task plans
 - Follow effective and correct programming practices.
+- Do not ever change config files like `eslint.config.ts` or `tsconfig.json`.
 
 ## Commands
 - **Build**: `bun run build`
