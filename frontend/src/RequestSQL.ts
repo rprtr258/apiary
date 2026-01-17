@@ -1,79 +1,14 @@
 import {database} from "../wailsjs/go/models.ts";
-import {NEmpty, NIcon} from "./components/dataview.ts";
+import {NEmpty} from "./components/dataview.ts";
 import {NButton, NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {NScrollbar, NSplit} from "./components/layout.ts";
-import {CheckSquareOutlined, ClockCircleOutlined, FieldNumberOutlined, ItalicOutlined, QuestionCircleOutlined} from "./components/icons.ts";
 import EditorSQL from "./EditorSQL.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {Database, HistoryEntry, RowValue} from "./api.ts";
-import {DOMNode, m, setDisplay, Signal} from "./utils.ts";
+import {m, setDisplay, Signal} from "./utils.ts";
+import {DataTable} from "./components/TableView.ts";
 
 type Request = database.SQLRequest;
-
-function render(v: RowValue): DOMNode {
-  switch (true) {
-  case v === null:
-    return m("span", {style: {color: "grey"}}, "(NULL)");
-  case typeof v === "boolean":
-    return v ? "true" : "false";
-  case typeof v === "number":
-    return m("span", {style: {color: "#e84e40"}}, String(v));
-  case typeof v === "string":
-    return v;
-  default:
-    alert(`unknown row value type: ${String(v)} : ${typeof v}`);
-    return String(v);
-  }
-}
-function render_column(c: string, typ: string) {
-  return m("div", {
-    style: {
-      display: "flex",
-      justifyContent: "center",
-      gap: "0.5em",
-    },
-    title: typ,
-  },
-    c,
-    m("div", {}, NIcon({
-      size: 15,
-      color: "grey",
-      component:
-        typ === "number" ? FieldNumberOutlined :
-        typ === "string" ? ItalicOutlined :
-        typ === "bool" ? CheckSquareOutlined :
-        typ === "time" ? ClockCircleOutlined :
-          QuestionCircleOutlined,
-    })),
-  );
-}
-
-type DataTableProps = {
-  columns: string[],
-  rows: RowValue[][],
-  types: string[],
-};
-function DataTable() {
-  const tableBorderStyle: Partial<CSSStyleDeclaration> = {
-    tableLayout: "fixed",
-    border: "1px solid #888",
-    borderCollapse: "collapse",
-    padding: "3px 5px",
-  };
-  const thead = m("thead", {});
-  const tbody = m("tbody", {});
-  const el = m("table", {style: tableBorderStyle}, [thead, tbody]);
-  return {
-    el,
-    update({columns, rows, types}: DataTableProps) {
-      thead.replaceChildren(m("tr", {}, columns.map((c, i) =>
-        m("th", {style: tableBorderStyle}, render_column(c, types[i])))));
-      tbody.replaceChildren(...rows.map(r =>
-        m("tr", {}, columns.map((_, i) =>
-          m("td", {style: tableBorderStyle}, render(r[i]))))));
-    },
-  };
-}
 
 export default function(
   el: HTMLElement,

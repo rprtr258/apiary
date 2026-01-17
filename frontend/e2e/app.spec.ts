@@ -167,9 +167,9 @@ test("tab closes when request is deleted via sidebar menu", async ({page}) => {
   // Wait for tab to open (check for tab title or content)
   await page.waitForSelector(".lm_header .lm_tab", {timeout: 5000}); // GoldenLayout tab
 
-  // Find the dropdown icon (DownOutlined) next to the request name
-  const dropdownIcon = page.getByRole("button", {name: "GET test-delete-request"});
-  await dropdownIcon.click({button: "right"});
+  // Find request row by name
+  const treeRow = page.getByText("GETtest-delete-request");
+  await treeRow.click({button: "right"});
 
   // Wait for dropdown menu to appear
   await page.waitForSelector("text=Delete");

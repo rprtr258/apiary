@@ -137,7 +137,7 @@ func sendSQLClickhouse(ctx context.Context, dsn, query string) (SQLResponse, err
 		return SQLResponse{}, errors.Wrap(err, "get columns")
 	}
 
-	var rowsData [][]any
+	rowsData := [][]any{}
 	for rows.Next() {
 		rowDest := make([]any, len(columns))
 
@@ -175,7 +175,7 @@ func sendSQLSTD(ctx context.Context, db *sql.DB, query string) (SQLResponse, err
 		return SQLResponse{}, errors.Wrap(err, "get columns")
 	}
 
-	var rowsData [][]any
+	rowsData := [][]any{}
 	for rows.Next() {
 		rowDest := make([]any, len(columns))
 
