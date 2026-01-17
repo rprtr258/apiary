@@ -52,6 +52,7 @@ export type RequestData =
   | {kind: database.Kind.REDIS}     & database.RedisRequest
   | {kind: database.Kind.MD   }     & database.MDRequest
   | {kind: database.Kind.SQLSource} & database.SQLSourceRequest
+  | {kind: database.Kind.HTTPSource} & database.HTTPSourceRequest
 ;
 
 export type Request = {
@@ -200,5 +201,35 @@ export const api = {
     tableName: string,
   ): Promise<Result<number>> {
     return await wrap(() => App.CountRowsSQLSource(id, tableName), {reqId: id, tableName});
+  },
+
+  async requestListEndpointsHTTPSource(
+    id: string,
+  ): Promise<Result<database.EndpointInfo[]>> {
+    return await wrap(() => App.ListEndpointsHTTPSource(id), {reqId: id});
+  },
+
+  async requestGenerateExampleRequestHTTPSource(
+    id: string,
+    endpointIndex: number,
+  ): Promise<Result<database.HTTPRequest>> {
+    return await wrap(() => App.GenerateExampleRequestHTTPSource(id, endpointIndex), {reqId: id, endpointIndex});
+  },
+
+  async requestPerformVirtualEndpointHTTPSource(
+    sourceID: string,
+    endpointIndex: number,
+    request: database.HTTPRequest,
+  ): Promise<Result<HistoryEntry>> {
+    // The Go function expects *database.HTTPRequest (pointer) which can be nil
+    // The TypeScript definition doesn't reflect this, so we need to cast
+    return await wrap(() => App.PerformVirtualEndpointHTTPSource(sourceID, endpointIndex, request),
+      {sourceID, endpointIndex, request}) as Result<HistoryEntry>;
+  },
+
+  async requestTestHTTPSource(
+    id: string,
+  ): Promise<Result<void>> {
+    return await wrap(() => App.TestHTTPSource(id), {reqId: id});
   },
 };

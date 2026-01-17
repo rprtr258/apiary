@@ -28,7 +28,7 @@ export default defineConfig({
                   : "cd .. &&             wails dev -devserver 127.0.0.1:34116 -nosyncgomod -skipbindings -nogorebuild -noreload -race",
     url: "http://localhost:34116",
     reuseExistingServer: !isCI,
-    timeout: isCI ? 120000 : 60000,
+    timeout: isCI ? 5*60*1000 : 60*1000,
     gracefulShutdown: {
       timeout: 10000,
       signal: "SIGTERM",

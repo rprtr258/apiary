@@ -55,6 +55,18 @@ func encod[Req, Resp EntryData](v dbInner) map[RequestID]pluginv1[Req, Resp] {
 	return requests
 }
 
+func encodSource[Req EntryData](v dbInner) map[RequestID]Req {
+	requests := make(map[RequestID]Req, len(v))
+	for id, req := range v {
+		reqData, ok := req.Data.(Req)
+		if !ok {
+			continue
+		}
+		requests[id] = reqData
+	}
+	return requests
+}
+
 func sorted[T any](xs []T, cmp func(T, T) int) []T {
 	slices.SortFunc(xs, cmp)
 	return xs
@@ -87,24 +99,14 @@ func encoder(v dbInner) ([]byte, error) {
 		}), func(a, b responsev1) int {
 			return a.SentAt.Compare(b.SentAt)
 		}),
-		"http":  encod[HTTPRequest, HTTPResponse](v),
-		"sql":   encod[SQLRequest, SQLResponse](v),
-		"jq":    encod[JQRequest, JQResponse](v),
-		"md":    encod[MDRequest, MDResponse](v),
-		"redis": encod[RedisRequest, RedisResponse](v),
-		"grpc":  encod[GRPCRequest, GRPCResponse](v),
-		"sql-source": func() map[RequestID]SQLSourceRequest {
-			requests := make(map[RequestID]SQLSourceRequest, len(v))
-			for id, req := range v {
-				reqData, ok := req.Data.(SQLSourceRequest)
-				if !ok {
-					continue
-				}
-
-				requests[id] = reqData
-			}
-			return requests
-		}(),
+		"http":        encod[HTTPRequest, HTTPResponse](v),
+		"sql":         encod[SQLRequest, SQLResponse](v),
+		"jq":          encod[JQRequest, JQResponse](v),
+		"md":          encod[MDRequest, MDResponse](v),
+		"redis":       encod[RedisRequest, RedisResponse](v),
+		"grpc":        encod[GRPCRequest, GRPCResponse](v),
+		"sql-source":  encodSource[SQLSourceRequest](v),
+		"http-source": encodSource[HTTPSourceRequest](v),
 	}, "", "  ")
 }
 

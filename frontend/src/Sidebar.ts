@@ -3,7 +3,7 @@ import {NEmpty, NIcon, NList, NListItem, NTag, NTree, treeLabelClass, TreeOption
 import {ContentCopyFilled, CopySharp, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, EditOutlined} from "./components/icons.ts";
 import {NSelect} from "./components/input.ts";
 import {NScrollbar, NTabs} from "./components/layout.ts";
-import {api, HistoryEntry, Kinds, Method} from "./api.ts";
+import {api, HistoryEntry, Kinds} from "./api.ts";
 import {notification, store, useNotification} from "./store.ts";
 import {DOMNode, m, setDisplay, signal, Signal} from "./utils.ts";
 
@@ -53,6 +53,31 @@ async function fetchTables(sqlSourceID: string): Promise<void> {
     lastFetch: Date.now(),
     tables: Object.fromEntries(res.value.map(t => [t.name, t])),
   };
+}
+
+const endpointCache: Record<string, {endpoints: database.EndpointInfo[], lastFetch: number}> = {};
+
+async function fetchEndpoints(httpSourceID: string): Promise<void> {
+  const res = await api.requestListEndpointsHTTPSource(httpSourceID);
+  if (res.kind === "err") {
+    notification.error({title: "Could not fetch endpoints", error: res.value});
+    // Don't delete cache on error - keep old data if available
+    return;
+  }
+
+  endpointCache[httpSourceID] = {
+    lastFetch: Date.now(),
+    endpoints: res.value,
+  };
+}
+
+function formatEndpointLabel(endpoint: database.EndpointInfo): string {
+  const {path} = endpoint;
+  // Format: /route/
+  // Ensure path starts with / and ends with / if not empty
+  const formattedPath = path === "" ? "/" : path.startsWith("/") ? path : `/${path}`;
+  const pathWithTrailingSlash = formattedPath.endsWith("/") ? formattedPath : `${formattedPath}/`;
+  return pathWithTrailingSlash;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -135,14 +160,15 @@ function drag({node, dragNode, dropPosition}: {
 
 function badge(req: app.requestPreview): [string, string] {
   switch (req.Kind) {
-  case database.Kind.HTTP:      return [Method[req.SubKind as keyof typeof Method], "lime"];
-  case database.Kind.SQL:       return ["SQL", "lightblue"];
-  case database.Kind.GRPC:      return ["GRPC", "cyan"];
-  case database.Kind.JQ:        return ["JQ", "violet"];
-  case database.Kind.REDIS:     return ["REDIS", "red"];
-  case database.Kind.MD:        return ["MD", "blue"];
-  case database.Kind.SQLSource: return ["SQLDB", "blue"];
-  default:                      return [String(req.Kind), ""];
+  case database.Kind.HTTP:       return ["HTTP",  "lime"     ];
+  case database.Kind.SQL:        return ["SQL",   "lightblue"];
+  case database.Kind.GRPC:       return ["GRPC",  "cyan"     ];
+  case database.Kind.JQ:         return ["JQ",    "violet"   ];
+  case database.Kind.REDIS:      return ["REDIS", "red"      ];
+  case database.Kind.MD:         return ["MD",    "blue"     ];
+  case database.Kind.SQLSource:  return ["SQL*",  "blue"     ];
+  case database.Kind.HTTPSource: return ["HTTP*", "lime"     ];
+  default:                       return [String(req.Kind), ""];
   }
 }
 
@@ -324,12 +350,22 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
         })).concat(Object.entries(tree.IDs).map(([id, basename]) => {
             const req = store.requests[id];
             const isSQLSource = id in store.requests && req.Kind === database.Kind.SQLSource;
-            const children = isSQLSource && id in tableCache && Object.keys(tableCache[id].tables).length > 0
-              ? Object.values(tableCache[id].tables).map(table => ({
-                  key: `virtual:${id}:${table.name}`,
-                  label: formatTableLabel(table),
-                }))
-              : undefined;
+            const isHTTPSource = id in store.requests && req.Kind === database.Kind.HTTPSource;
+
+            let children: TreeOption[] | undefined;
+
+            if (isSQLSource && id in tableCache && Object.keys(tableCache[id].tables).length > 0) {
+              children = Object.values(tableCache[id].tables).map(table => ({
+                key: `virtual:table:${id}:${table.name}`,
+                label: formatTableLabel(table),
+              }));
+            } else if (isHTTPSource && id in endpointCache && endpointCache[id].endpoints.length > 0) {
+              children = endpointCache[id].endpoints.map((endpoint, index) => ({
+                key: `virtual:endpoint:${id}:${index}`,
+                label: formatEndpointLabel(endpoint),
+              }));
+            }
+
             const item: TreeOption = {
               key: id,
               label: basename,
@@ -351,7 +387,15 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
               key in store.requests
               && store.requests[key].Kind === database.Kind.SQLSource
               && (!(key in tableCache) || Date.now() - tableCache[key].lastFetch > 300000)); // 5 min cache
-            await Promise.all(sqlSourceKeys.map(key => fetchTables(key)));
+            // Fetch endpoints for newly expanded HTTPSource
+            const httpSourceKeys = keys.filter(key =>
+              key in store.requests
+              && store.requests[key].Kind === database.Kind.HTTPSource
+              && (!(key in endpointCache) || Date.now() - endpointCache[key].lastFetch > 300000)); // 5 min cache
+            await Promise.all([
+              ...sqlSourceKeys.map(key => fetchTables(key)),
+              ...httpSourceKeys.map(key => fetchEndpoints(key)),
+            ]);
             updateTree(store.requestsTree.value); // Re-render after fetch
           },
           drop: drag,
@@ -362,13 +406,27 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
             const id = v.key;
             if (id.startsWith("virtual:")) {
               const parts = id.split(":");
-              if (parts.length !== 3)
+              if (parts.length !== 4)
                 return;
-              const [, sqlSourceID, tableName] = parts;
-              if (!(tableName in tableCache[sqlSourceID].tables))
-                return;
-              const tableInfo = tableCache[sqlSourceID].tables[tableName];
-              store.openTableViewer(sqlSourceID, tableName, tableInfo);
+              const [, type, sourceID, identifier] = parts;
+
+              switch (type) {
+              case "table":
+                if (!(identifier in tableCache[sourceID].tables))
+                  return;
+                const tableInfo = tableCache[sourceID].tables[identifier];
+                store.openTableViewer(sourceID, identifier, tableInfo);
+                break;
+              case "endpoint":
+                const endpointIndex = parseInt(identifier, 10);
+                if (!(sourceID in endpointCache) || endpointIndex >= endpointCache[sourceID].endpoints.length)
+                  return;
+
+                // Open virtual endpoint viewer (not real HTTP request)
+                const endpoint = endpointCache[sourceID].endpoints[endpointIndex];
+                store.openEndpointViewer(sourceID, endpointIndex, endpoint);
+                break;
+              }
             } else if (v.disabled !== true) {
               store.selectRequest(id);
             }
@@ -384,21 +442,53 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
             return null;
 
           if (isVirtual) {
-            // Virtual table item
-            return m("span", {
-              style: {fontStyle: "italic"},
-            },
-            NTag({
-              type: "info",
-              style: {width: "4em", justifyContent: "center", color: "grey", fontStyle: "italic"},
-              size: "small",
-            }, "TABLE"),
-            option.label);
+            const parts = option.key.split(":");
+            if (parts.length === 4) {
+              const [, type] = parts;
+              switch (type) {
+              case "table": // Virtual table item
+                return m("span", {
+                  style: {fontStyle: "italic"},
+                },
+                NTag({
+                  type: "info",
+                  style: {width: "4em", justifyContent: "center", color: "grey", fontStyle: "italic"},
+                  size: "small",
+                }, "TABLE"),
+                option.label);
+              case "endpoint": // Virtual endpoint item
+                const [, , sourceID, index] = parts;
+                const endpointIndex = parseInt(index, 10);
+                if (sourceID in endpointCache && endpointIndex < endpointCache[sourceID].endpoints.length) {
+                  const endpoint = endpointCache[sourceID].endpoints[endpointIndex];
+                  return m("span", {
+                    style: {fontStyle: "italic"},
+                  },
+                  NTag({
+                    type: "success",
+                    style: {width: "4em", justifyContent: "center", color: "grey", fontStyle: "italic"},
+                    size: "small",
+                  }, endpoint.method),
+                  option.label);
+                }
+                // Fallback if endpoint not found in cache
+                return m("span", {
+                  style: {fontStyle: "italic"},
+                },
+                NTag({
+                  type: "success",
+                  style: {width: "4em", justifyContent: "center", color: "grey", fontStyle: "italic"},
+                  size: "small",
+                }, "ENDPT"),
+                option.label);
+              }
+            }
           }
 
           const req = store.requests[option.key];
           const [method, color] = badge(req);
           const isSQLSource = req.Kind === database.Kind.SQLSource;
+          const isHTTPSource = req.Kind === database.Kind.HTTPSource;
 
           return [
             NTag({
@@ -422,15 +512,21 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
                 store.selectRequest(option.key);
               },
             }, option.label),
-            ...(isSQLSource ?  [m("button", {
+            ...((isSQLSource || isHTTPSource) ?  [m("button", {
               onclick: e => {
                 e.stopPropagation();
-                fetchTables(option.key).then(() => {
-                  updateTree(store.requestsTree.value); // Re-render
-                });
+                if (isSQLSource) {
+                  fetchTables(option.key).then(() => {
+                    updateTree(store.requestsTree.value); // Re-render
+                  });
+                } else if (isHTTPSource) {
+                  fetchEndpoints(option.key).then(() => {
+                    updateTree(store.requestsTree.value); // Re-render
+                  });
+                }
               },
               style: {fontSize: "12px", width: "1.5em", height: "1.5em"},
-              title: "Refresh tables",
+              title: isSQLSource ? "Refresh tables" : "Refresh endpoints",
             }, "↻")] : []),
           ];
         },

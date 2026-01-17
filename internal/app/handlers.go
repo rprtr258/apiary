@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -188,13 +189,14 @@ func (a *App) Update(
 	}
 
 	parseRequestt, ok := map[database.Kind]func([]byte) (database.EntryData, error){
-		database.KindHTTP:      parse[database.HTTPRequest],
-		database.KindSQL:       parse[database.SQLRequest],
-		database.KindGRPC:      parse[database.GRPCRequest],
-		database.KindJQ:        parse[database.JQRequest],
-		database.KindRedis:     parse[database.RedisRequest],
-		database.KindMD:        parse[database.MDRequest],
-		database.KindSQLSource: parse[database.SQLSourceRequest],
+		database.KindHTTP:       parse[database.HTTPRequest],
+		database.KindSQL:        parse[database.SQLRequest],
+		database.KindGRPC:       parse[database.GRPCRequest],
+		database.KindJQ:         parse[database.JQRequest],
+		database.KindRedis:      parse[database.RedisRequest],
+		database.KindMD:         parse[database.MDRequest],
+		database.KindSQLSource:  parse[database.SQLSourceRequest],
+		database.KindHTTPSource: parse[database.HTTPSourceRequest],
 	}[kind]
 	if !ok {
 		return errors.Errorf("unknown request kind %q", kind)
@@ -605,4 +607,142 @@ func (a *App) CountRowsSQLSource(requestID, tableName string) (int64, error) {
 
 	req := request.Data.(database.SQLSourceRequest)
 	return database.CountRows(a.ctx, req.Database, req.DSN, tableName)
+}
+
+func (a *App) ListEndpointsHTTPSource(requestID string) ([]database.EndpointInfo, error) {
+	request, err := a.get(database.RequestID(requestID))
+	if err != nil {
+		return nil, errors.Wrapf(err, "get request id=%q", requestID)
+	}
+	if request.Data.Kind() != database.KindHTTPSource {
+		return nil, errors.Errorf("request %s is not HTTPSource", requestID)
+	}
+
+	req := request.Data.(database.HTTPSourceRequest)
+	spec, err := database.FetchSpec(a.ctx, req.SpecSource, req.SpecData)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetch spec")
+	}
+	return database.ParseSpec(spec)
+}
+
+func (a *App) GenerateExampleRequestHTTPSource(requestID string, endpointIndex int) (database.HTTPRequest, error) {
+	request, err := a.get(database.RequestID(requestID))
+	if err != nil {
+		return database.HTTPRequest{}, errors.Wrapf(err, "get request id=%q", requestID)
+	}
+	if request.Data.Kind() != database.KindHTTPSource {
+		return database.HTTPRequest{}, errors.Errorf("request %s is not HTTPSource", requestID)
+	}
+
+	req := request.Data.(database.HTTPSourceRequest)
+	spec, err := database.FetchSpec(a.ctx, req.SpecSource, req.SpecData)
+	if err != nil {
+		return database.HTTPRequest{}, errors.Wrap(err, "fetch spec")
+	}
+	endpoints, err := database.ParseSpec(spec)
+	if err != nil {
+		return database.HTTPRequest{}, errors.Wrap(err, "parse spec")
+	}
+	if endpointIndex < 0 || endpointIndex >= len(endpoints) {
+		return database.HTTPRequest{}, errors.Errorf("invalid endpoint index %d", endpointIndex)
+	}
+	return database.GenerateExampleRequest(endpoints[endpointIndex], req.ServerURL, req.Auth), nil
+}
+
+func (a *App) PerformVirtualEndpointHTTPSource(sourceID string, endpointIndex int, modifiedRequest *database.HTTPRequest) (D, error) {
+	request, err := a.get(database.RequestID(sourceID))
+	if err != nil {
+		return nil, errors.Wrapf(err, "get request id=%q", sourceID)
+	}
+	if request.Data.Kind() != database.KindHTTPSource {
+		return nil, errors.Errorf("request %s is not HTTPSource", sourceID)
+	}
+
+	req := request.Data.(database.HTTPSourceRequest)
+	spec, err := database.FetchSpec(a.ctx, req.SpecSource, req.SpecData)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetch spec")
+	}
+	endpoints, err := database.ParseSpec(spec)
+	if err != nil {
+		return nil, errors.Wrap(err, "parse spec")
+	}
+	if endpointIndex < 0 || endpointIndex >= len(endpoints) {
+		return nil, errors.Errorf("invalid endpoint index %d", endpointIndex)
+	}
+
+	// Generate example request
+	exampleRequest := database.GenerateExampleRequest(endpoints[endpointIndex], req.ServerURL, req.Auth)
+
+	// Merge with modified request if provided
+	finalRequest := exampleRequest
+	if modifiedRequest != nil {
+		// Merge fields from modifiedRequest into exampleRequest
+		finalRequest.Method = cmp.Or(modifiedRequest.Method, finalRequest.Method)
+		finalRequest.URL = cmp.Or(modifiedRequest.URL, finalRequest.URL)
+		finalRequest.Body = cmp.Or(modifiedRequest.Body, finalRequest.Body)
+		if modifiedRequest.Headers != nil {
+			finalRequest.Headers = modifiedRequest.Headers
+		}
+	}
+
+	sentAt := time.Now()
+
+	// Execute using HTTP plugin
+	plugin, ok := database.Plugins[database.KindHTTP]
+	if !ok {
+		return nil, errors.Errorf("unsupported request type %T", request)
+	}
+
+	response, err := plugin.Perform(a.ctx, finalRequest)
+	if err != nil {
+		return nil, errors.Wrapf(err, "send request id=%q", sourceID)
+	}
+
+	receivedAt := time.Now()
+
+	return D{
+		"RequestId":   sourceID,
+		"sent_at":     sentAt.Format(time.RFC3339),
+		"received_at": receivedAt.Format(time.RFC3339),
+		"request":     finalRequest,
+		"response":    response,
+	}, nil
+}
+
+func (a *App) FetchSpecHTTPSource(requestID string) error {
+	request, err := a.get(database.RequestID(requestID))
+	if err != nil {
+		return errors.Wrapf(err, "get request id=%q", requestID)
+	}
+	if request.Data.Kind() != database.KindHTTPSource {
+		return errors.Errorf("request %s is not HTTPSource", requestID)
+	}
+
+	req := request.Data.(database.HTTPSourceRequest)
+	spec, err := database.FetchSpec(a.ctx, req.SpecSource, req.SpecData)
+	if err != nil {
+		return errors.Wrap(err, "fetch spec")
+	}
+	req.SpecData = spec // TODO: SpecData was spec url and becomes spec content, separate them
+	return a.DB.Update(a.ctx, database.RequestID(requestID), req)
+}
+
+func (a *App) TestHTTPSource(requestID string) error {
+	request, err := a.get(database.RequestID(requestID))
+	if err != nil {
+		return errors.Wrapf(err, "get request id=%q", requestID)
+	}
+	if request.Data.Kind() != database.KindHTTPSource {
+		return errors.Errorf("request %s is not HTTPSource", requestID)
+	}
+
+	req := request.Data.(database.HTTPSourceRequest)
+	spec, err := database.FetchSpec(a.ctx, req.SpecSource, req.SpecData)
+	if err != nil {
+		return errors.Wrap(err, "fetch spec")
+	}
+	_, err = database.ParseSpec(spec)
+	return err
 }

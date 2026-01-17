@@ -29,6 +29,8 @@ func (export) ExportTypes(
 	database.RedisRequest, database.RedisResponse,
 	database.MDRequest, database.MDResponse,
 	database.SQLSourceRequest,
+	database.HTTPSourceRequest,
+	database.EndpointInfo,
 ) {
 }
 

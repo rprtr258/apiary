@@ -32,6 +32,11 @@ export type viewerState = {
   tableName: string,
   tableInfo: database.TableInfo,
 };
+export type EndpointViewerState = {
+  sourceID: string,
+  endpointIndex: number,
+  endpointInfo: database.EndpointInfo,
+};
 export type panelkaState = {id: string};
 
 let layoutConfig: LayoutConfig = {
@@ -106,6 +111,7 @@ export type Store = {
   deleteRequest(id: string): Promise<void>,
   rename(id: string, newID: string): Promise<void>,
   openTableViewer(sqlSourceID: string, tableName: string, tableInfo: database.TableInfo): void,
+  openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: database.EndpointInfo): void,
 };
 export function useStore(): Store {
   const load = () => {
@@ -242,6 +248,19 @@ export function useStore(): Store {
         title: `${sourceName}/${tableName}`,
         componentType: "TableViewer",
         componentState: {sqlSourceID, tableName, tableInfo},
+      });
+    },
+    openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: database.EndpointInfo): void {
+      const cfg = this.layout!.saveLayout();
+      if (cfg.root !== undefined && dfs<EndpointViewerState>(cfg.root).find(t => t.sourceID === sourceID && t.endpointIndex === endpointIndex) !== undefined)
+        return;
+
+      const sourceName = this.requestNames[sourceID] ?? sourceID;
+      this.layout?.addItem({
+        type: "component",
+        title: `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`,
+        componentType: "EndpointViewer",
+        componentState: {sourceID, endpointIndex, endpointInfo},
       });
     },
   };

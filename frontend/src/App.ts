@@ -15,8 +15,11 @@ import {database} from "../wailsjs/go/models.ts";
 import Command from "./components/CommandPalette.ts";
 import {m, setDisplay, signal} from "./utils.ts";
 import RequestSQLSource from "./RequestSQLSource.ts";
+import RequestHTTPSource from "./RequestHTTPSource.ts";
 import {globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, Sidebar} from "./Sidebar.ts";
 import RequestTableViewer from "./components/TableView.ts";
+import EndpointViewer from "./components/EndpointViewer.ts";
+import {EndpointViewerState} from "./store.ts";
 
 function create() {
   const kind = newRequestKind.value!;
@@ -241,10 +244,44 @@ const panelkaFactory = (
         case database.Kind.SQLSource:
           setDisplay(eye, false); // TODO: dont draw eye in the first place?
           return RequestSQLSource(el, {update: on.update});
+        case database.Kind.HTTPSource:
+          setDisplay(eye, false);
+          return RequestHTTPSource(el, {update: on.update});
       }
     })();
     frame_unsub = () => frame.unmount();
     get_request(id).then(r => r !== null && frame.loaded(r));
+  } else {
+    // Request not in store.requests, try to load it
+    get_request(id).then(r => {
+      if (r !== null) {
+        // Now we know the request kind, create the component
+        const on = {
+          update: (patch: Partial<Request>) => update_request(id, patch),
+          send: () => send(id).then(_ => {
+            frame.push_history_entry?.(last_history_entry(store.requests2[id])!);
+          }),
+        };
+        const frame: Frame = (() => {
+          switch (r.request.kind) {
+            case database.Kind.HTTP: return RequestHTTP(el, show_request, on);
+            case database.Kind.SQL: return RequestSQL(el, show_request, on);
+            case database.Kind.GRPC: return RequestGRPC(el, show_request, on);
+            case database.Kind.JQ: return RequestJQ(el, show_request, on);
+            case database.Kind.REDIS: return RequestRedis(el, show_request, on);
+            case database.Kind.MD: return RequestMD(el, show_request, on);
+            case database.Kind.SQLSource:
+              setDisplay(eye, false);
+              return RequestSQLSource(el, {update: on.update});
+            case database.Kind.HTTPSource:
+              setDisplay(eye, false);
+              return RequestHTTPSource(el, {update: on.update});
+          }
+        })();
+        frame_unsub = () => frame.unmount();
+        frame.loaded(r);
+      }
+    });
   }
   return {el};
 };
@@ -288,6 +325,7 @@ function preApp(root: HTMLElement, store: Store) {
   golden_layout.resizeDebounceInterval = 0;
   golden_layout.registerComponentFactoryFunction("MyComponent", (container, state, _) => panelkaFactory(container, state as panelkaState));
   golden_layout.registerComponentFactoryFunction("TableViewer", (container, state, _) => RequestTableViewer(container.element, state as viewerState));
+  golden_layout.registerComponentFactoryFunction("EndpointViewer", (container, state, _) => EndpointViewer(container.element, state as EndpointViewerState));
   golden_layout.loadLayout(store.layoutConfig);
   golden_layout.on("stateChanged", () => {
     update_empty_state(golden_layout.saveLayout().root === undefined);

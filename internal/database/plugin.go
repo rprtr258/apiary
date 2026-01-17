@@ -19,13 +19,14 @@ type (
 )
 
 var Plugins = map[Kind]plugin{
-	KindHTTP:      pluginHTTP,
-	KindSQL:       pluginSQL,
-	KindJQ:        pluginJQ,
-	KindMD:        pluginMD,
-	KindRedis:     pluginRedis,
-	KindGRPC:      pluginGRPC,
-	KindSQLSource: pluginSQLSource,
+	KindHTTP:       pluginHTTP,
+	KindSQL:        pluginSQL,
+	KindJQ:         pluginJQ,
+	KindMD:         pluginMD,
+	KindRedis:      pluginRedis,
+	KindGRPC:       pluginGRPC,
+	KindSQLSource:  pluginSQLSource,
+	KindHTTPSource: pluginHTTPSource,
 }
 
 var KindEnums = func() []enumElem[Kind] {
