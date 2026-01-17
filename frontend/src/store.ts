@@ -1,6 +1,6 @@
+import {database, app} from "../wailsjs/go/models.ts";
 import {ComponentItem, ComponentItemConfig, ContentItem, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedLayoutConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig} from "golden-layout";
-import {api, type RequestData, type HistoryEntry, Request, TableInfo} from "./api.ts";
-import {app} from "../wailsjs/go/models.ts";
+import {api, type RequestData, type HistoryEntry, Request} from "./api.ts";
 import {signal, Signal} from "./utils.ts";
 
 
@@ -30,7 +30,7 @@ function* dfs<State>(c: ConfigNode): Generator<State, void, void> {
 export type viewerState = {
   sqlSourceID: string,
   tableName: string,
-  tableInfo: TableInfo,
+  tableInfo: database.TableInfo,
 };
 export type panelkaState = {id: string};
 
@@ -105,7 +105,7 @@ export type Store = {
   duplicate(id: string): Promise<void>,
   deleteRequest(id: string): Promise<void>,
   rename(id: string, newID: string): Promise<void>,
-  openTableViewer(sqlSourceID: string, tableName: string, tableInfo: TableInfo): void,
+  openTableViewer(sqlSourceID: string, tableName: string, tableInfo: database.TableInfo): void,
 };
 export function useStore(): Store {
   const load = () => {
@@ -231,7 +231,7 @@ export function useStore(): Store {
       // tabs.value?.map.rename(id, newID);
       await this.fetch();
     },
-    openTableViewer(sqlSourceID: string, tableName: string, tableInfo: TableInfo): void {
+    openTableViewer(sqlSourceID: string, tableName: string, tableInfo: database.TableInfo): void {
       const cfg = this.layout!.saveLayout();
       if (cfg.root !== undefined && dfs<viewerState>(cfg.root).find(t => t.sqlSourceID === sqlSourceID && t.tableName === tableName) !== undefined)
         return;

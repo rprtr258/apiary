@@ -91,6 +91,16 @@ export function m<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
+interface SVGCommon {
+  id: string,
+  style: Partial<CSSStyleDeclaration>,
+  class: string,
+  transform: string,
+  fill: string,
+  stroke: string,
+  "stroke-width": number,
+}
+
 interface SVGAttrs {
   svg: {
     xmlns: "http://www.w3.org/2000/svg",
@@ -101,19 +111,61 @@ interface SVGAttrs {
     "aria-label": string,
     role: "img",
     style: Partial<CSSStyleDeclaration>,
-  },
+  } & SVGCommon,
   path: {
     d: string,
-    fill: string,
-  },
+    "marker-end": string,
+  } & SVGCommon,
   g: {
-    fill: string,
-    stroke: string,
     "stroke-linecap": string,
     "stroke-linejoin": string,
-    "stroke-width": number,
     "fill-rule": "evenodd" | "nonzero",
-  },
+  } & SVGCommon,
+  rect: {
+    x: string,
+    y: string,
+    width: string,
+    height: string,
+    rx: string,
+  } & SVGCommon,
+  circle: {
+    cx: string,
+    cy: string,
+    r: string,
+  } & SVGCommon,
+  polygon: {
+    points: string,
+  } & SVGCommon,
+  line: {
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    "marker-end": string,
+  } & SVGCommon,
+  text: {
+    x: string,
+    y: string,
+    "font-family": "monospace",
+    "font-size": string,
+    "text-anchor": "middle",
+  } & SVGCommon,
+  defs: {} & SVGCommon,
+  pattern: {
+    x: string,
+    y: string,
+    width: string,
+    height: string,
+    patternUnits: "userSpaceOnUse",
+    patternTransform: string,
+  } & SVGCommon,
+  marker: {
+    markerWidth: string,
+    markerHeight: string,
+    refX: string,
+    refY: string,
+    orient: string,
+  } & SVGCommon,
 }
 
 export function s<K extends keyof SVGAttrs>(

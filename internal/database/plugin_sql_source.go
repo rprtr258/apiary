@@ -36,9 +36,16 @@ type IndexInfo struct {
 	Definition string `json:"definition"`
 }
 
+type ForeignKey struct {
+	Column string `json:"column"`
+	Table  string `json:"table"`
+	To     string `json:"to"`
+}
+
 type TableSchema struct {
 	Columns     []ColumnInfo     `json:"columns"`
 	Constraints []ConstraintInfo `json:"constraints"`
+	ForeignKeys []ForeignKey     `json:"foreign_keys"`
 	Indexes     []IndexInfo      `json:"indexes"`
 }
 
@@ -248,6 +255,7 @@ func DescribeTable(ctx context.Context, db Database, dsn, tableName string) (Tab
 	schema := TableSchema{
 		Columns:     []ColumnInfo{},
 		Constraints: []ConstraintInfo{},
+		ForeignKeys: []ForeignKey{},
 		Indexes:     []IndexInfo{},
 	}
 
@@ -339,6 +347,30 @@ func DescribeTable(ctx context.Context, db Database, dsn, tableName string) (Tab
 			}
 			schema.Indexes = append(schema.Indexes, idx)
 		}
+
+		// Parse foreign keys from constraints
+		for _, con := range schema.Constraints {
+			if con.Type == "FOREIGN KEY" {
+				// Parse "FOREIGN KEY (from) REFERENCES toTable(to)"
+				parts := strings.Split(con.Definition, "REFERENCES")
+				if len(parts) == 2 {
+					fromPart := strings.Trim(strings.TrimSpace(parts[0]), "FOREIGN KEY ()")
+					refPart := strings.TrimSpace(parts[1])
+					refParts := strings.Split(refPart, "(")
+					if len(refParts) == 2 {
+						toTable := strings.TrimSpace(refParts[0])
+						to := strings.Trim(strings.TrimSpace(refParts[1]), ")")
+						schema.ForeignKeys = append(schema.ForeignKeys, ForeignKey{
+							Column: fromPart,
+							Table:  toTable,
+							To:     to,
+						})
+					}
+				}
+			}
+		}
+
+		return schema, nil
 	case DBMySQL:
 		conn, err := sql.Open("mysql", dsn)
 		if err != nil {
@@ -399,6 +431,8 @@ func DescribeTable(ctx context.Context, db Database, dsn, tableName string) (Tab
 				schema.Constraints = append(schema.Constraints, con)
 			}
 		}
+
+		return schema, nil
 	case DBSQLite:
 		conn, err := sql.Open("sqlite", dsn)
 		if err != nil {
@@ -466,6 +500,27 @@ func DescribeTable(ctx context.Context, db Database, dsn, tableName string) (Tab
 				})
 			}
 		}
+
+		// Get foreign keys
+		fkRows, err := conn.QueryContext(ctx, fmt.Sprintf("PRAGMA foreign_key_list(%s)", tableName))
+		if err != nil {
+			return schema, errors.Wrap(err, "query sqlite foreign keys")
+		}
+		defer fkRows.Close()
+		for fkRows.Next() {
+			var id, seq int
+			var refTable, from, to, onUpdate, onDelete, match string
+			if err := fkRows.Scan(&id, &seq, &refTable, &from, &to, &onUpdate, &onDelete, &match); err != nil {
+				continue
+			}
+			schema.ForeignKeys = append(schema.ForeignKeys, ForeignKey{
+				Column: from,
+				Table:  refTable,
+				To:     to,
+			})
+		}
+
+		return schema, nil
 	case DBClickhouse:
 		conn, err := sql.Open("clickhouse", dsn)
 		if err != nil {
@@ -505,11 +560,11 @@ func DescribeTable(ctx context.Context, db Database, dsn, tableName string) (Tab
 			}
 			schema.Columns = append(schema.Columns, col)
 		}
+
+		return schema, nil
 	default:
 		return schema, errors.Errorf("unsupported database for schema description: %s", db)
 	}
-
-	return schema, nil
 }
 
 func CountRows(ctx context.Context, db Database, dsn, tableName string) (int64, error) {

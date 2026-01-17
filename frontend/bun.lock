@@ -10,6 +10,7 @@
         "@fsegurai/codemirror-theme-github-dark": "^6.2.3",
         "codemirror": "^6.0.1",
         "golden-layout": "^2.6.0",
+        "perfect-arrows": "^0.3.7",
         "split-grid": "^1.0.11",
       },
       "devDependencies": {
@@ -584,6 +585,8 @@
     "path-parse": ["path-parse@1.0.7", "", {}, "sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw=="],
 
     "path-type": ["path-type@4.0.0", "", {}, "sha512-gDKb8aZMDeD/tZWs9P6+q0J9Mwkdl6xMV8TjnGP3qJVJ06bdMgkbBlLU8IdfOsIsFz2BW1rNVT3XuNEl8zPAvw=="],
+
+    "perfect-arrows": ["perfect-arrows@0.3.7", "", {}, "sha512-wEN2gerTPVWl3yqoFEF8OeGbg3aRe2sxNUi9rnyYrCsL4JcI6K2tBDezRtqVrYG0BNtsWLdYiiTrYm+X//8yLQ=="],
 
     "picocolors": ["picocolors@1.1.1", "", {}, "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA=="],
 

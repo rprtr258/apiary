@@ -3,7 +3,7 @@ import {NButton} from "./input.ts";
 import {NScrollbar, NTabs} from "./layout.ts";
 import {NIcon} from "./dataview.ts";
 import {CheckSquareOutlined, ClockCircleOutlined, FieldNumberOutlined, ItalicOutlined, QuestionCircleOutlined} from "./icons.ts";
-import {TableInfo, api, RowValue} from "../api.ts";
+import {api, RowValue} from "../api.ts";
 import {DOMNode, m, signal} from "../utils.ts";
 import {notification} from "../store.ts";
 
@@ -12,7 +12,7 @@ function render(v: RowValue): DOMNode {
   case v === null:
     return m("span", {style: {color: "grey"}}, "(NULL)");
   case typeof v === "boolean":
-    return v ? "true" : "false";
+    return v ? "✅" : "❌";
   case typeof v === "number":
     return m("span", {style: {color: "#e84e40"}}, String(v));
   case typeof v === "string":
@@ -91,7 +91,7 @@ const pageSize = 100;
 type Props = {
   sqlSourceID: string,
   tableName: string,
-  tableInfo: TableInfo,
+  tableInfo: database.TableInfo,
 };
 
 export default function(
@@ -136,11 +136,12 @@ export default function(
       const response = res.value.response as database.SQLResponse;
       dataTable.update({
         columns: response.columns,
-        rows: response.rows as RowValue[][],
         types: response.types,
+        rows: response.rows as RowValue[][],
       });
     } else {
       // Handle error
+      notification.error({title: "Could not load data", error: res.value});
       dataTable.update({columns: [], rows: [], types: []});
     }
     // Update UI elements
@@ -152,34 +153,28 @@ export default function(
   async function loadSchema() {
     const res = await api.requestDescribeTableSQLSource(sqlSourceID, tableName);
     if (res.kind === "err") {
-      console.error("Failed to load schema:", res.value);
+      notification.error({title: "Could not describe table", error: res.value});
       return;
     }
 
-    const schema = res.value;
+    const {columns, indexes, constraints} = res.value;
     // Schema (columns)
-    const columns = ["Name", "Type", "Nullable", "Default"];
-    const rows = schema.columns.map(col => [col.name, col.type, col.nullable ? "Yes" : "No", col.defaultValue]);
     schemaTable.update({
-      columns,
-      rows: rows as RowValue[][],
-      types: ["string", "string", "string", "string"],
+      columns: ["Name", "Type", "Nullable", "Default"],
+      types: ["string", "string", "bool", "string"],
+      rows: columns.map(col => [col.name, col.type, col.nullable, col.defaultValue]) as RowValue[][],
     });
     // Indexes
-    const indexColumns = ["Name", "Definition"];
-    const indexRows = schema.indexes.map(idx => [idx.name, idx.definition]);
     indexesTable.update({
-      columns: indexColumns,
-      rows: indexRows as RowValue[][],
+      columns: ["Name", "Definition"],
       types: ["string", "string"],
+      rows: indexes.map(idx => [idx.name, idx.definition]) as RowValue[][],
     });
     // Constraints
-    const constraintColumns = ["Name", "Type", "Definition"];
-    const constraintRows = schema.constraints.map(con => [con.name, con.type, con.definition]);
     constraintsTable.update({
-      columns: constraintColumns,
-      rows: constraintRows as RowValue[][],
+      columns: ["Name", "Type", "Definition"],
       types: ["string", "string", "string"],
+      rows: constraints.map(con => [con.name, con.type, con.definition]) as RowValue[][],
     });
   }
 

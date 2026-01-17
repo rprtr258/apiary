@@ -18,6 +18,7 @@
     "@fsegurai/codemirror-theme-github-dark": "^6.2.3",
     "codemirror": "^6.0.1",
     "golden-layout": "^2.6.0",
+    "perfect-arrows": "^0.3.7",
     "split-grid": "^1.0.11"
   },
   "devDependencies": {

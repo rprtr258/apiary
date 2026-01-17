@@ -1,6 +1,8 @@
 import {database} from "../wailsjs/go/models.ts";
 import {NEmpty} from "./components/dataview.ts";
 import {NInput, NInputGroup, NSelect} from "./components/input.ts";
+import {NTabs} from "./components/layout.ts";
+import SchemaCanvas from "./components/SchemaCanvas.ts";
 import {get_request} from "./store.ts";
 import {Database, api} from "./api.ts";
 import {m} from "./utils.ts";
@@ -50,7 +52,7 @@ export default function(
         await on.update(patch);
         await updateConnectionStatus();
       };
-      const el_container = NInputGroup({
+      const el_connection_tab = NInputGroup({
         style: {
           height: "100%",
           display: "flex",
@@ -104,8 +106,34 @@ export default function(
         ),
         statusLabel.el,
       ]);
+
+      const el_schema_tab = m("div", {class: "h100"});
+      const schema = SchemaCanvas(el_schema_tab);
+
+      const el_container = NTabs({
+        tabs: [
+          {name: "Connection", elem: el_connection_tab},
+          {name: "Schema", elem: el_schema_tab},
+        ],
+      });
+
       el.replaceChildren(el_container);
       updateConnectionStatus(); // Initial check
+
+      // Load schema
+      (async () => {
+        const tableInfos = await api.requestListTablesSQLSource(requestID);
+        if (tableInfos.kind === "err") {
+          console.error("Could not load schema", tableInfos.value);
+          return;
+        }
+        const results = await Promise.all(tableInfos.value.map(async tableInfo => {
+          const schema = await api.requestDescribeTableSQLSource(requestID, tableInfo.name);
+          return schema.kind === "ok" ? {name: tableInfo.name, schema: schema.value} : null;
+        }));
+        const tables = results.filter((t): t is NonNullable<typeof t> => t !== null);
+        schema.loaded(tables);
+      })();
     },
     unmount() {
       for (const unmount of unmounts) {
