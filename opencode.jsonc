@@ -13,6 +13,11 @@
     "todowrite": true,
     "webfetch": true,
   },
+  "permission": {
+    "skill": {
+      "*": "allow",
+    },
+  },
   "mcp": {
     // "puppeteer": {
     //   "type": "local",
