@@ -6,8 +6,9 @@ export function Json<T>(props: {data: T}) {
   return m("pre", JSON.stringify(props.data, null, 2));
 };
 
+export type TagType = "success" | "info" | "warning" | "error";
 type NTagProps = {
-  type: "success" | "info" | "warning", // TODO: replace with color, use?
+  type: TagType, // TODO: replace with color, use?
   style?: Partial<CSSStyleDeclaration>,
   size: "small",
   round?: true,
@@ -18,7 +19,8 @@ export function NTag(props: NTagProps, label: string) {
       color: {
         success: "lime",
         info: "blue",
-        warning: "red",
+        warning: "yellow",
+        error: "red",
       }[props.type],
       ...props.style,
     },

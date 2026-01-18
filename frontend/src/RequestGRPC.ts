@@ -13,7 +13,7 @@ type Request = {kind: database.Kind.GRPC} & database.GRPCRequest;
 function responseBadge(response: {code: number}) {
   const code = response.code;
   return NTag({
-    type: (code === 0 ? "success" : "error") as "success" | "info" | "warning",
+    type: (code === 0 ? "success" : "error"),
     size: "small",
     round: true,
   }, `${code} ${GRPCCodes[code as keyof typeof GRPCCodes]}`);

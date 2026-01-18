@@ -16,7 +16,7 @@ import Command from "./components/CommandPalette.ts";
 import {m, setDisplay, signal} from "./utils.ts";
 import RequestSQLSource from "./RequestSQLSource.ts";
 import RequestHTTPSource from "./RequestHTTPSource.ts";
-import {globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, Sidebar} from "./Sidebar.ts";
+import {el_aside, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./Sidebar.ts";
 import RequestTableViewer from "./components/TableView.ts";
 import EndpointViewer from "./components/EndpointViewer.ts";
 import {EndpointViewerState} from "./store.ts";
@@ -308,8 +308,6 @@ function preApp(root: HTMLElement, store: Store) {
       el_empty_state,
       el_layout,
     ]);
-  const sidebarHidden = signal(false);
-  const {el: el_aside} = Sidebar(sidebarHidden);
   const app_container = NSplit(el_aside, el_main, {direction: "horizontal", sizes: ["300px", "1fr"], snap: 100}).element;
 
   sidebarHidden.sub(function*() {
