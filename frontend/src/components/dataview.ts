@@ -175,6 +175,10 @@ export function NTree(props: NTreeProps) {
       }) : null,
       props.render(v, level, isExpanded),
     );
+    // Set data attributes after creating the element
+    button.setAttribute("data-key", v.key);
+    button.setAttribute("data-level", level.toString());
+    
     const children = isDir && isExpanded ? v.children!.flatMap(w => renderElem(w, level + 1)) : [];
     return [button, ...children];
   }
