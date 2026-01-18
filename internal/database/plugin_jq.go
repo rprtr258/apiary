@@ -1,5 +1,7 @@
 package database
 
+import "context"
+
 const KindJQ Kind = "jq"
 
 type JQRequest struct {
@@ -20,7 +22,11 @@ var pluginJQ = plugin{
 	enum:           enumElem[Kind]{KindJQ, "JQ"},
 	create:         (*DB).create,
 	update:         (*DB).update,
-	createResponse: (*DB).createResponse,
+	createResponse: (*DB).createResponseJQ,
+}
+
+func (db *DB) createResponseJQ(ctx context.Context, id RequestID, req EntryData) (EntryData, error) {
+	return req, nil
 }
 
 var JQEmptyRequest = JQRequest{

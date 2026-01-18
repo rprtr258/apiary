@@ -70,13 +70,17 @@ var pluginSQL = plugin{
 	Perform:        sendSQL,
 	create:         (*DB).create,
 	update:         (*DB).update,
-	createResponse: (*DB).createResponse,
+	createResponse: (*DB).createResponseSQL,
 }
 
 var SQLEmptyRequest = SQLRequest{
 	"",         // DSN // TODO: insert last dsn used
 	DBPostgres, // Database
 	"",         // Query
+}
+
+func (db *DB) createResponseSQL(ctx context.Context, id RequestID, req EntryData) (EntryData, error) {
+	return req, nil
 }
 
 func convertTypes(columns int, rows [][]any) []ColumnType {

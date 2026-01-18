@@ -55,7 +55,7 @@ var pluginHTTP = plugin{
 	Perform:        sendHTTP,
 	create:         (*DB).create,
 	update:         (*DB).update,
-	createResponse: (*DB).createResponse,
+	createResponse: (*DB).createResponseHTTP,
 }
 
 var HTTPEmptyRequest = HTTPRequest{
@@ -63,6 +63,10 @@ var HTTPEmptyRequest = HTTPRequest{
 	http.MethodGet, // Method
 	"",             // Body
 	nil,            // Headers
+}
+
+func (db *DB) createResponseHTTP(ctx context.Context, id RequestID, req EntryData) (EntryData, error) {
+	return req, nil
 }
 
 func fromKV(kvs []KV) http.Header {

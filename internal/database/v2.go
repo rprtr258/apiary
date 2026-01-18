@@ -64,8 +64,8 @@ func mapRequestDataV1[Req, Resp EntryData](id RequestID, p map[RequestID]pluginv
 	return request, responses
 }
 
-func Map9[T0, T1, T2, T3, T4, T5, T6, T7, T8, T any](
-	combine func(T0, T1, T2, T3, T4, T5, T6, T7, T8) T,
+func Map10[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T any](
+	combine func(T0, T1, T2, T3, T4, T5, T6, T7, T8, T9) T,
 	d0 json2.Decoder[T0],
 	d1 json2.Decoder[T1],
 	d2 json2.Decoder[T2],
@@ -75,6 +75,7 @@ func Map9[T0, T1, T2, T3, T4, T5, T6, T7, T8, T any](
 	d6 json2.Decoder[T6],
 	d7 json2.Decoder[T7],
 	d8 json2.Decoder[T8],
+	d9 json2.Decoder[T9],
 ) json2.Decoder[T] {
 	return func(v any, res *T) error {
 		var dest0 T0
@@ -113,13 +114,17 @@ func Map9[T0, T1, T2, T3, T4, T5, T6, T7, T8, T any](
 		if err := d8(v, &dest8); err != nil {
 			return err
 		}
+		var dest9 T9
+		if err := d9(v, &dest9); err != nil {
+			return err
+		}
 
-		*res = combine(dest0, dest1, dest2, dest3, dest4, dest5, dest6, dest7, dest8)
+		*res = combine(dest0, dest1, dest2, dest3, dest4, dest5, dest6, dest7, dest8, dest9)
 		return nil
 	}
 }
 
-var decoderV1 = Map9(
+var decoderV1 = Map10(
 	func(
 		requests []requestv1,
 		response []responsev1,
@@ -130,6 +135,7 @@ var decoderV1 = Map9(
 		redis map[RequestID]pluginv1[RedisRequest, RedisResponse],
 		grpc map[RequestID]pluginv1[GRPCRequest, GRPCResponse],
 		sqlsource map[RequestID]SQLSourceRequest,
+		httpsource map[RequestID]HTTPSourceRequest,
 	) dbInner {
 		data := make(map[RequestID]Request, len(requests))
 		for _, reqv1 := range requests {
@@ -150,6 +156,8 @@ var decoderV1 = Map9(
 				reqe, responses = mapRequestDataV1(reqv1.ID, grpc)
 			case KindSQLSource:
 				reqe, responses = sqlsource[reqv1.ID], nil
+			case KindHTTPSource:
+				reqe, responses = httpsource[reqv1.ID], nil
 			default:
 				panic("unknown kind " + string(reqv1.Kind))
 			}
@@ -220,5 +228,17 @@ var decoderV1 = Map9(
 			},
 			json2.Dict(json2.Std[SQLSourceRequest]())),
 		map[RequestID]SQLSourceRequest{},
+	),
+	json2.Optional(string(KindHTTPSource),
+		json2.Map(
+			func(v map[string]HTTPSourceRequest) map[RequestID]HTTPSourceRequest {
+				res := make(map[RequestID]HTTPSourceRequest, len(v))
+				for id, req := range v {
+					res[RequestID(id)] = req
+				}
+				return res
+			},
+			json2.Dict(json2.Std[HTTPSourceRequest]())),
+		map[RequestID]HTTPSourceRequest{},
 	),
 )

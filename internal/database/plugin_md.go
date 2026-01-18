@@ -39,7 +39,7 @@ var pluginMD = plugin{
 	Perform:        sendMD,
 	create:         (*DB).create,
 	update:         (*DB).update,
-	createResponse: (*DB).createHistoryEntryMD,
+	createResponse: (*DB).createResponseMD,
 }
 
 //go:embed default.md
@@ -47,12 +47,12 @@ var DefaultMarkdown string
 
 var MDEmptyRequest = MDRequest{DefaultMarkdown}
 
-func (db *DB) createHistoryEntryMD(
-	context.Context,
-	RequestID,
-	Response,
-) error {
-	return nil // no history for md
+func (db *DB) createResponseMD(
+	ctx context.Context,
+	id RequestID,
+	req EntryData,
+) (EntryData, error) {
+	return req, nil
 }
 
 var m = goldmark.New(

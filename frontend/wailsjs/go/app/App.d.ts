@@ -13,11 +13,15 @@ export function DescribeTableSQLSource(arg1:string,arg2:string):Promise<database
 
 export function Duplicate(arg1:string):Promise<app.ResponseNewRequest>;
 
+export function FetchSpecHTTPSource(arg1:string):Promise<void>;
+
 export function GRPCMethods(arg1:string):Promise<Array<app.grpcServiceMethods>>;
 
 export function GRPCQueryFake(arg1:string,arg2:string):Promise<string>;
 
 export function GRPCQueryValidate(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function GenerateExampleRequestHTTPSource(arg1:string,arg2:number):Promise<database.HTTPRequest>;
 
 export function Get(arg1:string):Promise<app.GetResponse>;
 
@@ -25,15 +29,21 @@ export function JQ(arg1:string,arg2:string):Promise<Array<string>>;
 
 export function List():Promise<app.ListResponse>;
 
+export function ListEndpointsHTTPSource(arg1:string):Promise<Array<database.EndpointInfo>>;
+
 export function ListTablesSQLSource(arg1:string):Promise<Array<database.TableInfo>>;
 
 export function Perform(arg1:string):Promise<Record<string, any>>;
 
 export function PerformSQLSource(arg1:string,arg2:string):Promise<Record<string, any>>;
 
+export function PerformVirtualEndpointHTTPSource(arg1:string,arg2:number,arg3:database.HTTPRequest):Promise<Record<string, any>>;
+
 export function Read(arg1:string):Promise<database.Request>;
 
 export function Rename(arg1:string,arg2:string):Promise<void>;
+
+export function TestHTTPSource(arg1:string):Promise<void>;
 
 export function TestSQLSource(arg1:string):Promise<void>;
 

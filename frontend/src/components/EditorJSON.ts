@@ -11,6 +11,7 @@ type Props = {
   },
   class?: string,
   style?: Partial<CSSStyleDeclaration>,
+  readOnly?: boolean,
 };
 export default function(props: Props) {
   const el = m("div", {
@@ -24,6 +25,7 @@ export default function(props: Props) {
       ...defaultExtensions,
       ...defaultEditorExtensions(props.on.update),
       json(),
+      EditorView.editable.of(!(props.readOnly === true)),
     ],
   });
 
