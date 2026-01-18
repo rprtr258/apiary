@@ -1,5 +1,5 @@
 import {app, database} from "../wailsjs/go/models.ts";
-import {NEmpty, NIcon, NList, NListItem, NTag, NTree, treeLabelClass, TreeOption} from "./components/dataview.ts";
+import {NEmpty, NIcon, NList, NListItem, NTag, NTree, TagType, treeLabelClass, TreeOption} from "./components/dataview.ts";
 import {ContentCopyFilled, CopySharp, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, EditOutlined, Refresh} from "./components/icons.ts";
 import {NSelect} from "./components/input.ts";
 import {NScrollbar, NTabs} from "./components/layout.ts";
@@ -140,6 +140,37 @@ function badge(req: app.requestPreview): [string, string] {
   }
 }
 
+type HTTPMethodProps = {
+  // colors
+  bg: string,
+  color: string,
+  tagType: TagType,
+};
+const httpMethodColorUnknown = {bg: "#3a3a3a", color: "#c0c0c0"}; // Grey
+const httpMethodColors: Record<string, {bg: string, color: string}> = {
+  "GET":     {bg: "#1a5f3a", color: "#70e888"}, // Green
+  "POST":    {bg: "#2a3a5f", color: "#70a0e8"}, // Blue
+  "PUT":     {bg: "#5f4a1a", color: "#e8c070"}, // Orange/Yellow
+  "DELETE":  {bg: "#5f1a1a", color: "#e87070"}, // Red
+  "PATCH":   {bg: "#3a1a5f", color: "#a870e8"}, // Purple
+  "HEAD":    {bg: "#1a5f5f", color: "#70e8e8"}, // Cyan
+  "OPTIONS": {bg: "#5f5f1a", color: "#e8e870"}, // Yellow
+};
+const httpMethodTagTypeUnknown = "info";
+const httpMethodTagTypes: Record<string, TagType> = {
+  "GET":    "success",
+  "POST":   "info",
+  "PUT":    "warning",
+  "PATCH":  "warning",
+  "DELETE": "error",
+};
+function httpMethodProps(method: string): HTTPMethodProps {
+  const upperMethod = method.toUpperCase();
+  const colors = upperMethod in httpMethodColors ? httpMethodColors[upperMethod] : httpMethodColorUnknown;
+  const tagType = upperMethod in httpMethodTagTypes ? httpMethodTagTypes[upperMethod] : httpMethodTagTypeUnknown;
+  return {...colors, tagType};
+}
+
 type Kind = typeof Kinds[number];
 export const newRequestKind = signal<Kind | undefined>(undefined);
 export const newRequestName = signal<string | undefined>(undefined);
@@ -149,8 +180,6 @@ export function renameInit(id: string) {
   renameID.update(() => id);
   renameValue.update(() => id);
 }
-
-
 
 function Dropdown() {
   const open = signal(false);
@@ -443,6 +472,7 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
                 }));
               } else {
                 // Show "Loading..." or "(None)" based on loading state
+                // Check if cache exists AND is loading
                 const isLoading = id in tableCache && tableCache[id].loading === true;
                 children = [{
                   key: `virtual:${isLoading ? "loading" : "empty"}:${id}:table`,
@@ -557,58 +587,150 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
               const [, type] = parts;
               switch (type) {
               case "empty":
-                // "(None)" item - disabled, no hover effects
+                // "(None)" item - simple text, disabled, no badge, no hover effects
                 return m("span", {
                   style: {
+                    display: "flex",
+                    alignItems: "center",
+                    width: "100%",
+                    opacity: "0.6",
+                    color: "#808080",
                     fontStyle: "italic",
-                    color: "grey",
-                    opacity: "0.7",
                     pointerEvents: "none", // TODO: move into parent element
+                    paddingLeft: "1.5em", // Align with other subitems (folder icon width + gap)
                   },
                 }, "(None)");
               case "loading":
                 // "Loading..." item - not disabled, shows loading state
                 return m("span", {
                   style: {
-                    fontStyle: "italic",
-                    color: "lightgrey",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    width: "100%",
                   },
-                }, "Loading...");
+                },
+                m("span", {
+                  style: {
+                    flex: "1",
+                    minWidth: "0",
+                    color: "#a0a0a0",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    overflow: "clip",
+                    animation: "pulse 1.5s infinite",
+                  },
+                  title: "Loading...",
+                }, "Loading..."));
               case "table": // Virtual table item
                 return m("span", {
-                  style: {fontStyle: "italic"},
+                  style: {
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    width: "100%",
+                  },
                 },
                 NTag({
                   type: "info",
-                  style: {width: "4em", justifyContent: "center", color: "grey", fontStyle: "italic"},
+                  style: {
+                    minWidth: "4em",
+                    justifyContent: "center",
+                    display: "flex",
+                    alignItems: "center",
+                    backgroundColor: "#1a3a5f",
+                    color: "#70c0e8",
+                    fontWeight: "bold",
+                    padding: "2px 4px",
+                  },
                   size: "small",
                 }, "TABLE"),
-                option.label);
-              case "endpoint": // Virtual endpoint item
+                m("span", {
+                  style: {
+                    flex: "1",
+                    minWidth: "0",
+                    color: "#e0e0e0",
+                    overflow: "clip",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  },
+                  title: option.label,
+                }, option.label));
+              case "endpoint": { // Virtual endpoint item
                 const [, , sourceID, index] = parts;
                 const endpointIndex = parseInt(index, 10);
                 if (sourceID in endpointCache && endpointIndex < endpointCache[sourceID].endpoints.length) {
                   const endpoint = endpointCache[sourceID].endpoints[endpointIndex];
+                  // Determine tag color based on HTTP method
+                  const {bg, color, tagType} = httpMethodProps(endpoint.method);
+
                   return m("span", {
-                    style: {fontStyle: "italic"},
+                    style: {
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      width: "100%",
+                    },
                   },
                   NTag({
-                    type: "success",
-                    style: {width: "4em", justifyContent: "center", color: "grey", fontStyle: "italic"},
+                    type: tagType,
+                    style: {
+                      minWidth: "4em",
+                      justifyContent: "center",
+                      display: "flex",
+                      alignItems: "center",
+                      backgroundColor: bg,
+                      color,
+                      fontWeight: "bold",
+                      padding: "2px 4px",
+                    },
                     size: "small",
                   }, endpoint.method),
-                  option.label);
+                  m("span", {
+                    style: {
+                      flex: "1",
+                      minWidth: "0",
+                      color: "#e0e0e0",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    },
+                    title: option.label,
+                  }, option.label));
                 }
                 // Fallback if endpoint not found in cache
                 return m("span", {
-                  style: {fontStyle: "italic"},
+                  style: {
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    width: "100%",
+                  },
                 },
                 NTag({
                   type: "success",
-                  style: {width: "4em", justifyContent: "center", color: "grey", fontStyle: "italic"},
+                  style: {
+                    minWidth: "4em",
+                    justifyContent: "center",
+                    display: "flex",
+                    alignItems: "center",
+                    backgroundColor: "#1a5f3a",
+                    color: "#70e888",
+                    fontWeight: "bold",
+                    padding: "2px 4px",
+                  },
                   size: "small",
                 }, "ENDPT"),
-                option.label);
+                m("span", {
+                  style: {
+                    flex: "1",
+                    minWidth: "0",
+                    color: "#e0e0e0",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  },
+                  title: option.label,
+                }, option.label));
+              }
               }
             }
           }
@@ -623,20 +745,25 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
               (req.Kind === database.Kind.SQLSource && option.key in tableCache && tableCache[option.key].loading === true) ||
               (req.Kind === database.Kind.HTTPSource && option.key in endpointCache && endpointCache[option.key].loading === true);
 
+            // Determine tag type - regular requests have no background, just colored text
+            const tagType = req.Kind === database.Kind.HTTP ? "success" : "info";
+
             // The tree component automatically adds folder icon for items with children
             // We just need to render the badge and label
 
             return [
               NTag({
-                type: (req.Kind === database.Kind.HTTP ? "success" : "info") as "success" | "info" | "warning",
+                type: tagType,
                 style: {
                   minWidth: "4em",
                   justifyContent: "center",
                   display: "flex",
-                  backgroundColor: "#2a2a2a",
-                  padding: "4px",
-                  color,
+                  alignItems: "center",
+                  color: color,
                   fontWeight: "bold",
+                  padding: "2px 4px",
+                  backgroundColor: "#202020",
+                  borderRadius: "10px",
                   ...(isLoading ? {
                     animation: "pulse 1.5s infinite",
                   } : {}),
@@ -644,20 +771,35 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
                 size: "small",
               }, method),
               m("span", {
-                class: treeLabelClass,
-                style: {flex: "1", minWidth: "0"},
+                style: {
+                  flex: "1",
+                  minWidth: "0",
+                  color: "#e0e0e0",
+                  overflow: "clip",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  cursor: "pointer",
+                },
                 onclick: (e: MouseEvent) => {
                   e.stopPropagation();
                   store.selectRequest(option.key);
                 },
+                title: option.label,
               }, option.label),
-              // Refresh button removed entirely
             ];
           }
 
           // Handle directories (regular folders) - fallback
           if (option.children !== undefined) {
-            return m("span", {class: treeLabelClass}, option.label);
+            return m("span", {
+              class: treeLabelClass,
+              style: {
+                overflow: "clip",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              },
+              title: option.label,
+            }, option.label);
           }
 
           return null;

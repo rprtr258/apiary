@@ -30,7 +30,7 @@ function responseBadge(response: database.HTTPResponse): HTMLElement {
       code < 300 ? "success" :
       code < 500 ? "warning" :
                    "error"
-    ) as "success" | "info" | "warning",
+    ),
     size: "small",
     round: true,
   }, `${code}`);
