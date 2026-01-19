@@ -55,7 +55,7 @@ var pluginHTTP = plugin{
 	Perform:        sendHTTP,
 	create:         (*DB).create,
 	update:         (*DB).update,
-	createResponse: (*DB).createResponse,
+	createResponse: true,
 }
 
 var HTTPEmptyRequest = HTTPRequest{

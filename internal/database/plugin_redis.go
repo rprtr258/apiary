@@ -32,7 +32,7 @@ var pluginRedis = plugin{
 	Perform:        sendRedis,
 	create:         (*DB).create,
 	update:         (*DB).update,
-	createResponse: (*DB).createResponse,
+	createResponse: true,
 }
 
 var RedisEmptyRequest = RedisRequest{

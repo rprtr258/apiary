@@ -6,15 +6,17 @@ import (
 	"github.com/rprtr258/fun"
 )
 
-type Kind string
-type plugin struct {
-	EmptyRequest   EntryData
-	enum           enumElem[Kind]
-	Perform        func(context.Context, EntryData) (EntryData, error)
-	create         func(*DB, context.Context, RequestID, string, EntryData) error
-	update         func(*DB, context.Context, RequestID, EntryData) error
-	createResponse func(*DB, context.Context, RequestID, Response) error
-}
+type (
+	Kind   string
+	plugin struct {
+		EmptyRequest   EntryData
+		enum           enumElem[Kind]
+		Perform        func(context.Context, EntryData) (EntryData, error)
+		create         func(*DB, context.Context, RequestID, string, EntryData) error
+		update         func(*DB, context.Context, RequestID, EntryData) error
+		createResponse bool
+	}
+)
 
 var Plugins = map[Kind]plugin{
 	KindHTTP:      pluginHTTP,

@@ -64,7 +64,7 @@ var pluginSQLSource = plugin{
 	Perform:        nil, // TODO: see PerformSQLSource handler
 	create:         (*DB).create,
 	update:         (*DB).update,
-	createResponse: (*DB).createResponseSQLSource,
+	createResponse: false,
 }
 
 var SQLSourceEmptyRequest = SQLSourceRequest{DBPostgres, ""}
@@ -635,12 +635,4 @@ func CountRows(ctx context.Context, db Database, dsn, tableName string) (int64, 
 	}
 
 	return count, nil
-}
-
-func (db *DB) createResponseSQLSource(
-	context.Context,
-	RequestID,
-	Response,
-) error {
-	return nil // no history for sql source
 }

@@ -65,7 +65,7 @@ var pluginGRPC = plugin{
 	Perform:        sendGRPC,
 	create:         (*DB).create,
 	update:         (*DB).update,
-	createResponse: (*DB).createResponse,
+	createResponse: true,
 }
 
 var GRPCEmptyRequest = GRPCRequest{

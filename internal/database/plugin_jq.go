@@ -20,7 +20,7 @@ var pluginJQ = plugin{
 	enum:           enumElem[Kind]{KindJQ, "JQ"},
 	create:         (*DB).create,
 	update:         (*DB).update,
-	createResponse: (*DB).createResponse,
+	createResponse: true,
 }
 
 var JQEmptyRequest = JQRequest{

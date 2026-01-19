@@ -144,6 +144,7 @@ export namespace database {
 	
 	export enum Kind {
 	    SQLSource = "sql-source",
+	    HTTPSource = "http-source",
 	    HTTP = "http",
 	    SQL = "sql",
 	    JQ = "jq",
@@ -162,6 +163,28 @@ export namespace database {
 	    NUMBER = "number",
 	    TIME = "time",
 	    BOOLEAN = "boolean",
+	}
+	export class AuthConfig {
+	    type: string;
+	    username?: string;
+	    password?: string;
+	    token?: string;
+	    keyName?: string;
+	    keyValue?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AuthConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.username = source["username"];
+	        this.password = source["password"];
+	        this.token = source["token"];
+	        this.keyName = source["keyName"];
+	        this.keyValue = source["keyValue"];
+	    }
 	}
 	export class ColumnInfo {
 	    name: string;
@@ -196,6 +219,148 @@ export namespace database {
 	        this.type = source["type"];
 	        this.definition = source["definition"];
 	    }
+	}
+	export class ResponseInfo {
+	    description: string;
+	    content?: Record<string, MediaTypeInfo>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ResponseInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.description = source["description"];
+	        this.content = this.convertValues(source["content"], MediaTypeInfo, true);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class MediaTypeInfo {
+	    schema: Record<string, any>;
+	    example?: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new MediaTypeInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.schema = source["schema"];
+	        this.example = source["example"];
+	    }
+	}
+	export class RequestBodyInfo {
+	    description: string;
+	    required: boolean;
+	    content: Record<string, MediaTypeInfo>;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestBodyInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.description = source["description"];
+	        this.required = source["required"];
+	        this.content = this.convertValues(source["content"], MediaTypeInfo, true);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ParameterInfo {
+	    name: string;
+	    in: string;
+	    description: string;
+	    required: boolean;
+	    schema: Record<string, any>;
+	    example?: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ParameterInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.in = source["in"];
+	        this.description = source["description"];
+	        this.required = source["required"];
+	        this.schema = source["schema"];
+	        this.example = source["example"];
+	    }
+	}
+	export class EndpointInfo {
+	    path: string;
+	    method: string;
+	    summary: string;
+	    parameters: ParameterInfo[];
+	    requestBody?: RequestBodyInfo;
+	    responses: Record<string, ResponseInfo>;
+	
+	    static createFrom(source: any = {}) {
+	        return new EndpointInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.method = source["method"];
+	        this.summary = source["summary"];
+	        this.parameters = this.convertValues(source["parameters"], ParameterInfo);
+	        this.requestBody = this.convertValues(source["requestBody"], RequestBodyInfo);
+	        this.responses = this.convertValues(source["responses"], ResponseInfo, true);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class ForeignKey {
 	    column: string;
@@ -367,6 +532,42 @@ export namespace database {
 		    return a;
 		}
 	}
+	export class HTTPSourceRequest {
+	    serverUrl: string;
+	    specSource: string;
+	    specData: string;
+	    auth: AuthConfig;
+	
+	    static createFrom(source: any = {}) {
+	        return new HTTPSourceRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.serverUrl = source["serverUrl"];
+	        this.specSource = source["specSource"];
+	        this.specData = source["specData"];
+	        this.auth = this.convertValues(source["auth"], AuthConfig);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class IndexInfo {
 	    name: string;
 	    definition: string;
@@ -432,6 +633,8 @@ export namespace database {
 	        this.data = source["data"];
 	    }
 	}
+	
+	
 	export class RedisRequest {
 	    dsn: string;
 	    query: string;
@@ -530,6 +733,8 @@ export namespace database {
 		    return a;
 		}
 	}
+	
+	
 	
 	export class SQLRequest {
 	    dsn: string;

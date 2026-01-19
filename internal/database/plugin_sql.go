@@ -70,7 +70,7 @@ var pluginSQL = plugin{
 	Perform:        sendSQL,
 	create:         (*DB).create,
 	update:         (*DB).update,
-	createResponse: (*DB).createResponse,
+	createResponse: true,
 }
 
 var SQLEmptyRequest = SQLRequest{

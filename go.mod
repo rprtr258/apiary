@@ -1,6 +1,6 @@
 module github.com/rprtr258/apiary
 
-go 1.24.5
+go 1.25
 
 // tool github.com/wailsapp/wails/v2/cmd/wails // TODO: shit not working
 

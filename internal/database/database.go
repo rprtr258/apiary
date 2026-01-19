@@ -263,8 +263,10 @@ func (db *DB) CreateResponse(
 		return errors.Errorf("unknown response kind %s", kind)
 	}
 
-	if err := plugin.createResponse(db, ctx, id, entry); err != nil {
-		return err
+	if plugin.createResponse {
+		if err := db.createResponse(ctx, id, entry); err != nil {
+			return err
+		}
 	}
 
 	return db.flush()
@@ -293,7 +295,7 @@ func (db *DB) update(ctx context.Context, id RequestID, request EntryData) error
 }
 
 func (db *DB) createResponse(
-	ctx context.Context,
+	_ context.Context,
 	id RequestID,
 	response Response,
 ) error {
