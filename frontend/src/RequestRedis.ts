@@ -40,7 +40,7 @@ export default function(
     });
   };
   const el_response = m("div", {class: "h100"});
-  unmounts.push(response.sub(function*() {
+  unmounts.push(response.sub(function*(): Generator<undefined, never, database.RedisResponse | undefined> {
     let is_empty = false; // NOTE: to trigger first call to set it to true
     while (true) {
       const r = yield;
@@ -95,7 +95,7 @@ export default function(
           flexDirection: "column",
         },
       }, el_input_group, split.element);
-      unmounts.push(show_request.sub(function*() {
+      unmounts.push(show_request.sub(function*(): Generator<undefined, never, boolean> {
         while (true) {
           const show_request = yield;
           split.leftVisible = show_request;
