@@ -2,39 +2,15 @@ import {database} from "../wailsjs/go/models.ts";
 import {HistoryEntry, Method as Methods} from "./api.ts";
 import {NInputGroup, NInput, NSelect, NButton} from "./components/input.ts";
 import {NTabs, NSplit} from "./components/layout.ts";
-import {NTag, NTable, NEmpty} from "./components/dataview.ts";
+import {NTable, NEmpty} from "./components/dataview.ts";
 import EditorJSON from "./components/EditorJSON.ts";
 import ViewJSON from "./components/ViewJSON.ts";
 import ParamsList from "./components/ParamsList.ts";
 import {type get_request, last_history_entry} from "./store.ts";
 import {m, setDisplay, Signal} from "./utils.ts";
+import {responseBadge} from "./components/HTTPRequestView.ts";
 
 type Request = database.HTTPRequest;
-
-// function responseBodyLanguage(contentType: string): string {
-//   for (const [key, value] of Object.entries({
-//     "application/json;": "json",
-//     "text/html;": "html",
-//   })) {
-//     if (contentType.startsWith(key)) {
-//       return value;
-//     }
-//   }
-//   return "text";
-// };
-
-function responseBadge(response: database.HTTPResponse): HTMLElement {
-  const code = response.code;
-  return NTag({
-    type: (
-      code < 300 ? "success" :
-      code < 500 ? "warning" :
-                   "error"
-    ) as "success" | "info" | "warning",
-    size: "small",
-    round: true,
-  }, `${code}`);
-}
 
 export default function(
   el: HTMLElement,

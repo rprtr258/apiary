@@ -432,7 +432,7 @@ func convertFieldToJSONSchema(field protoreflect.FieldDescriptor) (JSONSchema, e
 			fmt.Println("ENUM", i, val.Name())
 		}
 	default:
-		return JSONSchema{}, fmt.Errorf("unsupported field kind: %v", field.Kind())
+		return JSONSchema{}, errors.Errorf("unsupported field kind: %v", field.Kind())
 	}
 
 	if field.IsList() {

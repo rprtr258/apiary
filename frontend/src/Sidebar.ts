@@ -142,6 +142,7 @@ function badge(req: app.requestPreview): [string, string] {
   case database.Kind.REDIS:     return ["REDIS", "red"];
   case database.Kind.MD:        return ["MD", "blue"];
   case database.Kind.SQLSource: return ["SQLDB", "blue"];
+  default:                      return [String(req.Kind), ""];
   }
 }
 
