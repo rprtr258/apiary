@@ -1,6 +1,6 @@
 import {app, database} from "../wailsjs/go/models.ts";
 import {NEmpty, NIcon, NList, NListItem, NTag, NTree, treeLabelClass, TreeOption} from "./components/dataview.ts";
-import {ContentCopyFilled, CopySharp, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, EditOutlined} from "./components/icons.ts";
+import {ContentCopyFilled, CopySharp, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, EditOutlined, Refresh} from "./components/icons.ts";
 import {NSelect} from "./components/input.ts";
 import {NScrollbar, NTabs} from "./components/layout.ts";
 import {api, HistoryEntry, Kinds} from "./api.ts";
@@ -37,39 +37,7 @@ function formatTableLabel(args: {
   return `${name} (${rows.toLocaleString()} rows, ${formatSize(bytes)})`;
 }
 
-const tableCache: Record<string, {tables: Record<string, database.TableInfo>, lastFetch: number}> = {};
 
-async function fetchTables(sqlSourceID: string): Promise<void> {
-  // Clear cache to force fresh fetch
-  delete tableCache[sqlSourceID];
-
-  const res = await api.requestListTablesSQLSource(sqlSourceID);
-  if (res.kind === "err") {
-    notification.error({title: "Could not fetch tables", error: res.value});
-    return;
-  }
-
-  tableCache[sqlSourceID] = {
-    lastFetch: Date.now(),
-    tables: Object.fromEntries(res.value.map(t => [t.name, t])),
-  };
-}
-
-const endpointCache: Record<string, {endpoints: database.EndpointInfo[], lastFetch: number}> = {};
-
-async function fetchEndpoints(httpSourceID: string): Promise<void> {
-  const res = await api.requestListEndpointsHTTPSource(httpSourceID);
-  if (res.kind === "err") {
-    notification.error({title: "Could not fetch endpoints", error: res.value});
-    // Don't delete cache on error - keep old data if available
-    return;
-  }
-
-  endpointCache[httpSourceID] = {
-    lastFetch: Date.now(),
-    endpoints: res.value,
-  };
-}
 
 function formatEndpointLabel(endpoint: database.EndpointInfo): string {
   const {path} = endpoint;
@@ -182,91 +150,7 @@ export function renameInit(id: string) {
   renameValue.update(() => id);
 }
 
-function showContextMenu(id: string, event: MouseEvent): void {
-  const preOptions: {
-    label: string,
-    key: string,
-    icon?: DOMNode,
-    show?: boolean,
-    on: {
-      click: () => void,
-    },
-  }[] = [
-    {
-      label: "Rename",
-      key: "rename",
-      icon: NIcon({component: EditOutlined}),
-      on: {
-        click: () => renameInit(id),
-      },
-    },
-    {
-      label: "Duplicate",
-      key: "duplicate",
-      icon: NIcon({component: CopySharp}),
-      on: {
-        click: () => {
-          store.duplicate(id);
-        },
-      },
-    },
-    {
-      label: "Copy as curl",
-      key: "copy-as-curl",
-      icon: NIcon({component: ContentCopyFilled}),
-      show: store.requests[id].Kind === database.Kind.HTTP,
-      on: {
-        click: () => {
-          api.get(id).then(r => {
-            if (r.kind === "err") {
-              useNotification().error({title: "Error", content: `Failed to load request: ${r.value}`});
-              return;
-            }
 
-            const req = r.value.Request as unknown as database.HTTPRequest; // TODO: remove unknown cast
-            const httpToCurl = ({url, method, body, headers}: database.HTTPRequest) => {
-              const headersStr = headers.length > 0 ? " " + headers.map(({key, value}) => `-H "${key}: ${value}"`).join(" ") : "";
-              const bodyStr = body !== "" ? ` -d '${body}'` : "";
-              return `curl -X ${method} ${url}${headersStr}${bodyStr}`;
-            };
-            navigator.clipboard.writeText(httpToCurl(req));
-          });
-        },
-      },
-    },
-    {
-      label: "Delete",
-      key: "delete",
-      icon: NIcon({color: "red", component: DeleteOutlined}),
-      on: {
-        click: () => {
-          store.deleteRequest(id);
-        },
-      },
-    },
-  ];
-  const options = preOptions.filter(opt => opt.show !== false).map(opt => {
-    const res = m("div", {
-      style: {
-        padding: "8px 12px",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        color: "#ffffff",
-      },
-      // TODO: remove, put to styles
-      onmouseover: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "#404040";},
-      onmouseout: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "";},
-      onclick: () => {
-        opt.on.click();
-        globalDropdown.hide();
-      },
-    }, opt.icon ?? null, opt.label);
-    return res;
-  });
-  globalDropdown.show(event.clientX, event.clientY, options);
-}
 
 function Dropdown() {
   const open = signal(false);
@@ -316,6 +200,17 @@ function Dropdown() {
 
 export const globalDropdown = Dropdown();
 
+// Add CSS animation for loading pulse
+const PULSE_STYLE_ID = "sidebar-pulse-animation";
+if (document.getElementById(PULSE_STYLE_ID) === null) {
+  document.head.appendChild(m("style", {id: PULSE_STYLE_ID}, `
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  `));
+}
+
 export function Sidebar(sidebarHidden: Signal<boolean>) {
   const collapseButtonClosed = [NIcon({component: DoubleRightOutlined})];
   const collapseButtonOpen = [NIcon({component: DoubleLeftOutlined}), "hide"];
@@ -340,6 +235,192 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
   }());
 
   const treeContainer = m("div", {style: {minHeight: "0"}});
+
+  // Cache definitions (moved inside Sidebar function to access updateTree)
+  const tableCache: Record<string, {tables: Record<string, database.TableInfo>, lastFetch: number, loading?: boolean}> = {};
+  const endpointCache: Record<string, {endpoints: database.EndpointInfo[], lastFetch: number, loading?: boolean}> = {};
+
+  async function fetchTables(sqlSourceID: string): Promise<void> {
+    // Set loading state
+    if (!(sqlSourceID in tableCache)) {
+      tableCache[sqlSourceID] = {tables: {}, lastFetch: 0, loading: true};
+    } else {
+      tableCache[sqlSourceID].loading = true;
+    }
+    updateTree(store.requestsTree.value); // Show loading state
+
+    const res = await api.requestListTablesSQLSource(sqlSourceID);
+
+    if (res.kind === "err") {
+      notification.error({title: "Could not fetch tables", error: res.value});
+      // Clear loading state, keep old data if any
+      tableCache[sqlSourceID].loading = false;
+      updateTree(store.requestsTree.value);
+      return; // Don't update cache on error
+    }
+
+    tableCache[sqlSourceID] = {
+      lastFetch: Date.now(),
+      tables: Object.fromEntries(res.value.map(t => [t.name, t])),
+      loading: false,
+    };
+    updateTree(store.requestsTree.value);
+  }
+
+  async function fetchEndpoints(httpSourceID: string): Promise<void> {
+    // Set loading state
+    if (!(httpSourceID in endpointCache)) {
+      endpointCache[httpSourceID] = {endpoints: [], lastFetch: 0, loading: true};
+    } else {
+      endpointCache[httpSourceID].loading = true;
+    }
+    updateTree(store.requestsTree.value); // Show loading state
+
+    const res = await api.requestListEndpointsHTTPSource(httpSourceID);
+
+    if (res.kind === "err") {
+      notification.error({title: "Could not fetch endpoints", error: res.value});
+      // Clear loading state, keep old data if available
+      endpointCache[httpSourceID].loading = false;
+      updateTree(store.requestsTree.value);
+      return; // Don't update cache on error
+    }
+
+    endpointCache[httpSourceID] = {
+      lastFetch: Date.now(),
+      endpoints: res.value,
+      loading: false,
+    };
+    updateTree(store.requestsTree.value);
+  }
+
+  async function fetchExpandedSources(): Promise<void> {
+    // Fetch data for expanded source requests
+    const expandedKeys = expandedKeysSignal.value;
+
+    // Fetch tables for expanded SQLSource (respect 5-min cache and loading state)
+    const sqlSourceKeys = expandedKeys.filter(key =>
+      key in store.requests
+      && store.requests[key].Kind === database.Kind.SQLSource
+      && (!(key in tableCache)
+          || Date.now() - tableCache[key].lastFetch > 300000
+          || tableCache[key].loading !== true));
+
+    // Fetch endpoints for expanded HTTPSource (respect 5-min cache and loading state)
+    const httpSourceKeys = expandedKeys.filter(key =>
+      key in store.requests
+      && store.requests[key].Kind === database.Kind.HTTPSource
+      && (!(key in endpointCache)
+          || Date.now() - endpointCache[key].lastFetch > 300000
+          || endpointCache[key].loading !== true));
+
+    await Promise.all([
+      ...sqlSourceKeys.map(key => fetchTables(key)),
+      ...httpSourceKeys.map(key => fetchEndpoints(key)),
+    ]);
+  }
+
+  function showContextMenu(id: string, event: MouseEvent): void {
+    const preOptions: {
+      label: string,
+      key: string,
+      icon?: DOMNode,
+      show?: boolean,
+      on: {
+        click: () => void,
+      },
+    }[] = [
+      {
+        label: "Rename",
+        key: "rename",
+        icon: NIcon({component: EditOutlined}),
+        on: {
+          click: () => renameInit(id),
+        },
+      },
+      {
+        label: "Duplicate",
+        key: "duplicate",
+        icon: NIcon({component: CopySharp}),
+        on: {
+          click: () => {
+            store.duplicate(id);
+          },
+        },
+      },
+      {
+        label: "Copy as curl",
+        key: "copy-as-curl",
+        icon: NIcon({component: ContentCopyFilled}),
+        show: store.requests[id].Kind === database.Kind.HTTP,
+        on: {
+          click: () => {
+            api.get(id).then(r => {
+              if (r.kind === "err") {
+                useNotification().error({title: "Error", content: `Failed to load request: ${r.value}`});
+                return;
+              }
+
+              const req = r.value.Request as unknown as database.HTTPRequest; // TODO: remove unknown cast
+              const httpToCurl = ({url, method, body, headers}: database.HTTPRequest) => {
+                const headersStr = headers.length > 0 ? " " + headers.map(({key, value}) => `-H "${key}: ${value}"`).join(" ") : "";
+                const bodyStr = body !== "" ? ` -d '${body}'` : "";
+                return `curl -X ${method} ${url}${headersStr}${bodyStr}`;
+              };
+              navigator.clipboard.writeText(httpToCurl(req));
+            });
+          },
+        },
+      },
+      {
+        label: "Refresh",
+        key: "refresh",
+        icon: NIcon({component: Refresh}),
+        show: store.requests[id].Kind === database.Kind.SQLSource || store.requests[id].Kind === database.Kind.HTTPSource,
+        on: {
+          click: () => {
+            if (store.requests[id].Kind === database.Kind.SQLSource) {
+              fetchTables(id);
+            } else if (store.requests[id].Kind === database.Kind.HTTPSource) {
+              fetchEndpoints(id);
+            }
+          },
+        },
+      },
+      {
+        label: "Delete",
+        key: "delete",
+        icon: NIcon({color: "red", component: DeleteOutlined}),
+        on: {
+          click: () => {
+            store.deleteRequest(id);
+          },
+        },
+      },
+    ];
+    const options = preOptions.filter(opt => opt.show !== false).map(opt => {
+      const res = m("div", {
+        style: {
+          padding: "8px 12px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          color: "#ffffff",
+        },
+        // TODO: remove, put to styles
+        onmouseover: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "#404040";},
+        onmouseout: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "";},
+        onclick: () => {
+          opt.on.click();
+          globalDropdown.hide();
+        },
+      }, opt.icon ?? null, opt.label);
+      return res;
+    });
+    globalDropdown.show(event.clientX, event.clientY, options);
+  }
+
   function updateTree(requestsTree: app.Tree) {
     const data = (() => {
       const mapper = (tree: app.Tree): TreeOption[] =>
@@ -354,22 +435,42 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
 
             let children: TreeOption[] | undefined;
 
-            if (isSQLSource && id in tableCache && Object.keys(tableCache[id].tables).length > 0) {
-              children = Object.values(tableCache[id].tables).map(table => ({
-                key: `virtual:table:${id}:${table.name}`,
-                label: formatTableLabel(table),
-              }));
-            } else if (isHTTPSource && id in endpointCache && endpointCache[id].endpoints.length > 0) {
-              children = endpointCache[id].endpoints.map((endpoint, index) => ({
-                key: `virtual:endpoint:${id}:${index}`,
-                label: formatEndpointLabel(endpoint),
-              }));
+            if (isSQLSource) {
+              if (id in tableCache && Object.keys(tableCache[id].tables).length > 0) {
+                children = Object.values(tableCache[id].tables).map(table => ({
+                  key: `virtual:table:${id}:${table.name}`,
+                  label: formatTableLabel(table),
+                }));
+              } else {
+                // Show "Loading..." or "(None)" based on loading state
+                const isLoading = id in tableCache && tableCache[id].loading === true;
+                children = [{
+                  key: `virtual:${isLoading ? "loading" : "empty"}:${id}:table`,
+                  label: isLoading ? "Loading..." : "(None)",
+                  disabled: true,
+                }];
+              }
+            } else if (isHTTPSource) {
+              if (id in endpointCache && endpointCache[id].endpoints.length > 0) {
+                children = endpointCache[id].endpoints.map((endpoint, index) => ({
+                  key: `virtual:endpoint:${id}:${index}`,
+                  label: formatEndpointLabel(endpoint),
+                }));
+              } else {
+                // Show "Loading..." or "(None)" based on loading state
+                const isLoading = id in endpointCache && endpointCache[id].loading === true;
+                children = [{
+                  key: `virtual:${isLoading ? "loading" : "empty"}:${id}:endpoint`,
+                  label: isLoading ? "Loading..." : "(None)",
+                  disabled: true,
+                }];
+              }
             }
 
             const item: TreeOption = {
               key: id,
               label: basename,
-              ...(children !== undefined ? {children} : {}),
+              ...(children !== undefined ? {children} : {}), // Only set children for SQLSource/HTTPSource
             };
             return item;
         }));
@@ -382,20 +483,28 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
         on: {
           "update:expanded-keys": async (keys: string[]) => {
             expandedKeysSignal.update(() => keys);
-            // Fetch tables for newly expanded SQLSource
+
+            // Fetch tables for newly expanded SQLSource (respect 5-min cache and loading state)
             const sqlSourceKeys = keys.filter(key =>
               key in store.requests
               && store.requests[key].Kind === database.Kind.SQLSource
-              && (!(key in tableCache) || Date.now() - tableCache[key].lastFetch > 300000)); // 5 min cache
-            // Fetch endpoints for newly expanded HTTPSource
+              && (!(key in tableCache)
+                  || Date.now() - tableCache[key].lastFetch > 300000
+                  || tableCache[key].loading === true));
+
+            // Fetch endpoints for newly expanded HTTPSource (respect 5-min cache and loading state)
             const httpSourceKeys = keys.filter(key =>
               key in store.requests
               && store.requests[key].Kind === database.Kind.HTTPSource
-              && (!(key in endpointCache) || Date.now() - endpointCache[key].lastFetch > 300000)); // 5 min cache
+              && (!(key in endpointCache)
+                  || Date.now() - endpointCache[key].lastFetch > 300000
+                  || endpointCache[key].loading === true));
+
             await Promise.all([
               ...sqlSourceKeys.map(key => fetchTables(key)),
               ...httpSourceKeys.map(key => fetchEndpoints(key)),
             ]);
+
             updateTree(store.requestsTree.value); // Re-render after fetch
           },
           drop: drag,
@@ -404,6 +513,10 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
           },
           click: (v: TreeOption) => {
             const id = v.key;
+
+            // Skip disabled items like "(None)" and "loading" items
+            if (v.disabled === true) return;
+
             if (id.startsWith("virtual:")) {
               const parts = id.split(":");
               if (parts.length !== 4)
@@ -411,8 +524,12 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
               const [, type, sourceID, identifier] = parts;
 
               switch (type) {
+              // Skip "loading" and "empty" virtual items
+              case "loading":
+              case "empty":
+                return;
               case "table":
-                if (!(identifier in tableCache[sourceID].tables))
+                if (!(sourceID in tableCache) || !(identifier in tableCache[sourceID].tables))
                   return;
                 const tableInfo = tableCache[sourceID].tables[identifier];
                 store.openTableViewer(sourceID, identifier, tableInfo);
@@ -427,25 +544,36 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
                 store.openEndpointViewer(sourceID, endpointIndex, endpoint);
                 break;
               }
-            } else if (v.disabled !== true) {
+            } else {
               store.selectRequest(id);
             }
           },
         },
         render: (option: TreeOption, _level: number, _expanded: boolean): DOMNode => {
-          if (option.children !== undefined && !(option.key in store.requests)) // Directory
-            return m("span", {class: treeLabelClass}, option.label);
-
-          // Request
           const isVirtual = option.key.startsWith("virtual:");
-          if (!isVirtual && !(option.key in store.requests))
-            return null;
-
           if (isVirtual) {
             const parts = option.key.split(":");
             if (parts.length === 4) {
               const [, type] = parts;
               switch (type) {
+              case "empty":
+                // "(None)" item - disabled, no hover effects
+                return m("span", {
+                  style: {
+                    fontStyle: "italic",
+                    color: "grey",
+                    opacity: "0.7",
+                    pointerEvents: "none", // TODO: move into parent element
+                  },
+                }, "(None)");
+              case "loading":
+                // "Loading..." item - not disabled, shows loading state
+                return m("span", {
+                  style: {
+                    fontStyle: "italic",
+                    color: "lightgrey",
+                  },
+                }, "Loading...");
               case "table": // Virtual table item
                 return m("span", {
                   style: {fontStyle: "italic"},
@@ -485,56 +613,67 @@ export function Sidebar(sidebarHidden: Signal<boolean>) {
             }
           }
 
-          const req = store.requests[option.key];
-          const [method, color] = badge(req);
-          const isSQLSource = req.Kind === database.Kind.SQLSource;
-          const isHTTPSource = req.Kind === database.Kind.HTTPSource;
+          // Handle requests (including SQLSource/HTTPSource)
+          if (option.key in store.requests) {
+            const req = store.requests[option.key];
+            const [method, color] = badge(req);
 
-          return [
-            NTag({
-              type: (req.Kind === database.Kind.HTTP ? "success" : "info") as "success" | "info" | "warning",
-              style: {
-                minWidth: "4em",
-                justifyContent: "center",
-                display: "flex",
-                backgroundColor: "#2a2a2a",
-                padding: "4px",
-                color,
-                fontWeight: "bold",
-              },
-              size: "small",
-            }, method),
-            m("span", {
-              class: treeLabelClass,
-              style: {flex: "1", minWidth: "0"},
-              onclick: (e: MouseEvent) => {
-                e.stopPropagation();
-                store.selectRequest(option.key);
-              },
-            }, option.label),
-            ...((isSQLSource || isHTTPSource) ?  [m("button", {
-              onclick: e => {
-                e.stopPropagation();
-                if (isSQLSource) {
-                  fetchTables(option.key).then(() => {
-                    updateTree(store.requestsTree.value); // Re-render
-                  });
-                } else if (isHTTPSource) {
-                  fetchEndpoints(option.key).then(() => {
-                    updateTree(store.requestsTree.value); // Re-render
-                  });
-                }
-              },
-              style: {fontSize: "12px", width: "1.5em", height: "1.5em"},
-              title: isSQLSource ? "Refresh tables" : "Refresh endpoints",
-            }, "↻")] : []),
-          ];
+            // Check if this source is currently loading
+            const isLoading =
+              (req.Kind === database.Kind.SQLSource && option.key in tableCache && tableCache[option.key].loading === true) ||
+              (req.Kind === database.Kind.HTTPSource && option.key in endpointCache && endpointCache[option.key].loading === true);
+
+            // The tree component automatically adds folder icon for items with children
+            // We just need to render the badge and label
+
+            return [
+              NTag({
+                type: (req.Kind === database.Kind.HTTP ? "success" : "info") as "success" | "info" | "warning",
+                style: {
+                  minWidth: "4em",
+                  justifyContent: "center",
+                  display: "flex",
+                  backgroundColor: "#2a2a2a",
+                  padding: "4px",
+                  color,
+                  fontWeight: "bold",
+                  ...(isLoading ? {
+                    animation: "pulse 1.5s infinite",
+                  } : {}),
+                },
+                size: "small",
+              }, method),
+              m("span", {
+                class: treeLabelClass,
+                style: {flex: "1", minWidth: "0"},
+                onclick: (e: MouseEvent) => {
+                  e.stopPropagation();
+                  store.selectRequest(option.key);
+                },
+              }, option.label),
+              // Refresh button removed entirely
+            ];
+          }
+
+          // Handle directories (regular folders) - fallback
+          if (option.children !== undefined) {
+            return m("span", {class: treeLabelClass}, option.label);
+          }
+
+          return null;
         },
       }),
     ));
   }
   store.requestsTree.sub(function*() {while (true) { updateTree(yield); }}());
   expandedKeysSignal.sub(function*() {while (true) { updateTree(store.requestsTree.value); yield; }}());
+
+  // Initial tree render
+  updateTree(store.requestsTree.value);
+  // Fetch data for already expanded source requests
+  fetchExpandedSources().catch(err => {
+    console.error("Failed to fetch expanded sources:", err);
+  });
 
   const new_select = NSelect<database.Kind>({
     on: {update: (value: database.Kind) => {
