@@ -75,90 +75,134 @@ describe("signal", () => {
     expect(sig.value).toBe(42);
   });
 
-  test("updates value and notifies subscribers", () => {
-    const sig = signal(0);
-    const callback = mock((v: number, old: number) => void [v, old]);
+  describe("callback pattern", () => {
+    test("updates value and notifies subscribers", () => {
+      const sig = signal(0);
+      const callback = mock((v: number) => void v);
 
-    sig.sub(function*() {
-      let old: number = yield;
-      while (true) {
-        const v = yield;
-        callback(v, old);
-        old = v;
-      }
-    }());
-    sig.update(v => v + 1);
+      const unsubscribe = sig.subCallback(callback);
+      sig.update(v => v + 1);
 
-    expect(sig.value).toBe(1);
-    expect(callback).toHaveBeenCalledTimes(1);
-    expect(callback).toHaveBeenCalledWith(1, 0);
+      expect(sig.value).toBe(1);
+      expect(callback).toHaveBeenCalledTimes(2); // Once for initial, once for update
+      expect(callback).toHaveBeenCalledWith(0); // Initial call
+      expect(callback).toHaveBeenCalledWith(1); // Update call
+
+      unsubscribe();
+    });
+
+    test("unsubscribes correctly", () => {
+      const sig = signal(0);
+      const callback = mock(() => {});
+
+      const unsub = sig.subCallback(callback);
+      unsub();
+      sig.update(v => v + 1);
+
+      expect(callback).toHaveBeenCalledTimes(1); // Only initial call
+    });
+
+    test("unsubscribe after trigger correctly", () => {
+      const sig = signal(0);
+      const callback = mock(() => {});
+
+      const unsub = sig.subCallback(callback);
+      sig.update(v => v + 1);
+      unsub();
+      sig.update(v => v + 1);
+
+      expect(callback).toHaveBeenCalledTimes(2); // Initial + first update
+    });
+
+    test("does not notify if value unchanged", () => {
+      const sig = signal(42);
+      const callback = mock(() => {});
+
+      sig.subCallback(callback);
+      sig.update(v => v); // same value
+
+      expect(callback).toHaveBeenCalledTimes(1); // Only initial call
+    });
+
+    test("calls subscriber immediately on subscription", () => {
+      const sig = signal(42);
+      const callback = mock((v: number) => void v);
+
+      sig.subCallback(callback);
+
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledWith(42);
+    });
+
+    test("supports direct value assignment", () => {
+      const sig = signal(0);
+      const callback = mock((v: number) => void v);
+
+      sig.subCallback(callback);
+      sig.value = 10;
+
+      expect(sig.value).toBe(10);
+      expect(callback).toHaveBeenCalledTimes(2);
+      expect(callback).toHaveBeenCalledWith(10);
+    });
+
+    test("multiple subscribers work independently", () => {
+      const sig = signal(0);
+      const callback1 = mock(() => {});
+      const callback2 = mock(() => {});
+
+      const unsub1 = sig.subCallback(callback1);
+      sig.subCallback(callback2); // No need to store unsubscribe since we won't use it
+
+      sig.update(v => v + 1);
+
+      expect(callback1).toHaveBeenCalledTimes(2);
+      expect(callback2).toHaveBeenCalledTimes(2);
+
+      unsub1();
+      sig.update(v => v + 1);
+
+      expect(callback1).toHaveBeenCalledTimes(2); // No more calls
+      expect(callback2).toHaveBeenCalledTimes(3); // Still receiving updates
+    });
   });
 
-  test("unsubscribes correctly", () => {
-    const sig = signal(0);
-    const callback = mock(() => {});
+  describe("generator pattern (backward compatibility)", () => {
+    test("works with generator subscribers", () => {
+      const sig = signal(0);
+      const callback = mock((v: number, old: number) => void [v, old]);
 
-    const unsub = sig.sub(function*() {
-      yield;
-      while (true) {
+      sig.sub(function*(): Generator<undefined, never, number> {
+        let old: number = yield;
+        while (true) {
+          const v = yield;
+          callback(v, old);
+          old = v;
+        }
+      }());
+      sig.update(v => v + 1);
+
+      expect(sig.value).toBe(1);
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledWith(1, 0);
+    });
+
+    test("unsubscribes generator correctly", () => {
+      const sig = signal(0);
+      const callback = mock(() => {});
+
+      const unsub = sig.sub(function*(): Generator<undefined, never, number> {
         yield;
-        callback();
-      }
-    }());
-    unsub();
-    sig.update(v => v + 1);
+        while (true) {
+          yield;
+          callback();
+        }
+      }());
+      unsub();
+      sig.update(v => v + 1);
 
-    expect(callback).toHaveBeenCalledTimes(0);
-  });
-
-  test("unsubscribe after trigger correctly", () => {
-    const sig = signal(0);
-    const callback = mock(() => {});
-
-    const unsub = sig.sub(function*() {
-      yield;
-      while (true) {
-        yield;
-        callback();
-      }
-    }());
-    sig.update(v => v + 1);
-    unsub();
-    sig.update(v => v + 1);
-
-    expect(callback).toHaveBeenCalledTimes(1);
-    expect(callback).toHaveBeenCalledWith();
-  });
-
-  test("does not notify if value unchanged", () => {
-    const sig = signal(42);
-    const callback = mock(() => {});
-
-    sig.sub(function*() {
-      yield;
-      while (true) {
-        yield;
-        callback();
-      }
-    }());
-    sig.update(v => v); // same value
-
-    expect(callback).toHaveBeenCalledTimes(0);
-  });
-
-  test("calls subscriber immediately when immediate is true", () => {
-    const sig = signal(42);
-    const callback = mock((v: number) => void v);
-
-    sig.sub(function*() {
-      while (true) {
-        const v = yield;
-        callback(v);
-      }
-    }());
-
-    expect(callback).toHaveBeenCalledTimes(1);
-    expect(callback).toHaveBeenCalledWith(42);
+      expect(callback).toHaveBeenCalledTimes(0);
+    });
   });
 });
 

@@ -1,6 +1,7 @@
 import {css} from "../styles.ts";
-import {clone, m, DOMNode} from "../utils.ts";
+import {clone, m, DOMNode, ElementProps} from "../utils.ts";
 import {ResultInfo, FolderOpenOutlined, FolderOutlined} from "./icons.ts";
+import {EmptyState, Card, Badge} from "./design-system.ts";
 
 export function Json<T>(props: {data: T}) {
   return m("pre", {}, JSON.stringify(props.data, null, 2));
@@ -10,19 +11,23 @@ export type TagType = "success" | "info" | "warning" | "error";
 type NTagProps = {
   type: TagType, // TODO: replace with color, use?
   style?: Partial<CSSStyleDeclaration>,
+  round?: boolean,
 };
 export function NTag(props: NTagProps, label: string) {
-  return m("span", {
-    style: {
-      color: {
-        success: "lime",
-        info: "blue",
-        warning: "yellow",
-        error: "red",
-      }[props.type],
-      ...props.style,
-    },
-  }, label);
+  const variantMap: Record<TagType, "success" | "info" | "warning" | "error"> = {
+    success: "success",
+    info: "info",
+    warning: "warning",
+    error: "error",
+  };
+
+  return Badge({
+    children: [label],
+    variant: variantMap[props.type],
+    size: "sm",
+    rounded: props.round === true,
+    style: props.style,
+  });
 };
 
 type NIconProps = {
@@ -46,18 +51,38 @@ type NResultProps = {
 };
 export function NResult(props: NResultProps) {
   const el_status = props.status === "info" ? ResultInfo : m("i", {}, props.status);
-  return m("div", {
+
+  return Card({
+    children: [
+      m("div", {style: {marginBottom: "var(--spacing-lg)"}}, el_status),
+      m("h3", {
+        style: {
+          fontSize: "var(--font-size-xl)",
+          fontWeight: "var(--font-weight-semibold)",
+          color: "var(--color-text-primary)",
+          margin: "0 0 var(--spacing-sm) 0",
+        },
+      }, props.title),
+      m("p", {
+        style: {
+          fontSize: "var(--font-size-md)",
+          color: "var(--color-text-secondary)",
+          margin: "0",
+          maxWidth: "400px",
+        },
+      }, props.description),
+    ],
+    variant: "outlined",
+    padding: "xl",
     class: "h100",
     style: {
-      justifyContent: "center",
       display: "flex",
-      alignItems: "center",
       flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      textAlign: "center",
     },
-  },
-    m("h1", {}, el_status, props.title),
-    props.description,
-  );
+  });
 }
 
 type NEmptyProps = {
@@ -66,15 +91,12 @@ type NEmptyProps = {
   style?: Partial<CSSStyleDeclaration>,
 };
 export function NEmpty(props: NEmptyProps) {
-  return m("div", {
+  return EmptyState({
+    title: "No Data",
+    description: props.description,
     class: ["h100", ...(props.class ?? [])].join(" "),
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      ...props.style,
-    },
-  }, [props.description]);
+    style: props.style,
+  });
 };
 
 export function NList(...children: DOMNode[]) {
@@ -179,12 +201,12 @@ export function NTree(props: NTreeProps) {
   return m("div", {}, props.data.flatMap(v => renderElem(v, 0)));
 };
 
-export function NTable(props: Record<string, unknown>, children: DOMNode[]) {
+export function NTable(props: ElementProps<"table">, children: DOMNode[]) {
   return m("table", props, children);
 };
 
 export function NTooltip(
-  props: Record<string, unknown> & {show?: boolean, style?: Record<string, unknown>},
+  props: ElementProps<"div"> & {show?: boolean},
   ...children: DOMNode[]
 ) : DOMNode {
   return m("div", {
