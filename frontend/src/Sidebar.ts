@@ -8,6 +8,7 @@ import {HistoryEntry, Kinds} from "./types.ts";
 import {store} from "./store.ts";
 import notification from "./notification.ts";
 import {clamp, DOMNode, m, setDisplay, signal} from "./utils.ts";
+import {css} from "./styles.ts";
 
 function basename(id: string): string {
   return id.split("/").pop() ?? "";
@@ -96,12 +97,9 @@ function useLocalStorage<T>(key: string, init: T): {
 
 const expandedKeys = useLocalStorage<string[]>("expanded-keys", []);
 const expandedKeysSignal = signal(expandedKeys.value);
-expandedKeysSignal.sub(function*() {
-  while (true) {
-    const keys = yield;
-    expandedKeys.value = keys;
-  }
-}());
+expandedKeysSignal.subCallback((keys) => {
+  expandedKeys.value = keys;
+});
 
 function drag({node, dragNode, dropPosition}: {
   node: TreeOption,
@@ -144,13 +142,13 @@ type HTTPMethodProps = {
 };
 const httpMethodColorUnknown = {bg: "#3a3a3a", color: "#c0c0c0"}; // Grey
 const httpMethodColors: Record<string, {bg: string, color: string}> = {
-  "GET":     {bg: "#1a5f3a", color: "#70e888"}, // Green
-  "POST":    {bg: "#2a3a5f", color: "#70a0e8"}, // Blue
-  "PUT":     {bg: "#5f4a1a", color: "#e8c070"}, // Orange/Yellow
-  "DELETE":  {bg: "#5f1a1a", color: "#e87070"}, // Red
-  "PATCH":   {bg: "#3a1a5f", color: "#a870e8"}, // Purple
-  "HEAD":    {bg: "#1a5f5f", color: "#70e8e8"}, // Cyan
-  "OPTIONS": {bg: "#5f5f1a", color: "#e8e870"}, // Yellow
+  "GET":     {bg: "var(--color-http-get)", color: "white"},
+  "POST":    {bg: "var(--color-http-post)", color: "white"},
+  "PUT":     {bg: "var(--color-http-put)", color: "black"},
+  "DELETE":  {bg: "var(--color-http-delete)", color: "white"},
+  "PATCH":   {bg: "var(--color-http-patch)", color: "white"},
+  "HEAD":    {bg: "var(--color-http-head)", color: "white"},
+  "OPTIONS": {bg: "var(--color-http-options)", color: "black"},
 };
 const httpMethodTagTypeUnknown = "info";
 const httpMethodTagTypes: Record<string, TagType> = {
@@ -181,15 +179,15 @@ function Dropdown() {
   const open = signal(false);
   const el: HTMLElement = m("div", {style: {
     position: "fixed",
-    zIndex: "1000",
-    background: "#2a2a2a",
-    color: "#ffffff",
-    border: "1px solid #404040",
-    borderRadius: "4px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+    zIndex: "var(--z-index-dropdown)",
+    background: "var(--color-bg-tertiary)",
+    color: "var(--color-text-primary)",
+    border: "1px solid var(--color-border)",
+    borderRadius: "var(--border-radius-sm)",
+    boxShadow: "var(--shadow-md)",
     minWidth: "120px",
   }});
-  open.sub(function*() {while(true) setDisplay(el, yield);}());
+  open.sub(function*(): Generator<undefined, never, boolean> {while(true) setDisplay(el, yield);}());
   document.addEventListener("click", e => {
     if (!el.contains(e.target as Node))
       open.update(() => false);
@@ -248,28 +246,28 @@ const endpointCache: Record<string, {
 }> = {};
 
 export const sidebarHidden = signal(false);
-export const sidebar = function() {
-  const collapseButtonClosed = [NIcon({component: DoubleRightOutlined})];
-  const collapseButtonOpen = [NIcon({component: DoubleLeftOutlined}), "hide"];
-  const collapseButton = m("button", {
-    id: "collapse-button",
-    type: "button",
-    style: {
-      color: "black",
-      display: "flex",
-      gap: ".5em",
-      justifyContent: "center",
-      alignItems: "center",
-    },
-  });
-  sidebarHidden.sub(function*() {
-    while (true) {
-      const sidebarHidden = yield;
-      collapseButton.replaceChildren(...(sidebarHidden ? collapseButtonClosed : collapseButtonOpen));
-      collapseButton.style.cursor = sidebarHidden ? "e-resize" : "w-resize";
-      collapseButton.style.height = sidebarHidden ? "100%" : "3em";
-    }
-  }());
+export const sidebar = (() => {
+   const collapseButtonClosed = [NIcon({component: DoubleRightOutlined})];
+   const collapseButtonOpen = [NIcon({component: DoubleLeftOutlined}), "hide"];
+   const collapseButton = m("button", {
+     id: "collapse-button",
+     type: "button",
+     style: {
+       color: "black",
+       display: "flex",
+       gap: ".5em",
+       justifyContent: "center",
+       alignItems: "center",
+     },
+   });
+   sidebarHidden.sub(function*() {
+     while (true) {
+       const sidebarHidden = yield;
+       collapseButton.replaceChildren(...(sidebarHidden ? collapseButtonClosed : collapseButtonOpen));
+       collapseButton.style.cursor = sidebarHidden ? "e-resize" : "w-resize";
+       collapseButton.style.height = sidebarHidden ? "100%" : "3em";
+     }
+   }());
 
   const treeContainer = m("div", {style: {minHeight: "0"}});
 
@@ -430,15 +428,15 @@ export const sidebar = function() {
     const options = preOptions.filter(opt => opt.show !== false).map(opt => {
       const res = m("div", {
         style: {
-          padding: "8px 12px",
+          padding: "var(--spacing-sm) var(--spacing-md)",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
-          gap: "8px",
-          color: "#ffffff",
+          gap: "var(--spacing-sm)",
+          color: "var(--color-text-primary)",
         },
         // TODO: remove, put to styles
-        onmouseover: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "#404040";},
+        onmouseover: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "var(--color-bg-tertiary)";},
         onmouseout: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "";},
         onclick: () => {
           opt.on.click();
@@ -603,7 +601,7 @@ export const sidebar = function() {
                     alignItems: "center",
                     width: "100%",
                     opacity: "0.6",
-                    color: "#808080",
+                    color: "var(--color-text-tertiary)",
                     fontStyle: "italic",
                     pointerEvents: "none", // TODO: move into parent element
                   },
@@ -615,7 +613,7 @@ export const sidebar = function() {
                     display: "flex",
                     alignItems: "center",
                     width: "100%",
-                    color: "#a0a0a0",
+                    color: "var(--color-text-tertiary)",
                     fontStyle: "italic",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -640,8 +638,8 @@ export const sidebar = function() {
                     justifyContent: "center",
                     display: "flex",
                     alignItems: "center",
-                    backgroundColor: "#1a3a5f",
-                    color: "#70c0e8",
+                    backgroundColor: "var(--color-sqlsource)",
+                    color: "white",
                     fontWeight: "bold",
                     padding: "2px 4px",
                   },
@@ -650,7 +648,7 @@ export const sidebar = function() {
                   style: {
                     flex: "1",
                     minWidth: "0",
-                    color: "#e0e0e0",
+                    color: "var(--color-text-primary)",
                     overflow: "clip",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -690,7 +688,7 @@ export const sidebar = function() {
                     style: {
                       flex: "1",
                       minWidth: "0",
-                      color: "#e0e0e0",
+                      color: "var(--color-text-primary)",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
                     },
@@ -713,8 +711,8 @@ export const sidebar = function() {
                     justifyContent: "center",
                     display: "flex",
                     alignItems: "center",
-                    backgroundColor: "#1a5f3a",
-                    color: "#70e888",
+                    backgroundColor: "var(--color-httpsource)",
+                    color: "white",
                     fontWeight: "bold",
                     padding: "2px 4px",
                   },
@@ -723,7 +721,7 @@ export const sidebar = function() {
                   style: {
                     flex: "1",
                     minWidth: "0",
-                    color: "#e0e0e0",
+                    color: "var(--color-text-primary)",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                   },
@@ -761,7 +759,7 @@ export const sidebar = function() {
                   color: color,
                   fontWeight: "bold",
                   padding: "2px 4px",
-                  backgroundColor: "#202020",
+                  backgroundColor: "var(--color-bg-tertiary)",
                   borderRadius: "10px",
                   ...(isLoading ? {
                     animation: "pulse 1.5s infinite",
@@ -772,7 +770,7 @@ export const sidebar = function() {
                 style: {
                   flex: "1",
                   minWidth: "0",
-                  color: "#e0e0e0",
+                  color: "var(--color-text-primary)",
                   overflow: "clip",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -848,16 +846,125 @@ export const sidebar = function() {
   // TODO: whole history in reverse order
   const history = [] as HistoryEntry[];
 
-  const el = m("aside", {style: {
-    color: "rgba(255, 255, 255, 0.82)",
-    backgroundColor: "rgb(24, 24, 28)",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    height: "100vh",
-  }},
-    NTabs({
-      style: {minHeight: "0"},
+  // Check if we're on mobile
+  const checkIsMobile = () => window.innerWidth < 768;
+  let isMobile = checkIsMobile();
+
+  // Update mobile state on resize
+  window.addEventListener("resize", () => {
+    const wasMobile = isMobile;
+    isMobile = checkIsMobile();
+
+    // If switching from desktop to mobile, auto-hide sidebar
+    if (!wasMobile && isMobile && store.requestID() !== null) {
+      sidebarHidden.update(() => true);
+    }
+  });
+
+  const sidebarClass = css(`
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-secondary);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100vh;
+    transition: all var(--transition-normal);
+    position: relative;
+    z-index: var(--z-index-sticky);
+
+    /* Mobile styles */
+    @media (max-width: 767px) {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: var(--sidebar-width);
+      height: 100vh;
+      transform: translateX(-100%);
+      box-shadow: var(--shadow-lg);
+      z-index: var(--z-index-fixed);
+
+      &.open {
+        transform: translateX(0);
+      }
+    }
+
+    /* Desktop styles */
+    @media (min-width: 768px) {
+      width: var(--sidebar-width);
+
+      &.collapsed {
+        width: var(--sidebar-width-collapsed);
+
+        .sidebar-content {
+          display: none;
+        }
+
+        .collapse-button {
+          height: 100%;
+          cursor: e-resize;
+        }
+      }
+
+      &:not(.collapsed) .collapse-button {
+        height: 3em;
+        cursor: w-resize;
+      }
+    }
+  `);
+
+  const sidebarContentClass = css(`
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+
+    @media (max-width: 767px) {
+      width: 100%;
+    }
+  `);
+
+  const collapseButtonClass = css(`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    background-color: var(--color-bg-tertiary);
+    border: none;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    padding: var(--spacing-sm);
+    transition: all var(--transition-normal);
+
+    &:hover {
+      background-color: var(--color-hover);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: -2px;
+    }
+
+    @media (max-width: 767px) {
+      position: absolute;
+      right: -2em;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2em;
+      height: 4em;
+      border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
+      box-shadow: var(--shadow-sm);
+    }
+  `);
+
+  const el = m("aside", {
+    class: `${sidebarClass} ${sidebarHidden.value ? "collapsed" : ""}`,
+  }, [
+    m("div", {
+      class: sidebarContentClass,
+      style: {display: sidebarHidden.value ? "none" : "flex"},
+    }, NTabs({
+      style: {minHeight: "0", flex: "1"},
       tabs: [
         {
           name: "Collection",
@@ -865,10 +972,22 @@ export const sidebar = function() {
           style: {
             display: "flex",
             flexDirection: "column",
+            height: "100%",
           },
           elem: [
-            new_select.el,
-            treeContainer,
+            m("div", {
+              class: css(`
+                padding: var(--spacing-sm);
+                border-bottom: 1px solid var(--color-border);
+              `),
+            }, new_select.el),
+            m("div", {
+              class: css(`
+                flex: 1;
+                min-height: 0;
+                overflow: hidden;
+              `),
+            }, treeContainer),
           ],
         },
         {
@@ -882,28 +1001,83 @@ export const sidebar = function() {
             return [
               NList(history.map(r =>
                 NListItem({
-                  class: ["history-card", "card"].join(" "),
+                  class: css(`
+                    padding: var(--spacing-sm);
+                    border-bottom: 1px solid var(--color-border);
+                    cursor: pointer;
+                    transition: background-color var(--transition-normal);
+
+                    &:hover {
+                      background-color: var(--color-hover);
+                    }
+                  `),
                   // on: {click: () => selectRequest(r.request.id)},
                 }, [
-                  m("span", {style: {color: "grey"}, class: "date"}, fromNow(r.sent_at)),
+                  m("span", {
+                    class: css(`
+                      color: var(--color-text-tertiary);
+                      font-size: var(--font-size-sm);
+                    `),
+                  }, fromNow(r.sent_at)),
                 ]),
               )),
             ];
           })(),
         },
       ],
-    }),
-    collapseButton,
-  );
-  sidebarHidden.sub(function*() {
+    })),
+    m("button", {
+      class: `${collapseButtonClass} collapse-button`,
+      type: "button",
+      onclick: () => {
+        if (isMobile) {
+          // On mobile, toggle the sidebar open/closed
+          sidebarHidden.update(v => !v);
+        } else {
+          // On desktop, toggle collapsed state
+          sidebarHidden.update(v => !v);
+        }
+      },
+      title: sidebarHidden.value ? "Expand sidebar" : "Collapse sidebar",
+    }, sidebarHidden.value ? [NIcon({component: DoubleRightOutlined})] : [NIcon({component: DoubleLeftOutlined}), "Hide"]),
+  ]);
+
+  sidebarHidden.sub(function*(): Generator<undefined, never, boolean> {
     while (true) {
-      const sidebarHidden = yield;
-      el.style.gridTemplateRows = sidebarHidden ? "1fr" : "95% 5%";
-      setDisplay(el.children[0] as HTMLElement, !sidebarHidden);
+      const hidden: boolean = yield;
+      el.style.gridTemplateRows = sidebarHidden.value ? "1fr" : "95% 5%";
+      setDisplay(el.children[0] as HTMLElement, !sidebarHidden.value);
+
+      if (isMobile) {
+        // On mobile, add/remove "open" class for slide-in animation
+        if (hidden === true) {
+          el.classList.remove("open");
+        } else {
+          el.classList.add("open");
+        }
+      } else {
+        // On desktop, add/remove "collapsed" class
+        if (hidden === true) {
+          el.classList.add("collapsed");
+        } else {
+          el.classList.remove("collapsed");
+        }
+
+        // Update collapse button content
+        const button = el.querySelector(".collapse-button");
+        if (button !== null) {
+          button.replaceChildren(
+            ...(hidden === true
+              ? [NIcon({component: DoubleRightOutlined})]
+              : [NIcon({component: DoubleLeftOutlined}), "Hide"]
+            ),
+          );
+        }
+      }
     }
   }());
 
   collapseButton.onclick = () => sidebarHidden.update(v => !v);
 
   return el;
-}();
+})();
