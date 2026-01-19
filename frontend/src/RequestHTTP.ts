@@ -14,14 +14,14 @@ type Request = database.HTTPRequest;
 
 export default function(
   el: HTMLElement,
-  show_request: Signal<boolean>, // TODO: remove, show by default
+  show_request: Signal<boolean>,
   on: {
     update: (patch: Partial<Request>) => Promise<void>,
     send: () => Promise<void>,
   },
 ): {
   loaded(r: get_request): void,
-  push_history_entry(he: HistoryEntry): void, // show last history entry
+  push_history_entry(he: HistoryEntry): void,
   unmount(): void,
 } {
   el.append(NEmpty({description: "Loading request..."}));

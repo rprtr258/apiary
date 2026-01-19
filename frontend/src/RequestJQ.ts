@@ -19,7 +19,7 @@ export default function(
   },
 ): {
   loaded(r: get_request): void,
-  push_history_entry(he: HistoryEntry): void, // show last history entry
+  push_history_entry(he: HistoryEntry): void,
   unmount(): void,
 } {
   el.append(NEmpty({description: "Loading request..."}));
