@@ -1,0 +1,202 @@
+/* CSS Variables for apiary Design System */
+:root {
+  /* Color Palette - Dark Theme (Default) */
+  --color-bg-primary: rgb(16, 16, 20);
+  --color-bg-secondary: rgb(24, 24, 28);
+  --color-bg-tertiary: #2a2a2a;
+  --color-bg-surface: #1a1a1a;
+  --color-bg-elevated: #2d2d2d;
+  
+  --color-text-primary: rgba(255, 255, 255, 0.95);
+  --color-text-secondary: rgba(255, 255, 255, 0.7);
+  --color-text-tertiary: rgba(255, 255, 255, 0.5);
+  --color-text-disabled: rgba(255, 255, 255, 0.3);
+  --color-text-inverse: rgba(0, 0, 0, 0.95);
+  
+  /* Semantic Colors */
+  --color-primary: #0066cc;
+  --color-primary-hover: #0052a3;
+  --color-primary-active: #003d7a;
+  
+  --color-success: #00a854;
+  --color-success-hover: #008f47;
+  --color-success-active: #00763a;
+  
+  --color-warning: #ffa500;
+  --color-warning-hover: #e59400;
+  --color-warning-active: #cc8300;
+  
+  --color-error: #ff4d4f;
+  --color-error-hover: #e64547;
+  --color-error-active: #cc3d3f;
+  
+  --color-info: #1890ff;
+  --color-info-hover: #1478d9;
+  --color-info-active: #1060b3;
+  
+  /* Border & Divider */
+  --color-border: #404040;
+  --color-border-light: #505050;
+  --color-border-heavy: #303030;
+  --color-divider: #333333;
+  
+  /* Interactive States */
+  --color-hover: rgba(255, 255, 255, 0.08);
+  --color-active: rgba(255, 255, 255, 0.12);
+  --color-selected: rgba(0, 102, 204, 0.15);
+  --color-focus: rgba(0, 102, 204, 0.3);
+  
+  /* Spacing Scale (8px base) */
+  --spacing-xxs: 2px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+  --spacing-xxxl: 64px;
+  
+  /* Typography */
+  --font-family: 'Avenir', 'Helvetica', 'Arial', sans-serif;
+  --font-family-mono: 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+  
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 20px;
+  --font-size-xl: 24px;
+  --font-size-xxl: 32px;
+  --font-size-xxxl: 40px;
+  
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  --line-height-loose: 2;
+  
+  /* Border Radius */
+  --border-radius-xs: 2px;
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  --border-radius-full: 9999px;
+  
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.45);
+  
+  --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+  --transition-bounce: 250ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  /* Z-index layers */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+  
+  /* Layout */
+  --sidebar-width: 300px;
+  --sidebar-width-collapsed: 3em;
+  --header-height: 48px;
+  --footer-height: 32px;
+  
+  /* Request Kind Colors (for badges/tags) */
+  --color-kind-http: #00a854;
+  --color-kind-sql: #1890ff;
+  --color-kind-grpc: #722ed1;
+  --color-kind-jq: #fa8c16;
+  --color-kind-redis: #cf1322;
+  --color-kind-md: #13c2c2;
+  --color-kind-sqlsource: #52c41a;
+  --color-kind-httpsource: #eb2f96;
+  
+  /* HTTP Method Colors */
+  --color-method-get: #00a854;
+  --color-method-post: #1890ff;
+  --color-method-put: #fa8c16;
+  --color-method-patch: #722ed1;
+  --color-method-delete: #cf1322;
+  --color-method-head: #13c2c2;
+  --color-method-options: #eb2f96;
+  --color-method-connect: #52c41a;
+  --color-method-trace: #fadb14;
+}
+
+/* Light Theme (Future Support) */
+[data-theme="light"] {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f5f5f5;
+  --color-bg-tertiary: #e8e8e8;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #ffffff;
+  
+  --color-text-primary: rgba(0, 0, 0, 0.95);
+  --color-text-secondary: rgba(0, 0, 0, 0.7);
+  --color-text-tertiary: rgba(0, 0, 0, 0.5);
+  --color-text-disabled: rgba(0, 0, 0, 0.3);
+  --color-text-inverse: rgba(255, 255, 255, 0.95);
+  
+  --color-border: #d9d9d9;
+  --color-border-light: #e8e8e8;
+  --color-border-heavy: #bfbfbf;
+  --color-divider: #f0f0f0;
+  
+  --color-hover: rgba(0, 0, 0, 0.04);
+  --color-active: rgba(0, 0, 0, 0.08);
+  --color-selected: rgba(0, 102, 204, 0.08);
+  --color-focus: rgba(0, 102, 204, 0.2);
+  
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.16);
+  --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 640px) {
+  :root {
+    --spacing-md: 12px;
+    --spacing-lg: 20px;
+    --spacing-xl: 24px;
+    --font-size-md: 14px;
+    --font-size-lg: 18px;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  :root {
+    --color-text-primary: #ffffff;
+    --color-text-secondary: #cccccc;
+    --color-border: #666666;
+    --color-primary: #0066ff;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: 0ms;
+    --transition-normal: 0ms;
+    --transition-slow: 0ms;
+    --transition-bounce: 0ms;
+  }
+}

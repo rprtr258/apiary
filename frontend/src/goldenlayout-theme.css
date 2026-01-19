@@ -1,0 +1,390 @@
+/* GoldenLayout Theme for apiary Design System */
+
+/* Override GoldenLayout default styles to match our design system */
+.lm_goldenlayout {
+  background: transparent !important;
+  font-family: var(--font-family) !important;
+}
+
+/* Header */
+.lm_header {
+  background: var(--color-bg-tertiary) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  user-select: none !important;
+}
+
+.lm_header .lm_tabdropdown_list {
+  background: var(--color-bg-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--border-radius-md) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* Tabs */
+.lm_tab {
+  background: var(--color-bg-surface) !important;
+  color: var(--color-text-secondary) !important;
+  border: 1px solid var(--color-border) !important;
+  border-bottom: none !important;
+  padding: 0 15px !important;
+  height: 30px !important;
+  line-height: 30px !important;
+  font-size: var(--font-size-sm) !important;
+  transition: all var(--transition-normal) !important;
+}
+
+.lm_tab:hover {
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.lm_tab.lm_active {
+  background: var(--color-bg-secondary) !important;
+  color: var(--color-text-primary) !important;
+  border-bottom-color: var(--color-primary) !important;
+  font-weight: var(--font-weight-medium) !important;
+}
+
+.lm_tab .lm_title {
+  padding: 0 !important;
+}
+
+.lm_tab .lm_close_tab {
+  width: 16px !important;
+  height: 16px !important;
+  background-image: none !important;
+  position: relative !important;
+  opacity: 0.5 !important;
+  transition: opacity var(--transition-normal) !important;
+  margin-left: 8px !important;
+}
+
+.lm_tab .lm_close_tab:hover {
+  opacity: 1 !important;
+}
+
+.lm_tab .lm_close_tab::before,
+.lm_tab .lm_close_tab::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 10px !important;
+  height: 2px !important;
+  background: var(--color-text-secondary) !important;
+  border-radius: 1px !important;
+}
+
+.lm_tab .lm_close_tab::before {
+  transform: translate(-50%, -50%) rotate(45deg) !important;
+}
+
+.lm_tab .lm_close_tab::after {
+  transform: translate(-50%, -50%) rotate(-45deg) !important;
+}
+
+.lm_tab.lm_active .lm_close_tab::before,
+.lm_tab.lm_active .lm_close_tab::after {
+  background: var(--color-text-primary) !important;
+}
+
+/* Tab dropdown button */
+.lm_header .lm_tabdropdown:before {
+  color: var(--color-text-secondary) !important;
+  border-color: var(--color-text-secondary) transparent transparent !important;
+}
+
+.lm_header .lm_tabdropdown:hover:before {
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-text-primary) transparent transparent !important;
+}
+
+/* Splitter */
+.lm_splitter {
+  background: var(--color-border) !important;
+  opacity: 1 !important;
+  transition: background-color var(--transition-normal) !important;
+}
+
+.lm_splitter:hover,
+.lm_splitter.lm_dragging {
+  background: var(--color-primary) !important;
+}
+
+.lm_splitter.lm_vertical {
+  width: 5px !important;
+}
+
+.lm_splitter.lm_horizontal {
+  height: 5px !important;
+}
+
+/* Content area */
+.lm_content {
+  background: var(--color-bg-primary) !important;
+  border: none !important;
+}
+
+.lm_item_container {
+  border: none !important;
+}
+
+/* Drag proxy */
+.lm_dragProxy {
+  opacity: 0.7 !important;
+}
+
+.lm_dragProxy .lm_header {
+  background: var(--color-bg-tertiary) !important;
+}
+
+.lm_dragProxy .lm_content {
+  background: var(--color-bg-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--border-radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Popout window */
+.lm_popin {
+  background: var(--color-bg-tertiary) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--border-radius-md) !important;
+}
+
+.lm_popin:hover {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.lm_popin .lm_icon {
+  background-image: none !important;
+  position: relative !important;
+}
+
+.lm_popin .lm_icon::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 12px !important;
+  height: 12px !important;
+  border: 2px solid var(--color-text-primary) !important;
+  border-radius: 2px !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.lm_popin:hover .lm_icon::before {
+  border-color: var(--color-text-inverse) !important;
+}
+
+/* Drop target indicator */
+.lm_dropTargetIndicator {
+  background: var(--color-primary) !important;
+  opacity: 0.3 !important;
+  border-radius: var(--border-radius-sm) !important;
+}
+
+.lm_dropTargetIndicator .lm_inner {
+  background: var(--color-primary) !important;
+  opacity: 0.7 !important;
+}
+
+/* Maximized state */
+.lm_maximised .lm_header {
+  background: var(--color-bg-secondary) !important;
+  border-bottom: 2px solid var(--color-primary) !important;
+}
+
+/* Stack empty state */
+.lm_stack.lm_empty {
+  background: var(--color-bg-tertiary) !important;
+  border: 2px dashed var(--color-border) !important;
+  border-radius: var(--border-radius-md) !important;
+}
+
+.lm_stack.lm_empty::after {
+  content: 'Drop panel here' !important;
+  color: var(--color-text-tertiary) !important;
+  font-size: var(--font-size-sm) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+}
+
+/* Tab dropdown items */
+.lm_tabdropdown_list .lm_tab {
+  background: var(--color-bg-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--border-radius-sm) !important;
+  margin: 2px 0 !important;
+}
+
+.lm_tabdropdown_list .lm_tab:hover {
+  background: var(--color-bg-tertiary) !important;
+}
+
+.lm_tabdropdown_list .lm_tab.lm_active {
+  background: var(--color-primary) !important;
+  color: var(--color-text-inverse) !important;
+  border-color: var(--color-primary) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+  .lm_header {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+  
+  .lm_tab {
+    height: 38px !important;
+    line-height: 38px !important;
+    padding: 0 12px !important;
+    font-size: var(--font-size-xs) !important;
+  }
+  
+  .lm_tab .lm_close_tab {
+    width: 14px !important;
+    height: 14px !important;
+    margin-left: 6px !important;
+  }
+  
+  .lm_splitter.lm_vertical {
+    width: 8px !important;
+  }
+  
+  .lm_splitter.lm_horizontal {
+    height: 8px !important;
+  }
+}
+
+/* Dark theme adjustments (already dark by default) */
+[data-theme="dark"] .lm_goldenlayout {
+  /* Additional dark theme adjustments if needed */
+}
+
+/* Light theme support */
+[data-theme="light"] .lm_goldenlayout {
+  /* Light theme adjustments */
+}
+
+[data-theme="light"] .lm_header {
+  background: var(--color-bg-tertiary) !important;
+  border-bottom-color: var(--color-border) !important;
+}
+
+[data-theme="light"] .lm_tab {
+  background: var(--color-bg-surface) !important;
+  color: var(--color-text-secondary) !important;
+  border-color: var(--color-border) !important;
+}
+
+[data-theme="light"] .lm_tab:hover {
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-text-primary) !important;
+}
+
+[data-theme="light"] .lm_tab.lm_active {
+  background: var(--color-bg-secondary) !important;
+  color: var(--color-text-primary) !important;
+  border-bottom-color: var(--color-primary) !important;
+}
+
+[data-theme="light"] .lm_content {
+  background: var(--color-bg-primary) !important;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .lm_splitter {
+    background: var(--color-border) !important;
+  }
+  
+  .lm_splitter:hover,
+  .lm_splitter.lm_dragging {
+    background: var(--color-primary) !important;
+  }
+  
+  .lm_tab {
+    border-width: 2px !important;
+  }
+  
+  .lm_tab.lm_active {
+    border-bottom-width: 3px !important;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .lm_tab,
+  .lm_splitter,
+  .lm_tab .lm_close_tab {
+    transition: none !important;
+  }
+  
+  .lm_dragProxy {
+    transition: opacity 0.01ms !important;
+  }
+}
+
+/* Custom scrollbar for GoldenLayout content */
+.lm_content ::-webkit-scrollbar {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+.lm_content ::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary) !important;
+  border-radius: var(--border-radius-full) !important;
+}
+
+.lm_content ::-webkit-scrollbar-thumb {
+  background: var(--color-border) !important;
+  border-radius: var(--border-radius-full) !important;
+}
+
+.lm_content ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-light) !important;
+}
+
+/* Selection within GoldenLayout */
+.lm_content ::selection {
+  background-color: var(--color-selected) !important;
+  color: var(--color-text-primary) !important;
+}
+
+/* Focus styles for accessibility */
+.lm_tab:focus-visible,
+.lm_splitter:focus-visible,
+.lm_popin:focus-visible {
+  outline: 2px solid var(--color-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* Loading state for GoldenLayout */
+.lm_content.loading {
+  position: relative !important;
+  min-height: 100px !important;
+}
+
+.lm_content.loading::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 30px !important;
+  height: 30px !important;
+  border: 3px solid var(--color-border) !important;
+  border-top-color: var(--color-primary) !important;
+  border-radius: 50% !important;
+  animation: spin 1s linear infinite !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
