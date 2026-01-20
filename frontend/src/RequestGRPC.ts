@@ -114,6 +114,8 @@ export default function(
       // TODO: group by service
       const selectOptions = methods.flatMap(svc => [{
         label: svc.service,
+        value: "",
+        disabled: true,
       }, ...svc.methods.map(method => ({
         label: method,
         value: svc.service + "." + method,

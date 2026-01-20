@@ -1,13 +1,10 @@
 import {database} from "../../wailsjs/go/models.ts";
-import {HistoryEntry, Method as Methods} from "../types.ts";
-import {NInputGroup, NInput, NSelect, NButton} from "./input.ts";
+import {HistoryEntry, HTTPRequest} from "../types.ts";
 import {NTabs, NSplit} from "./layout.ts";
 import {NTag, NTable, NEmpty} from "./dataview.ts";
-import EditorJSON from "./EditorJSON.ts";
 import ViewJSON from "./ViewJSON.ts";
-import ParamsList from "./ParamsList.ts";
 import {m, setDisplay, Signal, signal} from "../utils.ts";
-import {notification} from "../store.ts";
+import NRequestForm from "./NRequestForm.ts";
 
 type Request = database.HTTPRequest;
 
@@ -43,14 +40,12 @@ export interface HTTPRequestViewResult {
 export default function HTTPRequestView(
   el: HTMLElement,
   {
-    initialRequest,
     showRequest = signal(true),
     on: {
       send: onSend,
       update: onUpdate = async () => {},
     },
   }: {
-    initialRequest: database.HTTPRequest,
     showRequest?: Signal<boolean>,
     on: {
       send: (request: database.HTTPRequest) => Promise<void>,
@@ -59,32 +54,6 @@ export default function HTTPRequestView(
   },
 ): HTTPRequestViewResult {
   el.append(NEmpty({description: "Loading request..."}));
-
-  const el_send = NButton({
-    type: "primary",
-    on: {click: async () => {
-      try {
-        await onSend(currentRequest);
-      } catch (e) {
-        notification.error({title: "Send failed", error: e});
-      }
-    }},
-  }, "Send");
-
-  let currentRequest = initialRequest;
-
-  const updateRequest = (patch: Partial<database.HTTPRequest>): void => {
-    el_send.disabled = true;
-    const newRequest = database.HTTPRequest.createFrom(currentRequest);
-    Object.assign(newRequest, patch);
-    currentRequest = newRequest;
-
-    onUpdate(currentRequest).then(() => {
-      el_send.disabled = false;
-    }).catch(() => {
-      el_send.disabled = false;
-    });
-  };
 
   const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
@@ -154,60 +123,27 @@ export default function HTTPRequestView(
 
   return {
     loaded(r: {request: Request, history: HistoryEntry[]}) {
-      const request = r.request;
-      currentRequest = request;
-
       if (r.history.length > 0) {
         const lastHistory = r.history[r.history.length - 1];
         update_response(lastHistory.response as database.HTTPResponse);
       }
 
-      const el_input_group = NInputGroup({style: {
-        display: "grid",
-        gridTemplateColumns: "1fr 10fr 1fr",
-      }},
-        NSelect({
-          options: Object.keys(Methods).map(method => ({label: method, value: method})),
-          placeholder: request.method,
-          on: {update: (method: string) => updateRequest({method})},
-        }).el,
-        NInput({
-          placeholder: "URL",
-          value: request.url,
-          on: {update: (url: string) => updateRequest({url})},
-        }),
-        el_send.el,
-      );
-
-      const el_req_tabs = NTabs({
-        class: "h100",
-        tabs: [
-          {
-            name: "Request",
-            class: "h100",
-            elem: EditorJSON({
-              class: "h100",
-              value: request.body,
-              on: {update: (body: string) => updateRequest({body})},
-            }),
+      const requestForm = NRequestForm({
+        initialRequest: r.request as HTTPRequest,
+        on: {
+          send: async (request: HTTPRequest) => {
+            await onSend(request as database.HTTPRequest);
           },
-          {
-            name: "Headers",
-            style: {
-              display: "flex",
-              flexDirection: "column",
-              flexGrow: "1",
-            },
-            elem: ParamsList({
-              value: request.headers,
-              on: {update: (value: database.KV[]): void => updateRequest({headers: value})},
-            }),
+          update: async (request: HTTPRequest) => {
+            await onUpdate(request as database.HTTPRequest);
           },
-        ],
+        },
       });
+      unmounts.push(() => requestForm.unmount());
 
-      const split = NSplit(el_req_tabs, el_response, {direction: "horizontal", style: {minHeight: "0"}});
+      const split = NSplit(requestForm.el, el_response, {direction: "horizontal", style: {minHeight: "0"}});
       unmounts.push(() => split.unmount());
+
       const el_container = m("div", {
         class: "h100",
         style: {
@@ -215,12 +151,13 @@ export default function HTTPRequestView(
           flexDirection: "column",
           width: "100%",
         },
-      }, el_input_group, split.element);
+      }, split.element);
+
       unmounts.push(showRequest.sub(function*() {
         while (true) {
           const show_request = yield;
           split.leftVisible = show_request;
-          setDisplay(el_input_group, show_request);
+          setDisplay(requestForm.el, show_request);
         }
       }()));
       el.replaceChildren(el_container);
