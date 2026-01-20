@@ -2,6 +2,7 @@ import Split, {SplitInstance} from "split-grid";
 import {DOMNode, m, setDisplay} from "../utils.ts";
 import {NButton} from "./input.ts";
 import {css} from "../styles.ts";
+import {useTabs} from "../hooks/useTabs.ts";
 
 export function NScrollbar(...children: HTMLElement[]) {
   return m("div", {
@@ -23,52 +24,111 @@ type NTabsProps = {
     disabled?: boolean,
     elem?: DOMNode,
   }[],
+  initialTab?: number,
+  onTabChange?: (index: number) => void,
 };
-export function NTabs(props: NTabsProps): HTMLElement {
-  const tab_buttons = props.tabs.map((tab, i) => m("button", {
-    disabled: tab.disabled,
-    style: (tab.disabled ?? false) ? tabStyles.tab.disabled : tabStyles.tab.inactive,
-    onclick: () => update(i),
-  }, tab.name));
-  const tabs = props.tabs.map(tab => m("div", {
-    style: {
-      height: "100%",
-      ...tabStyles.content,
-      ...tab.style,
-      display: "none",
-    },
-    class: tab.class,
-  }, tab.elem ?? null));
 
-  let tab_idx = -1;
-  const update = (new_tab_idx: number): void => {
-    if (tab_idx === new_tab_idx) {
-      return;
+/**
+ * NTabs component using headless useTabs hook
+ * Separates tab logic from UI rendering
+ */
+export function NTabs(props: NTabsProps): HTMLElement {
+  // Convert tab config to useTabs format
+  const tabConfigs = props.tabs.map((tab, index) => ({
+    id: index,
+    label: typeof tab.name === "string" ? tab.name : `Tab ${index + 1}`,
+    disabled: tab.disabled ?? false,
+  }));
+
+  // Use the headless hook for tab logic
+  const {activeTabIndex, setActiveTabByIndex, isTabDisabled} = useTabs({
+    tabs: tabConfigs,
+    initialTab: props.initialTab,
+    on: {tabChange: index => {
+      props.onTabChange?.(index);
+    }},
+  });
+
+  // Create container
+  const container = m("div", {
+    class: "h100" + " " + (props.class ?? ""),
+    style: {...tabStyles.container, ...props.style},
+  });
+
+  // Create header for tab buttons
+  const header = m("div", {style: tabStyles.header});
+  container.appendChild(header);
+
+  // Create content container for tabs
+  const contentContainer = m("div", {style: {flexGrow: "1", position: "relative"}});
+  container.appendChild(contentContainer);
+
+  // Store references to tab elements
+  const tabButtons: HTMLElement[] = [];
+  const tabContents: HTMLElement[] = [];
+
+  // Function to update tab appearance based on active tab
+  const updateTabs = (activeIndex: number): void => {
+    for (const [i, button] of tabButtons.entries()) {
+      const isActive = i === activeIndex;
+      const isDisabled = isTabDisabled(i);
+
+      // Update button style
+      const buttonStyle = isDisabled
+        ? tabStyles.tab.disabled
+        : isActive
+          ? tabStyles.tab.active
+          : tabStyles.tab.inactive;
+
+      Object.assign(button.style, buttonStyle);
     }
-    if (props.tabs[new_tab_idx].disabled ?? false) {
-      return;
+
+    for (const [i, content] of tabContents.entries()) {
+      const isActive = i === activeIndex;
+      // Update content visibility
+      content.style.display = isActive ? (props.tabs[i].style?.display ?? "block") : "none";
     }
-    if (new_tab_idx < 0 || new_tab_idx >= props.tabs.length) {
-      throw new Error(`Tab ${new_tab_idx} not found in ${props.tabs.length} tabs`);
-    }
-    if (tab_idx >= 0) {
-      Object.assign(tab_buttons[tab_idx].style, tabStyles.tab.inactive); // TODO: classes
-      tabs[tab_idx].style.display = "none";
-    }
-    Object.assign(tab_buttons[new_tab_idx].style, tabStyles.tab.active); // TODO: classes
-    tabs[new_tab_idx].style.display = props.tabs[new_tab_idx].style?.display ?? "block";
-    tab_idx = new_tab_idx;
   };
-  { // init
-    const firstEnabledIndex = props.tabs.findIndex(v => !(v.disabled ?? false));
-    if (firstEnabledIndex >= 0)
-      update(firstEnabledIndex);
+
+  // Create tab buttons and content
+  for (const [i, tab] of props.tabs.entries()) {
+    // Create tab button
+    const button = m("button", {
+      disabled: isTabDisabled(i) ? true : undefined,
+      style: tabStyles.tab.inactive,
+      onclick: () => {
+        if (!isTabDisabled(i)) {
+          setActiveTabByIndex(i);
+          updateTabs(i);
+        }
+      },
+    }, tab.name);
+    tabButtons.push(button);
+    header.appendChild(button);
+
+    // Create tab content
+    const content = m("div", {
+      style: {
+        height: "100%",
+        ...tabStyles.content,
+        ...tab.style,
+        display: "none", // Initially hidden
+        position: "absolute",
+        top: "0",
+        left: "0",
+        right: "0",
+        bottom: "0",
+      },
+      class: tab.class,
+    }, tab.elem ?? null);
+    tabContents.push(content);
+    contentContainer.appendChild(content);
   }
 
-  return m("div", {class: "h100" + " " + (props.class ?? ""), style: {...tabStyles.container, ...props.style}},
-    m("div", {style: tabStyles.header}, tab_buttons),
-    tabs,
-  );
+  // Initial update
+  updateTabs(activeTabIndex.value);
+
+  return container;
 }
 
 const tabStylesBase = {

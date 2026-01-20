@@ -1,36 +1,35 @@
-// Headless hook for HTTP request state management
-import {HTTPRequest} from "../types.ts";
 import {Signal, signal} from "../utils.ts";
 
-export type UseRequestOptions = {
-  initialRequest: HTTPRequest,
-  on: {update?: (request: HTTPRequest) => Promise<void>},
+export type UseRequestOptions<T> = {
+  initialRequest: T,
+  on: {update?: (request: T) => Promise<void>},
 };
 
-export type UseRequestResult = {
+export type UseRequestResult<T> = {
   // State
-  requestSignal: Signal<HTTPRequest>,
+  requestSignal: Signal<T>,
   loadingSignal: Signal<boolean>,
   errorSignal: Signal<Error | null>,
   // Getters
-  get request(): HTTPRequest,
+  get request(): T,
   get loading(): boolean,
   get error(): Error | null,
   // Actions
-  update: (patch: Partial<HTTPRequest>) => Promise<void>,
+  update: (patch: Partial<T>) => Promise<void>,
   reset: () => void,
 };
 
-export function useRequest({
+/** Headless hook for HTTP request state management */
+export function useRequest<T>({
   initialRequest,
   on: {update: onUpdate = async () => {}},
-}: UseRequestOptions): UseRequestResult {
-  const request = signal<HTTPRequest>(initialRequest);
+}: UseRequestOptions<T>): UseRequestResult<T> {
+  const request = signal<T>(initialRequest);
   const loading = signal<boolean>(false);
   const error = signal<Error | null>(null);
   let inFlight = 0;
 
-  const update = async (patch: Partial<HTTPRequest>): Promise<void> => {
+  const update = async (patch: Partial<T>): Promise<void> => {
     inFlight++;
     loading.update(() => true);
     error.update(() => null);

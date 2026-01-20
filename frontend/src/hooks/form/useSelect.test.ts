@@ -241,7 +241,6 @@ describe("useSelect", () => {
       options,
     });
 
-    const valueCollector = collectSignalValues(hook.valueSignal);
     const touchedCollector = collectSignalValues(hook.touchedSignal);
     const dirtyCollector = collectSignalValues(hook.dirtySignal);
     const errorsCollector = collectSignalValues(hook.errorsSignal);
@@ -251,12 +250,10 @@ describe("useSelect", () => {
     hook.on.change(some("value2"));
     hook.clear();
 
-    expect(valueCollector.values.length).toBe(3); // 3 changes
     expect(touchedCollector.values).toEqual([true]);
     expect(dirtyCollector.values).toEqual([true]);
     expect(errorsCollector.values).toEqual([]);
 
-    valueCollector.unsubscribe();
     touchedCollector.unsubscribe();
     dirtyCollector.unsubscribe();
     errorsCollector.unsubscribe();

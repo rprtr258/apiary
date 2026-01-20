@@ -21,7 +21,6 @@ export type UseSelectOptions<T> = {
 
 export type UseSelectResult<T> = FormField<Option<T>> & {
   // State
-  valueSignal: Signal<Option<T>>,
   touchedSignal: Signal<boolean>,
   dirtySignal: Signal<boolean>,
   errorsSignal: Signal<string[]>,
@@ -44,18 +43,16 @@ export type UseSelectResult<T> = FormField<Option<T>> & {
 };
 
 // Headless hook for select/dropdown field management
-export function useSelect<T>(options: UseSelectOptions<T>): UseSelectResult<T> {
-  const {
-    options: selectOptions,
-    initialValue,
-    placeholder,
-    validate = () => [],
-    on: {
-      change: onChange = () => {},
-      blur: onBlur = () => {},
-    } = {},
-  } = options;
-
+export function useSelect<T>({
+  options: selectOptions,
+  initialValue,
+  placeholder,
+  validate = () => [],
+  on: {
+    change: onChange = () => {},
+    blur: onBlur = () => {},
+  } = {},
+}: UseSelectOptions<T>): UseSelectResult<T> {
   const valueSignal = signal<Option<T>>(option(initialValue));
   const touchedSignal = signal<boolean>(false);
   const dirtySignal = signal<boolean>(false);
@@ -139,7 +136,6 @@ export function useSelect<T>(options: UseSelectOptions<T>): UseSelectResult<T> {
     reset,
 
     // Additional properties
-    valueSignal,
     touchedSignal,
     dirtySignal,
     errorsSignal,

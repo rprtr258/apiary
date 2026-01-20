@@ -1,5 +1,7 @@
-import {m, DOMNode, Signal, setDisplay} from "../utils.ts";
 import {css} from "../styles.ts";
+import {m, DOMNode, Signal, setDisplay, arrayGet} from "../utils.ts";
+import {useInput} from "../hooks/form/useInput.ts";
+import {SelectOption, useSelect} from "../hooks/form/useSelect.ts";
 import {useButton} from "../hooks/form/useButton.ts";
 
 type NInputProps = {
@@ -12,14 +14,47 @@ type NInputProps = {
   style?: Partial<CSSStyleDeclaration>,
   disabled?: boolean,
 };
+
 export function NInput(props: NInputProps) {
-  return m("input", {
-    style: props.style,
-    value: props.value,
+  const inputHook = useInput({
+    initialValue: props.value,
+    on: {
+      change: props.on?.update,
+    },
+  });
+
+  const getStatusStyle = () => {
+    if (!inputHook.touched)
+      return {};
+
+    return {
+      borderColor: props.status === "error" ? "red" :
+                   props.status === "success" ? "green" :
+                   undefined,
+      backgroundColor: props.status === "error" ? "rgba(255, 0, 0, 0.1)" :
+                   props.status === "success" ? "rgba(0, 255, 0, 0.1)" :
+                   undefined,
+    };
+  };
+
+  const el = m("input", {
+    value: inputHook.value,
     placeholder: props.placeholder,
-    oninput: (e: Event) => props.on?.update((e.target as HTMLInputElement).value),
+    oninput: (e: Event) => inputHook.on.change((e.target as HTMLInputElement).value),
+    onblur: () => inputHook.on.blur(),
+    onfocus: () => inputHook.on.focus(),
     disabled: props.disabled,
   });
+  inputHook.valueSignal.sub(function*() {
+    while (true) {
+      yield;
+      Object.assign(el.style, {
+        ...props.style,
+        ...getStatusStyle(),
+      });
+    }
+  }());
+  return el;
 }
 
 export function NInputGroup(props: {style: Partial<CSSStyleDeclaration>}, ...children: DOMNode[]) {
@@ -95,10 +130,6 @@ export function NDropdown(props: NDropdownProps, children: HTMLElement[]) {
   return span;
 };
 
-type SelectOption<T> = {
-  label: string,
-  value?: T,
-};
 type NSelectProps<T> = {
   label?: string,
   options: SelectOption<T>[],
@@ -107,59 +138,63 @@ type NSelectProps<T> = {
   disabled?: boolean,
   on: {update: (value: T) => void},
 };
+
 export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () => void} {
-  let current: number | null = props.options.findIndex(opt => opt.label === props.label);
-  if (current === -1) {
-    if (props.placeholder === undefined) {
-      throw new Error(`Option ${props.label} not found in ${JSON.stringify(props.options)}`);
-    }
-    current = null;
+  // Find initial value based on label
+  const initialValue = props.label !== undefined && props.label !== ""
+    ? props.options.find(opt => opt.label === props.label)?.value
+    : undefined;
+
+  if (props.options.findIndex(opt => opt.value === initialValue) === -1 && props.placeholder === undefined) {
+    throw new Error(`Option ${props.label} not found in ${JSON.stringify(props.options)}`);
   }
+
+  const selectHook = useSelect({
+    options: props.options,
+    initialValue,
+    placeholder: props.placeholder,
+    on: {
+      change: (value) => {
+        if (value.isSome()) {
+          props.on.update(value.value);
+        }
+      },
+    },
+  });
 
   const el_placeholder = m("option", {
     value: "",
     disabled: props.placeholder === undefined ? true : undefined,
     hidden: true,
-    selected: current === null ? true : undefined,
+    selected: selectHook.value.isNone() ? true : undefined,
   }, props.placeholder ?? "");
-  const el_opts = props.options.map(({label, value}, i) => m("option", {
+  const el_opts = props.options.map(({label, value, disabled}, i) => m("option", {
     value: String(i),
-    selected: i === current ? true : undefined, // NOTE: any value makes selected, so we explicitly set undefined
-    disabled: value === undefined ? true : undefined,
+    selected: (selectHook.value.isSome() && selectHook.value.value === value) ? true : undefined, // NOTE: any value makes selected, so we explicitly set undefined
+    disabled: disabled === true ? true : undefined,
   }, label));
 
   const el = m("select", {
     style: props.style,
+    disabled: props.disabled === true ? true : undefined,
     onchange: (e: Event) => {
       const i = parseInt((e.target! as HTMLSelectElement).value);
-      const value = props.options[i].value;
-      if (current !== null) {
-        el_opts[current].selected = false;
-      }
-      el_opts[i].selected = true;
-      current = i;
-      props.on.update(value!);
+      const value = arrayGet(props.options, i).map(o => o.value);
+      selectHook.on.change(value);
     },
   },
     el_placeholder,
-    ...el_opts,
+    el_opts,
   );
-
   // Workaround for happy-dom bug: set selectedIndex after creating select
-  if (current !== null) {
-    el.selectedIndex = current + 1; // +1 for placeholder
+  if (selectHook.value.isSome()) {
+    el.selectedIndex = props.options.findIndex(opt => opt.value === selectHook.value.unwrap()) + 1; // +1 for placeholder
   }
 
   return {
     el,
     reset() {
-      if (current === null)
-        return;
-
-      el_opts[current].selected = false;
-      el_placeholder.selected = true;
-      current = null;
-      el.selectedIndex = 0; // Select placeholder
+      selectHook.reset();
     },
   };
 }

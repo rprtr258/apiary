@@ -1,6 +1,10 @@
-/.vscode/
-/build/
-/db.json
+build/
+db.json
+node_modules/
+dist/
+dist-electron/
+release/
+.vscode/
 
 # bv (beads viewer) local config and caches
 .bv/

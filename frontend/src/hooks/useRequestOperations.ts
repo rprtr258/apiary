@@ -1,17 +1,16 @@
 import {Signal, signal} from "../utils.ts";
-import type {HTTPRequest, HTTPResponse} from "../types.ts";
 
-export type UseRequestOperationsOptions = {
+export type UseRequestOperationsOptions<Req, Resp> = {
   on: {
-    send: (request: HTTPRequest) => Promise<HTTPResponse | undefined>,
-    update?: (request: HTTPRequest) => Promise<void>,
+    send: (request: Req) => Promise<Resp | undefined>,
+    update?: (request: Req) => Promise<void>,
   },
   response?: {
     setLoading: (loading: boolean) => void,
   },
 };
 
-export type UseRequestOperationsResult = {
+export type UseRequestOperationsResult<Req, Resp> = {
   // State
   sendingSignal: Signal<boolean>,
   updatingSignal: Signal<boolean>,
@@ -23,19 +22,19 @@ export type UseRequestOperationsResult = {
   get sendError(): Error | null,
   get updateError(): Error | null,
   // Actions
-  send: (request: HTTPRequest) => Promise<HTTPResponse | undefined>,
-  update: (request: HTTPRequest) => Promise<void>,
+  send: (request: Req) => Promise<Resp | undefined>,
+  update: (request: Req) => Promise<void>,
   reset: () => void,
 };
 
-/** Headless hook for HTTP request operations (send, update) */
-export function useRequestOperations({
+/** Headless hook for request operations (send, update) */
+export function useRequestOperations<Req, Resp>({
   on: {
     send: onSend,
     update: onUpdate = async () => {},
   },
   response,
-}: UseRequestOperationsOptions): UseRequestOperationsResult {
+}: UseRequestOperationsOptions<Req, Resp>): UseRequestOperationsResult<Req, Resp> {
   const sending = signal(false);
   const updating = signal(false);
   const sendInFlight = signal(0);
@@ -44,7 +43,7 @@ export function useRequestOperations({
   const updateError = signal<Error | null>(null);
   const resetToken = signal(0);
 
-  const send = async (request: HTTPRequest): Promise<HTTPResponse | undefined> => {
+  const send = async (request: Req): Promise<Resp | undefined> => {
     const token = resetToken.value;
     sendInFlight.update(n => n + 1);
     sending.update(() => true);
@@ -67,7 +66,7 @@ export function useRequestOperations({
     }
   };
 
-  const update = async (request: HTTPRequest): Promise<void> => {
+  const update = async (request: Req): Promise<void> => {
     const token = resetToken.value;
     updateInFlight.update(n => n + 1);
     updating.update(() => true);
