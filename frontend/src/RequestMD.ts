@@ -6,7 +6,8 @@ import {NEmpty} from "./components/dataview.ts";
 import {NSplit} from "./components/layout.ts";
 import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
 import {get_request} from "./store.ts";
-import {api, HistoryEntry} from "./api.ts";
+import {HistoryEntry} from "./types.ts";
+import {api} from "./api.ts";
 import {m, Signal} from "./utils.ts";
 
 type Request = {kind: database.Kind.MD} & database.MDRequest;

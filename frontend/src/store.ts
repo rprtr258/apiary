@@ -1,6 +1,7 @@
 import {database, app} from "../wailsjs/go/models.ts";
 import {ComponentItem, ComponentItemConfig, ContentItem, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedLayoutConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig} from "golden-layout";
-import {api, type RequestData, type HistoryEntry, Request} from "./api.ts";
+import {api} from "./api.ts";
+import {type RequestData, type HistoryEntry, Request} from "./types.ts";
 import {signal, Signal} from "./utils.ts";
 
 

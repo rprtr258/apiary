@@ -10,7 +10,7 @@ import RequestJQ from "./RequestJQ.ts";
 import RequestRedis from "./RequestRedis.ts";
 import RequestMD from "./RequestMD.ts";
 import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs, update_request, send, last_history_entry, Store, viewerState, panelkaState} from "./store.ts";
-import {Kinds, HistoryEntry, Request} from "./api.ts";
+import {Kinds, HistoryEntry, Request} from "./types.ts";
 import {database} from "../wailsjs/go/models.ts";
 import Command from "./components/CommandPalette.ts";
 import {m, setDisplay, signal} from "./utils.ts";

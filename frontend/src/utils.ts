@@ -1,5 +1,10 @@
-import {api} from "./api.ts";
+import {Option, some, none} from "./option.ts";
 import {Result, ok} from "./result.ts";
+import {api} from "./api.ts";
+
+export function arrayGet<T>(items: T[], index: number): Option<T> {
+  return index >= 0 && index < items.length ? some(items[index]) : none;
+}
 
 function formatResponse(response: string): string {
   const value = ((): unknown => {
@@ -187,6 +192,38 @@ export function s<K extends keyof SVGAttrs>(
   return el;
 }
 
+export function deepEquals<T>(a: T, b: T): boolean {
+  if (a === b)
+    return true;
+  if (Number.isNaN(a) && Number.isNaN(b))
+    return true;
+
+  if (typeof a !== "object" || a === null ||
+      typeof b !== "object" || b === null)
+    return false;
+
+  if (a.constructor !== b.constructor)
+    return false;
+
+  if (a instanceof Date && b instanceof Date)
+    return a.getTime() === b.getTime();
+  if (a instanceof RegExp && b instanceof RegExp)
+    return a.source === b.source && a.flags === b.flags;
+
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length)
+    return false;
+
+  for (const key of keysA) {
+    if (!b.hasOwnProperty(key)) return false;
+    // @ts-expect-error ts sosal
+    if (!deepEquals(a[key], b[key])) return false;
+  }
+
+  return true;
+}
+
 type Sub<T> = Generator<undefined, never, T>;
 export type Signal<T> = {
   update(f: (value: T) => T): void,
@@ -205,7 +242,7 @@ export function signal<T>(value: T): Signal<T> {
     },
     update(f: (value: T) => T) {
       const value = f(_value);
-      if (value === _value)
+      if (deepEquals(value, _value))
         return;
       _value = value;
       for (const sub of subs)

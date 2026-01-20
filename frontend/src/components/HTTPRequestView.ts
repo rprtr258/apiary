@@ -1,5 +1,5 @@
 import {database} from "../../wailsjs/go/models.ts";
-import {HistoryEntry, Method as Methods} from "../api.ts";
+import {HistoryEntry, Method as Methods} from "../types.ts";
 import {NInputGroup, NInput, NSelect, NButton} from "./input.ts";
 import {NTabs, NSplit} from "./layout.ts";
 import {NTag, NTable, NEmpty} from "./dataview.ts";
@@ -31,8 +31,6 @@ function responseBadge(response: database.HTTPResponse): HTMLElement {
       code < 500 ? "warning" :
                    "error"
     ),
-    size: "small",
-    round: true,
   }, `${code}`);
 }
 

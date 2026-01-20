@@ -116,9 +116,9 @@ export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () 
 
   const el_placeholder = m("option", {
     value: "",
-    disabled: props.placeholder === undefined,
+    disabled: props.placeholder === undefined ? true : undefined,
     hidden: true,
-    selected: current === null,
+    selected: current === null ? true : undefined,
   }, props.placeholder ?? "");
   const el_opts = props.options.map(({label, value}, i) => m("option", {
     value: String(i),
@@ -126,23 +126,30 @@ export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () 
     disabled: value === undefined ? true : undefined,
   }, label));
 
-  return {
-    el: m("select", {
-      style: props.style,
-      onchange: (e: Event) => {
-        const i = parseInt((e.target! as HTMLSelectElement).value);
-        const value = props.options[i].value;
-        if (current !== null) {
-          el_opts[current].selected = false;
-        }
-        el_opts[i].selected = true;
-        current = i;
-        props.on.update(value!);
-      },
+  const el = m("select", {
+    style: props.style,
+    onchange: (e: Event) => {
+      const i = parseInt((e.target! as HTMLSelectElement).value);
+      const value = props.options[i].value;
+      if (current !== null) {
+        el_opts[current].selected = false;
+      }
+      el_opts[i].selected = true;
+      current = i;
+      props.on.update(value!);
     },
-      el_placeholder,
-      ...el_opts,
-    ),
+  },
+    el_placeholder,
+    ...el_opts,
+  );
+
+  // Workaround for happy-dom bug: set selectedIndex after creating select
+  if (current !== null) {
+    el.selectedIndex = current + 1; // +1 for placeholder
+  }
+
+  return {
+    el,
     reset() {
       if (current === null)
         return;
@@ -150,6 +157,7 @@ export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () 
       el_opts[current].selected = false;
       el_placeholder.selected = true;
       current = null;
+      el.selectedIndex = 0; // Select placeholder
     },
   };
 }
@@ -166,5 +174,6 @@ export function NButton(props: NButtonProps, ...children: DOMNode[]) {
     class: props.class,
     style: props.style,
     onclick: props.on.click,
+    disabled: props.disabled,
   }, children);
 };

@@ -9,7 +9,7 @@
 - Never run auto-formatting tools unless explicitly requested.
 - Never change config files like `eslint.config.ts` or `tsconfig.json`.
 - Never modify or patch 3rd-party dependencies, including overwriting styles or using `!important`.
-- Never use `overflow: hidden`, `Array.forEach`.
+- Never use `overflow: hidden`.
 - Never disable linter checks unless explicitly requested.
 - Run `bun run ci` and `bun run build` (in frontend/) after any code changes to ensure linting, typechecking, and build succeed.
 - Include updates to `AGENTS.md` for structural or architectural changes.

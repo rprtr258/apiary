@@ -3,7 +3,8 @@ import {NEmpty, NIcon, NList, NListItem, NTag, NTree, TagType, treeLabelClass, T
 import {ContentCopyFilled, CopySharp, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, EditOutlined, Refresh} from "./components/icons.ts";
 import {NSelect} from "./components/input.ts";
 import {NScrollbar, NTabs} from "./components/layout.ts";
-import {api, HistoryEntry, Kinds} from "./api.ts";
+import {api} from "./api.ts";
+import {HistoryEntry, Kinds} from "./types.ts";
 import {notification, store, useNotification} from "./store.ts";
 import {DOMNode, m, setDisplay, signal} from "./utils.ts";
 
@@ -657,7 +658,6 @@ export const el_aside = function() {
                     fontWeight: "bold",
                     padding: "2px 4px",
                   },
-                  size: "small",
                 }, "TABLE"),
                 m("span", {
                   style: {
@@ -698,7 +698,6 @@ export const el_aside = function() {
                       fontWeight: "bold",
                       padding: "2px 4px",
                     },
-                    size: "small",
                   }, endpoint.method),
                   m("span", {
                     style: {
@@ -732,7 +731,6 @@ export const el_aside = function() {
                     fontWeight: "bold",
                     padding: "2px 4px",
                   },
-                  size: "small",
                 }, "ENDPT"),
                 m("span", {
                   style: {
@@ -782,7 +780,6 @@ export const el_aside = function() {
                     animation: "pulse 1.5s infinite",
                   } : {}),
                 },
-                size: "small",
               }, method),
               m("span", {
                 style: {

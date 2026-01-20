@@ -6,7 +6,7 @@ import EditorJSON from "./components/EditorJSON.ts";
 import {NSplit} from "./components/layout.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {m, setDisplay, Signal} from "./utils.ts";
-import {HistoryEntry} from "./api.ts";
+import {HistoryEntry} from "./types.ts";
 
 type Request = {kind: database.Kind.JQ} & database.JQRequest;
 

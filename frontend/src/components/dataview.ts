@@ -3,15 +3,13 @@ import {clone, m, DOMNode} from "../utils.ts";
 import {ResultInfo, FolderOpenOutlined, FolderOutlined} from "./icons.ts";
 
 export function Json<T>(props: {data: T}) {
-  return m("pre", JSON.stringify(props.data, null, 2));
+  return m("pre", {}, JSON.stringify(props.data, null, 2));
 };
 
 export type TagType = "success" | "info" | "warning" | "error";
 type NTagProps = {
   type: TagType, // TODO: replace with color, use?
   style?: Partial<CSSStyleDeclaration>,
-  size: "small",
-  round?: true,
 };
 export function NTag(props: NTagProps, label: string) {
   return m("span", {

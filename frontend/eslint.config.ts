@@ -40,6 +40,10 @@ export default defineConfig([
         allowTemplateLiterals: true,
         avoidEscape: false,
       }],
+      "no-restricted-syntax": ["error", {
+        selector: "CallExpression[callee.property.name='forEach']",
+        message: "forEach is prohibited. Use for..of or functional methods with value return.",
+      }],
       "@stylistic/semi": ["error", "always"],
       "@stylistic/member-delimiter-style": ["error", {
         "multiline": {delimiter: "comma", requireLast: true},

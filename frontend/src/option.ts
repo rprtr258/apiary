@@ -57,3 +57,7 @@ export function some<T>(value: T): Option<T> & Some {
     },
   };
 }
+
+export function option<T>(value: T | undefined): Option<T> {
+  return value === undefined ? none : some(value);
+}

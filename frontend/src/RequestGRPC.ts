@@ -1,12 +1,12 @@
 import {database} from "../wailsjs/go/models.ts";
+import {GRPCCodes, HistoryEntry} from "./types.ts";
+import {get_request, last_history_entry} from "./store.ts";
+import {m, setDisplay, Signal} from "./utils.ts";
+import ParamsList from "./components/ParamsList.ts";
 import {NInput, NButton, NInputGroup, NSelect} from "./components/input.ts";
 import {NTabs, NSplit} from "./components/layout.ts";
 import {NTag, NTable, NEmpty} from "./components/dataview.ts";
-import {GRPCCodes, HistoryEntry} from "./api.ts";
 import ViewJSON from "./components/ViewJSON.ts";
-import ParamsList from "./components/ParamsList.ts";
-import {get_request, last_history_entry} from "./store.ts";
-import {m, setDisplay, Signal} from "./utils.ts";
 
 type Request = {kind: database.Kind.GRPC} & database.GRPCRequest;
 
@@ -14,8 +14,6 @@ function responseBadge(response: {code: number}) {
   const code = response.code;
   return NTag({
     type: (code === 0 ? "success" : "error"),
-    size: "small",
-    round: true,
   }, `${code} ${GRPCCodes[code as keyof typeof GRPCCodes]}`);
 }
 

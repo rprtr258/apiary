@@ -3,9 +3,10 @@ import {NButton} from "./input.ts";
 import {NScrollbar, NTabs} from "./layout.ts";
 import {NIcon} from "./dataview.ts";
 import {CheckSquareOutlined, ClockCircleOutlined, FieldNumberOutlined, ItalicOutlined, QuestionCircleOutlined} from "./icons.ts";
-import {api, RowValue} from "../api.ts";
+import {api} from "../api.ts";
 import {DOMNode, m, signal} from "../utils.ts";
 import {notification} from "../store.ts";
+import {RowValue} from "../types.ts";
 
 function render(v: RowValue): DOMNode {
   switch (true) {

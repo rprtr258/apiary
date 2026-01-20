@@ -1,5 +1,5 @@
 import {describe, test, expect, mock} from "bun:test";
-import {m, setDisplay, signal} from "./utils.ts";
+import {m, setDisplay, signal, deepEquals} from "./utils.ts";
 
 describe("m (DOM builder)", () => {
   test("creates element with props and text children", () => {
@@ -159,5 +159,74 @@ describe("signal", () => {
 
     expect(callback).toHaveBeenCalledTimes(1);
     expect(callback).toHaveBeenCalledWith(42);
+  });
+});
+
+describe("deepEquals", () => {
+  const obj1 = {a: {b: {c: [1, 2, {d: "test"}]}}};
+  const obj2 = {a: {b: {c: [1, 2, {d: "test"}]}}};
+  const obj3 = {a: {b: {c: [1, 2, {d: "different"}]}}};
+
+  const date1 = new Date("2023-01-01T00:00:00.000Z");
+  const date2 = new Date("2023-01-01T00:00:00.000Z");
+  const date3 = new Date("2023-01-02T00:00:00.000Z");
+
+  const regex1 = /test/gi;
+  const regex2 = /test/gi;
+  const regex3 = /test/g;
+  const regex4 = /different/gi;
+
+  class Custom1 { x = 1; }
+  class Custom2 { x = 1; }
+
+  const sym = Symbol("test");
+
+  const positiveTests: [unknown, unknown][] = [
+    [42, 42],
+    ["hello", "hello"],
+    [true, true],
+    [null, null],
+    [undefined, undefined],
+    [NaN, NaN],
+    [{a: 1, b: 2}, {a: 1, b: 2}],
+    [{a: 1, b: 2}, {b: 2, a: 1}],
+    [[1, 2, 3], [1, 2, 3]],
+    [[], []],
+    [obj1, obj2],
+    [{}, {}],
+    [date1, date2],
+    [regex1, regex2],
+    [new Custom1(), new Custom1()],
+    [{[sym]: "value"}, {[sym]: "different"}], // symbol ignored
+  ];
+  test("positive tests", () => {
+    for (const [a, b] of positiveTests) {
+      expect(deepEquals(a, b)).toBe(true);
+    }
+  });
+
+  const negativeTests: [unknown, unknown][] = [
+    [42, 43],
+    ["hello", "world"],
+    [true, false],
+    [null, undefined],
+    [0, false],
+    [NaN, 42],
+    [42, NaN],
+    [{a: 1, b: 2}, {a: 1, b: 3}],
+    [{a: 1, b: 2}, {a: 1}],
+    [[1, 2, 3], [1, 2]],
+    [[1, 2, 3], [1, 2, 4]],
+    [obj1, obj3],
+    [{}, []],
+    [date1, date3],
+    [regex1, regex3], // different flags
+    [regex1, regex4], // different pattern
+    [new Custom1(), new Custom2()],
+  ];
+  test("negative tests", () => {
+    for (const [a, b] of negativeTests) {
+      expect(deepEquals(a, b)).toBe(false);
+    }
   });
 });

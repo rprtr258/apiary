@@ -1,12 +1,12 @@
 import {database} from "../wailsjs/go/models.ts";
+import {Database, HistoryEntry, RowValue} from "./types.ts";
+import {m, setDisplay, Signal} from "./utils.ts";
+import {get_request, last_history_entry} from "./store.ts";
 import {NEmpty} from "./components/dataview.ts";
 import {NButton, NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {NScrollbar, NSplit} from "./components/layout.ts";
-import EditorSQL from "./EditorSQL.ts";
-import {get_request, last_history_entry} from "./store.ts";
-import {Database, HistoryEntry, RowValue} from "./api.ts";
-import {m, setDisplay, Signal} from "./utils.ts";
 import {DataTable} from "./components/TableView.ts";
+import EditorSQL from "./EditorSQL.ts";
 
 type Request = database.SQLRequest;
 

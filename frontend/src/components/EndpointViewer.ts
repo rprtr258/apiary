@@ -1,7 +1,8 @@
-import {api, type HistoryEntry} from "../api.ts";
+import {database} from "../../wailsjs/go/models.ts";
+import {api} from "../api.ts";
+import {type HistoryEntry} from "../types.ts";
 import HTTPRequestView, {HTTPRequestViewResult} from "./HTTPRequestView.ts";
 import {m, signal} from "../utils.ts";
-import {database} from "../../wailsjs/go/models.ts";
 import {NEmpty} from "./dataview.ts";
 
 export interface EndpointViewerProps {

@@ -1,11 +1,12 @@
 import {database} from "../wailsjs/go/models.ts";
+import {Database} from "./types.ts";
+import {api} from "./api.ts";
+import {get_request} from "./store.ts";
+import {m} from "./utils.ts";
 import {NEmpty} from "./components/dataview.ts";
 import {NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {NTabs} from "./components/layout.ts";
 import SchemaCanvas from "./components/SchemaCanvas.ts";
-import {get_request} from "./store.ts";
-import {Database, api} from "./api.ts";
-import {m} from "./utils.ts";
 
 type Request = database.SQLSourceRequest;
 

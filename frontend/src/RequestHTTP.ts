@@ -1,5 +1,5 @@
 import {database} from "../wailsjs/go/models.ts";
-import {type HistoryEntry} from "./api.ts";
+import {type HistoryEntry} from "./types.ts";
 import {type get_request} from "./store.ts";
 import {Signal} from "./utils.ts";
 import HTTPRequestView, {HTTPRequestViewResult} from "./components/HTTPRequestView.ts";
