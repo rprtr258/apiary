@@ -44,12 +44,8 @@ export default function(
       const request = r.request as Request;
       const el_run = NButton({
         type: "primary",
-        on: {click: () => {
-          el_run.disabled = true;
-          on.send().then(() => {
-            el_run.disabled = false;
-            // TODO: refetch
-          });
+        on: {click: async () => {
+          await on.send();
         }},
       }, "Run");
       const el_editor = EditorSQL({
@@ -72,6 +68,7 @@ export default function(
         },
       },
         NSelect({
+          style: {minWidth: "0"},
           label: Database[request.database],
           options: Object.keys(Database).map(db => ({label: Database[db as keyof typeof Database], value: db})),
           on: {update: (database: string) => update_request({database: database as Database})},
@@ -81,7 +78,7 @@ export default function(
           value: request.dsn,
           on: {update: (newValue: string) => update_request({dsn: newValue})},
         }),
-        el_run,
+        el_run.el,
       );
 
       const split = NSplit(el_editor, el_response, {style: {minHeight: "0"}});

@@ -68,7 +68,7 @@ export default function(
           value: request.query,
           on: {update: (query: string) => update_request({query})},
         }),
-        el_send,
+        el_send.el,
       ]);
 
       const el_editor_json = EditorJSON({

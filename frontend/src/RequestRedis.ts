@@ -77,7 +77,7 @@ export default function(
           value: request.dsn,
           on: {update: (dsn: string) => update_request({dsn})},
         }),
-        el_send,
+        el_send.el,
       ]);
 
       const el_editor_json = EditorJSON({

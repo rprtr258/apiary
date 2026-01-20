@@ -290,7 +290,7 @@ export function Modal(
         NButton({
           style: {padding: "0.5em 1em"},
           on: {click: () => on.close(b.id)},
-        }, b.text),
+        }, b.text).el,
       ),
     ),
     ...children,

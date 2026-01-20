@@ -62,14 +62,12 @@ export default function HTTPRequestView(
 
   const el_send = NButton({
     type: "primary",
-    on: {click: () => {
-      el_send.disabled = true;
-      onSend(currentRequest).then(() => {
-        el_send.disabled = false;
-      }).catch(e => {
-        el_send.disabled = false;
+    on: {click: async () => {
+      try {
+        await onSend(currentRequest);
+      } catch (e) {
         notification.error({title: "Send failed", error: e});
-      });
+      }
     }},
   }, "Send");
 
@@ -178,7 +176,7 @@ export default function HTTPRequestView(
           value: request.url,
           on: {update: (url: string) => updateRequest({url})},
         }),
-        el_send,
+        el_send.el,
       );
 
       const el_req_tabs = NTabs({

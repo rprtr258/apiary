@@ -1,4 +1,6 @@
 import {m, DOMNode, Signal, setDisplay} from "../utils.ts";
+import {css} from "../styles.ts";
+import {useButton} from "../hooks/form/useButton.ts";
 
 type NInputProps = {
   placeholder?: string,
@@ -167,13 +169,66 @@ type NButtonProps = {
   disabled?: boolean,
   class?: string,
   style?: Partial<CSSStyleDeclaration>,
-  on: {click: () => void},
+  on: {click: () => void | Promise<void>},
 };
+
+const btnPrimaryStyle = css(`
+  background-color: #1890ff;
+  color: white;
+  border: 1px solid #1890ff;
+`);
+const btnLoadingStyle = css(`
+  opacity: 0.8;
+  cursor: wait;
+`);
+const btnDisabledStyle = css(`
+  opacity: 0.6;
+  cursor: not-allowed;
+`);
+
 export function NButton(props: NButtonProps, ...children: DOMNode[]) {
-  return m("button", {
-    class: props.class,
-    style: props.style,
-    onclick: props.on.click,
-    disabled: props.disabled,
-  }, children);
-};
+  const buttonHook = useButton({
+    on: props.on,
+    disabled: props.disabled === true ? true : undefined,
+  });
+
+  const el_clock = m("span", {style: {marginRight: "8px"}}, "⏳");
+  const el = m("button", {
+    style: {
+      textWrapMode: "nowrap",
+      ...props.style,
+    },
+    onclick: () => buttonHook.on.click(),
+    disabled: buttonHook.disabledSignal.value || buttonHook.loadingSignal.value ? true : undefined,
+  }, el_clock, children);
+  const update = () => {
+    if (props.class !== undefined)
+      el.classList.add(props.class);
+    el.classList.toggle(btnPrimaryStyle, props.type === "primary");
+    el.classList.toggle(btnDisabledStyle, buttonHook.disabledSignal.value);
+    el.classList.toggle(btnLoadingStyle, buttonHook.loadingSignal.value);
+
+    setDisplay(el_clock, buttonHook.loadingSignal.value);
+  };
+  buttonHook.disabledSignal.sub(function*() {
+    while (true) {
+      yield;
+      update();
+    }
+  }());
+  buttonHook.loadingSignal.sub(function*() {
+    while (true) {
+      yield;
+      update();
+    }
+  }());
+  return {
+    el,
+    set loading(loading: boolean) {
+      buttonHook.loading = loading;
+    },
+    set disabled(disabled: boolean) {
+      buttonHook.disabled = disabled;
+    },
+  };
+}

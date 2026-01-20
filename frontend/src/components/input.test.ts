@@ -202,17 +202,17 @@ describe("NButton", () => {
     const clickMock = mock(() => {});
     const button = NButton({
       on: {click: clickMock},
-    }, "Click me", "!");
+    }, "Click me", "!").el;
 
     expect(button.tagName).toBe("BUTTON");
-    expect(button.textContent).toBe("Click me!");
+    expect(button.textContent).toBe("⏳Click me!");
   });
 
   test("calls click callback on click", () => {
     const clickMock = mock(() => {});
     const button = NButton({
       on: {click: clickMock},
-    }, "Test");
+    }, "Test").el;
 
     button.click();
     expect(clickMock).toHaveBeenCalledTimes(1);
@@ -224,7 +224,7 @@ describe("NButton", () => {
       on: {click: clickMock},
       style: {width: "100px", backgroundColor: "red"},
       class: "test-button primary",
-    }, "Styled");
+    }, "Styled").el;
 
     expect(button.className).toBe("test-button primary");
     expect(button.style.width).toBe("100px");
@@ -236,7 +236,7 @@ describe("NButton", () => {
     const button = NButton({
       on: {click: clickMock},
       disabled: true,
-    }, "Disabled");
+    }, "Disabled").el;
 
     expect(button.disabled).toBe(true);
 
@@ -250,10 +250,10 @@ describe("NButton", () => {
     const button = NButton({
       on: {click: clickMock},
       type: "primary",
-    }, "Primary");
+    }, "Primary").el;
 
     expect(button.tagName).toBe("BUTTON");
-    expect(button.textContent).toBe("Primary");
+    expect(button.textContent).toBe("⏳Primary");
   });
 });
 

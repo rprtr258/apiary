@@ -8,7 +8,6 @@ describe("useButton", () => {
 
     expect(hook.disabledSignal.value).toBe(false);
     expect(hook.loadingSignal.value).toBe(false);
-    expect(hook.clickedSignal.value).toBe(false);
   });
 
   test("should initialize with provided options", () => {
@@ -19,7 +18,6 @@ describe("useButton", () => {
 
     expect(hook.disabledSignal.value).toBe(true);
     expect(hook.loadingSignal.value).toBe(true);
-    expect(hook.clickedSignal.value).toBe(false);
   });
 
   test("should handle click events", async () => {
@@ -29,7 +27,6 @@ describe("useButton", () => {
     await hook.on.click();
 
     expect(onClick).toHaveBeenCalledTimes(1);
-    expect(hook.clickedSignal.value).toBe(true);
     expect(hook.loadingSignal.value).toBe(false); // Should reset after click
   });
 
@@ -70,7 +67,6 @@ describe("useButton", () => {
     await hook.on.click();
 
     expect(onClick).toHaveBeenCalledTimes(0);
-    expect(hook.clickedSignal.value).toBe(false);
   });
 
   test("should not call onClick when loading", async () => {
@@ -83,26 +79,25 @@ describe("useButton", () => {
     await hook.on.click();
 
     expect(onClick).toHaveBeenCalledTimes(0);
-    expect(hook.clickedSignal.value).toBe(false);
   });
 
   test("should set disabled state", () => {
     const hook = useButton();
 
-    hook.setDisabled(true);
+    hook.disabled = true;
     expect(hook.disabledSignal.value).toBe(true);
 
-    hook.setDisabled(false);
+    hook.disabled = false;
     expect(hook.disabledSignal.value).toBe(false);
   });
 
   test("should set loading state", () => {
     const hook = useButton();
 
-    hook.setLoading(true);
+    hook.loading = true;
     expect(hook.loadingSignal.value).toBe(true);
 
-    hook.setLoading(false);
+    hook.loading = false;
     expect(hook.loadingSignal.value).toBe(false);
   });
 
@@ -112,19 +107,17 @@ describe("useButton", () => {
       loading: true,
     });
 
-    hook.setDisabled(false);
-    hook.setLoading(false);
+    hook.disabled = false;
+    hook.loading = false;
     await hook.on.click(); // Trigger clicked state
 
     expect(hook.disabledSignal.value).toBe(false);
     expect(hook.loadingSignal.value).toBe(false);
-    expect(hook.clickedSignal.value).toBe(true);
 
     hook.reset();
 
     expect(hook.disabledSignal.value).toBe(true); // Back to initial
     expect(hook.loadingSignal.value).toBe(true); // Back to initial
-    expect(hook.clickedSignal.value).toBe(false);
   });
 
   test("should reset clicked state after delay", async () => {
@@ -132,12 +125,8 @@ describe("useButton", () => {
 
     await hook.on.click();
 
-    expect(hook.clickedSignal.value).toBe(true);
-
     // Wait for the reset timeout
     await new Promise(resolve => setTimeout(resolve, 350));
-
-    expect(hook.clickedSignal.value).toBe(false);
   });
 
   test("should clear timeout on reset", async () => {
@@ -145,17 +134,10 @@ describe("useButton", () => {
 
     await hook.on.click();
 
-    expect(hook.clickedSignal.value).toBe(true);
-
     hook.reset();
-
-    expect(hook.clickedSignal.value).toBe(false);
 
     // Wait to ensure no timeout fires after reset
     await new Promise(resolve => setTimeout(resolve, 350));
-
-    // Should still be false
-    expect(hook.clickedSignal.value).toBe(false);
   });
 
   test("should handle click errors gracefully", () => {
@@ -177,19 +159,16 @@ describe("useButton", () => {
 
     const disabledCollector = collectSignalValues(hook.disabledSignal);
     const loadingCollector = collectSignalValues(hook.loadingSignal);
-    const clickedCollector = collectSignalValues(hook.clickedSignal);
 
-    hook.setDisabled(true);
-    hook.setLoading(true);
+    hook.disabled = true;
+    hook.loading = true;
     await hook.on.click(); // Will be blocked by disabled/loading
 
     expect(disabledCollector.values).toEqual([true]);
     expect(loadingCollector.values).toEqual([true]);
-    expect(clickedCollector.values).toEqual([]); // Should not click when disabled/loading
 
     disabledCollector.unsubscribe();
     loadingCollector.unsubscribe();
-    clickedCollector.unsubscribe();
   });
 
   test("should allow click when not disabled or loading", async () => {
@@ -203,7 +182,6 @@ describe("useButton", () => {
     await hook.on.click();
 
     expect(onClick).toHaveBeenCalledTimes(1);
-    expect(hook.clickedSignal.value).toBe(true);
   });
 
   test("should handle multiple rapid clicks sequentially", async () => {
@@ -230,8 +208,8 @@ describe("useButton", () => {
       loading: false,
     });
 
-    hook.setDisabled(true);
-    hook.setLoading(true);
+    hook.disabled = true;
+    hook.loading = true;
 
     hook.reset();
 

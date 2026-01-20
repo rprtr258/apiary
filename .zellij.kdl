@@ -11,8 +11,7 @@ layout {
   tab name="services" {
     pane {
       command "docker"
-      args "compose"
-      args "up"
+      args "compose" "up"
       start_suspended true
     }
   }

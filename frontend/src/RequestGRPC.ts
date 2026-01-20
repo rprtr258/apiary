@@ -147,7 +147,7 @@ export default function(
           value: request.target,
           on: {update: (target: string) => update_request({target})},
         }),
-        el_send,
+        el_send.el,
       );
 
       const el_req_tabs = NTabs({

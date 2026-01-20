@@ -185,9 +185,9 @@ export default function(
 
   const dataTab = m("div", {class: "h100", style: {display: "flex", flexDirection: "column"}},
     m("div", {style: {display: "flex", gap: "1em", alignItems: "center"}},
-      prevButton,
+      prevButton.el,
       infoSpan,
-      nextButton,
+      nextButton.el,
     ),
     NScrollbar(dataTable.el),
   );

@@ -10,14 +10,13 @@ type UseButtonResult = {
   // State
   disabledSignal: Signal<boolean>,
   loadingSignal: Signal<boolean>,
-  clickedSignal: Signal<boolean>,
 
   // Event handlers
   on: {click: () => Promise<void>},
 
   // Actions
-  setDisabled: (disabled: boolean) => void,
-  setLoading: (loading: boolean) => void,
+  set disabled(disabled: boolean),
+  set loading(loading: boolean),
   reset: () => void,
 };
 
@@ -31,55 +30,35 @@ export function useButton(options: UseButtonOptions = {}): UseButtonResult {
 
   const disabledSignal = signal<boolean>(disabled);
   const loadingSignal = signal<boolean>(loading);
-  const clickedSignal = signal<boolean>(false);
-  let clickResetTimer: ReturnType<typeof setTimeout> | undefined;
 
   const handleClick = async (): Promise<void> => {
     if (disabledSignal.value || loadingSignal.value) {
       return;
     }
 
-    clickedSignal.update(() => true);
-
     if (onClick !== undefined) {
+      loadingSignal.update(() => true);
       try {
-        loadingSignal.update(() => true);
         await onClick();
       } finally {
         loadingSignal.update(() => false);
       }
     }
-
-    // Reset clicked state after a short delay
-    clearTimeout(clickResetTimer);
-    clickResetTimer = setTimeout(() => {
-      clickedSignal.update(() => false);
-    }, 300);
-  };
-
-  const setDisabled = (disabled: boolean): void => {
-    disabledSignal.update(() => disabled);
-  };
-
-  const setLoading = (loading: boolean): void => {
-    loadingSignal.update(() => loading);
-  };
-
-  const reset = (): void => {
-    clearTimeout(clickResetTimer);
-    clickResetTimer = undefined;
-    disabledSignal.update(() => disabled);
-    loadingSignal.update(() => loading);
-    clickedSignal.update(() => false);
   };
 
   return {
     disabledSignal,
     loadingSignal,
-    clickedSignal,
     on: {click: handleClick},
-    setDisabled,
-    setLoading,
-    reset,
+    set disabled(disabled: boolean) {
+      disabledSignal.update(() => disabled);
+    },
+    set loading(loading: boolean) {
+      loadingSignal.update(() => loading);
+    },
+    reset(): void {
+      disabledSignal.update(() => disabled);
+      loadingSignal.update(() => loading);
+    },
   };
 }

@@ -47,7 +47,7 @@ test("creates HTTP request via sidebar dropdown", async ({page}) => {
   await urlInput.fill("https://httpbin.org/get");
 
   // Click send button
-  const sendButton = page.getByRole("button", {name: "Send"});
+  const sendButton = page.getByRole("button", {name: "Send", disabled: false});
   await sendButton.click();
 
   // Wait for response
