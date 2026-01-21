@@ -1,5 +1,5 @@
 import {Signal, signal} from "../utils.ts";
-import type {HTTPRequest, HTTPResponse} from "./useRequest.ts";
+import type {HTTPRequest, HTTPResponse} from "../types.ts";
 
 export type UseRequestOperationsOptions = {
   on: {

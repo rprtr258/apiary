@@ -54,21 +54,21 @@ describe("NSelect", () => {
 
     expect(el.tagName).toBe("SELECT");
     expect(el.children.length).toBe(4); // placeholder + 3 options
-    
-    const options = Array.from(el.children);
+
+    const options = el.children;
     expect(options[0].tagName).toBe("OPTION");
     expect(options[0].getAttribute("value")).toBe("");
     expect(options[0].hasAttribute("disabled")).toBe(false); // Not disabled when placeholder provided
     expect(options[0].hasAttribute("hidden")).toBe(true);
-    
+
     expect(options[1].tagName).toBe("OPTION");
     expect(options[1].getAttribute("value")).toBe("0");
     expect(options[1].textContent).toBe("Option 1");
-    
+
     expect(options[2].tagName).toBe("OPTION");
     expect(options[2].getAttribute("value")).toBe("1");
     expect(options[2].textContent).toBe("Option 2");
-    
+
     expect(options[3].tagName).toBe("OPTION");
     expect(options[3].getAttribute("value")).toBe("2");
     expect(options[3].textContent).toBe("Option 3");
@@ -114,7 +114,7 @@ describe("NSelect", () => {
 
   test("throws error when label not found and no placeholder", () => {
     const updateMock = mock((v: string) => void v);
-    
+
     expect(() => {
       NSelect({
         label: "Non-existent",
@@ -160,9 +160,9 @@ describe("NSelect", () => {
     const options = Array.from(select.el.children) as HTMLOptionElement[];
     expect(options[0].selected).toBe(false); // Placeholder not selected
     expect(options[2].selected).toBe(true); // Option 2 selected
-    
+
     select.reset();
-    
+
     expect(options[0].selected).toBe(true); // Placeholder now selected
     expect(options[2].selected).toBe(false); // Option 2 no longer selected
   });
@@ -239,7 +239,7 @@ describe("NButton", () => {
     }, "Disabled");
 
     expect(button.disabled).toBe(true);
-    
+
     // Click should not call callback when disabled
     button.click();
     expect(clickMock).toHaveBeenCalledTimes(0);
@@ -261,7 +261,7 @@ describe("NInputGroup", () => {
   test("creates div with children", () => {
     const input1 = NInput({placeholder: "Input 1"});
     const input2 = NInput({placeholder: "Input 2"});
-    
+
     const group = NInputGroup(
       {style: {display: "flex", gap: "10px"}},
       input1,
@@ -287,7 +287,7 @@ describe("NDropdown", () => {
   test("renders dropdown trigger with children", () => {
     const selectMock = mock((key: string) => void key);
     const openSignal = {value: false, update: mock(() => {}), sub: () => () => {}};
-    
+
     const dropdown = NDropdown({
       trigger: "click",
       open: openSignal,
@@ -306,7 +306,7 @@ describe("NDropdown", () => {
   test("dropdown menu is hidden by default", () => {
     const selectMock = mock((key: string) => void key);
     const openSignal = {value: false, update: mock(() => {}), sub: () => () => {}};
-    
+
     const dropdown = NDropdown({
       trigger: "click",
       open: openSignal,
@@ -324,7 +324,7 @@ describe("NDropdown", () => {
   test("options have correct styling", () => {
     const selectMock = mock((key: string) => void key);
     const openSignal = {value: true, update: mock(() => {}), sub: () => () => {}};
-    
+
     const dropdown = NDropdown({
       trigger: "click",
       open: openSignal,
@@ -337,15 +337,15 @@ describe("NDropdown", () => {
 
     const options = dropdown.querySelectorAll("div > div");
     expect(options.length).toBe(2);
-    
+
     const option1 = options[0] as HTMLElement;
     const option2 = options[1] as HTMLElement;
-    
+
     expect(option1.style.display).not.toBe("none");
     expect(option1.textContent).toBe("Option 1");
     expect(option1.style.padding).toBe("8px 12px");
     expect(option1.style.cursor).toBe("pointer");
-    
+
     expect(option2.style.display).toBe("none");
     expect(option2.textContent).toBe("Option 2");
   });

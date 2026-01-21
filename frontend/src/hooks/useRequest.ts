@@ -1,19 +1,6 @@
 // Headless hook for HTTP request state management
-import {KV} from "../types.ts";
+import {HTTPRequest} from "../types.ts";
 import {Signal, signal} from "../utils.ts";
-
-export type HTTPRequest = {
-  url: string,
-  method: string,
-  body: string,
-  headers: KV[],
-};
-
-export type HTTPResponse = {
-  code: number,
-  body: string,
-  headers: KV[],
-};
 
 export type UseRequestOptions = {
   initialRequest: HTTPRequest,

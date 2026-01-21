@@ -1,5 +1,23 @@
 import {database} from "../wailsjs/go/models.ts";
 
+export type KV = {
+  key: string,
+  value: string,
+};
+
+export type HTTPRequest = {
+  url: string,
+  method: string,
+  body: string,
+  headers: KV[],
+};
+
+export type HTTPResponse = {
+  code: number,
+  body: string,
+  headers: KV[],
+};
+
 export const Method = {
   GET:     "GET",
   HEAD:    "HEAD",

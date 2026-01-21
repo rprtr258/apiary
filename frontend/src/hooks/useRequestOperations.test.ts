@@ -1,6 +1,6 @@
 import {describe, expect, test, mock} from "bun:test";
 import {useRequestOperations} from "./useRequestOperations.ts";
-import type {HTTPRequest, HTTPResponse} from "./useRequest.ts";
+import type {HTTPRequest, HTTPResponse} from "../types.ts";
 import {collectSignalValues} from "./test-helpers.ts";
 
 describe("useRequestOperations", () => {

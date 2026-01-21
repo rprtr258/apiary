@@ -25,7 +25,7 @@ export default function EndpointViewer(
 
   let httpRequestView: HTTPRequestViewResult | null = null;
 
-  loadExampleRequest().then((initialRequest) => {
+  loadExampleRequest().then(initialRequest => {
     httpRequestView = HTTPRequestView(el, {
       initialRequest,
       showRequest: signal(true),
