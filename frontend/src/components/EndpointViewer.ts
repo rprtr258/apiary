@@ -27,7 +27,6 @@ export default function EndpointViewer(
 
   loadExampleRequest().then(initialRequest => {
     httpRequestView = HTTPRequestView(el, {
-      initialRequest,
       showRequest: signal(true),
       on: {send: async (request: database.HTTPRequest) => {
         const res = await api.requestPerformVirtualEndpointHTTPSource(sourceID, endpointIndex, request);

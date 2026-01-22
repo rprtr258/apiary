@@ -40,7 +40,6 @@ export default function(
 
       const request = r.request as Request;
       httpRequestView = HTTPRequestView(el, {
-        initialRequest: request,
         showRequest: show_request,
         on: {send: onSend, update: onUpdate},
       });
