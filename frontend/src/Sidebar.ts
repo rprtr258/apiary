@@ -125,7 +125,7 @@ function drag({node, dragNode, dropPosition}: {
   }
 }
 
-function badge(kind: database.Kind): [string, string] {
+export function badge(kind: database.Kind): [string, string] {
   switch (kind) {
   case database.Kind.HTTP:       return ["HTTP",  "lime"     ];
   case database.Kind.SQL:        return ["SQL",   "lightblue"];

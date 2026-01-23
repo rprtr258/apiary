@@ -104,6 +104,8 @@ interface SVGCommon {
   fill: string,
   stroke: string,
   "stroke-width": number,
+  "stroke-linecap": "round",
+  "stroke-linejoin": "round",
 }
 
 interface SVGAttrs {
@@ -122,8 +124,6 @@ interface SVGAttrs {
     "marker-end": string,
   } & SVGCommon,
   g: {
-    "stroke-linecap": string,
-    "stroke-linejoin": string,
     "fill-rule": "evenodd" | "nonzero",
   } & SVGCommon,
   rect: {

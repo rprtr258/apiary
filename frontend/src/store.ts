@@ -1,5 +1,5 @@
 import {database, app} from "../wailsjs/go/models.ts";
-import {ComponentItem, ComponentItemConfig, ContentItem, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedLayoutConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig} from "golden-layout";
+import {ComponentItem, ComponentItemConfig, ContentItem, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedLayoutConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig, Stack} from "golden-layout";
 import {api} from "./api.ts";
 import {type RequestData, type HistoryEntry, Request} from "./types.ts";
 import {signal, Signal} from "./utils.ts";
@@ -27,6 +27,35 @@ function* dfs<State>(c: ConfigNode): Generator<State, void, void> {
     }
   }
 };
+
+function findActiveComponentID(layout: GoldenLayout): string | null {
+  // Fallback function to find the first component when no active component is tracked
+  const rootItem = layout.rootItem;
+  if (rootItem === undefined) {
+    return null;
+  }
+
+  function traverse(item: ContentItem): ComponentItem | null {
+    // Check if this is a component item
+    if (((item): item is ComponentItem => item.isComponent)(item) && item.componentType === "MyComponent") {
+      return item;
+    } else if (!item.isComponent) {
+      for (const child of item.contentItems) {
+        const tmp = traverse(child);
+        if (tmp !== null)
+          return tmp;
+      }
+    }
+    return null;
+  }
+
+  const item = traverse(rootItem);
+  if (item === null)
+    return null;
+
+  // Return the first component's ID as a fallback
+  return (item.toConfig().componentState as panelkaState).id;
+}
 
 export type viewerState = {
   sqlSourceID: string,
@@ -63,28 +92,40 @@ export function updateLocalstorageTabs() {
 }
 
 export function handleCloseTab(id: string) {
-  console.log("handleCloseTab", id);
-  // const v = store.tabs.value;
-  // if (v === null) {
-  //   return;
-  // }
-  // if (v.map.list.length === 1) {
-  //   store.clearTabs();
-  //   return;
-  // }
+  const layout = store.layout;
+  if (layout?.rootItem === undefined) {
+    return;
+  }
 
-  // // adjust index
-  // const idx = v.map.index(id);
-  // if (idx === null) {
-  //   return;
-  // }
-  // if (idx <= v.index) {
-  //   v.index = Math.max(v.index - 1, 0);
-  // }
-  // v!.map.remove(id);
-  // store.tabs.value = {map: v.map, index: v.index};
-  // store.selectRequest(v.map.list[v.index]);
-  // updateLocalstorageTabs();
+  // Find the component with the given ID
+  function findComponent(item: ContentItem): ComponentItem | null {
+    // Type guard to check if item is a ComponentItem
+    const isComponentItem = (item: ContentItem): item is ComponentItem => item.isComponent;
+
+    if (isComponentItem(item) && item.componentType === "MyComponent") {
+      const componentState = item.toConfig().componentState as panelkaState;
+      if (componentState.id === id) {
+        return item;
+      }
+    } else if (!item.isComponent) {
+      for (const child of item.contentItems) {
+        const tmp = findComponent(child);
+        if (tmp !== null) return tmp;
+      }
+    }
+    return null;
+  }
+  const componentItemToRemove = findComponent(layout.rootItem);
+  if (componentItemToRemove === null) {
+    notification.error({title: "Component not found", id});
+    return;
+  }
+
+  // Remove the component - using the same pattern as in the load function
+  componentItemToRemove.remove();
+
+  // Update local storage
+  updateLocalstorageTabs();
 }
 
 export type get_request = {
@@ -100,9 +141,9 @@ export type Store = {
   requests : Record<string, app.requestPreview>,
   requests2: Record<string, get_request>,
   requestNames: Record<string, string>,
-  load: () => void,
   layoutConfig: LayoutConfig,
   layout: GoldenLayout | undefined,
+  activeComponentID: string | null,
   clearTabs(): void,
   requestID(): string | null,
   selectRequest(id: string): void,
@@ -113,55 +154,52 @@ export type Store = {
   rename(id: string, newID: string): Promise<void>,
   openTableViewer(sqlSourceID: string, tableName: string, tableInfo: database.TableInfo): void,
   openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: database.EndpointInfo): void,
+  // Tab navigation methods
+  navigateToNextTab(): void,
+  navigateToPreviousTab(): void,
+  moveTabRight(): void,
+  moveTabLeft(): void,
+  // Helper methods for tab navigation
+  getAllOpenTabs(): {id: string, item: ComponentItem}[],
+  findComponentItem(id: string): ComponentItem | null,
+  activateTab(tab: ComponentItem): void,
 };
-export function useStore(): Store {
-  const load = () => {
-    // if (!tabs.value) {
-    //   return;
-    // }
 
-    // const indexesToRemove = tabs.value.map.list
-    //   .map((id: string, i: number) => [id, i] as [string, number])
-    //   .filter(([id]: readonly [string, number]) => !requests.hasOwnProperty(id))
-    //   .map(([, i]: readonly [string, number]) => i);
-    // if (indexesToRemove.length === 0) {
-    //   return;
-    // }
-
-    // for (const i of indexesToRemove) {
-    //   tabs.value.map.removeAt(i);
-    //   if (tabs.value.index === i && tabs.value.index > 0) {
-    //     tabs.value.index--;
-    //   }
-    // }
-  };
-
+export const store = ((): Store => {
   return {
     requestsTree : signal(new app.Tree({IDs: {}, Dirs: {}})),
     requests : {} as Record<string, app.requestPreview>,
     requests2: {} as Record<string, get_request>,
     requestNames: {} as Record<string, string>,
-    load,
     layoutConfig,
     layout: undefined as GoldenLayout | undefined,
+    activeComponentID: null,
     clearTabs() {
       this.layout?.clear();
+      this.activeComponentID = null;
     },
     requestID(): string | null {
-      // const tabsValue = tabs.value;
-      // if (tabsValue === null) {
-        return null; // TODO: get from tabs
-      // }
-      // const {map: requestIDs, index} = tabsValue;
-      // return requestIDs.list[index] ?? null;
+      // Return the tracked active component ID if available
+      if (this.activeComponentID !== null) {
+        return this.activeComponentID;
+      }
+
+      // Fall back to finding the first component if no active ID is tracked
+      if (this.layout === undefined)
+        return null;
+
+      return findActiveComponentID(this.layout);
     },
     selectRequest(id: string): void {
       const cfg = this.layout!.saveLayout();
-      if (cfg.root !== undefined && dfs<panelkaState>(cfg.root).find(t => t.id === id) !== undefined) {
+      if (cfg.root === undefined)
         return;
+      if (dfs<panelkaState>(cfg.root).find(t => t.id === id) !== undefined) {
+        this.activateTab(this.findComponentItem(id)!);
+      } else {
+        this.layout?.addItem(panelka(id));
+        this.fetch().catch(notification.error);
       }
-      this.layout?.addItem(panelka(id));
-      this.fetch().catch(notification.error);
     },
     async fetch(): Promise<void> {
       const json = await api.collectionRequests();
@@ -172,10 +210,10 @@ export function useStore(): Store {
 
       const res = json.value;
 
-      const currentRequestId = this.requestID();
+      const currentRequestID = this.requestID();
 
       for (const id in res.Requests) {
-        if (id !== currentRequestId) {
+        if (id !== currentRequestID) {
           this.requests[id] = res.Requests[id];
         }
       }
@@ -227,7 +265,6 @@ export function useStore(): Store {
       await this.fetch();
     },
     async rename(id: string, newID: string): Promise<void> {
-      console.log("rename", id, newID);
       const res = await api.rename(id, newID);
       if (res.kind === "err") {
         notification.error({title: "Could not rename request", error: res.value});
@@ -264,8 +301,97 @@ export function useStore(): Store {
         componentState: {sourceID, endpointIndex, endpointInfo},
       });
     },
+    navigateToNextTab(): void {
+      const allTabs = this.getAllOpenTabs();
+      if (allTabs.length === 0) return;
+
+      const currentID = this.requestID();
+      if (currentID === null) {
+        // If no tab is active, activate the first one
+        this.activateTab(allTabs[0].item);
+        return;
+      }
+
+      const currentIndex = allTabs.findIndex(tab => tab.id === currentID);
+      if (currentIndex === -1) return;
+
+      const nextIndex = (currentIndex + 1) % allTabs.length;
+      this.activateTab(allTabs[nextIndex].item);
+    },
+    navigateToPreviousTab(): void {
+      const allTabs = this.getAllOpenTabs();
+      if (allTabs.length === 0) return;
+
+      const currentID = this.requestID();
+      if (currentID === null) {
+        // If no tab is active, activate the last one
+        this.activateTab(allTabs[allTabs.length - 1].item);
+        return;
+      }
+
+      const currentIndex = allTabs.findIndex(tab => tab.id === currentID);
+      if (currentIndex === -1) return;
+
+      const prevIndex = (currentIndex - 1 + allTabs.length) % allTabs.length;
+      this.activateTab(allTabs[prevIndex].item);
+    },
+    moveTabRight(): void {
+      notification.error({title: "Not implemented."}); // TODO: implement
+    },
+    moveTabLeft(): void {
+      notification.error({title: "Not implemented."}); // TODO: implement
+    },
+    // Helper methods
+    getAllOpenTabs(): {id: string, item: ComponentItem}[] {
+      if (this.layout?.rootItem === undefined) return [];
+
+      const tabs: {id: string, item: ComponentItem}[] = [];
+      function collectTabs(item: ContentItem): void {
+        if (((item): item is ComponentItem => item.isComponent)(item) && item.componentType === "MyComponent") {
+          const componentState = item.toConfig().componentState as panelkaState;
+          tabs.push({id: componentState.id, item});
+        } else if (!item.isComponent) {
+          for (const child of item.contentItems) {
+            collectTabs(child);
+          }
+        }
+      }
+
+      collectTabs(this.layout.rootItem);
+      return tabs;
+    },
+    findComponentItem(id: string): ComponentItem | null {
+      if (this.layout?.rootItem === undefined) return null;
+
+      function findItem(item: ContentItem): ComponentItem | null {
+        if (((item): item is ComponentItem => item.isComponent)(item) && item.componentType === "MyComponent") {
+          const componentState = item.toConfig().componentState as panelkaState;
+          if (componentState.id === id) {
+            return item;
+          }
+        } else if (!item.isComponent) {
+          for (const child of item.contentItems) {
+            const found = findItem(child);
+            if (found !== null) return found;
+          }
+        }
+        return null;
+      }
+
+      return findItem(this.layout.rootItem);
+    },
+    activateTab(tab: ComponentItem): void {
+      if (tab.componentType !== "MyComponent") return;
+      const id = (tab.toConfig().componentState as panelkaState).id;
+
+      const root = this.layout?.rootItem;
+      if (((root): root is Stack => root?.isStack === true)(root))
+        root.setActiveComponentItem(tab, true);
+
+      this.activeComponentID = id;
+    },
   };
-}
+})();
 
 const panelka = (id: string): ComponentItemConfig => ({
   type: "component",
@@ -313,8 +439,6 @@ export async function get_request(request_id: string): Promise<get_request | nul
   store.requests2[request_id] = {request, history};
   return store.requests2[request_id];
 }
-
-export const store = useStore();
 
 store.requestsTree.sub(function*() {
   yield;

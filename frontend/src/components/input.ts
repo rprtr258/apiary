@@ -11,15 +11,22 @@ type NInputProps = {
   },
   style?: Partial<CSSStyleDeclaration>,
   disabled?: boolean,
+  autofocus?: boolean,
 };
 export function NInput(props: NInputProps) {
-  return m("input", {
+  const el = m("input", {
     style: props.style,
     value: props.value,
     placeholder: props.placeholder,
     oninput: (e: Event) => props.on?.update((e.target as HTMLInputElement).value),
     disabled: props.disabled,
   });
+
+  if (props.autofocus === true) {
+    queueMicrotask(() => el.focus());
+  }
+
+  return el;
 }
 
 export function NInputGroup(props: {style: Partial<CSSStyleDeclaration>}, ...children: DOMNode[]) {

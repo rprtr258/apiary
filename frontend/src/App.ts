@@ -1,7 +1,7 @@
 import {ComponentContainer, GoldenLayout, Tab} from "golden-layout";
 import {NInput} from "./components/input.ts";
 import {NModal, NSplit} from "./components/layout.ts";
-import {NIcon, NResult} from "./components/dataview.ts";
+import {NIcon, NResult, NTag} from "./components/dataview.ts";
 import {Eye, EyeClosed} from "./components/icons.ts";
 import RequestHTTP from "./RequestHTTP.ts";
 import RequestSQL from "./RequestSQL.ts";
@@ -9,17 +9,19 @@ import RequestGRPC from "./RequestGRPC.ts";
 import RequestJQ from "./RequestJQ.ts";
 import RequestRedis from "./RequestRedis.ts";
 import RequestMD from "./RequestMD.ts";
-import {get_request, store, notification, handleCloseTab, updateLocalstorageTabs, update_request, send, last_history_entry, Store, viewerState, panelkaState} from "./store.ts";
+import {
+  get_request, store, notification, handleCloseTab, updateLocalstorageTabs, update_request, send, last_history_entry, Store,
+  viewerState, panelkaState, EndpointViewerState,
+} from "./store.ts";
 import {Kinds, HistoryEntry, Request} from "./types.ts";
 import {database} from "../wailsjs/go/models.ts";
-import Command from "./components/CommandPalette.ts";
+import {CommandPalette, Item} from "./components/CommandPalette.ts";
 import {m, setDisplay, signal} from "./utils.ts";
 import RequestSQLSource from "./RequestSQLSource.ts";
 import RequestHTTPSource from "./RequestHTTPSource.ts";
-import {el_aside, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./Sidebar.ts";
+import {badge, el_aside, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./Sidebar.ts";
 import RequestTableViewer from "./components/TableView.ts";
 import EndpointViewer from "./components/EndpointViewer.ts";
-import {EndpointViewerState} from "./store.ts";
 
 function create() {
   const kind = newRequestKind.value!;
@@ -58,122 +60,208 @@ function rename() {
 
 // TODO: fix editing request headers
 
-let command_bar_new_request_kind_visible = false;
-let commandBarVisible = false;
-let command_bar_open_visible = false;
-const items = [
-  {
-    label: "Requests",
-    items: [
-      {
-        label: "Create new",
-        shortcut: ["Ctrl", "N"],
-        perform: () => {
-          commandBarVisible = false;
-          command_bar_new_request_kind_visible = true;
-        },
-      },
-      {
-        label: "Rename current", // TODO: hide if no request selected
-        // shortcut: ["Ctrl", "R"],
-        perform: () => {
-          commandBarVisible = false;
+const command_bar_new_request_kind_visible = signal(false);
+const commandBarVisible = signal(false);
+const command_bar_open_visible = signal(false);
 
-          const currentID = store.requestID();
-          if (currentID === null) return;
-          renameInit(currentID);
+function getCommandPaletteItems(): Item[] {
+  const currentID = store.requestID();
+  const items = [
+    {
+      label: "Requests",
+      items: [
+        {
+          label: "Create new",
+          shortcut: ["Ctrl", "N"],
+          perform: () => {
+            command_bar_new_request_kind_visible.update(() => true);
+          },
         },
-      },
-      {
-        label: "Open",
-        shortcut: ["Alt", "T"],
-        perform: () => {
-          commandBarVisible = false;
-          command_bar_open_visible = true;
+        {
+          label: "Open",
+          shortcut: ["Ctrl", "P"],
+          perform: () => {
+            command_bar_open_visible.update(() => true);
+          },
         },
-      },
-      {
-        label: "Run",
-        shortcut: ["Ctrl", "Enter"],
-      },
-      {
-        label: "Duplicate",
-      },
-      {
-        label: "Delete",
-      },
-    ],
-  },
-  {
-    label: "Tabs",
-    items: [
-      {
-        label: "Next tab",
-        shortcut: ["Ctrl", "PgDown"],
-      },
-      {
-        label: "Previous tab",
-        shortcut: ["Ctrl", "PgUp"],
-      },
-      {
-        label: "Close tab",
-        shortcut: ["Ctrl", "W"],
-        perform: () => {
-          commandBarVisible = false;
-          const currentID = store.requestID();
-          if (currentID === null) return;
-          handleCloseTab(currentID);
+        ...(currentID !== null ? [
+        {
+          label: "Run",
+          shortcut: ["Ctrl", "Enter"],
+          perform: () => {
+            send(currentID);
+          },
         },
+        {
+          label: `Rename current (${store.requestNames[currentID]})`,
+          shortcut: ["Ctrl", "R"],
+          perform: () => {
+            renameInit(currentID);
+          },
+        },
+        {
+          label: `Duplicate current (${store.requestNames[currentID]})`,
+          perform: () => {
+            store.duplicate(currentID);
+          },
+        },
+        {
+          label: `Delete current (${store.requestNames[currentID]})`,
+          perform: () => {
+            store.deleteRequest(currentID);
+          },
+        }] : []),
+      ],
+    },
+    {
+      label: "Tabs",
+      items: [
+        {
+          label: "Next tab",
+          shortcut: ["Ctrl", "PgDown"],
+          perform: () => {
+            store.navigateToNextTab();
+          },
+        },
+        {
+          label: "Previous tab",
+          shortcut: ["Ctrl", "PgUp"],
+          perform: () => {
+            store.navigateToPreviousTab();
+          },
+        },
+        {
+          label: "Close tab",
+          shortcut: ["Ctrl", "W"],
+          perform: () => {
+            const currentID = store.requestID();
+            if (currentID === null) return;
+            handleCloseTab(currentID);
+          },
+        },
+        {
+          label: "Move tab right",
+          shortcut: ["Ctrl", "Shift", "PgDown"],
+          perform: () => {
+            store.moveTabRight();
+          },
+        },
+        {
+          label: "Move tab left",
+          shortcut: ["Ctrl", "Shift", "PgUp"],
+          perform: () => {
+            store.moveTabLeft();
+          },
+        },
+      ],
+    },
+    {
+      label: "Other",
+      items: [
+        {
+          label: "Command Palette",
+          shortcut: ["Ctrl", "Shift", "P"],
+          perform: () => {
+            // TODO: implement
+          },
+        },
+        {
+          label: "Create new directory",
+          perform: () => {
+            // TODO: implement
+          },
+        },
+      ],
+    },
+  ];
+
+  return items.flatMap(group =>
+    group.items
+      .filter(item => {
+        if (store.requestID() === null) {
+          // Hide "Rename current" if no request is selected
+          if (item.label === "Rename current") {
+            return false;
+          }
+          // Hide "Run", "Duplicate", "Delete" if no request is selected
+          if (item.label === "Run" || item.label === "Duplicate" || item.label === "Delete") {
+            return false;
+          }
+          // Hide "Close tab" if no request is selected
+          if (item.label === "Close tab") {
+            return false;
+          }
+        }
+        return true;
+      })
+      .map(item => ({
+        label: item.label === "Rename current" ?
+          `Rename current (${store.requestNames[store.requestID()!]})` :
+          item.label === "Duplicate" ?
+          `Duplicate current (${store.requestNames[store.requestID()!]})` :
+          item.label === "Delete" ?
+          `Delete current (${store.requestNames[store.requestID()!]})` :
+          item.label,
+        shortcut: item.shortcut,
+        perform: item.perform,
+        group: group.label,
+      })),
+  );
+}
+
+// Create command palettes
+const mainCommandPalette = CommandPalette({
+  items: getCommandPaletteItems,
+  placeholder: "Type a command or search...",
+  on: {close: () => commandBarVisible.update(() => false)},
+});
+commandBarVisible.sub(function*() {
+  while (true) mainCommandPalette.visible = yield;
+}());
+
+const newRequestKindPalette = CommandPalette({
+  items: () => Kinds.map(kind => ({
+    label: kind,
+    perform: () => {
+      newRequestKind.update(() => kind);
+    },
+  })),
+  placeholder: "Enter kind of new request",
+  on: {close: () => command_bar_new_request_kind_visible.update(() => false)},
+});
+command_bar_new_request_kind_visible.sub(function*() {
+  while (true) newRequestKindPalette.visible = yield;
+}());
+
+// Function to compute open request items
+const getOpenRequestItems = (): Item[] => Object
+  .entries(store.requests)
+  .map(([id, preview]) => [id, preview, badge(preview.Kind)] as const)
+  .map(([id, preview, [method, color]]) => ({
+    label: store.requestNames[id], // TODO: show full path, preload store.requests2, fix ebanij rot kazino
+    group: preview.Kind,
+    prefix: NTag({
+      type: preview.Kind === database.Kind.HTTP ? "success" : "info",
+      style: {
+        minWidth: "4em",
+        justifyContent: "center",
+        display: "flex",
+        alignItems: "center",
+        color: color,
+        fontWeight: "bold",
       },
-      {
-        label: "Move tab right",
-        shortcut: ["Ctrl", "Shift", "PgDown"],
-      },
-      {
-        label: "Move tab left",
-        shortcut: ["Ctrl", "Shift", "PgUp"],
-      },
-    ],
-  },
-  {
-    label: "Other",
-    items: [
-      {
-        label: "Create new directory",
-      },
-    ],
-  },
-];
-const open_items = () => {
-  return Object.entries(store.requests).map(([id, preview]) => ({
-    id: id,
-    kind: preview.Kind,
+    }, method),
+    perform: () => store.selectRequest(id),
   }));
-};
-// const anyModalIsOpen = () => newRequestName !== null || renameID !== null;
-// const keys = useMagicKeys();
-// watch(keys['Alt+K'], (v) => {
-//   if (!v || anyModalIsOpen()) {
-//     return;
-//   }
-//   commandBarVisible = !commandBarVisible;
-// });
-// watch(keys['Alt+T'], (v) => {
-//   if (!v || anyModalIsOpen()) {
-//     return;
-//   }
-//   commandBarOpenVisible = !commandBarOpenVisible;
-// });
-// watch(keys['Escape'], (v) => {
-//   if (!v) {
-//     return;
-//   }
-//   renameCancel();
-//   createCancel();
-//   commandBarVisible = false;
-//   commandBarNewRequestKindVisible = false;
-//   commandBarOpenVisible = false;
-// });
+
+const openRequestPalette = CommandPalette({
+  items: getOpenRequestItems,
+  placeholder: "Type or search request id to open",
+  on: {close: () => command_bar_open_visible.update(() => false)},
+});
+command_bar_open_visible.sub(function*() {
+  while (true) openRequestPalette.visible = yield;
+}());
 
 type Panelka = {
   el: HTMLElement,
@@ -212,10 +300,20 @@ const panelkaFactory = (
     }());
 
     tab.element.prepend(eye);
+
+    // Track when this tab becomes active
+    container.on("show", () => {
+      store.activeComponentID = id;
+    });
     container.on("destroy", () => {
       eye_unsub();
       frame_unsub();
+      // Clear active component ID if this was the active component
+      if (store.activeComponentID === id) {
+        store.activeComponentID = null;
+      }
     });
+
     // TODO: ebanij rot etogo kazino, we have to use timeout for now, since request is not yet loaded (???)
     setTimeout(() => {
       if (!(id in store.requests2)) {
@@ -346,6 +444,10 @@ function preApp(root: HTMLElement, store: Store) {
       close: createCancel,
       positive_click: create,
       negative_click: createCancel,
+      show: () => {
+        // Focus the input when modal is shown
+        inputCreate.focus();
+      },
     },
   }, inputCreate);
   const inputRename = NInput({
@@ -359,6 +461,11 @@ function preApp(root: HTMLElement, store: Store) {
       close: renameCancel,
       positive_click: rename,
       negative_click: renameCancel,
+      show: () => {
+        inputRename.value = store.requestNames[renameID.value!];
+        // Focus the input when modal is shown
+        inputRename.focus();
+      },
     },
   }, inputRename);
   newRequestKind.sub(function*() {
@@ -404,77 +511,159 @@ function preApp(root: HTMLElement, store: Store) {
 
   document.body.appendChild(globalDropdown.el);
 
+  // Check if any modal is open
+  const anyModalIsOpen = () =>
+    newRequestName.value !== undefined ||
+    renameID.value !== undefined ||
+    commandBarVisible.value ||
+    command_bar_new_request_kind_visible.value ||
+    command_bar_open_visible.value;
+
+  // Global keyboard event handling
+  const handleKeyDown = (e: KeyboardEvent) => {
+    // Don't handle keyboard events if user is typing in an input or textarea
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+
+    // Check for Ctrl+Shift+P - Toggle command palette
+    if (e.key === "P" && !e.altKey && e.ctrlKey && e.shiftKey && !e.metaKey) {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      commandBarVisible.update(v => !v);
+      return;
+    }
+
+    // Check for Ctrl+P - Open request palette
+    if (e.key === "p" && !e.altKey && e.ctrlKey && !e.shiftKey && !e.metaKey) {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      command_bar_open_visible.update(v => !v);
+      return;
+    }
+
+    // Check for Ctrl+N - Create new request
+    if (e.key === "n" && !e.altKey && e.ctrlKey && !e.shiftKey && !e.metaKey) {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      command_bar_new_request_kind_visible.update(() => true);
+      return;
+    }
+
+    // Check for Ctrl+R - Rename current request
+    if (e.key === "r" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      const currentID = store.requestID();
+      if (currentID === null) {
+        return;
+      }
+      renameInit(currentID);
+    }
+
+    // Check for Escape - Close all modals
+    if (e.key === "Escape") {
+      e.preventDefault();
+      // Don't handle Escape if command palette is open - let it handle its own Escape
+      if (commandBarVisible.value || command_bar_new_request_kind_visible.value || command_bar_open_visible.value) {
+        // Command palette will handle its own Escape key
+        return;
+      }
+
+      // Close other modals (rename, create)
+      if (newRequestName.value === undefined && renameID.value === undefined) {
+        return;
+      }
+      renameCancel();
+      createCancel();
+    }
+
+    // Check for Ctrl+Enter - Run current request
+    if (e.key === "Enter" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      const currentID = store.requestID();
+      if (currentID === null) {
+        return;
+      }
+      send(currentID);
+    }
+
+    // Check for Ctrl+W - Close tab
+    if (e.key === "w" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      const currentID = store.requestID();
+      if (currentID === null) {
+        return;
+      }
+      handleCloseTab(currentID);
+    }
+
+    // Check for Ctrl+PgDown - Next tab
+    if (e.key === "PageDown" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      store.navigateToNextTab();
+      return;
+    }
+
+    // Check for Ctrl+PgUp - Previous tab
+    if (e.key === "PageUp" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      store.navigateToPreviousTab();
+      return;
+    }
+
+    // Check for Ctrl+Shift+PgDown - Move tab right
+    if (e.key === "PageDown" && e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey) {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      store.moveTabRight();
+      return;
+    }
+
+    // Check for Ctrl+Shift+PgUp - Move tab left
+    if (e.key === "PageUp" && e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey) {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      store.moveTabLeft();
+      return;
+    }
+  };
+
+  // Add global keyboard event listener
+  document.addEventListener("keydown", handleKeyDown);
+
   root.append(m("div", {class: "h100", style: {
     width: "100%",
   }},
     modalCreate.element,
     modalRename.element,
-    Command.Dialog({
-      visible: commandBarVisible,
-      on: {close: () => commandBarVisible = false},
-      header: Command.Input({placeholder: "Type a command or search..."}),
-      body: Command.List([
-        Command.Empty({description: "No results found."}),
-        ...items.map(group =>
-          Command.Group({heading: group.label}, group.items.map(item =>
-            Command.Item({
-              value: item.label,
-              shortcut: item.shortcut,
-              on: {select: item.perform},
-            }, [
-              m("div", {}, item.label),
-              m("div", {
-                class: "hidden",
-                style: {
-                  color: "var(--gray10)",
-                  alignItems: "center",
-                  display: item.shortcut !== undefined ? "block" : "none",
-                },
-              }, item.shortcut?.flatMap((k, i) => [
-                i !== 0 ? m("div", {style: {padding: "0px 2px"}}, "+") : null,
-                m("kbd", {}, k),
-              ]) ?? []),
-            ])),
-          ),
-        ),
-      ]),
-      footer: Command.Footer,
-    }),
-    Command.Dialog({
-      visible: command_bar_new_request_kind_visible,
-      on: {close: () => command_bar_new_request_kind_visible = false},
-      header: Command.Input({placeholder: "Enter kind of new reqeust"}),
-      body: Command.List([
-        Command.Empty({description: "No kinds found."}),
-        ...Kinds.map(kind =>
-          Command.Item({
-            value: kind,
-            on: {select: () => {
-              newRequestKind.update(() => kind);
-              command_bar_new_request_kind_visible = false;
-            }},
-          }, kind),
-        ),
-      ]),
-      footer: Command.Footer,
-    }),
-    Command.Dialog({
-      visible: command_bar_open_visible,
-      on: {close: () => command_bar_open_visible = false},
-      header: Command.Input({placeholder: "Type or search request id to open"}),
-      body: Command.List([
-        Command.Empty({description: "No requests found."}),
-        ...open_items().map(item =>
-          Command.Item({
-            value: item.id,
-            on: {select: () => {
-              command_bar_open_visible = false;
-              store.selectRequest(item.id);
-            }},
-          }, m("div", {}, `[${item.kind}] ${item.id}`))),
-      ]),
-      footer: Command.Footer,
-    }),
+    mainCommandPalette.el,
+    newRequestKindPalette.el,
+    openRequestPalette.el,
     app_container,
   ));
 };
