@@ -61,7 +61,7 @@ export default function HTTPRequestView(
   el.append(NEmpty({description: "Loading request..."}));
 
   const el_send = NButton({
-    type: "primary",
+    primary: true,
     on: {click: async () => {
       try {
         await onSend(currentRequest);

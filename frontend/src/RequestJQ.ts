@@ -26,7 +26,7 @@ export default function(
 
   const jqerror: string | undefined = undefined as string | undefined; // TODO: remove type cast, fill sometimes with error
   const el_send = NButton({ // TODO: autosend
-    type: "primary",
+    primary: true,
     on: {click: on.send},
     disabled: true,
   }, "Send");

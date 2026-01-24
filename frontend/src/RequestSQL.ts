@@ -43,7 +43,7 @@ export default function(
 
       const request = r.request as Request;
       const el_run = NButton({
-        type: "primary",
+        primary: true,
         on: {click: async () => {
           await on.send();
         }},

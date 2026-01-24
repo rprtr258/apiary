@@ -26,7 +26,7 @@ export default function(
   const el_empty_response = NEmpty({description: "Send request or choose one from history."});
 
   const el_send = NButton({
-    type: "primary",
+    primary: true,
     on: {click: on.send},
     disabled: false,
   }, "Send");

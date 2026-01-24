@@ -322,7 +322,7 @@ const panelkaFactory = (
       }
       const req = store.requests2[id];
       tab.setTitle(req.request.path);
-    }, 100);
+    }, 1000);
   });
   if (id in store.requests) {
     const on = {

@@ -106,7 +106,7 @@ export default function(
       // }, {immediate: true});
 
       const el_send = NButton({
-        type: "primary",
+        primary: true,
         on: {click: on.send},
         disabled: true,
       }, "Send");

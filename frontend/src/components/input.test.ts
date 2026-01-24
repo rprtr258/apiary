@@ -226,7 +226,7 @@ describe("NButton", () => {
       class: "test-button primary",
     }, "Styled").el;
 
-    expect(button.className).toBe("test-button primary");
+    expect(button.classList).toContainValues(["test-button", "primary"]);
     expect(button.style.width).toBe("100px");
     expect(button.style.backgroundColor).toBe("red");
   });
@@ -249,7 +249,7 @@ describe("NButton", () => {
     const clickMock = mock(() => {});
     const button = NButton({
       on: {click: clickMock},
-      type: "primary",
+      primary: true,
     }, "Primary").el;
 
     expect(button.tagName).toBe("BUTTON");

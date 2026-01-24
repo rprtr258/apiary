@@ -1,6 +1,5 @@
-import {m, DOMNode, Signal, setDisplay} from "../utils.ts";
+import {m, DOMNode, setDisplay} from "../utils.ts";
 import {css} from "../styles.ts";
-import {useButton} from "../hooks/form/useButton.ts";
 
 type NInputProps = {
   placeholder?: string,
@@ -103,32 +102,31 @@ export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () 
 }
 
 type NButtonProps = {
-  type?: "primary",
+  primary?: boolean,
   disabled?: boolean,
   class?: string,
   style?: Partial<CSSStyleDeclaration>,
   on: {click: () => void | Promise<void>},
 };
 
-const btnPrimaryStyle = css(`
-  background-color: #1890ff;
-  color: white;
-  border: 1px solid #1890ff;
-`);
-const btnLoadingStyle = css(`
-  opacity: 0.8;
-  cursor: wait;
-`);
-const btnDisabledStyle = css(`
-  opacity: 0.6;
-  cursor: not-allowed;
-`);
+const btnStyles = {
+  primary: css(`
+    background-color: #1890ff;
+    color: white;
+    border: 1px solid #1890ff;
+  `),
+  loading: css(`
+    opacity: 0.8;
+    cursor: wait;
+  `),
+  disabled: css(`
+    opacity: 0.6;
+    cursor: not-allowed;
+  `),
+};
 
 export function NButton(props: NButtonProps, ...children: DOMNode[]) {
-  const buttonHook = useButton({
-    on: props.on,
-    disabled: props.disabled,
-  });
+  let state: "active" | "disabled" | "loading";
 
   const el_clock = m("span", {style: {marginRight: "8px"}}, "⏳");
   const el = m("button", {
@@ -136,37 +134,41 @@ export function NButton(props: NButtonProps, ...children: DOMNode[]) {
       textWrapMode: "nowrap",
       ...props.style,
     },
-    onclick: () => buttonHook.on.click(),
-  }, el_clock, children);
-  const update = () => {
+    onclick: async (): Promise<void> => {
+      if (state !== "active") {
+        return;
+      }
+
+      update("loading");
+      try {
+        await props.on.click();
+      } finally {
+        update("active");
+      }
+  }}, el_clock, children);
+  function update(newState: typeof state) {
+    state = newState;
+
+    el.classList.remove(...el.classList);
+    switch (state) {
+      case "active": el.classList.toggle(btnStyles.primary, props.primary === true); break;
+      case "disabled": el.classList.add(btnStyles.disabled); break;
+      case "loading": el.classList.add(btnStyles.loading); break;
+    }
     if (props.class !== undefined)
       el.classList.add(props.class);
-    el.classList.toggle(btnPrimaryStyle, props.type === "primary");
-    el.classList.toggle(btnDisabledStyle, buttonHook.disabledSignal.value);
-    el.classList.toggle(btnLoadingStyle, buttonHook.loadingSignal.value);
 
-    setDisplay(el_clock, buttonHook.loadingSignal.value);
-    el.disabled = buttonHook.disabledSignal.value || buttonHook.loadingSignal.value ? true : false;
-  };
-  buttonHook.disabledSignal.sub(function*() {
-    while (true) {
-      yield;
-      update();
-    }
-  }());
-  buttonHook.loadingSignal.sub(function*() {
-    while (true) {
-      yield;
-      update();
-    }
-  }());
+    setDisplay(el_clock, state === "loading");
+    el.disabled = state !== "active";
+  }
+  update(props.disabled === true ? "disabled" : "active"); // initial update
   return {
     el,
-    set loading(loading: boolean) {
-      buttonHook.loading = loading;
+    set loading(value: boolean) {
+      update(value ? "loading" : state === "loading" ? "active" : state);
     },
-    set disabled(disabled: boolean) {
-      buttonHook.disabled = disabled;
+    set disabled(value: boolean) {
+      update(value ? "disabled" : state === "disabled" ? "active" : state);
     },
   };
 }
