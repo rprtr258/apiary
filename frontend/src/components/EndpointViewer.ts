@@ -1,3 +1,4 @@
+import {ComponentContainer} from "golden-layout";
 import {database} from "../../wailsjs/go/models.ts";
 import {api} from "../api.ts";
 import {type HistoryEntry} from "../types.ts";
@@ -11,9 +12,10 @@ export interface EndpointViewerProps {
 }
 
 export default function EndpointViewer(
-  el: HTMLElement,
+  container: ComponentContainer,
   {sourceID, endpointIndex}: EndpointViewerProps,
 ): HTTPRequestViewResult {
+  const el: HTMLElement = container.element;
   const loadExampleRequest = async (): Promise<database.HTTPRequest> => {
     const res = await api.requestGenerateExampleRequestHTTPSource(sourceID, endpointIndex);
     if (res.kind === "err")

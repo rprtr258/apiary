@@ -1,27 +1,31 @@
-import {ComponentContainer, GoldenLayout, Tab} from "golden-layout";
+import {ComponentContainer, Tab} from "golden-layout";
+import {database} from "../wailsjs/go/models.ts";
+import {Kinds, HistoryEntry, Request} from "./types.ts";
+import {m, setDisplay, Signal, signal} from "./utils.ts";
+import {
+  StateRequest, StateHTTPSourceEndpoint, StateSQLSourceTable,
+  Store,
+  get_request, handleCloseTab, updateLocalstorage, update_request, send, last_history_entry,
+  store,
+} from "./store.ts";
+import notification from "./notification.ts";
+import layout from "./layout.ts";
 import {NInput} from "./components/input.ts";
 import {NModal, NSplit} from "./components/layout.ts";
 import {NIcon, NResult, NTag} from "./components/dataview.ts";
 import {Eye, EyeClosed} from "./components/icons.ts";
+import {CommandPalette, Item} from "./components/CommandPalette.ts";
+import RequestTableViewer from "./components/TableView.ts";
+import EndpointViewer from "./components/EndpointViewer.ts";
+import {badge, sidebar, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./Sidebar.ts";
 import RequestHTTP from "./RequestHTTP.ts";
 import RequestSQL from "./RequestSQL.ts";
 import RequestGRPC from "./RequestGRPC.ts";
 import RequestJQ from "./RequestJQ.ts";
 import RequestRedis from "./RequestRedis.ts";
 import RequestMD from "./RequestMD.ts";
-import {
-  get_request, store, notification, handleCloseTab, updateLocalstorageTabs, update_request, send, last_history_entry, Store,
-  viewerState, panelkaState, EndpointViewerState,
-} from "./store.ts";
-import {Kinds, HistoryEntry, Request} from "./types.ts";
-import {database} from "../wailsjs/go/models.ts";
-import {CommandPalette, Item} from "./components/CommandPalette.ts";
-import {m, setDisplay, signal} from "./utils.ts";
 import RequestSQLSource from "./RequestSQLSource.ts";
 import RequestHTTPSource from "./RequestHTTPSource.ts";
-import {badge, el_aside, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./Sidebar.ts";
-import RequestTableViewer from "./components/TableView.ts";
-import EndpointViewer from "./components/EndpointViewer.ts";
 
 function create() {
   const kind = newRequestKind.value!;
@@ -66,7 +70,7 @@ const command_bar_open_visible = signal(false);
 
 function getCommandPaletteItems(): Item[] {
   const currentID = store.requestID();
-  const items = [
+  return [
     {
       label: "Requests",
       items: [
@@ -113,7 +117,7 @@ function getCommandPaletteItems(): Item[] {
         }] : []),
       ],
     },
-    {
+    ...(currentID !== null ? [{
       label: "Tabs",
       items: [
         {
@@ -154,9 +158,8 @@ function getCommandPaletteItems(): Item[] {
           },
         },
       ],
-    },
+    }] : []),
     {
-      label: "Other",
       items: [
         {
           label: "Command Palette",
@@ -173,39 +176,13 @@ function getCommandPaletteItems(): Item[] {
         },
       ],
     },
-  ];
-
-  return items.flatMap(group =>
-    group.items
-      .filter(item => {
-        if (store.requestID() === null) {
-          // Hide "Rename current" if no request is selected
-          if (item.label === "Rename current") {
-            return false;
-          }
-          // Hide "Run", "Duplicate", "Delete" if no request is selected
-          if (item.label === "Run" || item.label === "Duplicate" || item.label === "Delete") {
-            return false;
-          }
-          // Hide "Close tab" if no request is selected
-          if (item.label === "Close tab") {
-            return false;
-          }
-        }
-        return true;
-      })
-      .map(item => ({
-        label: item.label === "Rename current" ?
-          `Rename current (${store.requestNames[store.requestID()!]})` :
-          item.label === "Duplicate" ?
-          `Duplicate current (${store.requestNames[store.requestID()!]})` :
-          item.label === "Delete" ?
-          `Delete current (${store.requestNames[store.requestID()!]})` :
-          item.label,
-        shortcut: item.shortcut,
-        perform: item.perform,
-        group: group.label,
-      })),
+  ].flatMap(group => group.items
+    .map(item => ({
+      label: item.label,
+      shortcut: item.shortcut,
+      perform: item.perform,
+      group: group.label,
+    })),
   );
 }
 
@@ -272,14 +249,37 @@ type Frame = {
   push_history_entry?(he: HistoryEntry): void, // show last history entry
   unmount(): void,
 };
+
+function createFrame(
+  el: HTMLElement,
+  kind: database.Kind,
+  show_request: Signal<boolean>,
+  on: {update: (patch: Partial<Request>) => Promise<void>, send: () => Promise<void>},
+  eye: HTMLElement,
+): Frame {
+  switch (kind) {
+    case database.Kind.HTTP: return RequestHTTP(el, show_request, on);
+    case database.Kind.SQL: return RequestSQL(el, show_request, on);
+    case database.Kind.GRPC: return RequestGRPC(el, show_request, on);
+    case database.Kind.JQ: return RequestJQ(el, show_request, on);
+    case database.Kind.REDIS: return RequestRedis(el, show_request, on);
+    case database.Kind.MD: return RequestMD(el, show_request, on);
+    case database.Kind.SQLSource:
+      setDisplay(eye, false); // TODO: dont draw eye in the first place?
+      return RequestSQLSource(el, {update: on.update});
+    case database.Kind.HTTPSource:
+      setDisplay(eye, false);
+      return RequestHTTPSource(el, {update: on.update});
+  }
+}
+
 const panelkaFactory = (
   container: ComponentContainer,
-  {id}: panelkaState,
+  {id}: StateRequest,
 ): Panelka => {
   const el = container.element;
   const show_request = signal(true);
   let eye_unsub = () => {};
-  let frame_unsub = () => {};
   const eye = m("span", {
     title: "Hide request",
     onclick: () => {
@@ -324,63 +324,20 @@ const panelkaFactory = (
       tab.setTitle(req.request.path);
     }, 1000);
   });
-  if (id in store.requests) {
-    const on = {
+  const frame: Frame = createFrame(
+    el,
+    store.requests[id].Kind,
+    show_request,
+    {
       update: (patch: Partial<Request>) => update_request(id, patch),
       send: () => send(id).then(_ => {
         frame.push_history_entry?.(last_history_entry(store.requests2[id])!);
       }),
-    };
-    const frame: Frame = (() => {
-      switch (store.requests[id].Kind) {
-        case database.Kind.HTTP: return RequestHTTP(el, show_request, on);
-        case database.Kind.SQL: return RequestSQL(el, show_request, on);
-        case database.Kind.GRPC: return RequestGRPC(el, show_request, on);
-        case database.Kind.JQ: return RequestJQ(el, show_request, on);
-        case database.Kind.REDIS: return RequestRedis(el, show_request, on);
-        case database.Kind.MD: return RequestMD(el, show_request, on);
-        case database.Kind.SQLSource:
-          setDisplay(eye, false); // TODO: dont draw eye in the first place?
-          return RequestSQLSource(el, {update: on.update});
-        case database.Kind.HTTPSource:
-          setDisplay(eye, false);
-          return RequestHTTPSource(el, {update: on.update});
-      }
-    })();
-    frame_unsub = () => frame.unmount();
-    get_request(id).then(r => r !== null && frame.loaded(r));
-  } else {
-    // Request not in store.requests, try to load it
-    get_request(id).then(r => {
-      if (r !== null) {
-        // Now we know the request kind, create the component
-        const on = {
-          update: (patch: Partial<Request>) => update_request(id, patch),
-          send: () => send(id).then(_ => {
-            frame.push_history_entry?.(last_history_entry(store.requests2[id])!);
-          }),
-        };
-        const frame: Frame = (() => {
-          switch (r.request.kind) {
-            case database.Kind.HTTP: return RequestHTTP(el, show_request, on);
-            case database.Kind.SQL: return RequestSQL(el, show_request, on);
-            case database.Kind.GRPC: return RequestGRPC(el, show_request, on);
-            case database.Kind.JQ: return RequestJQ(el, show_request, on);
-            case database.Kind.REDIS: return RequestRedis(el, show_request, on);
-            case database.Kind.MD: return RequestMD(el, show_request, on);
-            case database.Kind.SQLSource:
-              setDisplay(eye, false);
-              return RequestSQLSource(el, {update: on.update});
-            case database.Kind.HTTPSource:
-              setDisplay(eye, false);
-              return RequestHTTPSource(el, {update: on.update});
-          }
-        })();
-        frame_unsub = () => frame.unmount();
-        frame.loaded(r);
-      }
-    });
-  }
+    },
+    eye,
+  );
+  const frame_unsub = () => frame.unmount();
+  get_request(id).then(r => r !== null && frame.loaded(r));
   return {el};
 };
 
@@ -406,7 +363,7 @@ function preApp(root: HTMLElement, store: Store) {
       el_empty_state,
       el_layout,
     ]);
-  const app_container = NSplit(el_aside, el_main, {direction: "horizontal", sizes: ["300px", "1fr"], snap: 100}).element;
+  const app_container = NSplit(sidebar, el_main, {direction: "horizontal", sizes: ["300px", "1fr"], snap: 100}).element;
 
   sidebarHidden.sub(function*() {
     yield;
@@ -416,22 +373,18 @@ function preApp(root: HTMLElement, store: Store) {
     }
   }());
 
-  const golden_layout: GoldenLayout = new GoldenLayout(el_layout);
-  golden_layout.resizeWithContainerAutomatically = true;
-  golden_layout.resizeDebounceInterval = 0;
-  golden_layout.registerComponentFactoryFunction("MyComponent", (container, state, _) => panelkaFactory(container, state as panelkaState));
-  golden_layout.registerComponentFactoryFunction("TableViewer", (container, state, _) => RequestTableViewer(container.element, state as viewerState));
-  golden_layout.registerComponentFactoryFunction("EndpointViewer", (container, state, _) => EndpointViewer(container.element, state as EndpointViewerState));
-  golden_layout.loadLayout(store.layoutConfig);
-  golden_layout.on("stateChanged", () => {
-    update_empty_state(golden_layout.saveLayout().root === undefined);
-    updateLocalstorageTabs();
+  layout.init(el_layout, store.layoutConfig, {
+    "MyComponent": (container, state) => panelkaFactory(container, state as StateRequest),
+    "TableViewer": (container, state) => RequestTableViewer(container, state as StateSQLSourceTable),
+    "EndpointViewer": (container, state) => EndpointViewer(container, state as StateHTTPSourceEndpoint),
+  }, () => {
+    update_empty_state();
+    updateLocalstorage();
   });
-  store.layout = golden_layout;
-  const update_empty_state = (show: boolean) => {
-    el_empty_state.style.display = show ? "flex" : "none";
+  const update_empty_state = () => {
+    setDisplay(el_empty_state, layout.isEmpty);
   };
-  update_empty_state(golden_layout.saveLayout().root === undefined);
+  update_empty_state();
 
   const inputCreate = NInput({
     on: {update: (value: string) => newRequestName.update(() => value)},

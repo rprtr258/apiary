@@ -5,7 +5,8 @@ import {NSelect} from "./components/input.ts";
 import {NScrollbar, NTabs} from "./components/layout.ts";
 import {api} from "./api.ts";
 import {HistoryEntry, Kinds} from "./types.ts";
-import {notification, store, useNotification} from "./store.ts";
+import {store} from "./store.ts";
+import notification from "./notification.ts";
 import {DOMNode, m, setDisplay, signal} from "./utils.ts";
 
 function basename(id: string): string {
@@ -251,7 +252,7 @@ const endpointCache: Record<string, {
 }> = {};
 
 export const sidebarHidden = signal(false);
-export const el_aside = function() {
+export const sidebar = function() {
   const collapseButtonClosed = [NIcon({component: DoubleRightOutlined})];
   const collapseButtonOpen = [NIcon({component: DoubleLeftOutlined}), "hide"];
   const collapseButton = m("button", {
@@ -391,7 +392,7 @@ export const el_aside = function() {
           click: () => {
             api.get(id).then(r => {
               if (r.kind === "err") {
-                useNotification().error({title: "Error", content: `Failed to load request: ${r.value}`});
+                notification.error({title: "Error", content: `Failed to load request: ${r.value}`});
                 return;
               }
 
@@ -850,7 +851,7 @@ export const el_aside = function() {
   // TODO: whole history in reverse order
   const history = [] as HistoryEntry[];
 
-  const el_aside = m("aside", {style: {
+  const el = m("aside", {style: {
     color: "rgba(255, 255, 255, 0.82)",
     backgroundColor: "rgb(24, 24, 28)",
     display: "flex",
@@ -900,12 +901,12 @@ export const el_aside = function() {
   sidebarHidden.sub(function*() {
     while (true) {
       const sidebarHidden = yield;
-      el_aside.style.gridTemplateRows = sidebarHidden ? "1fr" : "95% 5%";
-      setDisplay(el_aside.children[0] as HTMLElement, !sidebarHidden);
+      el.style.gridTemplateRows = sidebarHidden ? "1fr" : "95% 5%";
+      setDisplay(el.children[0] as HTMLElement, !sidebarHidden);
     }
   }());
 
   collapseButton.onclick = () => sidebarHidden.update(v => !v);
 
-  return el_aside;
+  return el;
 }();
