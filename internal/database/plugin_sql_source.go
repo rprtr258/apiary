@@ -1,6 +1,7 @@
 package database
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"fmt"
@@ -93,7 +94,6 @@ func ListTables(ctx context.Context, db Database, dsn string) ([]TableInfo, erro
 			FROM pg_catalog.pg_tables t
 			LEFT JOIN pg_stat_user_tables s ON t.tablename = s.relname AND t.schemaname = s.schemaname
 			WHERE t.schemaname NOT IN ('pg_catalog', 'information_schema')
-			ORDER BY size_bytes DESC
 		`)
 		if err != nil {
 			return nil, errors.Wrap(err, "query postgres tables")
@@ -131,7 +131,6 @@ func ListTables(ctx context.Context, db Database, dsn string) ([]TableInfo, erro
 				data_length + index_length
 			FROM information_schema.TABLES
 			WHERE table_schema = ?
-			ORDER BY (data_length + index_length) DESC
 		`, dbName)
 		if err != nil {
 			return nil, errors.Wrap(err, "query mysql tables")
@@ -207,11 +206,6 @@ func ListTables(ctx context.Context, db Database, dsn string) ([]TableInfo, erro
 
 			tables = append(tables, TableInfo{Name: table, RowCount: rowCount.Int64, SizeBytes: sizeBytes.Int64})
 		}
-
-		// Sort by size descending
-		slices.SortFunc(tables, func(i, j TableInfo) int {
-			return -int(i.SizeBytes - j.SizeBytes)
-		})
 	case DBClickhouse:
 		conn, err := sql.Open("clickhouse", dsn)
 		if err != nil {
@@ -230,7 +224,6 @@ func ListTables(ctx context.Context, db Database, dsn string) ([]TableInfo, erro
 				total_bytes
 			FROM system.tables
 			WHERE database = currentDatabase()
-			ORDER BY total_bytes DESC
 		`)
 		if err != nil {
 			return nil, errors.Wrap(err, "query clickhouse tables")
@@ -248,6 +241,10 @@ func ListTables(ctx context.Context, db Database, dsn string) ([]TableInfo, erro
 		return nil, errors.Errorf("unsupported database for table listing: %s", db)
 	}
 
+	// Sort by name
+	slices.SortFunc(tables, func(i, j TableInfo) int {
+		return cmp.Compare(i.Name, j.Name)
+	})
 	return tables, nil
 }
 

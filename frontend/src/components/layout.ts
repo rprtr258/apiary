@@ -214,6 +214,7 @@ type NModalProps = {
   on: {
     positive_click: () => void,
     negative_click: () => void,
+    show?: () => void,
     close: () => void,
   },
 };
@@ -234,7 +235,7 @@ export function NModal({title, text, on}: NModalProps, ...children: DOMNode[]) {
         case "negative": on.negative_click(); break;
       }
       modal.hide();
-    }},
+    }, show: on.show},
   });
   return {
     element: modal.element,
@@ -253,6 +254,7 @@ type ModalProps = {
   buttons: {id: string, text: string}[],
   on: {
     close(id?: string): void,
+    show?: () => void,
   },
 };
 // TODO: use https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog
@@ -309,6 +311,8 @@ export function Modal(
     element,
     show() {
       setDisplay(element, true);
+      // Defer to ensure the modal is rendered before calling on.show
+      queueMicrotask(() => on.show?.());
     },
     hide() {
       on.close();

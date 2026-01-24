@@ -45,7 +45,7 @@ apiary is a cross-platform desktop application for managing API requests (HTTP, 
 
 - **Backend Plugins**: Each request kind (HTTP, SQL, etc.) has a plugin in `internal/database/` with `Perform`, `create`, `update`, `createResponse` functions, and Request/Response structs implementing `Kind()` and `MarshalJSON()`. HTTPSource is a source plugin for generating HTTP requests from OpenAPI specs.
 - **Frontend Factories**: Each request kind has a `Request*.ts` factory function taking `(el, signal, handlers)` and returning `{loaded, push_history_entry, unmount}`. See `frontend` skill for detailed frontend engineering guidelines.
-- **Reactivity**: Use `signal<T>()` for state, `m()` for DOM building, no VDOM.
+- **Reactivity**: Use `signal<T>()` for state, but only if it is watched by using `sub`, otherwise use mutable locals. Use `m()` for DOM building, no VDOM.
 - **Components**: `N*` functions return DOM elements; `Request*` functions manage state in provided container.
 - **Store**: Central state management in `store.ts` with CRUD operations and backend coordination.
 - **Data Flow**: User → Signal → Store → Wails API → Store → DOM.
