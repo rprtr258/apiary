@@ -189,7 +189,7 @@ const btnDisabledStyle = css(`
 export function NButton(props: NButtonProps, ...children: DOMNode[]) {
   const buttonHook = useButton({
     on: props.on,
-    disabled: props.disabled === true ? true : undefined,
+    disabled: props.disabled,
   });
 
   const el_clock = m("span", {style: {marginRight: "8px"}}, "⏳");
@@ -199,7 +199,6 @@ export function NButton(props: NButtonProps, ...children: DOMNode[]) {
       ...props.style,
     },
     onclick: () => buttonHook.on.click(),
-    disabled: buttonHook.disabledSignal.value || buttonHook.loadingSignal.value ? true : undefined,
   }, el_clock, children);
   const update = () => {
     if (props.class !== undefined)
@@ -209,6 +208,7 @@ export function NButton(props: NButtonProps, ...children: DOMNode[]) {
     el.classList.toggle(btnLoadingStyle, buttonHook.loadingSignal.value);
 
     setDisplay(el_clock, buttonHook.loadingSignal.value);
+    el.disabled = buttonHook.disabledSignal.value || buttonHook.loadingSignal.value ? true : false;
   };
   buttonHook.disabledSignal.sub(function*() {
     while (true) {

@@ -93,6 +93,7 @@ export default function(
           setDisplay(el_input_group, show_request);
         }
       }()));
+      el_send.disabled = false;
       el.replaceChildren(el_container);
     },
     push_history_entry(he) {

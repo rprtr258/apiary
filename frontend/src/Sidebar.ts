@@ -125,8 +125,8 @@ function drag({node, dragNode, dropPosition}: {
   }
 }
 
-function badge(req: app.requestPreview): [string, string] {
-  switch (req.Kind) {
+function badge(kind: database.Kind): [string, string] {
+  switch (kind) {
   case database.Kind.HTTP:       return ["HTTP",  "lime"     ];
   case database.Kind.SQL:        return ["SQL",   "lightblue"];
   case database.Kind.GRPC:       return ["GRPC",  "cyan"     ];
@@ -135,7 +135,7 @@ function badge(req: app.requestPreview): [string, string] {
   case database.Kind.MD:         return ["MD",    "blue"     ];
   case database.Kind.SQLSource:  return ["SQL*",  "blue"     ];
   case database.Kind.HTTPSource: return ["HTTP*", "lime"     ];
-  default:                       return [String(req.Kind), ""];
+  default:                       return [String(kind), ""];
   }
 }
 
@@ -750,7 +750,7 @@ export const el_aside = function() {
           // Handle requests (including SQLSource/HTTPSource)
           if (option.key in store.requests) {
             const req = store.requests[option.key];
-            const [method, color] = badge(req);
+            const [method, color] = badge(req.Kind);
 
             // Check if this source is currently loading
             const isLoading =
