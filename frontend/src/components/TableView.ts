@@ -1,13 +1,15 @@
 import {ComponentContainer} from "golden-layout";
 import {database} from "../../wailsjs/go/models.ts";
 import {api} from "../api.ts";
-import {DOMNode, m, signal} from "../utils.ts";
+import {clamp, DOMNode, m, signal} from "../utils.ts";
+import {css} from "../styles.ts";
 import notification from "../notification.ts";
 import {RowValue} from "../types.ts";
 import {NButton} from "./input.ts";
 import {NScrollbar, NTabs} from "./layout.ts";
 import {NIcon} from "./dataview.ts";
 import {CheckSquareOutlined, ClockCircleOutlined, FieldNumberOutlined, ItalicOutlined, QuestionCircleOutlined} from "./icons.ts";
+import {none, Option, some} from "../option.ts";
 
 function render(v: RowValue): DOMNode {
   switch (true) {
@@ -25,32 +27,19 @@ function render(v: RowValue): DOMNode {
   }
 }
 
-const tableBorderStyle: Partial<CSSStyleDeclaration> = {
-  tableLayout: "fixed",
-  borderCollapse: "separate",
-  borderSpacing: "0",
-  cursor: "default",
-  fontSize: "12pt",
-};
-const tdStyle = {
-  ...tableBorderStyle,
-  padding: "3px 5px",
-};
-const thStyle = {
-  backgroundColor: "var(--row-even)",
-  position: "sticky",
-  top: "0",
-  padding: "3px 5px",
-};
-
 function render_column(c: string, typ: string) {
   return m("div", {
     style: {
       display: "flex",
       justifyContent: "center",
       gap: "0.5em",
+      overflow: "clip",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      cursor: "default",
+      padding: "3px 5px",
     },
-    title: typ,
+    title: `${c} : ${typ}`,
   },
     c,
     m("div", {}, NIcon({
@@ -72,18 +61,127 @@ type DataTableProps = {
   rows: RowValue[][],
 };
 
+const split_styles = {
+  default: css(`
+    background-color: transparent;
+  `),
+  selected: css(`
+    background-color: mediumblue;
+  `),
+};
+
 export function DataTable() {
-  const thead = m("thead", {});
-  const tbody = m("tbody", {});
-  const el = m("table", {style: tableBorderStyle}, [thead, tbody]);
+  const el_table = m("div", {
+    style: {
+      display: "grid",
+    },
+  });
+  const el = m("div", {
+    style: {
+      height: "100%",
+      overflow: "auto",
+    },
+  }, el_table);
+
+  let columnWidths: number[] = [];
+  let resizingColumnIndex: Option<number> = none;
+  let startX = 0;
+  let startWidth = 0;
+  let resizeHandles: HTMLElement[] = [];
+
+  function setHighlight(handle: HTMLElement, on: boolean): void {
+    handle.classList.toggle(split_styles.default, !on);
+    handle.classList.toggle(split_styles.selected, on);
+  }
+
+  function handleMouseMove(e: MouseEvent) {
+    if (resizingColumnIndex.isNone()) return;
+
+    const delta = e.clientX - startX;
+    columnWidths[resizingColumnIndex.value] = Math.max(50, startWidth + delta);
+
+    updateColumnWidths();
+  }
+
+  function handleMouseUp() {
+    for (const handle of resizeHandles)
+      setHighlight(handle, false);
+
+    resizingColumnIndex = none;
+
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
+  }
+
+  function updateColumnWidths() {
+    el_table.style.gridTemplateColumns = columnWidths.flatMap(w => [w, 5]).map(w => `${w}px`).join(" ");
+  }
+
   return {
     el,
     update({columns, rows, types}: DataTableProps) {
-      thead.replaceChildren(m("tr", {}, columns.map((c, i) =>
-        m("th", {style: thStyle}, render_column(c, types[i])))));
-      tbody.replaceChildren(...rows.map(r =>
-        m("tr", {}, columns.map((_, i) =>
-          m("td", {style: tdStyle}, render(r[i]))))));
+      if (columnWidths.length !== columns.length) {
+        columnWidths = columns.map((c, i) => clamp(
+          Math.max(
+            c.length*12,
+            Math.max(...rows.map(r => String(r[i]).length))*10,
+          ),
+          50,
+          200,
+        ));
+        resizeHandles = columnWidths.map((_, i) => {
+          const handle = m("div", {
+            style: {
+              width: "5px",
+              cursor: "col-resize",
+              pointerEvents: "auto",
+            },
+            class: split_styles.default,
+            onmousedown: (e: MouseEvent) => {
+              e.preventDefault();
+
+              resizingColumnIndex = some(i);
+              startX = e.clientX;
+              startWidth = columnWidths[i];
+
+              document.addEventListener("mousemove", handleMouseMove);
+              document.addEventListener("mouseup", handleMouseUp);
+            },
+            onmouseenter: () => {
+              if (resizingColumnIndex.isNone())
+                return;
+              setHighlight(handle, true);
+            },
+            onmouseleave: () => {
+              if (resizingColumnIndex.isSome())
+                return;
+              setHighlight(handle, false);
+            },
+          });
+          return handle;
+        });
+      }
+
+      for (const handle of resizeHandles)
+        handle.style.gridRowStart = `span ${rows.length+1}`;
+
+      el_table.replaceChildren(
+        ...columns.flatMap((c, i) => [render_column(c, types[i]), resizeHandles[i]]),
+        ...rows.flatMap((r, j) => columns.map((_, i) =>
+          m("td", {
+            style: {
+              cursor: "default",
+              fontSize: "12pt",
+              padding: "3px 5px",
+              overflow: "clip",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              backgroundColor: j % 2 === 0 ? "var(--row-even)" : "",
+            },
+          }, render(r[i])))),
+      );
+
+      updateColumnWidths();
     },
   };
 }

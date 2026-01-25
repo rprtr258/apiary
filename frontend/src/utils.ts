@@ -270,3 +270,7 @@ export function setDisplay(el: ToggleDisplayElement, show: boolean): void {
     el.style.display = "none";
   }
 }
+
+export function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}

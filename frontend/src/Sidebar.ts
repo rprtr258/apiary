@@ -7,7 +7,7 @@ import {api} from "./api.ts";
 import {HistoryEntry, Kinds} from "./types.ts";
 import {store} from "./store.ts";
 import notification from "./notification.ts";
-import {DOMNode, m, setDisplay, signal} from "./utils.ts";
+import {clamp, DOMNode, m, setDisplay, signal} from "./utils.ts";
 
 function basename(id: string): string {
   return id.split("/").pop() ?? "";
@@ -46,10 +46,6 @@ function formatEndpointLabel(endpoint: database.EndpointInfo): string {
   const formattedPath = path === "" ? "/" : path.startsWith("/") ? path : `/${path}`;
   const pathWithTrailingSlash = formattedPath.endsWith("/") ? formattedPath : `${formattedPath}/`;
   return pathWithTrailingSlash;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
 }
 
 function cutEnd(str: string, suffix: string) {
