@@ -185,7 +185,7 @@ export default function(
           flexDirection: "column",
         },
       }, el_input_group, el_split);
-      unmounts.push(show_request.sub(function*() {
+      unmounts.push(show_request.sub(function*(): Generator<undefined, never, boolean> {
         while (true) {
           const show_request = yield;
           split.leftVisible = show_request;

@@ -1,7 +1,8 @@
 import Split, {SplitInstance} from "split-grid";
 import {DOMNode, m, setDisplay} from "../utils.ts";
-import {NButton} from "./input.ts";
 import {css} from "../styles.ts";
+import {ETabs, EModal} from "./design-system.ts";
+import {NButton} from "./input.ts";
 
 export function NScrollbar(...children: HTMLElement[]) {
   return m("div", {
@@ -25,97 +26,16 @@ type NTabsProps = {
   }[],
 };
 export function NTabs(props: NTabsProps): HTMLElement {
-  const tab_buttons = props.tabs.map((tab, i) => m("button", {
-    disabled: tab.disabled,
-    style: (tab.disabled ?? false) ? tabStyles.tab.disabled : tabStyles.tab.inactive,
-    onclick: () => update(i),
-  }, tab.name));
-  const tabs = props.tabs.map(tab => m("div", {
-    style: {
-      height: "100%",
-      ...tabStyles.content,
-      ...tab.style,
-      display: "none",
-    },
-    class: tab.class,
-  }, tab.elem ?? null));
-
-  let tab_idx = -1;
-  const update = (new_tab_idx: number): void => {
-    if (tab_idx === new_tab_idx) {
-      return;
-    }
-    if (props.tabs[new_tab_idx].disabled ?? false) {
-      return;
-    }
-    if (new_tab_idx < 0 || new_tab_idx >= props.tabs.length) {
-      throw new Error(`Tab ${new_tab_idx} not found in ${props.tabs.length} tabs`);
-    }
-    if (tab_idx >= 0) {
-      Object.assign(tab_buttons[tab_idx].style, tabStyles.tab.inactive); // TODO: classes
-      tabs[tab_idx].style.display = "none";
-    }
-    Object.assign(tab_buttons[new_tab_idx].style, tabStyles.tab.active); // TODO: classes
-    tabs[new_tab_idx].style.display = props.tabs[new_tab_idx].style?.display ?? "block";
-    tab_idx = new_tab_idx;
-  };
-  { // init
-    const firstEnabledIndex = props.tabs.findIndex(v => !(v.disabled ?? false));
-    if (firstEnabledIndex >= 0)
-      update(firstEnabledIndex);
-  }
-
-  return m("div", {class: "h100" + " " + (props.class ?? ""), style: {...tabStyles.container, ...props.style}},
-    m("div", {style: tabStyles.header}, tab_buttons),
-    tabs,
-  );
+  return ETabs({
+    tabs: props.tabs.map(tab => ({
+      name: tab.name,
+      disabled: tab.disabled,
+      content: tab.elem ?? null,
+    })),
+    class: `h100 ${props.class ?? ""}`,
+    style: props.style,
+  });
 }
-
-const tabStylesBase = {
-  // padding: "4px 5px",
-  // cursor: "pointer",
-  // border: "1px solid transparent",
-  // borderBottom: "none",
-  // borderRadius: "3px 3px 0 0",
-  // position: "relative",
-};
-
-const tabStyles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    width: "100%",
-  },
-  header: {
-    display: "flex",
-    gap: "0.5em",
-    // borderBottom: "1px solid #303030",
-  },
-  tab: {
-    disabled: {
-      ...tabStylesBase,
-      // background: "gray",
-      // fontWeight: "italic",
-    },
-    inactive: {
-      ...tabStylesBase,
-      // background: "#7068ab",
-      // borderColor: "#454566",
-    },
-    active: {
-      ...tabStylesBase,
-      // background: "#ddd3f5",
-      // borderColor: "#656596",
-      // borderBottom: "3px solid white",
-      // fontWeight: "bold",
-    },
-  },
-  content: {
-    flexShrink: "1",
-    minHeight: "0",
-    // padding: "2px",
-  },
-};
 
 type NSplitProps = {
   direction?: "horizontal" | "vertical",
@@ -219,16 +139,19 @@ type NModalProps = {
   },
 };
 export function NModal({title, text, on}: NModalProps, ...children: DOMNode[]) {
-  const modal = Modal({
+  const modal = EModal({
     title,
     children,
     buttons: [
-      {id: "positive", text: text.positive},
-      {id: "negative", text: text.negative},
+      {id: "positive", text: text.positive, variant: "primary"},
+      {id: "negative", text: text.negative, variant: "secondary"},
     ],
-    on: {close: (id?: "positive" | "negative") => {
-      if (id === undefined)
-        return on.close();
+    on: {close: (id?: string) => {
+      if (id === undefined) {
+        on.close();
+        modal.hide();
+        return;
+      }
 
       switch (id) {
         case "positive": on.positive_click(); break;
@@ -236,6 +159,8 @@ export function NModal({title, text, on}: NModalProps, ...children: DOMNode[]) {
       }
       modal.hide();
     }, show: on.show},
+    size: "md",
+    showCloseButton: false,
   });
   return {
     element: modal.element,
@@ -319,4 +244,16 @@ export function Modal(
       setDisplay(element, false);
     },
   };
+  return EModal({
+    title,
+    children: [...content, ...children],
+    buttons: buttons.map(button => ({
+      id: button.id,
+      text: button.text,
+      variant: button.id === "positive" ? "primary" : "secondary",
+    })),
+    on,
+    size: "md",
+    showCloseButton: false,
+  });
 }

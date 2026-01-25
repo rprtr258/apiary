@@ -143,7 +143,6 @@ export namespace app {
 export namespace database {
 	
 	export enum Kind {
-	    JQ = "jq",
 	    MD = "md",
 	    REDIS = "redis",
 	    GRPC = "grpc",
@@ -151,6 +150,7 @@ export namespace database {
 	    HTTPSource = "http-source",
 	    HTTP = "http",
 	    SQL = "sql",
+	    JQ = "jq",
 	}
 	export enum Database {
 	    POSTGRES = "postgres",

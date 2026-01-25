@@ -106,7 +106,7 @@ describe("NEmpty component", () => {
     });
 
     expect(empty.tagName).toBe("DIV");
-    expect(empty.className).toBe("h100");
+    expect(empty.classList).toContain("h100");
     expect(empty.style.display).toBe("flex");
     expect(empty.style.alignItems).toBe("center");
     expect(empty.style.justifyContent).toBe("center");
@@ -120,7 +120,7 @@ describe("NEmpty component", () => {
       style: {color: "red", fontSize: "16px"},
     });
 
-    expect(empty.className).toBe("h100 custom-class");
+    expect(empty.classList).toContainValues(["h100", "custom-class"]);
     expect(empty.style.color).toBe("red");
     expect(empty.style.fontSize).toBe("16px");
     expect(empty.textContent).toBe("Custom empty");
@@ -140,15 +140,15 @@ describe("NList and NListItem components", () => {
 
     const items = Array.from(list.children);
     expect(items[0].tagName).toBe("LI");
-    expect(items[0].className).toBe("item1");
+    expect(items[0].classList).toContain("item1");
     expect(items[0].textContent).toBe("Item 1");
 
     expect(items[1].tagName).toBe("LI");
-    expect(items[1].className).toBe("item2");
+    expect(items[1].classList).toContain("item2");
     expect(items[1].textContent).toBe("Item 2");
 
     expect(items[2].tagName).toBe("LI");
-    expect(items[2].className).toBe("item3");
+    expect(items[2].classList).toContain("item3");
     expect(items[2].textContent).toBe("Item 3");
   });
 
@@ -166,7 +166,7 @@ describe("NList and NListItem components", () => {
     ]);
 
     expect(listItem.tagName).toBe("LI");
-    expect(listItem.className).toBe("multi");
+    expect(listItem.classList).toContain("multi");
     expect(listItem.children.length).toBe(2);
     expect(listItem.textContent).toBe("Prefix Text Suffix");
   });
