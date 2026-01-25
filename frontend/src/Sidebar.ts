@@ -337,17 +337,15 @@ export const sidebar = function() {
     const sqlSourceKeys = expandedKeys.filter(key =>
       key in store.requests
       && store.requests[key].Kind === database.Kind.SQLSource
-      && (!(key in tableCache)
-          || Date.now() - tableCache[key].lastFetch > 300000
-          || tableCache[key].loading !== true));
+      && (!(key in tableCache) || Date.now() - tableCache[key].lastFetch > 300000)
+      && !(key in tableCache && tableCache[key].loading === true));
 
     // Fetch endpoints for expanded HTTPSource (respect 5-min cache and loading state)
     const httpSourceKeys = expandedKeys.filter(key =>
       key in store.requests
       && store.requests[key].Kind === database.Kind.HTTPSource
-      && (!(key in endpointCache)
-          || Date.now() - endpointCache[key].lastFetch > 300000
-          || endpointCache[key].loading !== true));
+      && (!(key in endpointCache) || Date.now() - endpointCache[key].lastFetch > 300000)
+      && !(key in endpointCache && endpointCache[key].loading === true));
 
     await Promise.all([
       ...sqlSourceKeys.map(key => fetchTables(key)),
@@ -538,16 +536,14 @@ export const sidebar = function() {
             const sqlSourceKeys = newlyExpandedKeys.filter(key =>
               key in store.requests
               && store.requests[key].Kind === database.Kind.SQLSource
-              && (!(key in tableCache)
-                  || Date.now() - tableCache[key].lastFetch > 300000
-                  || tableCache[key].loading === true));
+              && (!(key in tableCache) || Date.now() - tableCache[key].lastFetch > 300000)
+              && !(key in tableCache && tableCache[key].loading === true));
 
             const httpSourceKeys = newlyExpandedKeys.filter(key =>
               key in store.requests
               && store.requests[key].Kind === database.Kind.HTTPSource
-              && (!(key in endpointCache)
-                  || Date.now() - endpointCache[key].lastFetch > 300000
-                  || endpointCache[key].loading === true));
+              && (!(key in endpointCache) || Date.now() - endpointCache[key].lastFetch > 300000)
+              && !(key in endpointCache && endpointCache[key].loading === true));
 
             await Promise.all([
               ...sqlSourceKeys.map(key => fetchTables(key)),
@@ -823,7 +819,18 @@ export const sidebar = function() {
       }, 0);
     }
   }
-  store.requestsTree.sub(function*() {while (true) { updateTree(); yield; }}());
+
+  store.requestsTree.sub(function*() {
+    while (true) {
+      updateTree();
+      // Fetch data for expanded sources when requests tree updates
+      // (e.g., when store.fetch() loads requests on app startup)
+      fetchExpandedSources().catch(err => {
+        console.error("Failed to fetch expanded sources:", err);
+      });
+      yield;
+    }
+  }());
   expandedKeysSignal.sub(function*() {while (true) { updateTree(); yield; }}());
 
   // Initial tree render

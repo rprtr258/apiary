@@ -165,12 +165,8 @@ export const store = ((): Store => {
 
       const res = json.value;
 
-      const currentRequestID = this.requestID();
-
       for (const id in res.Requests) {
-        if (id !== currentRequestID) {
-          this.requests[id] = res.Requests[id];
-        }
+        this.requests[id] = res.Requests[id];
       }
       for (const id in this.requests) {
         if (!(id in res.Requests)) {
