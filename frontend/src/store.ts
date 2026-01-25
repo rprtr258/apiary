@@ -219,15 +219,16 @@ export const store = ((): Store => {
       }
       await this.fetch();
     },
-    async rename(id: string, newID: string): Promise<void> {
-      const res = await api.rename(id, newID);
+    async rename(id: string, newName: string): Promise<void> {
+      const res = await api.rename(id, newName);
       if (res.kind === "err") {
         notification.error({title: "Could not rename request", error: res.value});
         return;
       }
 
-      this.requests[newID] = Object.assign({}, this.requests[id]);
-      // tabs.value?.map.rename(id, newID);
+      // Update tab title for the renamed request
+      const component = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
+      component?.tab.setTitle(newName);
       await this.fetch();
     },
     openTableViewer(sqlSourceID: string, tableName: string, tableInfo: database.TableInfo): void {
