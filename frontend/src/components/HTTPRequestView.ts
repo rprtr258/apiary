@@ -1,13 +1,13 @@
 import {database} from "../../wailsjs/go/models.ts";
 import {HistoryEntry, Method as Methods} from "../types.ts";
+import {m, setDisplay, Signal, signal} from "../utils.ts";
+import notification from "../notification.ts";
 import {NInputGroup, NInput, NSelect, NButton} from "./input.ts";
 import {NTabs, NSplit} from "./layout.ts";
 import {NTag, NTable, NEmpty} from "./dataview.ts";
 import EditorJSON from "./EditorJSON.ts";
 import ViewJSON from "./ViewJSON.ts";
 import ParamsList from "./ParamsList.ts";
-import {m, setDisplay, Signal, signal} from "../utils.ts";
-import {notification} from "../store.ts";
 
 type Request = database.HTTPRequest;
 

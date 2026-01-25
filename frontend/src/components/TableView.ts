@@ -1,12 +1,13 @@
+import {ComponentContainer} from "golden-layout";
 import {database} from "../../wailsjs/go/models.ts";
+import {api} from "../api.ts";
+import {DOMNode, m, signal} from "../utils.ts";
+import notification from "../notification.ts";
+import {RowValue} from "../types.ts";
 import {NButton} from "./input.ts";
 import {NScrollbar, NTabs} from "./layout.ts";
 import {NIcon} from "./dataview.ts";
 import {CheckSquareOutlined, ClockCircleOutlined, FieldNumberOutlined, ItalicOutlined, QuestionCircleOutlined} from "./icons.ts";
-import {api} from "../api.ts";
-import {DOMNode, m, signal} from "../utils.ts";
-import {notification} from "../store.ts";
-import {RowValue} from "../types.ts";
 
 function render(v: RowValue): DOMNode {
   switch (true) {
@@ -96,9 +97,10 @@ type Props = {
 };
 
 export default function(
-  el: HTMLElement,
+  container: ComponentContainer,
   {sqlSourceID, tableName, tableInfo}: Props,
 ) {
+  const el: HTMLElement = container.element;
   el.replaceChildren(m("div", {class: "h100"}, "Loading table viewer..."));
 
   const dataTable = DataTable();

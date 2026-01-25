@@ -1,131 +1,69 @@
+import {ComponentItem, LayoutConfig, ResolvedLayoutConfig} from "golden-layout";
 import {database, app} from "../wailsjs/go/models.ts";
-import {ComponentItem, ComponentItemConfig, ContentItem, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedLayoutConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig, Stack} from "golden-layout";
 import {api} from "./api.ts";
 import {type RequestData, type HistoryEntry, Request} from "./types.ts";
 import {signal, Signal} from "./utils.ts";
+import layout from "./layout.ts";
+import notification from "./notification.ts";
 
-
-// TODO: <NNotificationProvider :max="1" placement="bottom-right">
-export function useNotification() {
-  const notify = (args: Record<string, unknown>): void => {
-    alert(Object.entries({title: "Error", ...args}).map(([k, arg]) => k+": "+String(arg)).join("\n"));
-  };
-  return {
-    error: notify,
-  };
-}
-export const notification = useNotification();
-
-type ConfigNode = ResolvedRowOrColumnItemConfig | ResolvedStackItemConfig | ResolvedComponentItemConfig;
-
-function* dfs<State>(c: ConfigNode): Generator<State, void, void> {
-  if (c.type === "component") {
-    yield (c.componentState! as State);
-  } else {
-    for (const child of c.content) {
-      yield* dfs(child);
-    }
-  }
+export type StateRequest = {
+  id: string,
 };
-
-function findActiveComponentID(layout: GoldenLayout): string | null {
-  // Fallback function to find the first component when no active component is tracked
-  const rootItem = layout.rootItem;
-  if (rootItem === undefined) {
-    return null;
-  }
-
-  function traverse(item: ContentItem): ComponentItem | null {
-    // Check if this is a component item
-    if (((item): item is ComponentItem => item.isComponent)(item) && item.componentType === "MyComponent") {
-      return item;
-    } else if (!item.isComponent) {
-      for (const child of item.contentItems) {
-        const tmp = traverse(child);
-        if (tmp !== null)
-          return tmp;
-      }
-    }
-    return null;
-  }
-
-  const item = traverse(rootItem);
-  if (item === null)
-    return null;
-
-  // Return the first component's ID as a fallback
-  return (item.toConfig().componentState as panelkaState).id;
-}
-
-export type viewerState = {
+export type StateSQLSourceTable = {
   sqlSourceID: string,
   tableName: string,
   tableInfo: database.TableInfo,
 };
-export type EndpointViewerState = {
+export type StateHTTPSourceEndpoint = {
   sourceID: string,
   endpointIndex: number,
   endpointInfo: database.EndpointInfo,
 };
-export type panelkaState = {id: string};
+export type State = StateRequest | StateSQLSourceTable | StateHTTPSourceEndpoint;
 
-let layoutConfig: LayoutConfig = {
-  header: {
-    show: "top",
-    close: "close",
-    maximise: "maximise",
-  },
-  root: {
-    type: "stack",
-    content: [],
-  },
-};
-(() => {
-  const oldTabs = localStorage.getItem("tabs");
+const localStorageKey = "tabs";
+const layoutConfig: LayoutConfig = (() => {
+  const oldTabs = localStorage.getItem(localStorageKey);
   if (oldTabs !== null) {
-    layoutConfig = LayoutConfig.fromResolved(JSON.parse(oldTabs) as ResolvedLayoutConfig);
+    return LayoutConfig.fromResolved(JSON.parse(oldTabs) as ResolvedLayoutConfig);
   }
+  return {
+    header: {
+      show: "top",
+      close: "close",
+      maximise: "maximise",
+    },
+    root: {
+      type: "stack",
+      content: [],
+    },
+  };
 })();
-export function updateLocalstorageTabs() {
-  const dump = JSON.stringify(store.layout?.saveLayout());
-  localStorage.setItem("tabs", dump);
+export function updateLocalstorage() {
+  const dump = JSON.stringify(layout.instance?.saveLayout());
+  localStorage.setItem(localStorageKey, dump);
+}
+
+function findExistingTab<T>(
+  componentType: string,
+  predicate?: (state: T) => boolean,
+): ComponentItem | undefined {
+  return layout
+    .tabs()
+    .filter(t => t.componentType === componentType)
+    .find(t => predicate?.(t.toConfig().componentState as T) ?? true);
 }
 
 export function handleCloseTab(id: string) {
-  const layout = store.layout;
-  if (layout?.rootItem === undefined) {
-    return;
-  }
-
   // Find the component with the given ID
-  function findComponent(item: ContentItem): ComponentItem | null {
-    // Type guard to check if item is a ComponentItem
-    const isComponentItem = (item: ContentItem): item is ComponentItem => item.isComponent;
-
-    if (isComponentItem(item) && item.componentType === "MyComponent") {
-      const componentState = item.toConfig().componentState as panelkaState;
-      if (componentState.id === id) {
-        return item;
-      }
-    } else if (!item.isComponent) {
-      for (const child of item.contentItems) {
-        const tmp = findComponent(child);
-        if (tmp !== null) return tmp;
-      }
-    }
-    return null;
-  }
-  const componentItemToRemove = findComponent(layout.rootItem);
-  if (componentItemToRemove === null) {
+  const tab = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
+  if (tab === undefined) {
     notification.error({title: "Component not found", id});
     return;
   }
 
-  // Remove the component - using the same pattern as in the load function
-  componentItemToRemove.remove();
-
-  // Update local storage
-  updateLocalstorageTabs();
+  tab.remove();
+  updateLocalstorage();
 }
 
 export type get_request = {
@@ -142,8 +80,8 @@ export type Store = {
   requests2: Record<string, get_request>,
   requestNames: Record<string, string>,
   layoutConfig: LayoutConfig,
-  layout: GoldenLayout | undefined,
-  activeComponentID: string | null,
+  get activeComponentID(): string | null,
+  set activeComponentID(value: string | null),
   clearTabs(): void,
   requestID(): string | null,
   selectRequest(id: string): void,
@@ -159,45 +97,64 @@ export type Store = {
   navigateToPreviousTab(): void,
   moveTabRight(): void,
   moveTabLeft(): void,
-  // Helper methods for tab navigation
-  getAllOpenTabs(): {id: string, item: ComponentItem}[],
-  findComponentItem(id: string): ComponentItem | null,
-  activateTab(tab: ComponentItem): void,
 };
 
 export const store = ((): Store => {
+  let activeComponentID: string | null = null;
+  type RequestTab = {id: string, item: ComponentItem};
+  function getAllOpenTabs(): RequestTab[] {
+    return layout
+      .tabs()
+      .filter(item => item.componentType === "MyComponent")
+      .map(item => ({
+        id: (item.toConfig().componentState as StateRequest).id,
+        item,
+      }))
+      .toArray();
+  }
+  function activateTab({id, item}: RequestTab): void {
+    layout.focus(item);
+    activeComponentID = id;
+  }
+  function getActiveComponentItem(): ComponentItem | undefined {
+    const activeID = activeComponentID;
+    if (activeID === null) return undefined;
+
+    return findExistingTab<StateRequest>("MyComponent", t => t.id === activeID);
+  }
   return {
     requestsTree : signal(new app.Tree({IDs: {}, Dirs: {}})),
     requests : {} as Record<string, app.requestPreview>,
     requests2: {} as Record<string, get_request>,
     requestNames: {} as Record<string, string>,
     layoutConfig,
-    layout: undefined as GoldenLayout | undefined,
-    activeComponentID: null,
+    get activeComponentID(): string | null {
+      return activeComponentID;
+    },
+    set activeComponentID(value: string | null) {
+      activeComponentID = value;
+    },
     clearTabs() {
-      this.layout?.clear();
-      this.activeComponentID = null;
+      layout.clear();
+      activeComponentID = null;
     },
     requestID(): string | null {
       // Return the tracked active component ID if available
-      if (this.activeComponentID !== null) {
+      if (this.activeComponentID !== null)
         return this.activeComponentID;
-      }
 
-      // Fall back to finding the first component if no active ID is tracked
-      if (this.layout === undefined)
-        return null;
-
-      return findActiveComponentID(this.layout);
+      // Fallback, find the first component if no active component is tracked
+      const c = findExistingTab("MyComponent")?.toConfig().componentState;
+      return (c as StateRequest | undefined)?.id ?? null;
     },
     selectRequest(id: string): void {
-      const cfg = this.layout!.saveLayout();
-      if (cfg.root !== undefined && dfs<panelkaState>(cfg.root).find(t => t.id === id) !== undefined) {
-        this.activateTab(this.findComponentItem(id)!);
-      } else {
-        this.layout?.addItem(panelka(id));
-        this.fetch().catch(notification.error);
+      const tab = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
+      if (tab !== undefined) {
+        activateTab({id, item: tab});
+        return;
       }
+      layout.addItem("MyComponent", id, {id});
+      this.fetch().catch(e => notification.error({title: "Failed to fetch requests", error: e}));
     },
     async fetch(): Promise<void> {
       const json = await api.collectionRequests();
@@ -216,7 +173,7 @@ export const store = ((): Store => {
         }
       }
       for (const id in this.requests) {
-        if (!res.Requests.hasOwnProperty(id)) {
+        if (!(id in res.Requests)) {
           delete this.requests[id];
         }
       }
@@ -254,10 +211,10 @@ export const store = ((): Store => {
         notification.error({title: "Could not delete request", error: res.value});
         return;
       }
-      if (this.requests.hasOwnProperty(id)) {
+      if (id in this.requests) {
         delete this.requests[id];
       }
-      if (this.requests2.hasOwnProperty(id)) {
+      if (id in this.requests2) {
         delete this.requests2[id];
       }
       await this.fetch();
@@ -274,39 +231,27 @@ export const store = ((): Store => {
       await this.fetch();
     },
     openTableViewer(sqlSourceID: string, tableName: string, tableInfo: database.TableInfo): void {
-      const cfg = this.layout!.saveLayout();
-      if (cfg.root !== undefined && dfs<viewerState>(cfg.root).find(t => t.sqlSourceID === sqlSourceID && t.tableName === tableName) !== undefined)
+      if (findExistingTab<StateSQLSourceTable>("TableViewer", t => t.sqlSourceID === sqlSourceID && t.tableName === tableName) !== undefined)
         return;
 
       const sourceName = this.requestNames[sqlSourceID] ?? sqlSourceID;
-      this.layout?.addItem({
-        type: "component",
-        title: `${sourceName}/${tableName}`,
-        componentType: "TableViewer",
-        componentState: {sqlSourceID, tableName, tableInfo},
-      });
+      layout.addItem("TableViewer", `${sourceName}/${tableName}`, {sqlSourceID, tableName, tableInfo});
     },
     openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: database.EndpointInfo): void {
-      const cfg = this.layout!.saveLayout();
-      if (cfg.root !== undefined && dfs<EndpointViewerState>(cfg.root).find(t => t.sourceID === sourceID && t.endpointIndex === endpointIndex) !== undefined)
+      if (findExistingTab<StateHTTPSourceEndpoint>("EndpointViewer", t => t.sourceID === sourceID && t.endpointIndex === endpointIndex) !== undefined)
         return;
 
       const sourceName = this.requestNames[sourceID] ?? sourceID;
-      this.layout?.addItem({
-        type: "component",
-        title: `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`,
-        componentType: "EndpointViewer",
-        componentState: {sourceID, endpointIndex, endpointInfo},
-      });
+      layout.addItem("EndpointViewer", `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`, {sourceID, endpointIndex, endpointInfo});
     },
     navigateToNextTab(): void {
-      const allTabs = this.getAllOpenTabs();
+      const allTabs = getAllOpenTabs();
       if (allTabs.length === 0) return;
 
       const currentID = this.requestID();
       if (currentID === null) {
         // If no tab is active, activate the first one
-        this.activateTab(allTabs[0].item);
+        activateTab(allTabs[0]);
         return;
       }
 
@@ -314,16 +259,16 @@ export const store = ((): Store => {
       if (currentIndex === -1) return;
 
       const nextIndex = (currentIndex + 1) % allTabs.length;
-      this.activateTab(allTabs[nextIndex].item);
+      activateTab(allTabs[nextIndex]);
     },
     navigateToPreviousTab(): void {
-      const allTabs = this.getAllOpenTabs();
+      const allTabs = getAllOpenTabs();
       if (allTabs.length === 0) return;
 
       const currentID = this.requestID();
       if (currentID === null) {
         // If no tab is active, activate the last one
-        this.activateTab(allTabs[allTabs.length - 1].item);
+        activateTab(allTabs[allTabs.length - 1]);
         return;
       }
 
@@ -331,72 +276,26 @@ export const store = ((): Store => {
       if (currentIndex === -1) return;
 
       const prevIndex = (currentIndex - 1 + allTabs.length) % allTabs.length;
-      this.activateTab(allTabs[prevIndex].item);
+      activateTab(allTabs[prevIndex]);
     },
     moveTabRight(): void {
-      notification.error({title: "Not implemented."}); // TODO: implement
+      const activeItem = getActiveComponentItem();
+      if (activeItem === undefined)
+        return;
+
+      layout.move(activeItem, i => i + 1);
+      updateLocalstorage();
     },
     moveTabLeft(): void {
-      notification.error({title: "Not implemented."}); // TODO: implement
-    },
-    // Helper methods
-    getAllOpenTabs(): {id: string, item: ComponentItem}[] {
-      if (this.layout?.rootItem === undefined) return [];
+      const activeItem = getActiveComponentItem();
+      if (activeItem === undefined)
+        return;
 
-      const tabs: {id: string, item: ComponentItem}[] = [];
-      function collectTabs(item: ContentItem): void {
-        if (((item): item is ComponentItem => item.isComponent)(item) && item.componentType === "MyComponent") {
-          const componentState = item.toConfig().componentState as panelkaState;
-          tabs.push({id: componentState.id, item});
-        } else if (!item.isComponent) {
-          for (const child of item.contentItems) {
-            collectTabs(child);
-          }
-        }
-      }
-
-      collectTabs(this.layout.rootItem);
-      return tabs;
-    },
-    findComponentItem(id: string): ComponentItem | null {
-      if (this.layout?.rootItem === undefined) return null;
-
-      function findItem(item: ContentItem): ComponentItem | null {
-        if (((item): item is ComponentItem => item.isComponent)(item) && item.componentType === "MyComponent") {
-          const componentState = item.toConfig().componentState as panelkaState;
-          if (componentState.id === id) {
-            return item;
-          }
-        } else if (!item.isComponent) {
-          for (const child of item.contentItems) {
-            const found = findItem(child);
-            if (found !== null) return found;
-          }
-        }
-        return null;
-      }
-
-      return findItem(this.layout.rootItem);
-    },
-    activateTab(tab: ComponentItem): void {
-      if (tab.componentType !== "MyComponent") return;
-      const id = (tab.toConfig().componentState as panelkaState).id;
-
-      const root = this.layout?.rootItem;
-      if (((root): root is Stack => root?.isStack === true)(root))
-        root.setActiveComponentItem(tab, true);
-
-      this.activeComponentID = id;
+      layout.move(activeItem, i => i - 1);
+      updateLocalstorage();
     },
   };
 })();
-
-const panelka = (id: string): ComponentItemConfig => ({
-  type: "component",
-  title: id,
-  componentType: "MyComponent",
-  componentState: {id: id}, // as panelkaState,
-});
 
 export async function send(id: string): Promise<void> {
   const res = await api.requestPerform(id);
@@ -443,21 +342,9 @@ store.requestsTree.sub(function*() {
 
   while (true) {
     const requestTree = yield;
-    const cfg = store.layout;
-    if (cfg?.rootItem === undefined)
-      continue;
-
     const openTabIds = new Map<string, ComponentItem>();
-    function dfs(c: ContentItem): void {
-      if (((c): c is ComponentItem => c.isComponent)(c) && c.componentType === "MyComponent") {
-        openTabIds.set((c.toConfig().componentState as panelkaState).id, c);
-      } else if (!c.isComponent) {
-        for (const child of c.contentItems) {
-          dfs(child);
-        }
-      }
-    }
-    dfs(cfg.rootItem);
+    for (const c of layout.tabs().filter(c => c.componentType === "MyComponent"))
+      openTabIds.set((c.toConfig().componentState as StateRequest).id, c);
 
     const treeIds = new Set<string>();
     function collectIds(tree: app.Tree): void {
