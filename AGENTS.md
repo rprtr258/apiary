@@ -41,6 +41,80 @@ apiary is a cross-platform desktop application for managing API requests (HTTP, 
 - **TypeScript**: Strict mode, double quotes, const over let, prefer functional style (e.g., `data.map(item => item.value)`), no frameworks, direct DOM APIs.
 - **General**: Modular code, backend/frontend separation, immutable variables, pure functions where possible.
 
+### TypeScript Coding Conventions (from ESLint config)
+- **Quotes**: Use double quotes (`"`) for strings, not single quotes
+- **Semicolons**: Always use semicolons at the end of statements
+- **Object curly spacing**: No spaces inside braces: `{key: value}` not `{ key: value }`
+- **Commas**: Use trailing commas in multiline objects/arrays/interfaces
+- **Interface members**: Use commas to separate interface entries (not semicolons)
+- **Boolean comparisons**: Use strict boolean expressions: `if (value === true)` not `if (value)`, `if (value === false)` not `if (!value)`
+- **Equality**: Use `===` and `!==` instead of `==` and `!=`
+- **Array methods**: Avoid `forEach`; use `for...of` or functional methods that return values
+- **Type imports**: Use `import type` for type-only imports when appropriate
+
+### Examples of Correct vs Incorrect Code
+
+**Quotes:**
+```typescript
+// Correct
+const name = "John";
+// Incorrect  
+const name = 'John';
+```
+
+**Semicolons:**
+```typescript
+// Correct
+const x = 1;
+const y = 2;
+// Incorrect
+const x = 1
+const y = 2
+```
+
+**Object spacing:**
+```typescript
+// Correct
+const obj = {key: "value"};
+// Incorrect
+const obj = { key: "value" };
+```
+
+**Interface commas:**
+```typescript
+// Correct
+interface User {
+  name: string,
+  age: number,
+}
+// Incorrect
+interface User {
+  name: string;
+  age: number;
+}
+```
+
+**Boolean comparisons:**
+```typescript
+// Correct
+if (value === true) { /* handle true */ }
+if (value === false) { /* handle false */ }
+if (value === null) { /* handle null */ }
+if (value === undefined) { /* handle undefined */ }
+// Incorrect
+if (value) { /* truthy check */ }
+if (!value) { /* falsy check */ }
+```
+
+**Array methods:**
+```typescript
+// Correct
+const doubled = numbers.map(n => n * 2);
+for (const item of items) { /* process */ }
+// Incorrect
+numbers.forEach(n => console.log(n));
+```
+
 ## Architecture Patterns
 
 - **Backend Plugins**: Each request kind (HTTP, SQL, etc.) has a plugin in `internal/database/` with `Perform`, `create`, `update`, `createResponse` functions, and Request/Response structs implementing `Kind()` and `MarshalJSON()`. HTTPSource is a source plugin for generating HTTP requests from OpenAPI specs.
@@ -66,3 +140,12 @@ apiary is a cross-platform desktop application for managing API requests (HTTP, 
 - Run `go test ./internal/...` for backend tests.
 - Run `wails build` for full app build.
 - Verify new request kinds work end-to-end.
+
+## Frontend Development
+
+When working on frontend code, use the `frontend` skill for detailed guidance on vanilla TypeScript development patterns, component architecture, and DOM manipulation. The skill provides specific rules for:
+- Component factory functions (`Request*.ts` pattern)
+- DOM building with `m()` utility
+- Signal-based reactivity
+- Store-based state management
+- Error handling and performance optimization
