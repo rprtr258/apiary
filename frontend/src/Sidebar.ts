@@ -476,40 +476,41 @@ export const sidebar = function() {
             const isSQLSource = id in store.requests && req.Kind === database.Kind.SQLSource;
             const isHTTPSource = id in store.requests && req.Kind === database.Kind.HTTPSource;
 
-            let children: TreeOption[] | undefined;
-
-            if (isSQLSource) {
-              if (id in tableCache && Object.keys(tableCache[id].tables).length > 0) {
-                children = Object.values(tableCache[id].tables).map(table => ({
-                  key: `virtual:table:${id}:${table.name}`,
-                  label: formatTableLabel(table),
-                }));
-              } else {
-                // Show "Loading..." or "(None)" based on loading state
-                // Check if cache exists AND is loading
-                const isLoading = id in tableCache && tableCache[id].loading === true;
-                children = [{
-                  key: `virtual:${isLoading ? "loading" : "empty"}:${id}:table`,
-                  label: isLoading ? "Loading..." : "(None)",
-                  disabled: true,
-                }];
+            const children: TreeOption[] | undefined = (() => {
+              if (isSQLSource) {
+                if (id in tableCache && Object.keys(tableCache[id].tables).length > 0) {
+                  return Object.values(tableCache[id].tables).map(table => ({
+                    key: `virtual:table:${id}:${table.name}`,
+                    label: formatTableLabel(table),
+                  }));
+                } else {
+                  // Show "Loading..." or "(None)" based on loading state
+                  // Check if cache exists AND is loading
+                  const isLoading = id in tableCache && tableCache[id].loading === true;
+                  return [{
+                    key: `virtual:${isLoading ? "loading" : "empty"}:${id}:table`,
+                    label: isLoading ? "Loading..." : "(None)",
+                    disabled: true,
+                  }];
+                }
+              } else if (isHTTPSource) {
+                if (id in endpointCache && endpointCache[id].endpoints.length > 0) {
+                  return endpointCache[id].endpoints.map((endpoint, index) => ({
+                    key: `virtual:endpoint:${id}:${index}`,
+                    label: formatEndpointLabel(endpoint),
+                  }));
+                } else {
+                  // Show "Loading..." or "(None)" based on loading state
+                  const isLoading = id in endpointCache && endpointCache[id].loading === true;
+                  return [{
+                    key: `virtual:${isLoading ? "loading" : "empty"}:${id}:endpoint`,
+                    label: isLoading ? "Loading..." : "(None)",
+                    disabled: true,
+                  }];
+                }
               }
-            } else if (isHTTPSource) {
-              if (id in endpointCache && endpointCache[id].endpoints.length > 0) {
-                children = endpointCache[id].endpoints.map((endpoint, index) => ({
-                  key: `virtual:endpoint:${id}:${index}`,
-                  label: formatEndpointLabel(endpoint),
-                }));
-              } else {
-                // Show "Loading..." or "(None)" based on loading state
-                const isLoading = id in endpointCache && endpointCache[id].loading === true;
-                children = [{
-                  key: `virtual:${isLoading ? "loading" : "empty"}:${id}:endpoint`,
-                  label: isLoading ? "Loading..." : "(None)",
-                  disabled: true,
-                }];
-              }
-            }
+              return undefined;
+            })();
 
             const item: TreeOption = {
               key: id,
@@ -613,7 +614,6 @@ export const sidebar = function() {
                     color: "#808080",
                     fontStyle: "italic",
                     pointerEvents: "none", // TODO: move into parent element
-                    paddingLeft: "1.5em", // Align with other subitems (folder icon width + gap)
                   },
                 }, "(None)");
               case "loading":
@@ -622,22 +622,16 @@ export const sidebar = function() {
                   style: {
                     display: "flex",
                     alignItems: "center",
-                    gap: "8px",
                     width: "100%",
-                  },
-                },
-                m("span", {
-                  style: {
-                    flex: "1",
-                    minWidth: "0",
                     color: "#a0a0a0",
+                    fontStyle: "italic",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                     overflow: "clip",
                     animation: "pulse 1.5s infinite",
                   },
                   title: "Loading...",
-                }, "Loading..."));
+                }, "Loading...");
               case "table": // Virtual table item
                 return m("span", {
                   style: {
