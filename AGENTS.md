@@ -23,6 +23,7 @@
 - **Build Frontend**: `bun run build` (run in frontend/)
 - **Build Desktop App**: `wails build`
 - **Run Go Tests**: `go test ./internal/...`
+- **Create Release Tag**: `git tag v0.0.0 && git push origin v0.0.0` (triggers GitHub Actions release)
 
 ## Project Overview
 
@@ -140,6 +141,41 @@ numbers.forEach(n => console.log(n));
 - Run `go test ./internal/...` for backend tests.
 - Run `wails build` for full app build.
 - Verify new request kinds work end-to-end.
+
+## Release Process
+
+### Version Management
+- **Version System**: Located in `internal/version/version.go`
+- **Build-time Injection**: Version, commit, and date set via `ldflags` during build
+- **Database Versioning**: `app_version` field stored in database JSON for migration tracking
+- **Version Format**: Semantic versioning (e.g., `v0.1.0`)
+
+### Creating a Release
+1. **Tag Creation**: `git tag v0.1.0`
+2. **Push Tag**: `git push origin v0.1.0` (triggers GitHub Actions)
+3. **Automated Build**: GitHub Actions builds for Linux, macOS, and Windows
+4. **Release Creation**: Binaries attached to GitHub Release with auto-generated notes
+
+### GitHub Actions Workflow
+- **File**: `.github/workflows/release.yml`
+- **Triggers**: Push to tags matching `v[0-9]+.[0-9]+.[0-9]+`
+- **Platforms**:
+  - Linux (amd64): `apiary-linux-amd64`
+  - macOS (amd64/arm64): `apiary-darwin-amd64`, `apiary-darwin-arm64`
+  - Windows (amd64): `apiary-windows-amd64.exe`
+- **Version Injection**: Uses `ldflags` to set version info in binaries
+- **Database Compatibility**: New databases include `app_version` field
+
+### Testing Releases
+- Use `workflow_dispatch` with test version (e.g., `0.0.0-test`)
+- Check artifact naming and binary functionality
+- Verify version appears in app logs on startup
+
+### Window Visibility Behavior
+- **Development builds** (version = "(devel)" or pseudo-version): Window starts visible
+- **Release builds** (version = "vX.Y.Z"): Window starts hidden (`StartHidden: true`)
+- Controlled by `version.IsRelease()` in `main.go`
+- Helps with development workflow while maintaining clean startup for end users
 
 ## Frontend Development
 

@@ -75,6 +75,7 @@ export function DataTable() {
     style: {
       display: "grid",
     },
+    "data-testid": "data-container",
   });
   const el = m("div", {
     style: {

@@ -56,6 +56,7 @@ type ElementProps<K extends keyof HTMLElementTagNameMap> =
     class?: string,
     style?: Partial<CSSStyleDeclaration>,
     innerHTML?: string,
+    "data-testid"?: string,
   };
 
 export function m<K extends keyof HTMLElementTagNameMap>(
