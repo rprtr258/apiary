@@ -74,6 +74,18 @@ jobs:
       - name: Run unit tests
         run: cd frontend && bun run test
 
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download actionlint
+        id: get_actionlint
+        run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+        shell: bash
+      - name: Check workflow files
+        run: ${{ steps.get_actionlint.outputs.executable }} -color
+        shell: bash
+
   e2e-tests:
     runs-on: ubuntu-22.04
     steps:
@@ -84,8 +96,9 @@ jobs:
           bun-version: "1.2.5"
 
       - name: Install go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
+          go-version-file: 'go.mod'
           cache: true
 
       - name: Cache Bun dependencies

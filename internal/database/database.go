@@ -15,6 +15,7 @@ import (
 	json2 "github.com/rprtr258/fun/exp/json"
 
 	. "github.com/rprtr258/apiary/internal/json"
+	"github.com/rprtr258/apiary/internal/version"
 )
 
 type dbInner = map[RequestID]Request
@@ -74,7 +75,8 @@ func sorted[T any](xs []T, cmp func(T, T) int) []T {
 
 func encoder(v dbInner) ([]byte, error) {
 	return json.MarshalIndent(D{
-		"$version": 1,
+		"$version":    1,
+		"app_version": version.Clean(),
 		"request": sorted(fun.MapToSlice(v, func(id RequestID, req Request) requestv1 {
 			return requestv1{
 				ID:   req.ID,
