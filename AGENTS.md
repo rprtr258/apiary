@@ -11,6 +11,7 @@
 - Never modify or patch 3rd-party dependencies, including overwriting styles or using `!important`.
 - Never use `overflow: hidden`.
 - Never disable linter checks unless explicitly requested.
+- Never touch git (no commits, pushes, branches, etc.) unless explicitly requested by the user.
 - Run `bun run ci` and `bun run build` (in frontend/) after any code changes to ensure linting, typechecking, and build succeed.
 - Include updates to `AGENTS.md` for structural or architectural changes.
 - Use context-based cancellation in Go code.
@@ -148,11 +149,11 @@ numbers.forEach(n => console.log(n));
 - **Version System**: Located in `internal/version/version.go`
 - **Build-time Injection**: Version, commit, and date set via `ldflags` during build
 - **Database Versioning**: `app_version` field stored in database JSON for migration tracking
-- **Version Format**: Semantic versioning (e.g., `v0.1.0`)
+- **Version Format**: Semantic versioning (e.g., `vX.Y.Z`)
 
 ### Creating a Release
-1. **Tag Creation**: `git tag v0.1.0`
-2. **Push Tag**: `git push origin v0.1.0` (triggers GitHub Actions)
+1. **Tag Creation**: `git tag vX.Y.Z`
+2. **Push Tag**: `git push origin vX.Y.Z` (triggers GitHub Actions)
 3. **Automated Build**: GitHub Actions builds for Linux, macOS, and Windows
 4. **Release Creation**: Binaries attached to GitHub Release with auto-generated notes
 

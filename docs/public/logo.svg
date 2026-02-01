@@ -1,0 +1,23 @@
+<svg viewBox="-4 -4 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" role="img">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a8b1ff" />
+      <stop offset="100%" stop-color="#8a8cf6" />
+    </linearGradient>
+  </defs>
+  <polygon points="60,0 112,30 112,90 60,120 8,90 8,30"
+    fill="url(#gradient)" stroke="url(#gradient)" stroke-width="6"
+    stroke-linejoin="round" stroke-linecap="round"
+  />
+  <g fill="none" stroke="#000000" stroke-width="4"
+    vector-effect="non-scaling-stroke"
+    stroke-linejoin="round" stroke-linecap="round"
+  >
+    <path d="M60 0 L112 90 L8 90 L60 0" />
+    <path d="M8 90 L86 45" />
+    <path d="M60 0 L60 120" />
+    <polygon points="60,0 112,30 112,90 60,120 8,90 8,30"
+      stroke-linejoin="round" stroke-linecap="round"
+    />
+  </g>
+</svg>
