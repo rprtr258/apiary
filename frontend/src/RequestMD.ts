@@ -147,7 +147,7 @@ export default function(
 
       const split = NSplit(el_editor_md, right_div, {direction: "horizontal"});
       unmounts.push(() => split.unmount());
-      unmounts.push(show_request.sub(function*() {
+      unmounts.push(show_request.sub(function*(): Generator<undefined, never, boolean> {
         while (true) {
           const show_request = yield;
           split.leftVisible = show_request;

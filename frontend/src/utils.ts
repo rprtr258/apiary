@@ -48,7 +48,7 @@ function flatten(n: DOMNode): BaseDOMNode[] {
   }
 }
 
-type ElementProps<K extends keyof HTMLElementTagNameMap> =
+export type ElementProps<K extends keyof HTMLElementTagNameMap> =
   Partial<Omit<
     HTMLElementTagNameMap[K],
     "style" | "children" | "innerHTML"
@@ -57,24 +57,54 @@ type ElementProps<K extends keyof HTMLElementTagNameMap> =
     style?: Partial<CSSStyleDeclaration>,
     innerHTML?: string,
     "data-testid"?: string,
+  } & {
+    [key: `data-${string}`]: string,
+    [key: `aria-${string}`]: string,
+    [key: string]: unknown, // Allow any other string key for custom attributes
   };
 
+// Overload for when props are provided
 export function m<K extends keyof HTMLElementTagNameMap>(
   tag: K,
-  preProps?: ElementProps<K>,
+  props: ElementProps<K>,
+  ...children: DOMNode[]
+): HTMLElementTagNameMap[K];
+
+// Overload for when props are omitted
+export function m<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  ...children: DOMNode[]
+): HTMLElementTagNameMap[K];
+
+// Implementation
+export function m<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  preProps?: ElementProps<K> | DOMNode,
   ...children: DOMNode[]
 ): HTMLElementTagNameMap[K] {
-  const props: ElementProps<K> = preProps ?? {};
+  let props: ElementProps<K>;
+  let actualChildren: DOMNode[];
+
+  if (preProps === undefined || preProps === null || typeof preProps === "object") {
+    // preProps is ElementProps<K> or undefined or null
+    props = preProps !== undefined && preProps !== null ? (preProps as ElementProps<K>) : {};
+    actualChildren = children;
+  } else {
+    // preProps is actually a child
+    props = {};
+    actualChildren = [preProps as DOMNode, ...children];
+  }
+
   const el = document.createElement(tag);
   Object.assign(el.style, props.style ?? {});
   if (props.innerHTML !== undefined) {
       el.innerHTML = props.innerHTML;
-      if (children.length !== 0) {
+      if (actualChildren.length !== 0) {
         throw new Error("Can't use innerHTML with children");
       }
   }
   for (const [key, value] of Object.entries(props)) {
-    if (key === "style" || key === "innerHTML" || value === undefined) {
+    if (key === "style" || key === "innerHTML" || value === undefined || value === null) {
       continue;
     }
     if (key.startsWith("on")) { // event handlers
@@ -82,10 +112,10 @@ export function m<K extends keyof HTMLElementTagNameMap>(
     } else if (typeof value === "object") {
       throw new Error(`Can't set element property "${key}" to ${JSON.stringify(value)}`);
     } else {
-      el.setAttribute(key, String(value));
+      el.setAttribute(key, (value as string | number | boolean).toString());
     }
   }
-  for (const child of flatten(children)) {
+  for (const child of flatten(actualChildren)) {
     if (child === null) {
       continue;
     }
@@ -183,8 +213,12 @@ export function s<K extends keyof SVGAttrs>(
   for (const [key, value] of Object.entries(props)) {
     if (key === "style") { // inline styles
       Object.assign(el.style, value);
+    } else if (value === undefined || value === null) {
+      continue;
+    } else if (typeof value === "object") {
+      throw new Error(`Can't set SVG attribute "${key}" to ${JSON.stringify(value)}`);
     } else {
-      el.setAttribute(key, String(value));
+      el.setAttribute(key, (value as string | number | boolean).toString());
     }
   }
   for (const child of children) {
@@ -227,32 +261,58 @@ export function deepEquals<T>(a: T, b: T): boolean {
 
 type Sub<T> = Generator<undefined, never, T>;
 export type Signal<T> = {
-  update(f: (value: T) => T): void,
-  sub(sub: Sub<T>): () => void,
-  get value(): T, // TODO: remove?
+  update(updater: (current: T) => T): void,
+  subCallback(callback: (value: T) => void): () => void,
+  sub(generator: Sub<T>): () => void,
+  get value(): T,
+  set value(newValue: T),
 };
-export function signal<T>(value: T): Signal<T> {
-  let _value = value;
-  const subs = new Set<Sub<T>>();
+export function signal<T>(initialValue: T): Signal<T> {
+  let _value = initialValue;
+  const callbacks = new Set<(value: T) => void>();
+  const generators = new Set<Sub<T>>();
+
+  const notifyAll = (newValue: T): void => {
+    // Notify callbacks
+    for (const callback of callbacks) callback(newValue);
+
+    // Notify generators
+    for (const generator of generators) generator.next(newValue);
+  };
+
   return {
-    sub(g) {
-      subs.add(g);
-      if (g.next(_value).done === true) { subs.delete(g); return () => {}; } // NOTE: run until first yield
-      if (g.next(_value).done === true) { subs.delete(g); return () => {}; } // NOTE: trigger first yield
-      return () => subs.delete(g);
+    // Subscribe with callback
+    subCallback(callback: (value: T) => void): () => void {
+      callbacks.add(callback);
+      callback(_value); // Call immediately with current value
+      return () => callbacks.delete(callback);
     },
-    update(f: (value: T) => T) {
-      const value = f(_value);
-      if (deepEquals(value, _value))
-        return;
-      _value = value;
-      for (const sub of subs)
-        sub.next(value);
+
+    // Subscribe with generator (legacy API)
+    sub(g: Sub<T>): () => void {
+      generators.add(g);
+      g.next(_value); // Initial yield
+      g.next(_value); // Trigger first yield
+      return () => generators.delete(g);
     },
+
+    update(updater: (current: T) => T): void {
+      const newValue = updater(_value);
+      if (newValue === _value) return;
+
+      _value = newValue;
+      notifyAll(newValue);
+    },
+
     get value(): T {return _value;},
+
+    set value(newValue: T) {
+      if (newValue === _value) return;
+      _value = newValue;
+      notifyAll(newValue);
+    },
   };
 }
-
 type ToggleDisplayElement = HTMLElement & {
   __prevDisplay?: string,
 };
