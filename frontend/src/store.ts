@@ -334,7 +334,7 @@ export async function get_request(request_id: string): Promise<get_request | nul
   return store.requests2[request_id];
 }
 
-store.requestsTree.sub(function*() {
+store.requestsTree.sub(function*(): Generator<undefined, never, app.Tree> {
   yield;
 
   while (true) {

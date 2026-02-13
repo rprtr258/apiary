@@ -216,13 +216,10 @@ export default function HTTPRequestView(
           width: "100%",
         },
       }, el_input_group, split.element);
-      unmounts.push(showRequest.sub(function*() {
-        while (true) {
-          const show_request = yield;
-          split.leftVisible = show_request;
-          setDisplay(el_input_group, show_request);
-        }
-      }()));
+      unmounts.push(showRequest.subCallback((show_request) => {
+        split.leftVisible = show_request;
+        setDisplay(el_input_group, show_request);
+      }));
       el.replaceChildren(el_container);
     },
     push_history_entry,

@@ -24,6 +24,7 @@ import RequestGRPC from "./RequestGRPC.ts";
 import RequestJQ from "./RequestJQ.ts";
 import RequestRedis from "./RequestRedis.ts";
 import RequestMD from "./RequestMD.ts";
+import {css} from "./styles.ts";
 import RequestSQLSource from "./RequestSQLSource.ts";
 import RequestHTTPSource from "./RequestHTTPSource.ts";
 
@@ -288,7 +289,7 @@ const panelkaFactory = (
   });
 
   container.on("tab", (tab: Tab): void => {
-    eye_unsub = show_request.sub(function*() {
+    eye_unsub = show_request.sub(function*(): Generator<undefined, never, boolean> {
       while (true) {
         const value = yield;
         eye.title = value ? "Hide request" : "Show request";
@@ -352,24 +353,39 @@ function preApp(root: HTMLElement, store: Store) {
     description: "Pick request to view it, edit, send and do other fun things.",
   });
 
-  const el_layout = m("div", {id: "layoutContainer", style: {height: "100%", width: "100%"}});
+  const el_layout = m("div", {
+    id: "layoutContainer",
+    class: css(`
+      height: 100%;
+      width: 100%;
+    `),
+  });
 
   const el_main = m("div", {
-    style: {
-      color: "rgba(255, 255, 255, 0.82)",
-      backgroundColor: "rgb(16, 16, 20)",
-      overflow: "hidden", // TODO: fix hiding golden-layout element
-    }}, [
-      el_empty_state,
-      el_layout,
-    ]);
-  const app_container = NSplit(sidebar, el_main, {direction: "horizontal", sizes: ["300px", "1fr"], snap: 100}).element;
+    class: css(`
+      color: var(--color-text-primary);
+      background-color: var(--color-bg-primary);
+      overflow: hidden; /* TODO: fix hiding golden-layout element */
+      height: 100%;
+    `),
+  }, [
+    el_empty_state,
+    el_layout,
+  ]);
 
-  sidebarHidden.sub(function*() {
+  const app_container = NSplit(sidebar, el_main, {
+    direction: "horizontal",
+    sizes: ["var(--sidebar-width)", "1fr"],
+    snap: 100,
+  }).element;
+
+  sidebarHidden.sub(function*(): Generator<undefined, never, boolean> {
     yield;
     while (true) {
       const sidebarHidden = yield;
-      app_container.style.gridTemplateColumns = sidebarHidden ? "3em 5px 1fr" : "300px 5px 1fr";
+      app_container.style.gridTemplateColumns = sidebarHidden
+        ? "var(--sidebar-width-collapsed) 5px 1fr"
+        : "var(--sidebar-width) 5px 1fr";
     }
   }());
 
@@ -388,7 +404,15 @@ function preApp(root: HTMLElement, store: Store) {
 
   const inputCreate = NInput({
     on: {update: (value: string) => newRequestName.update(() => value)},
-    style: {width: "100%", boxSizing: "border-box", padding: "0.5em"},
+    style: {
+      width: "100%",
+      boxSizing: "border-box",
+      padding: "var(--spacing-sm)",
+      backgroundColor: "var(--color-bg-surface)",
+      color: "var(--color-text-primary)",
+      border: "1px solid var(--color-border)",
+      borderRadius: "var(--border-radius-md)",
+    },
   });
   const modalCreate = NModal({
     title: "Create request",
@@ -405,7 +429,15 @@ function preApp(root: HTMLElement, store: Store) {
   }, inputCreate);
   const inputRename = NInput({
     on: {update: (value: string) => renameValue.update(() => value)},
-    style: {width: "100%", boxSizing: "border-box", padding: "0.5em"},
+    style: {
+      width: "100%",
+      boxSizing: "border-box",
+      padding: "var(--spacing-sm)",
+      backgroundColor: "var(--color-bg-surface)",
+      color: "var(--color-text-primary)",
+      border: "1px solid var(--color-border)",
+      borderRadius: "var(--border-radius-md)",
+    },
   });
   const modalRename = NModal({
     title: "Rename request",
@@ -421,7 +453,7 @@ function preApp(root: HTMLElement, store: Store) {
       },
     },
   }, inputRename);
-  newRequestKind.sub(function*() {
+  newRequestKind.sub(function*(): Generator<undefined, never, database.Kind | undefined> {
     let shown = true; // NOTE: to trigger first call to set it to false
     while (true) {
       const newRequestKind = yield;
@@ -442,7 +474,7 @@ function preApp(root: HTMLElement, store: Store) {
       }
     }
   }());
-  renameID.sub(function*() {
+  renameID.sub(function*(): Generator<undefined, never, string | undefined> {
     let shown = true; // NOTE: to trigger first call to set it to false
     while (true) {
       const renameID = yield;
