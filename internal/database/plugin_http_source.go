@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -144,14 +145,14 @@ func ParseSpec(specJSON string) ([]EndpointInfo, error) {
 	}
 
 	swag := doc.Spec()
-	endpoints := []EndpointInfo{}
 
 	// Collect and sort paths for stable ordering
 	paths := fun.Keys(swag.Paths.Paths)
 	sort.Strings(paths)
 
-	for _, pathStr := range paths {
-		pathItem := swag.Paths.Paths[pathStr]
+	endpoints := []EndpointInfo{}
+	for _, path := range paths {
+		pathItem := swag.Paths.Paths[path]
 		// Define method order for stable iteration
 		methodOperations := []struct {
 			method    string
@@ -170,86 +171,71 @@ func ParseSpec(specJSON string) ([]EndpointInfo, error) {
 				continue
 			}
 
-			endpoint := EndpointInfo{
-				Path:        pathStr,
-				Method:      strings.ToUpper(mo.method),
-				Summary:     mo.operation.Summary,
-				Parameters:  []ParameterInfo{},
-				RequestBody: nil,
-				Responses:   map[string]ResponseInfo{},
-			}
-
-			// Parameters
-			for _, param := range mo.operation.Parameters {
-				paramInfo := ParameterInfo{
+			parameters := fun.Map[ParameterInfo](func(param spec.Parameter) ParameterInfo {
+				return ParameterInfo{
 					Name:        param.Name,
 					In:          param.In,
 					Description: param.Description,
 					Required:    param.Required,
+					Schema:      schemaToMap(param.Schema),
+					Example:     param.Example,
 				}
-				if param.Schema != nil {
-					// Convert schema to map
-					schemaMap := schemaToMap(param.Schema)
-					paramInfo.Schema = schemaMap
-				}
-				if param.Example != nil {
-					paramInfo.Example = param.Example
-				}
-				endpoint.Parameters = append(endpoint.Parameters, paramInfo)
-			}
+			}, mo.operation.Parameters...)
 
 			// Request body (Swagger 2.0: parameters with in="body")
-			for _, param := range mo.operation.Parameters {
-				if param.In == "body" {
-					reqBody := &RequestBodyInfo{
-						Description: param.Description,
-						Required:    param.Required,
-						Content:     make(map[string]MediaTypeInfo),
-					}
+			// Swagger 2.0 only allows one body parameter
+			bodyParam, _, ok := fun.Index(func(param spec.Parameter) bool {
+				return param.In == "body"
+			}, mo.operation.Parameters...)
+
+			endpoint := EndpointInfo{
+				Path:       path,
+				Method:     strings.ToUpper(mo.method),
+				Summary:    mo.operation.Summary,
+				Parameters: parameters,
+				RequestBody: fun.OptMap(fun.Optional(bodyParam, ok), func(bodyParam spec.Parameter) RequestBodyInfo {
+					content := map[string]MediaTypeInfo{}
 					// For Swagger 2.0, body parameter has a schema
-					if param.Schema != nil {
+					if bodyParam.Schema != nil {
 						// Convert schema to map
-						schemaMap := schemaToMap(param.Schema)
-						// Add example if present
-						var example any
-						if param.Example != nil {
-							example = param.Example
-						}
 						// Use first consume type or default to application/json
 						contentType := "application/json"
 						if len(mo.operation.Consumes) > 0 {
 							contentType = mo.operation.Consumes[0]
 						}
-						reqBody.Content[contentType] = MediaTypeInfo{
-							Schema:  schemaMap,
-							Example: example,
+						content[contentType] = MediaTypeInfo{
+							Schema:  schemaToMap(bodyParam.Schema),
+							Example: bodyParam.Example,
 						}
 					}
-					endpoint.RequestBody = reqBody
-					break // Swagger 2.0 only allows one body parameter
-				}
+
+					return RequestBodyInfo{
+						Description: bodyParam.Description,
+						Required:    bodyParam.Required,
+						Content:     content,
+					}
+				}).Ptr(),
+				Responses: map[string]ResponseInfo{},
 			}
 
 			// Responses
 			for code, resp := range mo.operation.Responses.StatusCodeResponses {
-				respInfo := ResponseInfo{
-					Description: resp.Description,
-					Content:     make(map[string]MediaTypeInfo),
-				}
 				// Parse response schema if present
+				content := map[string]MediaTypeInfo{}
 				if resp.Schema != nil {
-					// Convert schema to map
-					schemaMap := schemaToMap(resp.Schema)
 					// Use first produce type or default to application/json
 					contentType := "application/json"
 					if len(mo.operation.Produces) > 0 {
 						contentType = mo.operation.Produces[0]
 					}
-					respInfo.Content[contentType] = MediaTypeInfo{
-						Schema: schemaMap,
+					content[contentType] = MediaTypeInfo{
+						Schema: schemaToMap(resp.Schema),
 					}
 				}
-				endpoint.Responses[fmt.Sprintf("%d", code)] = respInfo
+				endpoint.Responses[strconv.Itoa(code)] = ResponseInfo{
+					Description: resp.Description,
+					Content:     content,
+				}
 			}
 
 			endpoints = append(endpoints, endpoint)
@@ -281,6 +267,7 @@ func schemaToMap(schema *spec.Schema) D {
 	return result
 }
 
+// TODO: randomize
 func GenerateExampleRequest(endpoint EndpointInfo, serverURL string, auth AuthConfig) HTTPRequest {
 	urlStr := serverURL + endpoint.Path
 
@@ -294,7 +281,7 @@ func GenerateExampleRequest(endpoint EndpointInfo, serverURL string, auth AuthCo
 				case "string":
 					example = "string"
 				case "integer":
-					example = 1
+					example = 42
 				default:
 					example = "placeholder"
 				}
