@@ -762,7 +762,6 @@ export const sidebar = function() {
                   fontWeight: "bold",
                   padding: "2px 4px",
                   backgroundColor: "#202020",
-                  borderRadius: "10px",
                   ...(isLoading ? {
                     animation: "pulse 1.5s infinite",
                   } : {}),
@@ -777,6 +776,8 @@ export const sidebar = function() {
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                   cursor: "pointer",
+                  alignContent: "center",
+                  paddingLeft: "4px",
                 },
                 onclick: (e: MouseEvent) => {
                   e.stopPropagation();

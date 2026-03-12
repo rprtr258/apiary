@@ -105,8 +105,6 @@ const treeButtonClass = css(`
   gap: 4px;
   color: inherit;
   font-size: inherit;
-  padding-top: 1px;
-  padding-bottom: 1px;
 `);
 const treeButtonHoverClass = css.raw(`:hover {
   background-color: #404040 !important;
@@ -139,9 +137,8 @@ export function NTree(props: NTreeProps) {
     const isDir = v.children !== undefined;
 
     const button = m("span", {
-      class: `${treeButtonHoverClass} ${treeButtonClass}`,
+      class: `${treeButtonClass}`,
       style: {
-        paddingLeft: `${level * 1.5}em`,
         boxSizing: "border-box",
       },
       tabIndex: 0,
@@ -167,11 +164,14 @@ export function NTree(props: NTreeProps) {
         props.on.context_menu!(v, e);
       } : undefined,
     },
-      isDir ? NIcon({
-        component: isExpanded ? FolderOpenOutlined : FolderOutlined,
-        size: 20,
-      }) : null,
-      props.render(v, level, isExpanded),
+      m("div", {style: {width: `${level * 1.5}em`}}, " "),
+      m("span", {class: treeButtonHoverClass, style: {display: "flex", width: "100%", height: "100%"}},
+        isDir ? NIcon({
+          component: isExpanded ? FolderOpenOutlined : FolderOutlined,
+          size: 20,
+        }) : null,
+        props.render(v, level, isExpanded),
+      ),
     );
     const children = isDir && isExpanded ? v.children!.flatMap(w => renderElem(w, level + 1)) : [];
     return [button, ...children];
