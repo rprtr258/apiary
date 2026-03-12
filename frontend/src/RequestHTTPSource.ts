@@ -192,6 +192,7 @@ export default function(
             placeholder: "Spec URL",
             value: request.specData,
             on: {update: (newValue: string) => update_request({specData: newValue})},
+            style: {width: "100%"},
           });
           specInput.appendChild(urlInput);
         }

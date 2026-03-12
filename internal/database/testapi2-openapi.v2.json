@@ -1,0 +1,48 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "Test API",
+        "version": "1.0.0"
+    },
+    "host": "api.example.com",
+    "basePath": "/v1",
+    "paths": {
+        "/test": {
+            "post": {
+                "summary": "Test endpoint with many properties",
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "parameters": [{
+                    "in": "body",
+                    "name": "body",
+                    "required": true,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "prop1": {"type": "string"},
+                            "prop2": {"type": "string"},
+                            "prop3": {"type": "string"},
+                            "prop4": {"type": "string"},
+                            "prop5": {"type": "string"},
+                            "prop6": {"type": "string"},
+                            "prop7": {"type": "string"},
+                            "prop8": {"type": "string"},
+                            "prop9": {"type": "string"},
+                            "prop10": {"type": "string"},
+                            "prop11": {"type": "string"},
+                            "prop12": {"type": "string"},
+                            "prop13": {"type": "string"},
+                            "prop14": {"type": "string"},
+                            "prop15": {"type": "string"}
+                        }
+                    }
+                }],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    }
+                }
+            }
+        }
+    }
+}

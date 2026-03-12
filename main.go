@@ -45,8 +45,6 @@ func run() error {
 	defer close()
 
 	// Only start hidden in release builds
-	startHidden := version.IsRelease()
-
 	return wails.Run(&options.App{
 		Title:  "apiary",
 		Width:  1024,
@@ -62,7 +60,7 @@ func run() error {
 			database.AllDatabases,
 			database.AllColumnTypes,
 		},
-		StartHidden: startHidden,
+		StartHidden: !version.IsRelease(),
 	})
 }
 
