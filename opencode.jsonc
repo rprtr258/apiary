@@ -34,6 +34,10 @@
     "beads": {
       "type": "local",
       "command": ["beads-mcp"]
+    },
+    "sequentialthinking": {
+      "type": "local",
+      "command": ["docker", "run", "--rm", "-i", "mcp/sequentialthinking"]
     }
   }
 }
