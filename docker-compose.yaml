@@ -34,3 +34,28 @@ services:
   grpc-server:
     build: ./cmd/grpc
     ports: ["50051:50051"]
+
+  # services for openapi testing
+  petstore-api:
+    image: swaggerapi/petstore3:latest
+    ports:
+      - "8091:8080"
+    environment:
+      SWAGGER_HOST: "http://localhost:8091"
+      SWAGGER_BASE_PATH: "/api/v3"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v3/openapi.json"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    ports:
+      - "8092:8080"
+    environment:
+      URLS_PRIMARY_NAME: "PetStore API"
+      CONFIG_URL: "http://localhost:8091/api/v3/openapi.json"
+    depends_on:
+      petstore-api:
+        condition: service_healthy
