@@ -6,6 +6,7 @@ import {NInputGroup, NInput, NSelect, NButton} from "./input.ts";
 import {NTabs, NSplit} from "./layout.ts";
 import {NTag, NTable, NEmpty} from "./dataview.ts";
 import EditorJSON from "./EditorJSON.ts";
+import type {JSONSchema7} from "json-schema";
 import ViewJSON from "./ViewJSON.ts";
 import ParamsList from "./ParamsList.ts";
 
@@ -45,6 +46,7 @@ export default function HTTPRequestView(
   {
     initialRequest,
     showRequest = signal(true),
+    schema,
     on: {
       send: onSend,
       update: onUpdate = async () => {},
@@ -52,6 +54,7 @@ export default function HTTPRequestView(
   }: {
     initialRequest: database.HTTPRequest,
     showRequest?: Signal<boolean>,
+    schema?: JSONSchema7,
     on: {
       send: (request: database.HTTPRequest) => Promise<void>,
       update?: (request: database.HTTPRequest) => Promise<void>,
@@ -188,6 +191,7 @@ export default function HTTPRequestView(
             elem: EditorJSON({
               class: "h100",
               value: request.body,
+              schema: schema as JSONSchema7,
               on: {update: (body: string) => updateRequest({body})},
             }),
           },
