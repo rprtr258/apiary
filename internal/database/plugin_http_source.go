@@ -323,7 +323,7 @@ func GenerateExampleRequest(endpoint EndpointInfo, serverURL string, auth AuthCo
 		}
 	}
 
-	// Build query string
+	// query string
 	if len(queryParameters) > 0 {
 		uv := url.Values{}
 		for _, q := range queryParameters {
@@ -337,14 +337,12 @@ func GenerateExampleRequest(endpoint EndpointInfo, serverURL string, auth AuthCo
 		// Use first content type
 		for contentType, mediaType := range endpoint.RequestBody.Content {
 			if mediaType.Example != nil {
-				// Try to marshal example to JSON
-				if jsonBytes, err := json.Marshal(mediaType.Example); err == nil {
+				if jsonBytes, err := json.MarshalIndent(mediaType.Example, "", "  "); err == nil {
 					body = string(jsonBytes)
 				} else {
 					body = fmt.Sprintf("%v", mediaType.Example)
 				}
 			} else if mediaType.Schema != nil {
-				// Generate example from schema
 				body = generateExampleFromSchema(mediaType.Schema)
 			}
 			// Add Content-Type header
@@ -385,9 +383,11 @@ func generateExampleFromSchema(schema D) string {
 		if format, ok := schema["format"].(string); ok {
 			switch format {
 			case "date-time":
+				// return time.Now().Format(time.RFC3339) // TODO: now
 				return `"2024-01-01T12:00:00Z"`
 			case "date":
 				return `"2024-01-01"`
+				// return time.Now().Format(time.DateOnly) // TODO: now
 			case "email":
 				return `"user@example.com"`
 			case "uuid":
@@ -510,7 +510,7 @@ func generateObjectExample(schema D) string {
 		return "{}"
 	}
 
-	jsonBytes, err := json.Marshal(example)
+	jsonBytes, err := json.MarshalIndent(example, "", "  ")
 	if err != nil {
 		return "{}"
 	}
@@ -533,7 +533,7 @@ func generateArrayExample(schema D) string {
 	}
 
 	arrayExample := A{itemObj}
-	jsonBytes, err := json.Marshal(arrayExample)
+	jsonBytes, err := json.MarshalIndent(arrayExample, "", "  ")
 	if err != nil {
 		return "[]"
 	}
