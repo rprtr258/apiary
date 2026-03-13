@@ -8,7 +8,7 @@
   --color-primary: oklch(60% 0.15 250);
   --color-primary-light: oklch(85% 0.08 250);
   --color-primary-dark: oklch(35% 0.12 250);
-  
+
   /* Tinted neutrals with hint of blue */
   --color-neutral-50: oklch(98% 0.005 250);
   --color-neutral-100: oklch(95% 0.005 250);
@@ -31,7 +31,7 @@
   /* Typography */
   --font-family-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-family-mono: 'JetBrains Mono', 'Cascadia Code', 'Menlo', monospace;
-  
+
   /* Fluid type scale */
   --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
   --text-sm: clamp(0.875rem, 0.825rem + 0.25vw, 1rem);
@@ -71,7 +71,7 @@
   --color-primary: oklch(70% 0.15 250);
   --color-primary-light: oklch(85% 0.08 250);
   --color-primary-dark: oklch(50% 0.12 250);
-  
+
   --color-neutral-50: oklch(12% 0.005 250);
   --color-neutral-100: oklch(18% 0.005 250);
   --color-neutral-200: oklch(25% 0.005 250);

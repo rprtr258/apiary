@@ -1,5 +1,5 @@
 import {database} from "../../wailsjs/go/models.ts";
-import {HistoryEntry, Method as Methods} from "../types.ts";
+import {HistoryEntry, Method as Methods, HTTPCodes} from "../types.ts";
 import {m, setDisplay, Signal, signal} from "../utils.ts";
 import notification from "../notification.ts";
 import {NInputGroup, NInput, NSelect, NButton} from "./input.ts";
@@ -26,12 +26,16 @@ type Request = database.HTTPRequest;
 
 function responseBadge(response: database.HTTPResponse): HTMLElement {
   const code = response.code;
+  const statusName = code in HTTPCodes ? HTTPCodes[code as keyof typeof HTTPCodes] : undefined;
+  const tooltip = statusName !== undefined ? `${code} ${statusName}` : `${code}`;
+
   return NTag({
     type: (
       code < 300 ? "success" :
       code < 500 ? "warning" :
                    "error"
     ),
+    tooltip: tooltip,
   }, `${code}`);
 }
 

@@ -59,6 +59,13 @@ describe("NTag component", () => {
     expect(tag.tagName).toBe("SPAN");
     expect(tag.textContent).toBe("Rounded");
   });
+
+  test("includes title attribute when provided", () => {
+    const tag = NTag({type: "success", tooltip: "Success tooltip"}, "Success");
+    expect(tag.tagName).toBe("SPAN");
+    expect(tag.textContent).toBe("Success");
+    expect(tag.title).toBe("Success tooltip");
+  });
 });
 
 describe("NResult component", () => {

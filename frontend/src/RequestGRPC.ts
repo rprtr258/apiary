@@ -12,9 +12,12 @@ type Request = {kind: database.Kind.GRPC} & database.GRPCRequest;
 
 function responseBadge(response: {code: number}) {
   const code = response.code;
+  const tooltip = code in GRPCCodes ? `${code} ${GRPCCodes[code as keyof typeof GRPCCodes]}` : `${code}`;
+
   return NTag({
-    type: (code === 0 ? "success" : "error"),
-  }, `${code} ${GRPCCodes[code as keyof typeof GRPCCodes]}`);
+    type: code === 0 ? "success" : "error",
+    tooltip,
+  }, tooltip);
 }
 
 export default function(

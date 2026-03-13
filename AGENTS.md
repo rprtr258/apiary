@@ -60,7 +60,7 @@ apiary is a cross-platform desktop application for managing API requests (HTTP, 
 ```typescript
 // Correct
 const name = "John";
-// Incorrect  
+// Incorrect
 const name = 'John';
 ```
 

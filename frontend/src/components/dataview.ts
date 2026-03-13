@@ -10,6 +10,7 @@ export type TagType = "success" | "info" | "warning" | "error";
 type NTagProps = {
   type: TagType, // TODO: replace with color, use?
   style?: Partial<CSSStyleDeclaration>,
+  tooltip?: string,
 };
 export function NTag(props: NTagProps, label: string) {
   return m("span", {
@@ -22,6 +23,7 @@ export function NTag(props: NTagProps, label: string) {
       }[props.type],
       ...props.style,
     },
+    title: props.tooltip,
   }, label);
 };
 
