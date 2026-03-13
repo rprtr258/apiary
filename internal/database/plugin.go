@@ -27,6 +27,7 @@ var Plugins = map[Kind]plugin{
 	KindGRPC:       pluginGRPC,
 	KindSQLSource:  pluginSQLSource,
 	KindHTTPSource: pluginHTTPSource,
+	KindDIFF:       pluginDIFF,
 }
 
 var KindEnums = func() []enumElem[Kind] {

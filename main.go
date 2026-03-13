@@ -31,6 +31,7 @@ func (export) ExportTypes(
 	database.JQRequest, database.JQResponse,
 	database.RedisRequest, database.RedisResponse,
 	database.MDRequest, database.MDResponse,
+	database.DIFFRequest, database.DIFFResponse,
 	database.SQLSourceRequest,
 	database.HTTPSourceRequest,
 	database.EndpointInfo,

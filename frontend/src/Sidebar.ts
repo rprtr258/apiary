@@ -132,6 +132,7 @@ export function badge(kind: database.Kind): [string, string] {
   case database.Kind.MD:         return ["MD",    "blue"     ];
   case database.Kind.SQLSource:  return ["SQL*",  "blue"     ];
   case database.Kind.HTTPSource: return ["HTTP*", "lime"     ];
+  case database.Kind.DIFF:       return ["DIFF",  "green"    ];
   default:                       return [String(kind), ""];
   }
 }

@@ -143,14 +143,15 @@ export namespace app {
 export namespace database {
 	
 	export enum Kind {
-	    HTTPSource = "http-source",
 	    HTTP = "http",
 	    SQL = "sql",
 	    JQ = "jq",
 	    MD = "md",
 	    REDIS = "redis",
-	    GRPC = "grpc",
 	    SQLSource = "sql-source",
+	    HTTPSource = "http-source",
+	    DIFF = "diff",
+	    GRPC = "grpc",
 	}
 	export enum Database {
 	    POSTGRES = "postgres",
@@ -218,6 +219,38 @@ export namespace database {
 	        this.name = source["name"];
 	        this.type = source["type"];
 	        this.definition = source["definition"];
+	    }
+	}
+	export class DIFFRequest {
+	    left: string;
+	    right: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DIFFRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.left = source["left"];
+	        this.right = source["right"];
+	    }
+	}
+	export class DIFFResponse {
+	    diff: string;
+	    stats: string;
+	    leftType: string;
+	    rightType: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DIFFResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.diff = source["diff"];
+	        this.stats = source["stats"];
+	        this.leftType = source["leftType"];
+	        this.rightType = source["rightType"];
 	    }
 	}
 	export class ResponseInfo {

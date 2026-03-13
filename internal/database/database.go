@@ -107,6 +107,7 @@ func encoder(v dbInner) ([]byte, error) {
 		"md":          encod[MDRequest, MDResponse](v),
 		"redis":       encod[RedisRequest, RedisResponse](v),
 		"grpc":        encod[GRPCRequest, GRPCResponse](v),
+		"diff":        encod[DIFFRequest, DIFFResponse](v),
 		"sql-source":  encodSource[SQLSourceRequest](v),
 		"http-source": encodSource[HTTPSourceRequest](v),
 	}, "", "  ")

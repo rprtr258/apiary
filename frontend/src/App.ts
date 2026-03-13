@@ -24,6 +24,7 @@ import RequestGRPC from "./RequestGRPC.ts";
 import RequestJQ from "./RequestJQ.ts";
 import RequestRedis from "./RequestRedis.ts";
 import RequestMD from "./RequestMD.ts";
+import RequestDIFF from "./RequestDIFF.ts";
 import RequestSQLSource from "./RequestSQLSource.ts";
 import RequestHTTPSource from "./RequestHTTPSource.ts";
 
@@ -264,6 +265,7 @@ function createFrame(
     case database.Kind.JQ: return RequestJQ(el, show_request, on);
     case database.Kind.REDIS: return RequestRedis(el, show_request, on);
     case database.Kind.MD: return RequestMD(el, show_request, on);
+    case database.Kind.DIFF: return RequestDIFF(el, show_request, on);
     case database.Kind.SQLSource:
       setDisplay(eye, false); // TODO: dont draw eye in the first place?
       return RequestSQLSource(el, {update: on.update});

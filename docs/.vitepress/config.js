@@ -32,6 +32,7 @@ export default {
             { text: "Redis", link: "/guide/redis" },
             { text: "JQ", link: "/guide/jq" },
             { text: "Markdown", link: "/guide/markdown" },
+            { text: "Diff", link: "/guide/diff" },
             { text: "SQLSource", link: "/guide/sqlsource" },
             { text: "HTTPSource", link: "/guide/httpsource" }
           ]

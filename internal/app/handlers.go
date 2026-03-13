@@ -197,6 +197,7 @@ func (a *App) Update(
 		database.KindMD:         parse[database.MDRequest],
 		database.KindSQLSource:  parse[database.SQLSourceRequest],
 		database.KindHTTPSource: parse[database.HTTPSourceRequest],
+		database.KindDIFF:       parse[database.DIFFRequest],
 	}[kind]
 	if !ok {
 		return errors.Errorf("unknown request kind %q", kind)

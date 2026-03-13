@@ -96,6 +96,12 @@ Each request type has its own configuration interface:
 - **Content**: Markdown editor with live preview
 - **Rendering**: HTML preview with styling
 
+### Diff Comparisons
+- **Left/Right Inputs**: Two text editors for comparison
+- **Automatic Detection**: JSON vs text diff algorithms
+- **Real-time Updates**: Live diff with debouncing
+- **Output**: Color-coded differences with statistics
+
 ## Performing Requests
 
 Once you've configured a request:
@@ -168,5 +174,6 @@ Explore the specific request type guides to learn more about each feature:
 - [Redis Commands](/guide/redis)
 - [JQ Transformations](/guide/jq)
 - [Markdown Documents](/guide/markdown)
+- [Diff Comparisons](/guide/diff)
 - [SQLSource](/guide/sqlsource)
 - [HTTPSource](/guide/httpsource)

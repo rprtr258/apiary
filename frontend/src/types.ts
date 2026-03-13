@@ -142,6 +142,7 @@ export type RequestData =
   | {kind: database.Kind.JQ   }     & database.JQRequest
   | {kind: database.Kind.REDIS}     & database.RedisRequest
   | {kind: database.Kind.MD   }     & database.MDRequest
+  | {kind: database.Kind.DIFF }     & database.DIFFRequest
   | {kind: database.Kind.SQLSource} & database.SQLSourceRequest
   | {kind: database.Kind.HTTPSource} & database.HTTPSourceRequest
 ;
@@ -159,6 +160,7 @@ export type ResponseData =
   | {kind: database.Kind.JQ   } & database.JQResponse
   | {kind: database.Kind.REDIS} & database.RedisResponse
   | {kind: database.Kind.MD   } & database.MDResponse
+  | {kind: database.Kind.DIFF } & database.DIFFResponse
 ;
 
 export type HistoryEntry = {
@@ -170,7 +172,8 @@ export type HistoryEntry = {
   {kind: database.Kind.GRPC,  request: database. GRPCRequest, response: database. GRPCResponse} |
   {kind: database.Kind.JQ,    request: database.   JQRequest, response: database.   JQResponse} |
   {kind: database.Kind.REDIS, request: database.RedisRequest, response: database.RedisResponse} |
-  {kind: database.Kind.MD,    request: database.   MDRequest, response: database.   MDResponse}
+  {kind: database.Kind.MD,    request: database.   MDRequest, response: database.   MDResponse} |
+  {kind: database.Kind.DIFF,  request: database.  DIFFRequest, response: database.  DIFFResponse}
 );
 
 export type RowValue = string | number | boolean | null;

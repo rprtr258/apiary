@@ -124,7 +124,72 @@ func Map10[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T any](
 	}
 }
 
-var decoderV1 = Map10(
+func Map11[T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T any](
+	combine func(T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10) T,
+	d0 json2.Decoder[T0],
+	d1 json2.Decoder[T1],
+	d2 json2.Decoder[T2],
+	d3 json2.Decoder[T3],
+	d4 json2.Decoder[T4],
+	d5 json2.Decoder[T5],
+	d6 json2.Decoder[T6],
+	d7 json2.Decoder[T7],
+	d8 json2.Decoder[T8],
+	d9 json2.Decoder[T9],
+	d10 json2.Decoder[T10],
+) json2.Decoder[T] {
+	return func(v any, res *T) error {
+		var dest0 T0
+		if err := d0(v, &dest0); err != nil {
+			return err
+		}
+		var dest1 T1
+		if err := d1(v, &dest1); err != nil {
+			return err
+		}
+		var dest2 T2
+		if err := d2(v, &dest2); err != nil {
+			return err
+		}
+		var dest3 T3
+		if err := d3(v, &dest3); err != nil {
+			return err
+		}
+		var dest4 T4
+		if err := d4(v, &dest4); err != nil {
+			return err
+		}
+		var dest5 T5
+		if err := d5(v, &dest5); err != nil {
+			return err
+		}
+		var dest6 T6
+		if err := d6(v, &dest6); err != nil {
+			return err
+		}
+		var dest7 T7
+		if err := d7(v, &dest7); err != nil {
+			return err
+		}
+		var dest8 T8
+		if err := d8(v, &dest8); err != nil {
+			return err
+		}
+		var dest9 T9
+		if err := d9(v, &dest9); err != nil {
+			return err
+		}
+		var dest10 T10
+		if err := d10(v, &dest10); err != nil {
+			return err
+		}
+
+		*res = combine(dest0, dest1, dest2, dest3, dest4, dest5, dest6, dest7, dest8, dest9, dest10)
+		return nil
+	}
+}
+
+var decoderV1 = Map11(
 	func(
 		requests []requestv1,
 		response []responsev1,
@@ -134,6 +199,7 @@ var decoderV1 = Map10(
 		md map[RequestID]pluginv1[MDRequest, MDResponse],
 		redis map[RequestID]pluginv1[RedisRequest, RedisResponse],
 		grpc map[RequestID]pluginv1[GRPCRequest, GRPCResponse],
+		diff map[RequestID]pluginv1[DIFFRequest, DIFFResponse],
 		sqlsource map[RequestID]SQLSourceRequest,
 		httpsource map[RequestID]HTTPSourceRequest,
 	) dbInner {
@@ -154,6 +220,8 @@ var decoderV1 = Map10(
 				reqe, responses = mapRequestDataV1(reqv1.ID, redis)
 			case KindGRPC:
 				reqe, responses = mapRequestDataV1(reqv1.ID, grpc)
+			case KindDIFF:
+				reqe, responses = mapRequestDataV1(reqv1.ID, diff)
 			case KindSQLSource:
 				reqe, responses = sqlsource[reqv1.ID], nil
 			case KindHTTPSource:
@@ -217,6 +285,7 @@ var decoderV1 = Map10(
 	decoderv1plugin[MDRequest, MDResponse](),
 	decoderv1plugin[RedisRequest, RedisResponse](),
 	decoderv1plugin[GRPCRequest, GRPCResponse](),
+	decoderv1plugin[DIFFRequest, DIFFResponse](),
 	json2.Optional(string(KindSQLSource),
 		json2.Map(
 			func(v map[string]SQLSourceRequest) map[RequestID]SQLSourceRequest {
