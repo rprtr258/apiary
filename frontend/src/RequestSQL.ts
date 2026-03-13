@@ -32,7 +32,7 @@ export default function(
 
     // TODO: fix duplicate column names
     el_response.style.justifyContent = "";
-    dataTable.update({columns: response.columns, rows: response.rows as RowValue[][], types: response.types});
+    dataTable.update({columns: response.columns, rows: response.rows as RowValue[][], types: response.types, on: {}});
   };
   const unmounts: (() => void)[] = [];
 

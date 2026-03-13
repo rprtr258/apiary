@@ -166,7 +166,7 @@ export function NTree(props: NTreeProps) {
         props.on.context_menu!(v, e);
       } : undefined,
     },
-      m("div", {style: {width: `${level * 1.5}em`}}, " "),
+      m("div", {style: {minWidth: `${level * 1.5}em`}}, " "),
       m("span", {class: treeButtonHoverClass, style: {display: "flex", width: "100%", height: "100%"}},
         isDir ? NIcon({
           component: isExpanded ? FolderOpenOutlined : FolderOutlined,

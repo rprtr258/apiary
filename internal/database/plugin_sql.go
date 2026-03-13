@@ -32,6 +32,25 @@ var AllDatabases = []enumElem[Database]{
 	{DBClickhouse, "CLICKHOUSE"},
 }
 
+// QuoteIdentifier returns a properly quoted identifier for the given database type
+func QuoteIdentifier(db Database, identifier string) string {
+	switch db {
+	case DBMySQL, DBSQLite:
+		// MySQL and SQLite use backticks
+		return "`" + identifier + "`"
+	case DBPostgres:
+		// PostgreSQL uses double quotes
+		return "\"" + identifier + "\""
+	case DBClickhouse:
+		// ClickHouse identifiers are generally unquoted, but can use backticks if needed
+		// For simplicity, we return unquoted for standard identifiers
+		return identifier
+	default:
+		// Default to unquoted for unknown databases
+		return identifier
+	}
+}
+
 type SQLRequest struct {
 	DSN      string   `json:"dsn"`
 	Database Database `json:"database"`

@@ -13,6 +13,7 @@ export type StateSQLSourceTable = {
   sqlSourceID: string,
   tableName: string,
   tableInfo: database.TableInfo,
+  database: database.Database,
 };
 export type StateHTTPSourceEndpoint = {
   sourceID: string,
@@ -231,8 +232,24 @@ export const store = ((): Store => {
       if (findExistingTab<StateSQLSourceTable>("TableViewer", t => t.sqlSourceID === sqlSourceID && t.tableName === tableName) !== undefined)
         return;
 
+      // Get database type from SQL source request
+      const sourceRequest = this.requests2[sqlSourceID];
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (sourceRequest === undefined) {
+        notification.error({title: "Could not open table viewer", content: `SQL source request ${sqlSourceID} not found`});
+        return;
+      }
+      
+      const sqlSourceRequest = sourceRequest.request as database.SQLSourceRequest;
+      const databaseType = sqlSourceRequest.database;
+
       const sourceName = this.requestNames[sqlSourceID] ?? sqlSourceID;
-      layout.addItem("TableViewer", `${sourceName}/${tableName}`, {sqlSourceID, tableName, tableInfo});
+      layout.addItem("TableViewer", `${sourceName}/${tableName}`, {
+        sqlSourceID,
+        tableName,
+        tableInfo,
+        database: databaseType,
+      });
     },
     openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: database.EndpointInfo): void {
       if (findExistingTab<StateHTTPSourceEndpoint>("EndpointViewer", t => t.sourceID === sourceID && t.endpointIndex === endpointIndex) !== undefined)
