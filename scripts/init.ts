@@ -2,6 +2,7 @@ import {
   HTTPRequest, SQLRequest,
   HTTPResponse, JQResponse, SQLResponse, GRPCResponse,
   Database, Kind, RequestID,
+  ColumnType,
 } from "@/types.ts";
 import {DefaultMarkdown} from "../main/database/md.ts";
 import {create, load, Request, createResponse, HistoryEntry} from "../main/db.ts";
@@ -31,7 +32,7 @@ function s(dsn: string, database: Database, query: string): [Kind.SQL, SQLReques
 }
 
 function sr(columns: string[], types: string[], rows: unknown[][]): SQLResponse {
-  return {columns, types, rows};
+  return {columns, types: types as ColumnType[], typenames: types, rows};
 }
 
 function jr(...response: string[]): JQResponse {

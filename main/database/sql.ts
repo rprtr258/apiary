@@ -1,4 +1,5 @@
 import pg from "pg";
+import {TypeId, builtins as typeIDs} from "pg-types";
 import mysql from "mysql2/promise.js";
 import Database from "better-sqlite3";
 import {createClient} from "@clickhouse/client";
@@ -42,6 +43,38 @@ export async function sendSQL(request: SQLRequest): Promise<SQLResponse> {
   }
 }
 
+/*
+SELECT t.oid::integer as typeid, t.typname as typename
+FROM pg_type t
+LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+WHERE n.nspname = 'pg_catalog'
+ORDER BY t.oid
+*/
+const pg_types: Partial<Record<TypeId, ColumnType>> = {
+  [typeIDs.BOOL]: ColumnType.BOOLEAN,
+  [typeIDs.INT8]: ColumnType.NUMBER,
+  [typeIDs.INT4]: ColumnType.NUMBER,
+  [19 as TypeId]: ColumnType.STRING,
+  [typeIDs.TEXT]: ColumnType.STRING,
+  [typeIDs.JSON]: ColumnType.JSON,
+  [typeIDs.JSONB]: ColumnType.JSON,
+  [typeIDs.DATE]: ColumnType.TIME,
+  [typeIDs.TIME]: ColumnType.TIME,
+  [typeIDs.TIMESTAMP]: ColumnType.TIME,
+};
+const pg_typenames: Partial<Record<TypeId, string>> = {
+  [typeIDs.BOOL]: "bool",
+  [typeIDs.INT8]: "int8",
+  [typeIDs.INT4]: "int4",
+  [19 as TypeId]: "name",
+  [typeIDs.TEXT]: "text",
+  [typeIDs.JSON]: "json",
+  [typeIDs.JSONB]: "json",
+  [typeIDs.DATE]: "date",
+  [typeIDs.TIME]: "time",
+  [typeIDs.TIMESTAMP]: "timestamp",
+};
+
 async function sendPostgres(request: SQLRequest): Promise<SQLResponse> {
   let {dsn} = request;
   if (!dsn.startsWith("postgres://"))
@@ -55,7 +88,8 @@ async function sendPostgres(request: SQLRequest): Promise<SQLResponse> {
     const fields = result.fields;
     return {
       columns: fields.map(f => f.name),
-      types: fields.map(f => f.dataTypeID.toString()),
+      typenames: fields.map((f): TypeId => f.dataTypeID).map(f => pg_typenames[f] ?? `${f}`), // TODO: fix number shit casting // TODO: use lib enum
+      types: fields.map((f): TypeId => f.dataTypeID).map(f => pg_types[f] ?? ColumnType.UNKNOWN + ` ${f}` as ColumnType), // TODO: fix number shit casting
       rows: result.rows.map(r => Object.values(r as Record<string, unknown>)),
     };
   } finally {
@@ -68,11 +102,12 @@ async function sendMySQL(request: SQLRequest): Promise<SQLResponse> {
   try {
     const [rows, fields] = await connection.execute(request.query) as [Record<string, unknown>[], {name: string, type?: number}[]];
     if (rows.length === 0) {
-      return {columns: fields.map(f => f.name), types: [], rows: []}; // TODO: get column metadata
+      return {columns: fields.map(f => f.name), typenames: [], types: [], rows: []}; // TODO: get column metadata
     }
     return {
       columns: fields.map(f => f.name),
-      types: fields.map(f => String(f.type ?? "")),
+      typenames: fields.map(f => f.type === undefined ? "???" : String(f.type)),
+      types: fields.map(f => f.type === undefined ? ColumnType.UNKNOWN : String(f.type) as ColumnType),
       rows: rows.map(r => Object.values(r)),
     };
   } finally {
@@ -85,11 +120,12 @@ function sendSQLite(request: SQLRequest): SQLResponse {
   try {
     const rows = db.prepare(request.query).all() as Record<string, unknown>[];
     if (rows.length === 0) {
-      return {columns: [], types: [], rows: []}; // TODO: get column metadata
+      return {columns: [], typenames: [], types: [], rows: []}; // TODO: get column metadata
     }
     const columns = Object.keys(rows[0]);
     return {
       columns,
+      typenames: convertTypes(columns.length, rows.map(Object.values)),
       types: convertTypes(columns.length, rows.map(Object.values)),
       rows: rows.map(r => Object.values(r)),
     };
@@ -109,11 +145,12 @@ async function sendClickHouse(request: SQLRequest): Promise<SQLResponse> {
     const resultSet = await client.query({query: request.query, format: "JSONEachRow"});
     const rows: Record<string, unknown>[] = await resultSet.json();
     if (rows.length === 0) {
-      return {columns: [], types: [], rows: []}; // TODO: get column metadata
+      return {columns: [], typenames: [], types: [], rows: []}; // TODO: get column metadata
     }
     const columns = Object.keys(rows[0]);
     return {
       columns,
+      typenames: convertTypes(columns.length, rows.map(Object.values)),
       types: convertTypes(columns.length, rows.map(Object.values)),
       rows: rows.map(r => Object.values(r)),
     };

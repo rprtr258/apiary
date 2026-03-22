@@ -21,7 +21,8 @@ const mockRequest: get_request = {
       request: {dsn: "", database: "postgres", query: ""},
       response: {
         columns: ["id", "name"],
-        types: ["int", "string"],
+        typenames: [t.ColumnType.NUMBER, t.ColumnType.STRING],
+        types: [t.ColumnType.NUMBER, t.ColumnType.STRING],
         rows: [[1, "test"], [2, "test2"]],
       },
     },
@@ -55,7 +56,8 @@ describe("RequestSQL", () => {
       request: {dsn: "", database: "postgres", query: ""},
       response: {
         columns: ["id", "name"],
-        types: ["int", "string"],
+        typenames: [t.ColumnType.NUMBER, t.ColumnType.STRING],
+        types: [t.ColumnType.NUMBER, t.ColumnType.STRING],
         rows: [[3, "new-test"], [4, "new-test2"]],
       },
     });
@@ -86,6 +88,7 @@ describe("RequestSQL", () => {
       request: {dsn: "", database: "postgres", query: ""},
       response: {
         columns: [],
+        typenames: [],
         types: [],
         rows: [],
       },

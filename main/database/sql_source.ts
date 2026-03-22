@@ -1,4 +1,4 @@
-import {type TableInfo, type TableSchema, type ColumnInfo, type ConstraintInfo, type IndexInfo, type ForeignKey, type SQLRequest, SQLSourceRequest} from "@/types.ts";
+import {TableInfo, TableSchema, ColumnInfo, ConstraintInfo, IndexInfo, ForeignKey, SQLRequest, SQLSourceRequest, ColumnType} from "@/types.ts";
 import {sendSQL} from "./sql.ts";
 
 export const EmptyRequest: SQLSourceRequest = {
@@ -81,40 +81,38 @@ export async function describeTable(request: Omit<SQLRequest, "query">, tableNam
 
 async function describePostgres(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   // Get columns
-  const colResult = await sendSQL({...request, query: `
-    SELECT
-      column_name,
-      data_type,
-      is_nullable = 'YES',
-      column_default
-    FROM information_schema.columns
-    WHERE table_name = '${tableName}' AND table_schema NOT IN ('pg_catalog', 'information_schema')
-    ORDER BY ordinal_position
-  `}); // TODO: pass tableName as arg
-  const columns: ColumnInfo[] = colResult.rows.map(([name, typ, nullable, defaultVal]) => ({
+  const colResult = await sendSQL({...request, query: `SELECT
+  column_name,
+  data_type,
+  udt_name,
+  is_nullable = 'YES',
+  column_default
+FROM information_schema.columns
+WHERE table_name = '${tableName}' AND table_schema NOT IN ('pg_catalog', 'information_schema')
+ORDER BY ordinal_position`}); // TODO: pass tableName as arg
+  const columns: ColumnInfo[] = colResult.rows.map(([name, typ, typename, nullable, defaultVal]) => ({
     name: name as string,
-    type: typ as string,
+    typename: typename as string,
+    type: typ as ColumnType, // TODO: map
     nullable: nullable as boolean,
     defaultValue: JSON.stringify(defaultVal ?? ""),
   }));
 
   // Get constraints
-  const conResult = await sendSQL({...request, query: `
-    SELECT
-      con.conname,
-      CASE con.contype
-        WHEN 'p' THEN 'PRIMARY KEY'
-        WHEN 'u' THEN 'UNIQUE'
-        WHEN 'f' THEN 'FOREIGN KEY'
-        WHEN 'c' THEN 'CHECK'
-        ELSE 'UNKNOWN'
-      END,
-      pg_get_constraintdef(con.oid)
-    FROM pg_constraint con
-    JOIN pg_class rel ON rel.oid = con.conrelid
-    JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
-    WHERE rel.relname = '${tableName}' AND nsp.nspname NOT IN ('pg_catalog', 'information_schema')
-  `}); // TODO: pass tableName as arg
+  const conResult = await sendSQL({...request, query: `SELECT
+  con.conname,
+  CASE con.contype
+    WHEN 'p' THEN 'PRIMARY KEY'
+    WHEN 'u' THEN 'UNIQUE'
+    WHEN 'f' THEN 'FOREIGN KEY'
+    WHEN 'c' THEN 'CHECK'
+    ELSE 'UNKNOWN'
+  END,
+  pg_get_constraintdef(con.oid)
+FROM pg_constraint con
+JOIN pg_class rel ON rel.oid = con.conrelid
+JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+WHERE rel.relname = '${tableName}' AND nsp.nspname NOT IN ('pg_catalog', 'information_schema')`}); // TODO: pass tableName as arg
   const constraints: ConstraintInfo[] = conResult.rows.map(([name, typ, def]) => ({
     name: name as string,
     type: typ as string,
@@ -122,11 +120,9 @@ async function describePostgres(request: Omit<SQLRequest, "query">, tableName: s
   }));
 
   // Get indexes
-  const idxResult = await sendSQL({...request, query: `
-    SELECT idx.indexname, idx.indexdef
-    FROM pg_indexes idx
-    WHERE idx.tablename = '${tableName}' AND idx.schemaname NOT IN ('pg_catalog', 'information_schema')
-  `}); // TODO: pass tableName as arg
+  const idxResult = await sendSQL({...request, query: `SELECT idx.indexname, idx.indexdef
+FROM pg_indexes idx
+WHERE idx.tablename = '${tableName}' AND idx.schemaname NOT IN ('pg_catalog', 'information_schema')`}); // TODO: pass tableName as arg
   const indexes: IndexInfo[] = idxResult.rows.map(([name, def]) => ({
     name: name as string,
     definition: def as string,
@@ -155,19 +151,18 @@ async function describePostgres(request: Omit<SQLRequest, "query">, tableName: s
 
 async function describeMySQL(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   // Get columns
-  const colResult = await sendSQL({...request, query: `
-    SELECT
-      column_name,
-      column_type,
-      is_nullable = 'YES',
-      column_default
-    FROM information_schema.columns
-    WHERE table_name = '${tableName}' AND table_schema = DATABASE()
-    ORDER BY ordinal_position
-  `});
+  const colResult = await sendSQL({...request, query: `SELECT
+  column_name,
+  column_type,
+  is_nullable = 'YES',
+  column_default
+FROM information_schema.columns
+WHERE table_name = '${tableName}' AND table_schema = DATABASE()
+ORDER BY ordinal_position`});
   const columns: ColumnInfo[] = colResult.rows.map(([name, typ, nullable, defaultVal]) => ({
     name: name as string,
-    type: typ as string,
+    typename: typ as string,
+    type: typ as ColumnType,
     nullable: nullable as boolean,
     defaultValue: JSON.stringify(defaultVal ?? ""),
   }));
@@ -175,13 +170,11 @@ async function describeMySQL(request: Omit<SQLRequest, "query">, tableName: stri
   // Get constraints (simplified - PRIMARY KEY only)
   let constraints: ConstraintInfo[] = [];
   try {
-    const conResult = await sendSQL({...request, query: `
-      SELECT
-        constraint_name,
-        column_name
-      FROM information_schema.key_column_usage
-      WHERE table_name = '${tableName}' AND table_schema = DATABASE() AND constraint_name = 'PRIMARY'
-    `}); // TODO: pass tableName as arg
+    const conResult = await sendSQL({...request, query: `SELECT
+  constraint_name,
+  column_name
+FROM information_schema.key_column_usage
+WHERE table_name = '${tableName}' AND table_schema = DATABASE() AND constraint_name = 'PRIMARY'`}); // TODO: pass tableName as arg
     constraints = conResult.rows.map(r => ({name: String(r[0]), type: "PRIMARY KEY", definition: `PRIMARY KEY (${r[1] as string})`}));
   } catch (_e) {
     // Constraints query is best-effort
@@ -204,19 +197,17 @@ async function describeSQLite(request: Omit<SQLRequest, "query">, tableName: str
     const defaultVal = JSON.stringify(r[4] ?? "");
     const pk = r[5] as boolean;
 
-    columns.push({name, type: typ, nullable: !notnull, defaultValue: defaultVal});
+    columns.push({name, typename: typ, type: typ as ColumnType, nullable: !notnull, defaultValue: defaultVal});
     if (pk) {
       constraints.push({name: "PRIMARY KEY", type: "PRIMARY KEY", definition: `PRIMARY KEY (${name})`});
     }
   }
 
   // Get indexes
-  const idxResult = await sendSQL({...request, query: `
-    SELECT name, sql
-    FROM sqlite_master
-    WHERE type = 'index' AND tbl_name = '${tableName}'
-    ORDER BY name
-  `}); // TODO: pass tableName as arg
+  const idxResult = await sendSQL({...request, query: `SELECT name, sql
+FROM sqlite_master
+WHERE type = 'index' AND tbl_name = '${tableName}'
+ORDER BY name`}); // TODO: pass tableName as arg
   const indexes: IndexInfo[] = idxResult.rows.map(r => ({
     name: String(r[0]),
     definition: JSON.stringify(r[1] ?? ""),
@@ -236,18 +227,17 @@ async function describeSQLite(request: Omit<SQLRequest, "query">, tableName: str
 
 async function describeClickHouse(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   // Get columns
-  const colResult = await sendSQL({...request, query: `
-    SELECT
-      name,
-      type,
-      default_kind != '',
-      default_expression
-    FROM system.columns
-    WHERE database = currentDatabase() AND table = '${tableName}'
-  `});
+  const colResult = await sendSQL({...request, query: `SELECT
+  name,
+  type,
+  default_kind != '',
+  default_expression
+FROM system.columns
+WHERE database = currentDatabase() AND table = '${tableName}'`});
   const columns: ColumnInfo[] = colResult.rows.map(r => ({
     name: String(r[0]),
-    type: String(r[1]),
+    typename: String(r[1]),
+    type: String(r[1]) as ColumnType,
     nullable: String(r[1]).includes("Nullable"),
     defaultValue: ["YES" as unknown, 1, true].includes(r[2]) ? JSON.stringify(r[3] ?? "") : "",
   }));

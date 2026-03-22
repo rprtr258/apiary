@@ -8,17 +8,20 @@ export const Database = {
 export type Database = keyof typeof Database;
 
 export enum ColumnType {
+  UNKNOWN = "unknown",
   STRING = "string",
   NUMBER = "number",
   TIME = "time",
   BOOLEAN = "boolean",
+  JSON = "json",
 }
 
 export type RowValue = Date | string | number | boolean | null;
 
 export type ColumnInfo = {
   name: string,
-  type: string,
+  typename: string,
+  type: ColumnType,
   nullable: boolean,
   defaultValue: string,
 };
@@ -48,7 +51,8 @@ export type SQLRequest = {
 
 export type SQLResponse = {
   columns: string[],
-  types: string[],
+  types: ColumnType[],
+  typenames: string[],
   rows: unknown[][],
 };
 

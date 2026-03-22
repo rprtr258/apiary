@@ -1,4 +1,3 @@
-import {chdir} from "process";
 import {mock} from "bun:test";
 import {ListTablesSQLSource, TestSQLSource} from "../main/api.ts";
 import {Database} from "bun:sqlite";
@@ -29,7 +28,6 @@ mock.module("better-sqlite3", () => ({
 }));
 
 const id = "RjB0YRMNVwhxUYhaTF-Rn";
-chdir("/home/rprtr258/pr/apiary");
 await TestSQLSource(id);
 const tables = await ListTablesSQLSource(id);
 for (const {name, rowCount, sizeBytes} of tables.toSorted((a, b) => b.rowCount - a.rowCount)) {

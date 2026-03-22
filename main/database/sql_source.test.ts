@@ -21,10 +21,10 @@ describe("listTables", () => {
     const TEST_DB = dir + "/apiary-sql-test.db";
 
     const result1 = await sendSQL(req({dsn: TEST_DB, query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"}));
-    expect(result1).toEqual({types: [], columns: [], rows: []});
+    expect(result1).toEqual({typenames: [], types: [], columns: [], rows: []});
 
     const result2 = await sendSQL(req({dsn: TEST_DB, query: "CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT, user_id INTEGER)"}));
-    expect(result2).toEqual({types: [], columns: [], rows: []});
+    expect(result2).toEqual({typenames: [], types: [], columns: [], rows: []});
 
     const result = await listTables({database: "sqlite", dsn: TEST_DB});
     expect(result).toEqual([

@@ -1,10 +1,9 @@
 import {describe, test, expect, beforeAll} from "bun:test";
-import {type SQLRequest, type RedisRequest} from "@/types.ts";
+import {SQLRequest, RedisRequest, ColumnType} from "@/types.ts";
 import {sendSQL} from "./database/sql.ts";
 import {listTables, describeTable, countRowsSQLSource, testSQLSource} from "./database/sql_source.ts";
 import {sendRedis} from "./database/redis.ts";
 import {grpcMethods} from "./database/grpc.ts";
-
 
 const pgDSN = process.env.PG_DSN ?? "postgres://postgres:password@localhost:5432/postgres";
 
@@ -28,7 +27,8 @@ describe("sendSQL (postgres)", () => {
     const result = await sendSQL(pgRequest("SELECT 1 AS num"));
     expect(result).toEqual({
       columns: ["num"],
-      types: ["23"],
+      typenames: ["int4"],
+      types: [ColumnType.NUMBER],
       rows: [[1]],
     });
   });
@@ -64,13 +64,15 @@ describe("SQLSource (postgres)", () => {
     expect(schema.columns).toEqual([
       {
         name: "id",
-        type: "integer",
+        typename: "int4",
+        type: "integer" as ColumnType,
         nullable: true,
         defaultValue: `""`,
       },
       {
         name: "name",
-        type: "text",
+        typename: "text",
+        type: "text" as ColumnType,
         nullable: true,
         defaultValue: `""`,
       },

@@ -31,7 +31,7 @@ export default function(
 
     // TODO: fix duplicate column names
     el_response.style.justifyContent = "";
-    dataTable.update({columns: response.columns, rows: response.rows as t.RowValue[][], types: response.types, on: {}});
+    dataTable.update({columns: response.columns, rows: response.rows as t.RowValue[][], typenames: response.typenames, types: response.types, on: {}});
   };
   const unmounts: (() => void)[] = [];
 

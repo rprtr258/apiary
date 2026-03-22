@@ -3,12 +3,8 @@ db.json
 node_modules/
 dist/
 dist-electron/
-package.json.md5
 release/
-
-# playwright
-playwright-report/
-test-results/
+.vscode/
 
 # bv (beads viewer) local config and caches
 .bv/

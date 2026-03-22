@@ -56,9 +56,19 @@ function render_column(c: string, typ: string) {
   );
 }
 
+const column_type_icons: Record<t.ColumnType, SVGSVGElement> = {
+  [t.ColumnType.NUMBER]: FieldNumberOutlined,
+  [t.ColumnType.STRING]: ItalicOutlined,
+  [t.ColumnType.BOOLEAN]: CheckSquareOutlined,
+  [t.ColumnType.TIME]: ClockCircleOutlined,
+  [t.ColumnType.JSON]: QuestionCircleOutlined, // TODO: json icon
+  [t.ColumnType.UNKNOWN]: QuestionCircleOutlined,
+};
+
 function render_column_with_sort(
   c: string,
-  typ: string,
+  typ: t.ColumnType,
+  typename: string,
   sortInfo?: {direction: "asc" | "desc", order: number},
   onSortAdd?: (column: string, direction: "asc" | "desc") => void,
   onSortRemove?: (column: string) => void,
@@ -80,7 +90,7 @@ function render_column_with_sort(
       cursor: "default",
       padding: "3px 5px",
     },
-    title: `${c} : ${typ}${isSorted ? ` (Sorted ${sortDirection === "asc" ? "ascending" : "descending"}${sortOrder !== undefined && sortOrder > 1 ? `, priority ${sortOrder}` : ""})` : ""}`,
+    title: `${c} : ${typename}${isSorted ? ` (Sorted ${sortDirection === "asc" ? "ascending" : "descending"}${sortOrder !== undefined && sortOrder > 1 ? `, priority ${sortOrder}` : ""})` : ""}`,
   },
     m("div", {
       style: {
@@ -95,12 +105,7 @@ function render_column_with_sort(
       m("div", {}, NIcon({
         size: 15,
         color: "grey",
-        component:
-          typ === "number" ? FieldNumberOutlined :
-          typ === "string" ? ItalicOutlined :
-          typ === "bool" ? CheckSquareOutlined :
-          typ === "time" ? ClockCircleOutlined :
-            QuestionCircleOutlined,
+        component: column_type_icons[typ],
       })),
     ),
     m("div", {
@@ -168,7 +173,8 @@ function render_column_with_sort(
 
 type DataTableProps = {
   columns: string[],
-  types: string[],
+  typenames: string[],
+  types: t.ColumnType[],
   rows: t.RowValue[][],
   sortColumns?: {column: string, direction: "asc" | "desc", order: number}[],
   on: {
@@ -237,7 +243,7 @@ export function DataTable() {
 
   return {
     el,
-    update({columns, rows, types, sortColumns = [], on: {sortAdd: onSortAdd, sortRemove: onSortRemove, sortToggle: onSortToggle}}: DataTableProps) {
+    update({columns, rows, typenames, types, sortColumns = [], on: {sortAdd: onSortAdd, sortRemove: onSortRemove, sortToggle: onSortToggle}}: DataTableProps) {
       if (columnWidths.length !== columns.length) {
         columnWidths = columns.map((c, i) => clamp(
           Math.max(
@@ -292,6 +298,7 @@ export function DataTable() {
             ? render_column_with_sort(
                 c,
                 types[i],
+                typenames[i],
                 sortColumnMap.get(c),
                 onSortAdd,
                 onSortRemove,
@@ -479,6 +486,7 @@ export default function(
     dataTable.update({
       columns: data?.columns ?? [],
       rows: (data?.rows ?? []) as t.RowValue[][],
+      typenames: data?.typenames ?? [],
       types: data?.types ?? [],
       sortColumns: sortColumns.value,
       on: {
@@ -504,21 +512,24 @@ export default function(
     // Schema (columns)
     schemaTable.update({
       columns: ["Name", "Type", "Nullable", "Default"],
-      types: ["string", "string", "bool", "string"],
-      rows: columns.map(col => [col.name, col.type, col.nullable, col.defaultValue]),
+      typenames: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.BOOLEAN, t.ColumnType.STRING],
+      types: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.BOOLEAN, t.ColumnType.STRING],
+      rows: columns.map(col => [col.name, col.typename, col.nullable, col.defaultValue]),
       on: {},
     });
     // Indexes
     indexesTable.update({
       columns: ["Name", "Definition"],
-      types: ["string", "string"],
+      typenames: [t.ColumnType.STRING, t.ColumnType.STRING],
+      types: [t.ColumnType.STRING, t.ColumnType.STRING],
       rows: indexes.map(idx => [idx.name, idx.definition]),
       on: {},
     });
     // Constraints
     constraintsTable.update({
       columns: ["Name", "Type", "Definition"],
-      types: ["string", "string", "string"],
+      typenames: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING],
+      types: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING],
       rows: constraints.map(con => [con.name, con.type, con.definition]),
       on: {},
     });
