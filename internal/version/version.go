@@ -37,18 +37,17 @@ func IsRelease() bool {
 		return false
 	}
 
-	// Check if it looks like a semantic version (vX.Y.Z)
-	// This matches v0.1.0, v1.0.0, v0.1.0-beta.1, etc.
-	if len(Version) >= 3 && Version[0] == 'v' {
+	// Check if it looks like a semantic version (X.Y.Z)
+	// This matches 0.1.0, 1.0.0, 0.1.0-beta.1, etc.
+	if len(Version) >= 5 {
 		// Check if second character is a digit
-		if Version[1] >= '0' && Version[1] <= '9' {
+		if Version[0] >= '0' && Version[0] <= '9' {
 			// Check for Go module pseudo-versions (v0.0.0-20250131123346-cfc53af023ac)
 			// These are development builds
-			if strings.HasPrefix(Version, "v0.0.0-") {
+			if strings.HasPrefix(Version, "0.0.0-") {
 				// Check if it has a timestamp pattern (14 digits after first dash)
-				// Format: v0.0.0-YYYYMMDDHHMMSS-commitHash
-				parts := strings.SplitN(Version, "-", 3)
-				if len(parts) >= 2 {
+				// Format: 0.0.0-YYYYMMDDHHMMSS-commitHash
+				if parts := strings.SplitN(Version, "-", 3); len(parts) >= 2 {
 					// Check if second part is 14 digits (timestamp)
 					if len(parts[1]) == 14 {
 						allDigits := true

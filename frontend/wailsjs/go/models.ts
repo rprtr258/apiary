@@ -142,28 +142,28 @@ export namespace app {
 
 export namespace database {
 	
+	export enum ColumnType {
+	    BOOLEAN = "boolean",
+	    NUMBER = "number",
+	    STRING = "string",
+	    TIME = "time",
+	}
+	export enum Database {
+	    CLICKHOUSE = "clickhouse",
+	    MYSQL = "mysql",
+	    POSTGRES = "postgres",
+	    SQLITE = "sqlite",
+	}
 	export enum Kind {
+	    DIFF = "diff",
+	    GRPC = "grpc",
 	    HTTP = "http",
-	    SQL = "sql",
+	    HTTPSource = "http-source",
 	    JQ = "jq",
 	    MD = "md",
 	    REDIS = "redis",
+	    SQL = "sql",
 	    SQLSource = "sql-source",
-	    HTTPSource = "http-source",
-	    DIFF = "diff",
-	    GRPC = "grpc",
-	}
-	export enum Database {
-	    POSTGRES = "postgres",
-	    MYSQL = "mysql",
-	    SQLITE = "sqlite",
-	    CLICKHOUSE = "clickhouse",
-	}
-	export enum ColumnType {
-	    STRING = "string",
-	    NUMBER = "number",
-	    TIME = "time",
-	    BOOLEAN = "boolean",
 	}
 	export class AuthConfig {
 	    type: string;

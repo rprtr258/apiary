@@ -12,8 +12,8 @@ on:
         default: '0.0.0-test'
 
 jobs:
-  build-linux:
-    name: Build Linux
+  build-linux-22:
+    name: Build Linux 22
     runs-on: ubuntu-22.04
 
     steps:
@@ -77,21 +77,103 @@ jobs:
             -ldflags="-X 'github.com/rprtr258/apiary/internal/version.Version=${{ steps.version.outputs.version }}' \
                       -X 'github.com/rprtr258/apiary/internal/version.Commit=${{ github.sha }}' \
                       -X 'github.com/rprtr258/apiary/internal/version.Date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" \
-            -o "apiary-linux-amd64"
+            -o "apiary-linux-22-amd64"
+
+      - name: Verify binary
+        run: |
+          cd build/bin
+          ls -la
+          file apiary-linux-22-amd64
+          ./apiary-linux-22-amd64 --version 2>&1 | head -5 || true
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: apiary-linux-22-amd64
+          if-no-files-found: "error"
+          path: build/bin/apiary-linux-22-amd64
+
+  build-linux-24:
+    name: Build Linux 24
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Full history for release notes
+
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.5'
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lock', 'frontend/package.json') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install frontend dependencies
+        run: cd frontend && bun install
+
+      - name: Build frontend
+        run: cd frontend && bun run build
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev
+
+      - name: Build Wails app
+        run: |
+          wails build \
+            -tags "webkit2_41" \
+            -platform "linux/amd64" \
+            -ldflags="-X 'github.com/rprtr258/apiary/internal/version.Version=${{ steps.version.outputs.version }}' \
+                      -X 'github.com/rprtr258/apiary/internal/version.Commit=${{ github.sha }}' \
+                      -X 'github.com/rprtr258/apiary/internal/version.Date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" \
+            -o "apiary-linux-24-amd64"
 
       - name: Verify binary
         run: |
           cd build/bin
           ls -la
           file apiary-linux-amd64
-          ./apiary-linux-amd64 --version 2>&1 | head -5 || true
+          ./apiary-linux-24-amd64 --version 2>&1 | head -5 || true
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v6
         with:
-          name: apiary-linux-amd64
+          name: apiary-linux-24-amd64
           if-no-files-found: "error"
-          path: build/bin/apiary-linux-amd64
+          path: build/bin/apiary-linux-24-amd64
 
   build-macos:
     name: Build macOS
@@ -272,7 +354,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-linux-22, build-linux-24, build-macos, build-windows]
     runs-on: ubuntu-latest
 
     permissions:
@@ -289,8 +371,17 @@ jobs:
         run: |
           echo "Checking for required artifacts..."
 
-          # Check for Linux artifact
-          if [[ -f "artifacts/apiary-linux-amd64/apiary-linux-amd64" ]]; then
+          # Check for Linux-22 artifact
+          if [[ -f "artifacts/apiary-linux-22-amd64/apiary-linux-22-amd64" ]]; then
+            echo "Linux artifact found"
+            LINUX_FOUND=true
+          else
+            echo "Linux artifact NOT found"
+            LINUX_FOUND=false
+          fi
+
+          # Check for Linux-24 artifact
+          if [[ -f "artifacts/apiary-linux-24-amd64/apiary-linux-24-amd64" ]]; then
             echo "Linux artifact found"
             LINUX_FOUND=true
           else
