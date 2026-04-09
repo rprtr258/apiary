@@ -1,9 +1,10 @@
 # apiary
 
-<p style="display: flex; align-items: center; justify-content: center">
+<img align="right" width="95" height="95"
+   alt="Philosopher’s stone, logo of PostCSS"
+   src="docs/public/logo.svg">
+
 A cross-platform desktop application for managing API requests (HTTP, SQL, gRPC, Redis, JQ, Markdown, SQLSource, HTTPSource) using Go backend and vanilla TypeScript frontend via Wails.
-<img src="docs/public/logo.svg" height="150">
-</p>
 
 ## Features
 
