@@ -126,6 +126,13 @@ numbers.forEach(n => console.log(n));
 - **Store**: Central state management in `store.ts` with CRUD operations and backend coordination.
 - **Data Flow**: User → Signal → Store → Wails API → Store → DOM.
 
+### Architecture Documentation
+
+- **Read First**: Before making architectural changes, read `docs/dev/ARCHITECTURE.md` to understand current architecture.
+- **Keep Updated**: After architectural changes, update `docs/dev/ARCHITECTURE.md` to reflect the new state.
+- **Document Seams**: When extracting modules, document the seam (interface) in the architecture doc.
+- **Vocabulary**: Use the terms from ARCHITECTURE.md (module, interface, seam, adapter, depth) for clear communication.
+
 ## Extensibility Rules
 
 - **New Request Kind**:

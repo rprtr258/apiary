@@ -8,6 +8,7 @@ import {HistoryEntry, Kinds} from "./types.ts";
 import {store} from "./store.ts";
 import notification from "./notification.ts";
 import {clamp, DOMNode, m, setDisplay, signal} from "./utils.ts";
+import {useLocalStorage} from "./lib/localStorage.ts";
 
 function basename(id: string): string {
   return id.split("/").pop() ?? "";
@@ -75,23 +76,6 @@ function fromNow(date: Date): string {
     case minutes > 0: return minutes === 1 ? "a minute ago" : `${minutes} minutes ago`;
     default:          return "just now";
   }
-}
-
-function useLocalStorage<T>(key: string, init: T): {
-  get value(): T,
-  set value(value: T),
-} {
-  const value = localStorage.getItem(key);
-  let curValue = value === null ? init : JSON.parse(value) as T;
-  return {
-    get value() {
-      return curValue;
-    },
-    set value(value) {
-      localStorage.setItem(key, JSON.stringify(value));
-      curValue = value;
-    },
-  };
 }
 
 const expandedKeys = useLocalStorage<string[]>("expanded-keys", []);
