@@ -17,6 +17,9 @@ export default defineConfig({
     trace: "on",
     browserName: "chromium",
     headless: true,
+    connectOptions: {
+      wsEndpoint: "ws://127.0.0.1:9222",
+    },
   },
   projects: [
     {

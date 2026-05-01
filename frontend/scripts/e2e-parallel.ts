@@ -39,7 +39,7 @@ async function main() {
     // Basic build tools
     "pkg-config",
     // GTK and WebKit for Wails
-    "libgtk-3-dev", "libwebkit2gtk-4.0-dev",
+    "libgtk-3-dev", // "libwebkit2gtk-4.0-dev",
   ];
 
   await all(

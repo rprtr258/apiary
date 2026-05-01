@@ -87,7 +87,7 @@ jobs:
         shell: bash
 
   e2e-tests:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -108,6 +108,13 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lock', 'frontend/package.json') }}
           restore-keys: |
             bun-${{ runner.os }}-
+
+      - name: Download obscura
+        run: |
+          ldd --version
+          curl -LO https://github.com/h4ckf0r0day/obscura/releases/latest/download/obscura-x86_64-linux.tar.gz
+          tar xzf obscura-x86_64-linux.tar.gz
+          ./obscura serve --port 9222 &
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
