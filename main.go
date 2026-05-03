@@ -1,79 +1,47 @@
 package main
 
 import (
-	"embed"
 	"flag"
 	"fmt"
 	"os"
 
-	"github.com/pkg/errors"
+	"gioui.org/app"
+	"gioui.org/op"
+	"gioui.org/unit"
+	"github.com/go-faster/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	_ "modernc.org/sqlite"
 
-	"github.com/rprtr258/apiary/internal/app"
-	"github.com/rprtr258/apiary/internal/database"
+	app2 "github.com/rprtr258/apiary/internal/app"
 	"github.com/rprtr258/apiary/internal/version"
 )
 
-//go:embed all:frontend/dist
-var assets embed.FS
-
-type export struct{}
-
-func (export) ExportTypes(
-	database.HTTPRequest, database.HTTPResponse,
-	database.SQLRequest, database.SQLResponse,
-	database.GRPCRequest, database.GRPCResponse,
-	database.JQRequest, database.JQResponse,
-	database.RedisRequest, database.RedisResponse,
-	database.MDRequest, database.MDResponse,
-	database.DIFFRequest, database.DIFFResponse,
-	database.SQLSourceRequest,
-	database.HTTPSourceRequest,
-	database.EndpointInfo,
-) {
-}
-
-func run() error {
-	app, startup, close := app.New("db.json")
-	if err := app.DB.Close(); err != nil { // NOTE: immediately flush db to migrate to latest version
+func run(w *app.Window) error {
+	ap, close := app2.New("db.json")
+	if err := ap.DB.Close(); err != nil { // NOTE: immediately flush db to migrate to latest version
 		return errors.Wrap(err, "migrate db")
 	}
 	defer close()
 
-	// Only start hidden in release builds
-	return wails.Run(&options.App{
-		Title:  "apiary",
-		Width:  1024,
-		Height: 768,
-		AssetServer: &assetserver.Options{
-			Assets: assets,
-		},
-		BackgroundColour: options.NewRGB(27, 38, 54),
-		OnStartup:        startup,
-		Bind:             []any{app, &export{}},
-		EnumBind: []any{
-			database.KindEnums,
-			database.AllDatabases,
-			database.AllColumnTypes,
-		},
-		StartHidden: !version.IsRelease(),
-	})
+	var ops op.Ops
+	for {
+		switch e := w.Event().(type) {
+		case app.DestroyEvent:
+			return e.Err
+		case app.FrameEvent:
+			// This graphics context is used for managing the rendering state.
+			gtx := app.NewContext(&ops, e)
+			ap.Layout(gtx)
+			// Pass the drawing operations to the GPU.
+			e.Frame(gtx.Ops)
+		}
+	}
 }
 
 func main() {
-	// Parse command line flags
 	showVersion := flag.Bool("version", false, "Show version information")
 	flag.Parse()
-
-	// Setup logging
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-
-	// Handle version flag
 	if *showVersion {
 		fmt.Printf("apiary version %s\n", version.Version)
 		if version.Commit != "" {
@@ -85,13 +53,20 @@ func main() {
 		os.Exit(0)
 	}
 
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	log.Info().
 		Str("version", version.Version).
 		Str("commit", version.Commit).
 		Str("date", version.Date).
 		Msg("Starting apiary")
 
-	if err := run(); err != nil {
-		log.Fatal().Err(err).Msg("App stopped unexpectedly")
-	}
+	go func() {
+		var w app.Window
+		w.Option(app.Title("apiary"), app.Size(unit.Dp(1024), unit.Dp(768)))
+		if err := run(&w); err != nil {
+			log.Fatal().Err(err).Msg("App stopped unexpectedly")
+		}
+		os.Exit(0)
+	}()
+	app.Main()
 }
