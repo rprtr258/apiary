@@ -1,0 +1,21 @@
+{
+  "name": "my-electron-app",
+  "main": "dist/main.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "start": "tsc && electron .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^25.7.0"
+  },
+  "peerDependencies": {
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "electron": "^42.0.1"
+  }
+}
