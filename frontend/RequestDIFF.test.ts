@@ -1,7 +1,7 @@
 import {describe, test, expect, mock} from "bun:test";
 import RequestDIFF from "./RequestDIFF.ts";
 import {signal} from "./utils.ts";
-import {database} from "../wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
 import {get_request} from "./store.ts";
 
 const mockRequest: get_request = {
@@ -29,7 +29,7 @@ describe("RequestDIFF", () => {
 
     // Should create some structure
     expect(el.children.length).toBeGreaterThan(0);
-    
+
     // Clean up
     component.unmount();
   });
@@ -48,9 +48,9 @@ describe("RequestDIFF", () => {
 
     // Note: We can't directly test API calls in unit tests
     // because they require mocking complex dependencies
-    
+
     expect(updateMock).toHaveBeenCalledTimes(0); // No updates yet
-    
+
     // Clean up
     component.unmount();
   });
@@ -79,7 +79,7 @@ describe("RequestDIFF", () => {
 
     // Should still render the component structure
     expect(el.children.length).toBeGreaterThan(0);
-    
+
     component.unmount();
   });
 
@@ -107,7 +107,7 @@ describe("RequestDIFF", () => {
 
     // Should render with JSON editors
     expect(el.children.length).toBeGreaterThan(0);
-    
+
     component.unmount();
   });
 
@@ -124,10 +124,10 @@ describe("RequestDIFF", () => {
 
     // Should have created elements
     expect(el.children.length).toBeGreaterThan(0);
-    
+
     // Unmount should clean up
     component.unmount();
-    
+
     // After unmount, the element might still have children (they might not be removed)
     // but the component should have cleaned up its resources
     expect(on.update).toHaveBeenCalledTimes(0);
@@ -150,7 +150,7 @@ describe("RequestDIFF", () => {
       sent_at: new Date(),
       received_at: new Date(),
       kind: database.Kind.DIFF,
-      request: {id: "test-id"} as unknown as database.DIFFRequest,
+      request: {id: "test-id"},
       response: {
         diff: "<div>Test diff</div>",
         stats: "Test stats",
@@ -162,7 +162,7 @@ describe("RequestDIFF", () => {
     // No updates should be called
     expect(on.update).toHaveBeenCalledTimes(0);
     expect(on.send).toHaveBeenCalledTimes(0);
-    
+
     component.unmount();
   });
 });

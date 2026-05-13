@@ -1,17 +1,19 @@
 {
+  "include": [
+    "*.ts",
+    "frontend/**.ts"
+  ],
+  "exclude": ["dist"],
   "compilerOptions": {
     // Environment setup & latest features
-    "lib": ["ESNext", "DOM"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "target": "ESNext",
     "module": "NodeNext",
     "moduleDetection": "auto",
-    "jsx": "react-jsx",
-    "allowJs": true,
 
     // Module resolution
     "moduleResolution": "NodeNext",
-    "verbatimModuleSyntax": true,
-    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": false,
     "rewriteRelativeImportExtensions": true,
 
     // Emit compiled JS to dist/
@@ -22,14 +24,24 @@
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
+    "noUncheckedIndexedAccess": false,
     "noImplicitOverride": true,
 
-    // Some stricter flags (disabled by default)
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
-  },
-  "include": ["*.ts"],
-  "exclude": ["dist"]
+    "allowJs": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "allowImportingTsExtensions": true,
+
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "forceConsistentCasingInFileNames": true,
+    "useDefineForClassFields": true,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true
+  }
 }

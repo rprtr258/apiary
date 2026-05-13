@@ -1,7 +1,7 @@
 import {describe, test, expect, mock} from "bun:test";
 import RequestSQL from "./RequestSQL.ts";
 import {signal} from "./utils.ts";
-import {database} from "../wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
 import {get_request} from "./store.ts";
 
 const mockRequest: get_request = {
@@ -18,7 +18,7 @@ const mockRequest: get_request = {
       sent_at: new Date(),
       received_at: new Date(),
       kind: database.Kind.SQL,
-      request: {id: "test-id"} as unknown as database.SQLRequest,
+      request: {id: "test-id"},
       response: {
         columns: ["id", "name"],
         types: ["int", "string"],
@@ -52,7 +52,7 @@ describe("RequestSQL", () => {
       sent_at: new Date(),
       received_at: new Date(),
       kind: database.Kind.SQL,
-      request: {id: "test-id"} as unknown as database.SQLRequest,
+      request: {id: "test-id"},
       response: {
         columns: ["id", "name"],
         types: ["int", "string"],
@@ -83,7 +83,7 @@ describe("RequestSQL", () => {
       sent_at: new Date(),
       received_at: new Date(),
       kind: database.Kind.SQL,
-      request: {id: "test-id"} as unknown as database.SQLRequest,
+      request: {id: "test-id"},
       response: {
         columns: [],
         types: [],

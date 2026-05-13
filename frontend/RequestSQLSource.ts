@@ -1,4 +1,4 @@
-import {database} from "../wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
 import {Database} from "./types.ts";
 import {api} from "./api.ts";
 import {get_request} from "./store.ts";

@@ -1,7 +1,9 @@
-import * as App from "../wailsjs/go/app/App.js";
-import {app, database} from "../wailsjs/go/models.ts";
+import * as app from "./wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
 import {Result, err, ok} from "./result.ts";
 import {HistoryEntry, RequestData} from "./types.ts";
+
+const App = window.api;
 
 function parseTime(s: string): Date {
   const d = new Date();

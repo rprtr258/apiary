@@ -1,4 +1,4 @@
-import {database} from "../wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
 import {Database, HistoryEntry, RowValue} from "./types.ts";
 import {m, setDisplay, Signal} from "./utils.ts";
 import {get_request, last_history_entry} from "./store.ts";
@@ -38,7 +38,7 @@ export default function(
 
   return {
     loaded: (r: get_request): void => {
-      push_response(last_history_entry(r)?.response as database.SQLResponse | undefined);
+      push_response(last_history_entry(r)?.response);
       el_response.replaceChildren(el_scrollable);
 
       const request = r.request as Request;

@@ -1,7 +1,7 @@
 import {EditorState} from "@codemirror/state";
 import {EditorView, ViewPlugin, ViewUpdate} from "@codemirror/view";
 import {markdown} from "@codemirror/lang-markdown";
-import {database} from "../wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
 import {NEmpty} from "./components/dataview.ts";
 import {NSplit} from "./components/layout.ts";
 import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
@@ -113,7 +113,7 @@ export default function(
 
   return {
     loaded: (r: get_request) => {
-      const request = r.request as Request;
+      const request = r.request;
       id = r.request.id;
 
       update_response();

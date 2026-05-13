@@ -1,4 +1,4 @@
-import {database} from "../wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
 import {GRPCCodes, HistoryEntry} from "./types.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {m, setDisplay, Signal} from "./utils.ts";
@@ -122,7 +122,7 @@ export default function(
         value: svc.service + "." + method,
       }))]);
 
-      const request = r.request as Request;
+      const request = r.request;
       const update_request = (patch: Partial<database.GRPCRequest>): void => {
         loading_methods = true;
         el_send.disabled = true;
@@ -131,7 +131,7 @@ export default function(
           el_send.disabled = false;
         });
       };
-      update_response(last_history_entry(r)?.response as database.GRPCResponse | undefined);
+      update_response(last_history_entry(r)?.response);
 
       const el_input_group = NInputGroup({style: {
         gridColumn: "span 2",

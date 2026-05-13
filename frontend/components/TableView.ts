@@ -1,5 +1,5 @@
 import {ComponentContainer} from "golden-layout";
-import {database} from "../../wailsjs/go/models.ts";
+import * as database from "./../wailsjs/go/models.ts";
 import {api} from "../api.ts";
 import {clamp, DOMNode, m, signal} from "../utils.ts";
 import {css} from "../styles.ts";
@@ -498,21 +498,21 @@ export default function(
     schemaTable.update({
       columns: ["Name", "Type", "Nullable", "Default"],
       types: ["string", "string", "bool", "string"],
-      rows: columns.map(col => [col.name, col.type, col.nullable, col.defaultValue]) as RowValue[][],
+      rows: columns.map(col => [col.name, col.type, col.nullable, col.defaultValue]),
       on: {},
     });
     // Indexes
     indexesTable.update({
       columns: ["Name", "Definition"],
       types: ["string", "string"],
-      rows: indexes.map(idx => [idx.name, idx.definition]) as RowValue[][],
+      rows: indexes.map(idx => [idx.name, idx.definition]),
       on: {},
     });
     // Constraints
     constraintsTable.update({
       columns: ["Name", "Type", "Definition"],
       types: ["string", "string", "string"],
-      rows: constraints.map(con => [con.name, con.type, con.definition]) as RowValue[][],
+      rows: constraints.map(con => [con.name, con.type, con.definition]),
       on: {},
     });
   }

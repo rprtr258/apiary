@@ -1,5 +1,5 @@
 import {ComponentContainer, Tab} from "golden-layout";
-import {database} from "../wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
 import {Kinds, HistoryEntry, Request} from "./types.ts";
 import {m, setDisplay, Signal, signal} from "./utils.ts";
 import {
@@ -214,12 +214,12 @@ command_bar_new_request_kind_visible.sub(function*() {
 // Function to compute open request items
 const getOpenRequestItems = (): Item[] => Object
   .entries(store.requests)
-  .map(([id, preview]) => [id, preview, badge(preview.Kind)] as const)
+  .map(([id, preview]) => [id, preview, badge(preview.kind)] as const)
   .map(([id, preview, [method, color]]) => ({
     label: store.requestNames[id], // TODO: show full path, preload store.requests2, fix ebanij rot kazino
-    group: preview.Kind,
+    group: preview.kind,
     prefix: NTag({
-      type: preview.Kind === database.Kind.HTTP ? "success" : "info",
+      type: preview.kind === database.Kind.HTTP ? "success" : "info",
       style: {
         minWidth: "4em",
         justifyContent: "center",
@@ -328,7 +328,7 @@ const panelkaFactory = (
   });
   const frame: Frame = createFrame(
     el,
-    store.requests[id].Kind,
+    store.requests[id].kind,
     show_request,
     {
       update: (patch: Partial<Request>) => update_request(id, patch),

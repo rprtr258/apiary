@@ -1,4 +1,4 @@
-import {database} from "../../wailsjs/go/models.ts";
+import * as database from "./../wailsjs/go/models.ts";
 import {HistoryEntry, Method as Methods, HTTPCodes} from "../types.ts";
 import {m, setDisplay, Signal, signal} from "../utils.ts";
 import notification from "../notification.ts";
@@ -82,7 +82,7 @@ export default function HTTPRequestView(
 
   const updateRequest = (patch: Partial<database.HTTPRequest>): void => {
     el_send.disabled = true;
-    const newRequest = database.HTTPRequest.createFrom(currentRequest);
+    const newRequest = currentRequest;
     Object.assign(newRequest, patch);
     currentRequest = newRequest;
 
@@ -195,7 +195,7 @@ export default function HTTPRequestView(
             elem: EditorJSON({
               class: "h100",
               value: request.body,
-              schema: schema as JSONSchema7,
+              schema: schema,
               on: {update: (body: string) => updateRequest({body})},
             }),
           },

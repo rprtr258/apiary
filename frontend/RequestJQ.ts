@@ -1,4 +1,4 @@
-import {database} from "../wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
 import {NInput, NButton, NInputGroup} from "./components/input.ts";
 import {NEmpty} from "./components/dataview.ts";
 import ViewJSON from "./components/ViewJSON.ts";
@@ -55,8 +55,8 @@ export default function(
 
   return {
     loaded: (r: get_request) => {
-      const request = r.request as Request;
-      update_response(last_history_entry(r)?.response as database.JQResponse | undefined);
+      const request = r.request;
+      update_response(last_history_entry(r)?.response);
 
       const el_input_group = NInputGroup({style: {
         display: "grid",

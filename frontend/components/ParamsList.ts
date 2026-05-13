@@ -1,4 +1,4 @@
-import {database} from "../../wailsjs/go/models.ts";
+import * as database from "./../wailsjs/go/models.ts";
 import {m} from "../utils.ts";
 import {NIcon} from "./dataview.ts";
 import {DeleteOutline} from "./icons.ts";

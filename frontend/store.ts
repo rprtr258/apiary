@@ -1,5 +1,6 @@
 import {ComponentItem, LayoutConfig, ResolvedLayoutConfig} from "golden-layout";
-import {database, app} from "../wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
+import * as app from "./wailsjs/go/models.ts";
 import {api} from "./api.ts";
 import {type RequestData, type HistoryEntry, Request} from "./types.ts";
 import {signal, Signal} from "./utils.ts";
@@ -124,10 +125,10 @@ export const store = ((): Store => {
     return findExistingTab<StateRequest>("MyComponent", t => t.id === activeID);
   }
   return {
-    requestsTree : signal(new app.Tree({IDs: {}, Dirs: {}})),
-    requests : {} as Record<string, app.requestPreview>,
-    requests2: {} as Record<string, get_request>,
-    requestNames: {} as Record<string, string>,
+    requestsTree : signal({IDs: {}, Dirs: {}} as app.Tree),
+    requests : {},
+    requests2: {},
+    requestNames: {},
     layoutConfig,
     get activeComponentID(): string | null {
       return activeComponentID;
@@ -239,7 +240,7 @@ export const store = ((): Store => {
         notification.error({title: "Could not open table viewer", content: `SQL source request ${sqlSourceID} not found`});
         return;
       }
-      
+
       const sqlSourceRequest = sourceRequest.request as database.SQLSourceRequest;
       const databaseType = sqlSourceRequest.database;
 
@@ -323,8 +324,8 @@ export async function send(id: string): Promise<void> {
 
 export async function update_request(id: string, patch: Partial<Request>): Promise<void> {
   const old_request = store.requests2[id].request;
-  const new_request = {...old_request, ...patch} as RequestData;
-  store.requests2[id].request = new_request as Request; // NOTE: optimistic update
+  const new_request = {...old_request, ...patch} as Request;
+  store.requests2[id].request = new_request; // NOTE: optimistic update
   const res = await api.request_update(id, new_request.kind, new_request);
   if (res.kind === "err") {
     store.requests2[id].request = old_request; // NOTE: undo change
@@ -344,9 +345,29 @@ export async function get_request(request_id: string): Promise<get_request | nul
     return null;
   }
 
-  // TODO: fix typing/move to api.ts, generated one is wrong since database.Request implements MarshalJSON
-  const request = res.value.Request as unknown as Request;
-  const history = res.value.History as unknown as HistoryEntry[];
+  // Reshape raw IPC response into frontend types
+  // The IPC Get function returns models.ts shapes ({ID, Path, Data, Responses}),
+  // but components expect the flattened types.ts Request ({id, path, kind, ...fields})
+  const raw = res.value;
+  const kind = store.requests[request_id].kind;
+  const requestData = raw.Request.Data;
+  const responses = raw.History;
+
+  const request = {
+    id: raw.Request.ID,
+    path: raw.Request.Path,
+    kind,
+    ...requestData,
+  } as Request;
+
+  const history: HistoryEntry[] = responses.map(r => ({
+    sent_at: new Date(r.sent_at),
+    received_at: new Date(r.received_at),
+    kind,
+    request: requestData,
+    response: r.response ?? r.data,
+  } as HistoryEntry));
+
   store.requests2[request_id] = {request, history};
   return store.requests2[request_id];
 }

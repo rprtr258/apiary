@@ -1,5 +1,5 @@
 import {getBoxToBoxArrow} from "perfect-arrows";
-import {database} from "../../wailsjs/go/models.ts";
+import * as database from "./../wailsjs/go/models.ts";
 import {m, s} from "../utils.ts";
 
 export function range(start: number, end: number): number[] {

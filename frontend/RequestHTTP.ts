@@ -1,4 +1,4 @@
-import {database} from "../wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
 import {type HistoryEntry} from "./types.ts";
 import {type get_request} from "./store.ts";
 import {Signal} from "./utils.ts";

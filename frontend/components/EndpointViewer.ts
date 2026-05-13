@@ -1,5 +1,5 @@
 import {ComponentContainer} from "golden-layout";
-import {database} from "../../wailsjs/go/models.ts";
+import * as database from "./../wailsjs/go/models.ts";
 import {api} from "../api.ts";
 import {type HistoryEntry} from "../types.ts";
 import HTTPRequestView, {HTTPRequestViewResult} from "./HTTPRequestView.ts";

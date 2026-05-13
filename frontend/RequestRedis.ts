@@ -3,7 +3,7 @@ import {NEmpty} from "./components/dataview.ts";
 import {NSplit} from "./components/layout.ts";
 import ViewJSON from "./components/ViewJSON.ts";
 import EditorJSON from "./components/EditorJSON.ts";
-import {database} from "../wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {m, Signal, setDisplay, signal} from "./utils.ts";
 import {HistoryEntry} from "./types.ts";
@@ -62,8 +62,8 @@ export default function(
 
   return {
     loaded: (r: get_request) => {
-      const request = r.request as Request;
-      response.update(() => last_history_entry(r)?.response as database.RedisResponse | undefined);
+      const request = r.request;
+      response.update(() => last_history_entry(r)?.response);
 
       const el_input_group = NInputGroup({style: {
         display: "grid",

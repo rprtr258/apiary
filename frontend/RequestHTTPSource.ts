@@ -2,7 +2,7 @@ import {NEmpty} from "./components/dataview.ts";
 import {NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {get_request} from "./store.ts";
 import {api} from "./api.ts";
-import {database} from "../wailsjs/go/models.ts";
+import * as database from "./wailsjs/go/models.ts";
 import {m} from "./utils.ts";
 
 type Request = database.HTTPSourceRequest;
@@ -40,7 +40,7 @@ function AuthFields(auth: database.AuthConfig, onUpdate: (patch: Partial<databas
   const validAuthType = validAuthTypes.includes(auth.type) ? auth.type : "none";
   // If auth.type was invalid, update it
   if (validAuthType !== auth.type) {
-    onUpdate({type: validAuthType as AuthType});
+    onUpdate({type: validAuthType});
   }
 
   const authTypeSelect = NSelect({
@@ -52,7 +52,7 @@ function AuthFields(auth: database.AuthConfig, onUpdate: (patch: Partial<databas
       {label: "apikey", value: "apikey"},
       {label: "oauth", value: "oauth"},
     ],
-    on: {update: (type: string) => onUpdate({type: type as AuthType})},
+    on: {update: (type: string) => onUpdate({type: type})},
   });
 
   const fields: HTMLElement[] = [m("label", "Auth Type"), authTypeSelect.el];
@@ -204,7 +204,7 @@ export default function(
       const validSpecSource = ["file", "url"].includes(request.specSource) ? request.specSource : "file";
       // If specSource was invalid, update it
       if (validSpecSource !== request.specSource) {
-        update_request({specSource: validSpecSource as SpecSource});
+        update_request({specSource: validSpecSource});
       }
 
       const specSourceSelect = NSelect({
@@ -214,9 +214,9 @@ export default function(
           {label: "url", value: "url"},
         ],
           on: {update: (source: string) => {
-            update_request({specSource: source as SpecSource});
+            update_request({specSource: source});
             // Update the UI to show file picker or URL input
-            request.specSource = source as SpecSource;
+            request.specSource = source;
             updateSpecInputUI();
           }},
       });
