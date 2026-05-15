@@ -1,14 +1,14 @@
 import {describe, test, expect, mock} from "bun:test";
 import RequestDIFF from "./RequestDIFF.ts";
 import {signal} from "./utils.ts";
-import * as database from "./wailsjs/go/models.ts";
+import * as t from "../types/models.ts";
 import {get_request} from "./store.ts";
 
 const mockRequest: get_request = {
   request: {
     id: "test-id",
     path: "",
-    kind: database.Kind.DIFF,
+    kind: t.Kind.DIFF,
     left: "Hello\nWorld",
     right: "Hello\nWorld\n!",
   },
@@ -67,7 +67,7 @@ describe("RequestDIFF", () => {
       request: {
         id: "test-id-2",
         path: "",
-        kind: database.Kind.DIFF,
+        kind: t.Kind.DIFF,
         left: "",
         right: "",
       },
@@ -95,7 +95,7 @@ describe("RequestDIFF", () => {
       request: {
         id: "test-id-3",
         path: "",
-        kind: database.Kind.DIFF,
+        kind: t.Kind.DIFF,
         left: "{\"name\": \"John\", \"age\": 30}",
         right: "{\"name\": \"Jane\", \"age\": 30}",
       },
@@ -149,7 +149,7 @@ describe("RequestDIFF", () => {
     component.push_history_entry({
       sent_at: new Date(),
       received_at: new Date(),
-      kind: database.Kind.DIFF,
+      kind: t.Kind.DIFF,
       request: {id: "test-id"},
       response: {
         diff: "<div>Test diff</div>",

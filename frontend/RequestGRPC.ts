@@ -1,5 +1,5 @@
-import * as database from "./wailsjs/go/models.ts";
-import {GRPCCodes, HistoryEntry} from "./types.ts";
+import * as t from "../types/models.ts";
+import {GRPCCodes, HistoryEntry} from "../types/types.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {m, setDisplay, Signal} from "./utils.ts";
 import ParamsList from "./components/ParamsList.ts";
@@ -8,7 +8,7 @@ import {NTabs, NSplit} from "./components/layout.ts";
 import {NTag, NTable, NEmpty} from "./components/dataview.ts";
 import ViewJSON from "./components/ViewJSON.ts";
 
-type Request = {kind: database.Kind.GRPC} & database.GRPCRequest;
+type Request = {kind: t.Kind.GRPC} & t.GRPCRequest;
 
 function responseBadge(response: {code: number}) {
   const code = response.code;
@@ -71,7 +71,7 @@ export default function(
       },
     ],
   });
-  const update_response = (response: database.GRPCResponse | undefined) => {
+  const update_response = (response: t.GRPCResponse | undefined) => {
     if (response === undefined)
       return;
 
@@ -123,7 +123,7 @@ export default function(
       }))]);
 
       const request = r.request;
-      const update_request = (patch: Partial<database.GRPCRequest>): void => {
+      const update_request = (patch: Partial<t.GRPCRequest>): void => {
         loading_methods = true;
         el_send.disabled = true;
         on.update(patch).then(() => {
@@ -171,7 +171,7 @@ export default function(
             elem: [
               ParamsList({
                 value: request.metadata,
-                on: {update: (value: database.KV[]) => update_request({metadata: value})},
+                on: {update: (value: t.KV[]) => update_request({metadata: value})},
               }),
             ],
           },
@@ -198,7 +198,7 @@ export default function(
       el.replaceChildren(el_container);
     },
     push_history_entry(he) {
-      update_response(he.response as database.GRPCResponse);
+      update_response(he.response as t.GRPCResponse);
     },
     unmount() {
       for (const unmount of unmounts) {

@@ -1,12 +1,12 @@
-import * as database from "./../wailsjs/go/models.ts";
+import * as t from "../../types/models.ts";
 import {m} from "../utils.ts";
 import {NIcon} from "./dataview.ts";
 import {DeleteOutline} from "./icons.ts";
 
 type Props = {
-  value: database.KV[],
+  value: t.KV[],
   on: {
-    update: (value: database.KV[]) => void,
+    update: (value: t.KV[]) => void,
   },
 };
 
@@ -29,7 +29,7 @@ export default function(props: Props) {
     };
   })();
   const ids = props.value.map(_ => gen_id());
-  const new_el_row = (id: ID, kv: database.KV) => [
+  const new_el_row = (id: ID, kv: t.KV) => [
     m("input", {
       type: "text",
       placeholder: "Header",

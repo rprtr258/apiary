@@ -1,13 +1,17 @@
-import {defineConfig} from "vite";
-import electron from "vite-plugin-electron";
+import {defineConfig, type Plugin} from "vite";
+import electron, {ElectronOptions} from "vite-plugin-electron";
 
 export default defineConfig({
   base: "./",
   plugins: [
-    electron([
+    (electron as unknown as (options: ElectronOptions | ElectronOptions[]) => Plugin[])([ // TODO: fix/remove
       {
         entry: "main.ts",
         vite: {
+          define: {
+            __dirname: "import.meta.dirname",
+            __filename: "import.meta.filename",
+          },
           build: {
             outDir: "dist-electron",
             rollupOptions: {
@@ -18,7 +22,7 @@ export default defineConfig({
       },
       {
         entry: "preload.ts",
-        onstart(args) {
+        onstart(args: { reload: () => void }) {
           args.reload();
         },
         vite: {

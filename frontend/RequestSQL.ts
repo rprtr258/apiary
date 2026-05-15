@@ -1,5 +1,5 @@
-import * as database from "./wailsjs/go/models.ts";
-import {Database, HistoryEntry, RowValue} from "./types.ts";
+import * as t from "../types/models.ts";
+import {Database, HistoryEntry, RowValue} from "../types/types.ts";
 import {m, setDisplay, Signal} from "./utils.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {NEmpty} from "./components/dataview.ts";
@@ -8,7 +8,7 @@ import {NScrollbar, NSplit} from "./components/layout.ts";
 import {DataTable} from "./components/TableView.ts";
 import EditorSQL from "./EditorSQL.ts";
 
-type Request = database.SQLRequest;
+type Request = t.SQLRequest;
 
 export default function(
   el: HTMLElement,
@@ -26,7 +26,7 @@ export default function(
   const dataTable = DataTable();
   const el_scrollable = NScrollbar(dataTable.el);
   const el_response = NEmpty({description: "Run query or choose one from history."});
-  const push_response = (response: database.SQLResponse | undefined) => {
+  const push_response = (response: t.SQLResponse | undefined) => {
     if (response === undefined)
       return;
 
@@ -97,7 +97,7 @@ export default function(
       el.replaceChildren(el_container);
     },
     push_history_entry(he: HistoryEntry) {
-      push_response(he.response as database.SQLResponse);
+      push_response(he.response as t.SQLResponse);
     },
     unmount() {
       for (const unmount of unmounts) {

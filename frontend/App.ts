@@ -1,6 +1,6 @@
 import {ComponentContainer, Tab} from "golden-layout";
-import * as database from "./wailsjs/go/models.ts";
-import {Kinds, HistoryEntry, Request} from "./types.ts";
+import * as t from "../types/models.ts";
+import {Kinds, HistoryEntry, Request} from "../types/types.ts";
 import {m, setDisplay, Signal, signal} from "./utils.ts";
 import {
   StateRequest, StateHTTPSourceEndpoint, StateSQLSourceTable,
@@ -219,7 +219,7 @@ const getOpenRequestItems = (): Item[] => Object
     label: store.requestNames[id], // TODO: show full path, preload store.requests2, fix ebanij rot kazino
     group: preview.kind,
     prefix: NTag({
-      type: preview.kind === database.Kind.HTTP ? "success" : "info",
+      type: preview.kind === t.Kind.HTTP ? "success" : "info",
       style: {
         minWidth: "4em",
         justifyContent: "center",
@@ -253,23 +253,23 @@ type Frame = {
 
 function createFrame(
   el: HTMLElement,
-  kind: database.Kind,
+  kind: t.Kind,
   show_request: Signal<boolean>,
   on: {update: (patch: Partial<Request>) => Promise<void>, send: () => Promise<void>},
   eye: HTMLElement,
 ): Frame {
   switch (kind) {
-    case database.Kind.HTTP: return RequestHTTP(el, show_request, on);
-    case database.Kind.SQL: return RequestSQL(el, show_request, on);
-    case database.Kind.GRPC: return RequestGRPC(el, show_request, on);
-    case database.Kind.JQ: return RequestJQ(el, show_request, on);
-    case database.Kind.REDIS: return RequestRedis(el, show_request, on);
-    case database.Kind.MD: return RequestMD(el, show_request, on);
-    case database.Kind.DIFF: return RequestDIFF(el, show_request, on);
-    case database.Kind.SQLSource:
+    case t.Kind.HTTP: return RequestHTTP(el, show_request, on);
+    case t.Kind.SQL: return RequestSQL(el, show_request, on);
+    case t.Kind.GRPC: return RequestGRPC(el, show_request, on);
+    case t.Kind.JQ: return RequestJQ(el, show_request, on);
+    case t.Kind.REDIS: return RequestRedis(el, show_request, on);
+    case t.Kind.MD: return RequestMD(el, show_request, on);
+    case t.Kind.DIFF: return RequestDIFF(el, show_request, on);
+    case t.Kind.SQLSource:
       setDisplay(eye, false); // TODO: dont draw eye in the first place?
       return RequestSQLSource(el, {update: on.update});
-    case database.Kind.HTTPSource:
+    case t.Kind.HTTPSource:
       setDisplay(eye, false);
       return RequestHTTPSource(el, {update: on.update});
   }

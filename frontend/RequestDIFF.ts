@@ -1,12 +1,12 @@
 import {EditorState, RangeSetBuilder} from "@codemirror/state";
 import {EditorView, ViewPlugin, ViewUpdate, Decoration} from "@codemirror/view";
 import {json} from "@codemirror/lang-json";
-import * as database from "./wailsjs/go/models.ts";
+import * as t from "../types/models.ts";
 import {NEmpty} from "./components/dataview.ts";
 import {NSplit} from "./components/layout.ts";
 import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
 import {get_request} from "./store.ts";
-import {HistoryEntry} from "./types.ts";
+import {HistoryEntry} from "../types/types.ts";
 import {api} from "./api.ts";
 import {m, Signal} from "./utils.ts";
 import {css} from "./styles.ts";
@@ -69,7 +69,7 @@ function diffHighlighting(view: EditorView) {
 
 const diffHighlightExtension = EditorView.decorations.of(diffHighlighting);
 
-type Request = {kind: database.Kind.DIFF} & database.DIFFRequest;
+type Request = {kind: t.Kind.DIFF} & t.DIFFRequest;
 
 type EditorDiffProps = {
   value: string | null,
@@ -158,7 +158,7 @@ export default function(
           el_error.style.display = "block";
         } else {
           el_error.style.display = "none";
-          const response = res.value.response as database.DIFFResponse;
+          const response = res.value.response as t.DIFFResponse;
 
           // Update diff editor
           if (diffEditor !== null) {

@@ -1,5 +1,5 @@
-import * as database from "./../wailsjs/go/models.ts";
-import {HistoryEntry, Method as Methods, HTTPCodes} from "../types.ts";
+import * as t from "../../types/models.ts";
+import {HistoryEntry, Method as Methods, HTTPCodes} from "../../types/types.ts";
 import {m, setDisplay, Signal, signal} from "../utils.ts";
 import notification from "../notification.ts";
 import {NInputGroup, NInput, NSelect, NButton} from "./input.ts";
@@ -10,7 +10,7 @@ import type {JSONSchema7} from "json-schema";
 import ViewJSON from "./ViewJSON.ts";
 import ParamsList from "./ParamsList.ts";
 
-type Request = database.HTTPRequest;
+type Request = t.HTTPRequest;
 
 // function responseBodyLanguage(contentType: string): string {
 //   for (const [key, value] of Object.entries({
@@ -24,7 +24,7 @@ type Request = database.HTTPRequest;
 //   return "text";
 // };
 
-function responseBadge(response: database.HTTPResponse): HTMLElement {
+function responseBadge(response: t.HTTPResponse): HTMLElement {
   const code = response.code;
   const statusName = code in HTTPCodes ? HTTPCodes[code as keyof typeof HTTPCodes] : undefined;
   const tooltip = statusName !== undefined ? `${code} ${statusName}` : `${code}`;
@@ -56,12 +56,12 @@ export default function HTTPRequestView(
       update: onUpdate = async () => {},
     },
   }: {
-    initialRequest: database.HTTPRequest,
+    initialRequest: t.HTTPRequest,
     showRequest?: Signal<boolean>,
     schema?: JSONSchema7,
     on: {
-      send: (request: database.HTTPRequest) => Promise<void>,
-      update?: (request: database.HTTPRequest) => Promise<void>,
+      send: (request: t.HTTPRequest) => Promise<void>,
+      update?: (request: t.HTTPRequest) => Promise<void>,
     },
   },
 ): HTTPRequestViewResult {
@@ -80,7 +80,7 @@ export default function HTTPRequestView(
 
   let currentRequest = initialRequest;
 
-  const updateRequest = (patch: Partial<database.HTTPRequest>): void => {
+  const updateRequest = (patch: Partial<t.HTTPRequest>): void => {
     el_send.disabled = true;
     const newRequest = currentRequest;
     Object.assign(newRequest, patch);
@@ -139,13 +139,13 @@ export default function HTTPRequestView(
       },
     ],
   });
-  const update_response = (response: database.HTTPResponse | undefined) => {
+  const update_response = (response: t.HTTPResponse | undefined) => {
     if (response === undefined)
       return;
 
     badgeContainer.replaceChildren(responseBadge(response));
     el_view_response_body.update(response.body);
-    tbody.replaceChildren(...response.headers.map((header: database.KV) => m("tr", {},
+    tbody.replaceChildren(...response.headers.map((header: t.KV) => m("tr", {},
       m("td", {style: {border: "1px solid #444"}}, header.key),
       m("td", {style: {border: "1px solid #444", wordBreak: "break-word"}}, header.value),
     )));
@@ -156,7 +156,7 @@ export default function HTTPRequestView(
   };
 
   const push_history_entry = (he: HistoryEntry) => {
-    update_response(he.response as database.HTTPResponse);
+    update_response(he.response as t.HTTPResponse);
   };
 
   return {
@@ -166,7 +166,7 @@ export default function HTTPRequestView(
 
       if (r.history.length > 0) {
         const lastHistory = r.history[r.history.length - 1];
-        update_response(lastHistory.response as database.HTTPResponse);
+        update_response(lastHistory.response as t.HTTPResponse);
       }
 
       const el_input_group = NInputGroup({style: {
@@ -208,7 +208,7 @@ export default function HTTPRequestView(
             },
             elem: ParamsList({
               value: request.headers,
-              on: {update: (value: database.KV[]): void => updateRequest({headers: value})},
+              on: {update: (value: t.KV[]): void => updateRequest({headers: value})},
             }),
           },
         ],

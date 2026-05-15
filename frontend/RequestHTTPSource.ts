@@ -2,10 +2,10 @@ import {NEmpty} from "./components/dataview.ts";
 import {NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {get_request} from "./store.ts";
 import {api} from "./api.ts";
-import * as database from "./wailsjs/go/models.ts";
+import * as t from "../types/models.ts";
 import {m} from "./utils.ts";
 
-type Request = database.HTTPSourceRequest;
+type Request = t.HTTPSourceRequest;
 
 type AuthType = "none" | "basic" | "bearer" | "apikey" | "oauth";
 type SpecSource = "file" | "url";
@@ -14,10 +14,10 @@ type SpecSource = "file" | "url";
 declare global {
   interface Window {
     showOpenFilePicker?: (options?: {
-      types?: Array<{
+      types?: {
         description: string,
         accept: Record<string, string[]>,
-      }>,
+      }[],
       multiple?: boolean,
     }) => Promise<FileSystemFileHandle[]>,
   }
@@ -34,7 +34,7 @@ function StatusLabel() {
   };
 }
 
-function AuthFields(auth: database.AuthConfig, onUpdate: (patch: Partial<database.AuthConfig>) => void) {
+function AuthFields(auth: t.AuthConfig, onUpdate: (patch: Partial<t.AuthConfig>) => void) {
   // Ensure auth.type is valid
   const validAuthTypes = ["none", "basic", "bearer", "apikey", "oauth"];
   const validAuthType = validAuthTypes.includes(auth.type) ? auth.type : "none";

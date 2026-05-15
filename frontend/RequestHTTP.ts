@@ -1,10 +1,10 @@
-import * as database from "./wailsjs/go/models.ts";
-import {type HistoryEntry} from "./types.ts";
+import * as t from "../types/models.ts";
+import {type HistoryEntry} from "../types/types.ts";
 import {type get_request} from "./store.ts";
 import {Signal} from "./utils.ts";
 import HTTPRequestView, {HTTPRequestViewResult} from "./components/HTTPRequestView.ts";
 
-type Request = database.HTTPRequest;
+type Request = t.HTTPRequest;
 
 export default function(
   el: HTMLElement,
@@ -28,7 +28,7 @@ export default function(
     await on.send();
   };
 
-  const onUpdate = async (request: database.HTTPRequest): Promise<void> => {
+  const onUpdate = async (request: t.HTTPRequest): Promise<void> => {
     if (currentRequestID === null)
       throw new Error("No request ID available");
     await on.update(request);

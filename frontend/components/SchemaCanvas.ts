@@ -1,5 +1,5 @@
 import {getBoxToBoxArrow} from "perfect-arrows";
-import * as database from "./../wailsjs/go/models.ts";
+import * as t from "../../types/models.ts";
 import {m, s} from "../utils.ts";
 
 export function range(start: number, end: number): number[] {
@@ -7,7 +7,7 @@ export function range(start: number, end: number): number[] {
   return Array.from({length: end - start}, (_, i) => i + start);
 }
 
-type SchemaData = {name: string, schema: database.TableSchema}[];
+type SchemaData = {name: string, schema: t.TableSchema}[];
 
 function parseColumns(definition: string): string[] {
   const match = definition.match(/\(([^)]+)\)/);
@@ -22,7 +22,7 @@ function hashColor(str: string): string {
   return `hsl(${hue}, 60%, 45%)`;
 }
 
-function getColumnConstraints(table: {name: string, schema: database.TableSchema}): Record<string, string[]> {
+function getColumnConstraints(table: {name: string, schema: t.TableSchema}): Record<string, string[]> {
   const constraints = Object.fromEntries(table.schema.columns.map(col => [col.name, [] as string[]]));
   for (const constraint of table.schema.constraints) {
     const cols = parseColumns(constraint.definition);
@@ -83,7 +83,7 @@ const MAX_SCALE = 5;
 const ZOOM_FACTOR_IN = 0.9;
 const ZOOM_FACTOR_OUT = 1.1;
 
-function calculateColumnWidths(table: {name: string, schema: database.TableSchema}): [number, number] {
+function calculateColumnWidths(table: {name: string, schema: t.TableSchema}): [number, number] {
   const columns = table.schema.columns;
   const maxNameLen = Math.max(
     table.name.length / 2,

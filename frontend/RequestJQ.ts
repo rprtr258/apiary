@@ -1,4 +1,4 @@
-import * as database from "./wailsjs/go/models.ts";
+import * as t from "../types/models.ts";
 import {NInput, NButton, NInputGroup} from "./components/input.ts";
 import {NEmpty} from "./components/dataview.ts";
 import ViewJSON from "./components/ViewJSON.ts";
@@ -6,9 +6,9 @@ import EditorJSON from "./components/EditorJSON.ts";
 import {NSplit} from "./components/layout.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {m, setDisplay, Signal} from "./utils.ts";
-import {HistoryEntry} from "./types.ts";
+import {HistoryEntry} from "../types/types.ts";
 
-type Request = {kind: database.Kind.JQ} & database.JQRequest;
+type Request = {kind: t.Kind.JQ} & t.JQRequest;
 
 export default function(
   el: HTMLElement,
@@ -30,7 +30,7 @@ export default function(
     on: {click: on.send},
     disabled: true,
   }, "Send");
-  const update_request = (patch: Partial<database.JQRequest>): void => {
+  const update_request = (patch: Partial<t.JQRequest>): void => {
     el_send.disabled = true;
     on.update(patch).then(() => {
       el_send.disabled = false;
@@ -40,7 +40,7 @@ export default function(
   const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
-  const update_response = (response: database.JQResponse | undefined) => {
+  const update_response = (response: t.JQResponse | undefined) => {
     if (response === undefined)
       return;
 
@@ -97,7 +97,7 @@ export default function(
       el.replaceChildren(el_container);
     },
     push_history_entry(he) {
-      update_response(he.response as database.JQResponse);
+      update_response(he.response as t.JQResponse);
     },
     unmount() {
       for (const unmount of unmounts) {

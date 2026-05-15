@@ -3,12 +3,12 @@ import {NEmpty} from "./components/dataview.ts";
 import {NSplit} from "./components/layout.ts";
 import ViewJSON from "./components/ViewJSON.ts";
 import EditorJSON from "./components/EditorJSON.ts";
-import * as database from "./wailsjs/go/models.ts";
+import * as t from "../types/models.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {m, Signal, setDisplay, signal} from "./utils.ts";
-import {HistoryEntry} from "./types.ts";
+import {HistoryEntry} from "../types/types.ts";
 
-type Request = {kind: database.Kind.REDIS} & database.RedisRequest;
+type Request = {kind: t.Kind.REDIS} & t.RedisRequest;
 
 export default function(
   el: HTMLElement,
@@ -30,10 +30,10 @@ export default function(
     on: {click: on.send},
     disabled: false,
   }, "Send");
-  const response = signal<database.RedisResponse | undefined>(undefined);
+  const response = signal<t.RedisResponse | undefined>(undefined);
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
-  const update_request = (patch: Partial<database.RedisRequest>): void => {
+  const update_request = (patch: Partial<t.RedisRequest>): void => {
     el_send.disabled = true;
     on.update(patch).then(() => {
       el_send.disabled = false;
@@ -105,7 +105,7 @@ export default function(
       el.replaceChildren(el_container);
     },
     push_history_entry(he: HistoryEntry) {
-      response.update(() => he.response as database.RedisResponse);
+      response.update(() => he.response as t.RedisResponse);
     },
     unmount() {
       for (const unmount of unmounts) {

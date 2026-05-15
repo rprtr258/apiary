@@ -1,15 +1,15 @@
 import {describe, test, expect, mock} from "bun:test";
 import RequestSQL from "./RequestSQL.ts";
 import {signal} from "./utils.ts";
-import * as database from "./wailsjs/go/models.ts";
+import * as t from "../types/models.ts";
 import {get_request} from "./store.ts";
 
 const mockRequest: get_request = {
   request: {
     id: "test-id",
     path: "",
-    kind: database.Kind.SQL,
-    database: database.Database.POSTGRES,
+    kind: t.Kind.SQL,
+    database: t.Database.POSTGRES,
     dsn: "test-dsn",
     query: "SELECT * FROM test",
   },
@@ -17,7 +17,7 @@ const mockRequest: get_request = {
     {
       sent_at: new Date(),
       received_at: new Date(),
-      kind: database.Kind.SQL,
+      kind: t.Kind.SQL,
       request: {id: "test-id"},
       response: {
         columns: ["id", "name"],
@@ -51,7 +51,7 @@ describe("RequestSQL", () => {
     component.push_history_entry({
       sent_at: new Date(),
       received_at: new Date(),
-      kind: database.Kind.SQL,
+      kind: t.Kind.SQL,
       request: {id: "test-id"},
       response: {
         columns: ["id", "name"],
@@ -82,7 +82,7 @@ describe("RequestSQL", () => {
     component.push_history_entry({
       sent_at: new Date(),
       received_at: new Date(),
-      kind: database.Kind.SQL,
+      kind: t.Kind.SQL,
       request: {id: "test-id"},
       response: {
         columns: [],

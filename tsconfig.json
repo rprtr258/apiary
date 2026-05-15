@@ -1,7 +1,6 @@
 {
   "include": [
-    "*.ts",
-    "frontend/**.ts"
+    "./**/*.ts"
   ],
   "exclude": ["dist"],
   "compilerOptions": {

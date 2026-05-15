@@ -1,10 +1,10 @@
 import {ComponentContainer} from "golden-layout";
-import * as database from "./../wailsjs/go/models.ts";
+import * as t from "../../types/models.ts";
 import {api} from "../api.ts";
 import {clamp, DOMNode, m, signal} from "../utils.ts";
 import {css} from "../styles.ts";
 import notification from "../notification.ts";
-import {RowValue} from "../types.ts";
+import {RowValue} from "../../types/types.ts";
 import {NButton} from "./input.ts";
 import {NScrollbar, NTabs} from "./layout.ts";
 import {NIcon} from "./dataview.ts";
@@ -169,7 +169,7 @@ type DataTableProps = {
   columns: string[],
   types: string[],
   rows: RowValue[][],
-  sortColumns?: Array<{column: string, direction: "asc" | "desc", order: number}>,
+  sortColumns?: {column: string, direction: "asc" | "desc", order: number}[],
   on: {
     sortAdd?: (column: string, direction: "asc" | "desc") => void,
     sortRemove?: (column: string) => void,
@@ -323,8 +323,8 @@ const pageSize = 100;
 type Props = {
   sqlSourceID: string,
   tableName: string,
-  tableInfo: database.TableInfo,
-  database: database.Database,
+  tableInfo: t.TableInfo,
+  database: t.Database,
 };
 
 export default function(
@@ -416,11 +416,11 @@ export default function(
         // Quote column name based on database type
         let quotedColumn = sc.column;
         switch (dbType) {
-          case database.Database.MYSQL:
-          case database.Database.SQLITE:
+          case t.Database.MYSQL:
+          case t.Database.SQLITE:
             quotedColumn = `\`${sc.column}\``;
             break;
-          case database.Database.POSTGRES:
+          case t.Database.POSTGRES:
             quotedColumn = `"${sc.column}"`;
             break;
           // ClickHouse and others don't need quoting for standard identifiers
@@ -463,11 +463,11 @@ export default function(
     const res = await api.requestPerformSQLSource(sqlSourceID, query);
     loading.update(() => false);
 
-    let data: database.SQLResponse | undefined = undefined;
+    let data: t.SQLResponse | undefined = undefined;
     if (res.kind !== "ok") {
       notification.error({title: "Could not load data", error: res.value});
     } else {
-      data = res.value.response as database.SQLResponse;
+      data = res.value.response as t.SQLResponse;
     }
     dataTable.update({
       columns: data?.columns ?? [],

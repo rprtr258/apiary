@@ -1,7 +1,6 @@
-import * as app from "./wailsjs/go/models.ts";
-import * as database from "./wailsjs/go/models.ts";
+import * as t from "../types/models.ts";
 import {Result, err, ok} from "./result.ts";
-import {HistoryEntry, RequestData} from "./types.ts";
+import {HistoryEntry, RequestData} from "../types/types.ts";
 
 const App = window.api;
 
@@ -23,14 +22,14 @@ async function wrap<T>(f: () => Promise<T>, args: unknown): Promise<Result<T>> {
 }
 
 export const api = {
-  async collectionRequests(): Promise<Result<app.ListResponse>> {
+  async collectionRequests(): Promise<Result<t.ListResponse>> {
     return await wrap(async () => App.List(), {});
   },
 
-  async get(id: string): Promise<Result<app.GetResponse>> {
+  async get(id: string): Promise<Result<t.GetResponse>> {
     const y = await wrap(async () => App.Get(id), {id});
     // TODO: it seems that is not needed, remove if so
-    return y.map((y: app.GetResponse) => {
+    return y.map((y: t.GetResponse) => {
       // NOTE: BEWARE, DIRTY TYPESCRIPT HACKS HERE
       const history = y.History as unknown as HistoryEntry[];
       for (const req of history) {
@@ -42,20 +41,20 @@ export const api = {
 
   async requestCreate(
     name: string,
-    kind: database.Kind,
-  ): Promise<Result<app.ResponseNewRequest>> {
+    kind: t.Kind,
+  ): Promise<Result<t.ResponseNewRequest>> {
     return await wrap(() => App.Create(name, kind), {name, kind});
   },
 
   async requestDuplicate(
     name: string,
-  ): Promise<Result<app.ResponseNewRequest>> {
+  ): Promise<Result<t.ResponseNewRequest>> {
     return await wrap(() => App.Duplicate(name), {name});
   },
 
   async request_update(
     id: string,
-    kind: database.Kind,
+    kind: t.Kind,
     req: Omit<RequestData, "kind">,
   ): Promise<Result<void>> {
     return await wrap(() => App.Update(id, kind, req), {reqId: id, kind, req});
@@ -87,7 +86,7 @@ export const api = {
     return await wrap(() => App.JQ(data, query), {data, query});
   },
 
-  async grpcMethods(target: string): Promise<Result<app.grpcServiceMethods[]>> {
+  async grpcMethods(target: string): Promise<Result<t.grpcServiceMethods[]>> {
     return await wrap(() => App.GRPCMethods(target), {target});
   },
 
@@ -106,14 +105,14 @@ export const api = {
 
   async requestListTablesSQLSource(
     id: string,
-  ): Promise<Result<database.TableInfo[]>> {
+  ): Promise<Result<t.TableInfo[]>> {
     return await wrap(() => App.ListTablesSQLSource(id), {reqId: id});
   },
 
   async requestDescribeTableSQLSource(
     id: string,
     tableName: string,
-  ): Promise<Result<database.TableSchema>> {
+  ): Promise<Result<t.TableSchema>> {
     return await wrap(() => App.DescribeTableSQLSource(id, tableName), {reqId: id, tableName});
   },
 
@@ -126,23 +125,23 @@ export const api = {
 
   async requestListEndpointsHTTPSource(
     id: string,
-  ): Promise<Result<database.EndpointInfo[]>> {
+  ): Promise<Result<t.EndpointInfo[]>> {
     return await wrap(() => App.ListEndpointsHTTPSource(id), {reqId: id});
   },
 
   async requestGenerateExampleRequestHTTPSource(
     id: string,
     endpointIndex: number,
-  ): Promise<Result<database.HTTPRequest>> {
+  ): Promise<Result<t.HTTPRequest>> {
     return await wrap(() => App.GenerateExampleRequestHTTPSource(id, endpointIndex), {reqId: id, endpointIndex});
   },
 
   async requestPerformVirtualEndpointHTTPSource(
     sourceID: string,
     endpointIndex: number,
-    request: database.HTTPRequest,
+    request: t.HTTPRequest,
   ): Promise<Result<HistoryEntry>> {
-    // The Go function expects *database.HTTPRequest (pointer) which can be nil
+    // The Go function expects *t.HTTPRequest (pointer) which can be nil
     // The TypeScript definition doesn't reflect this, so we need to cast
     return await wrap(() => App.PerformVirtualEndpointHTTPSource(sourceID, endpointIndex, request),
       {sourceID, endpointIndex, request}) as Result<HistoryEntry>;

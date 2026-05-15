@@ -15,7 +15,7 @@
     "test:e2e": "playwright test",
     "_build": "vite build",
     "_start": "vite build && electron .",
-    "_typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
     "typescript": "^6.0.3"

@@ -1,5 +1,5 @@
 import {readFile} from "fs/promises";
-import * as database from "./frontend/wailsjs/go/models.ts";
+import * as t from "./types/models.ts";
 
 export type RequestID = string;
 
@@ -9,7 +9,7 @@ type KV = {
 };
 
 type RequestsData = {
-  [database.Kind.HTTP]: Record<RequestID, {
+  [t.Kind.HTTP]: Record<RequestID, {
     request: {
       headers: KV[],
       body: string,
@@ -17,33 +17,33 @@ type RequestsData = {
       url: string,
     },
   }>,
-	[database.Kind.SQL]: Record<RequestID, {
+	[t.Kind.SQL]: Record<RequestID, {
     request: {
       database: string,
       dsn: string,
       query: string,
     },
   }>,
-	[database.Kind.SQLSource]: Record<RequestID, {
+	[t.Kind.SQLSource]: Record<RequestID, {
     database: string,
     dsn: string,
   }>,
-	[database.Kind.MD]: Record<RequestID, {
+	[t.Kind.MD]: Record<RequestID, {
     request: {
       database: string,
     },
   }>,
-	[database.Kind.JQ]: Record<RequestID, {
+	[t.Kind.JQ]: Record<RequestID, {
     request: {
       database: string,
     },
   }>,
-	[database.Kind.REDIS]: Record<RequestID, {
+	[t.Kind.REDIS]: Record<RequestID, {
     request: {
       database: string,
     },
   }>,
-	[database.Kind.GRPC]: Record<RequestID, {
+	[t.Kind.GRPC]: Record<RequestID, {
     request: {
       metadata: KV[],
       method: string,
@@ -51,10 +51,10 @@ type RequestsData = {
       target: string,
     },
   }>,
-	[database.Kind.HTTPSource]: {
+	[t.Kind.HTTPSource]: {
     database: string,
   },
-	[database.Kind.DIFF]: {
+	[t.Kind.DIFF]: {
     left: string,
     right: string,
   },
@@ -63,31 +63,31 @@ type RequestsData = {
 type DB = {
   "$version": number,
   app_version: string, // TODO: remove?
-  request: Array<{
+  request: {
     id: RequestID,
-    kind: database.Kind,
+    kind: t.Kind,
     path: string,
-  }>,
-  response: Array<Record<RequestID, {
+  }[],
+  response: Record<RequestID, {
     id: string,
     sent_at: string,
     received_at: string,
-  }>>,
+  }[]>,
 } & RequestsData;
 
 export function extractSubKind(
   j: DB,
-  kind: database.Kind,
+  kind: t.Kind,
   id: RequestID,
 ): string {
   const entry = (j[kind] as Record<string, unknown>)[id];
   switch (kind) {
-    case database.Kind.HTTP:
-      return (entry as RequestsData[database.Kind.HTTP][string]).request.method;
-    case database.Kind.SQL:
-      return (entry as RequestsData[database.Kind.SQL][string]).request.database;
-    case database.Kind.SQLSource:
-      return (entry as RequestsData[database.Kind.SQLSource][string]).database;
+    case t.Kind.HTTP:
+      return (entry as RequestsData[t.Kind.HTTP][string]).request.method;
+    case t.Kind.SQL:
+      return (entry as RequestsData[t.Kind.SQL][string]).request.database;
+    case t.Kind.SQLSource:
+      return (entry as RequestsData[t.Kind.SQLSource][string]).database;
     // case database.Kind.HTTPSource: // TODO: swagger version
     default:
       return "";

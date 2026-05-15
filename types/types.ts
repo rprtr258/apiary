@@ -1,4 +1,4 @@
-import * as database from "./wailsjs/go/models.ts";
+import * as t from "./models.ts";
 
 export type KV = {
   key: string,
@@ -127,24 +127,24 @@ export const HTTPCodes = {
 } as const;
 export type HTTPCode = keyof typeof HTTPCodes;
 
-export const Database: Record<database.Database, string> = {
-  [database.Database.POSTGRES]:   "PostgreSQL",
-  [database.Database.MYSQL]:      "MySQL",
-  [database.Database.SQLITE]:     "SQLite",
-  [database.Database.CLICKHOUSE]: "ClickHouse",
+export const Database: Record<t.Database, string> = {
+  [t.Database.POSTGRES]:   "PostgreSQL",
+  [t.Database.MYSQL]:      "MySQL",
+  [t.Database.SQLITE]:     "SQLite",
+  [t.Database.CLICKHOUSE]: "ClickHouse",
 } as const;
 export type Database = keyof typeof Database;
 
 export type RequestData =
-  | {kind: database.Kind.HTTP }     & database.HTTPRequest
-  | {kind: database.Kind.SQL  }     & database.SQLRequest
-  | {kind: database.Kind.GRPC }     & database.GRPCRequest
-  | {kind: database.Kind.JQ   }     & database.JQRequest
-  | {kind: database.Kind.REDIS}     & database.RedisRequest
-  | {kind: database.Kind.MD   }     & database.MDRequest
-  | {kind: database.Kind.DIFF }     & database.DIFFRequest
-  | {kind: database.Kind.SQLSource} & database.SQLSourceRequest
-  | {kind: database.Kind.HTTPSource} & database.HTTPSourceRequest
+  | {kind: t.Kind.HTTP }     & t.HTTPRequest
+  | {kind: t.Kind.SQL  }     & t.SQLRequest
+  | {kind: t.Kind.GRPC }     & t.GRPCRequest
+  | {kind: t.Kind.JQ   }     & t.JQRequest
+  | {kind: t.Kind.REDIS}     & t.RedisRequest
+  | {kind: t.Kind.MD   }     & t.MDRequest
+  | {kind: t.Kind.DIFF }     & t.DIFFRequest
+  | {kind: t.Kind.SQLSource} & t.SQLSourceRequest
+  | {kind: t.Kind.HTTPSource} & t.HTTPSourceRequest
 ;
 
 export type Request = {
@@ -152,28 +152,28 @@ export type Request = {
   path: string,
 } & RequestData;
 
-export const Kinds = Object.values(database.Kind);
+export const Kinds = Object.values(t.Kind);
 export type ResponseData =
-  | {kind: database.Kind.HTTP } & database.HTTPResponse
-  | {kind: database.Kind.SQL  } & database.SQLResponse
-  | {kind: database.Kind.GRPC } & database.GRPCResponse
-  | {kind: database.Kind.JQ   } & database.JQResponse
-  | {kind: database.Kind.REDIS} & database.RedisResponse
-  | {kind: database.Kind.MD   } & database.MDResponse
-  | {kind: database.Kind.DIFF } & database.DIFFResponse
+  | {kind: t.Kind.HTTP } & t.HTTPResponse
+  | {kind: t.Kind.SQL  } & t.SQLResponse
+  | {kind: t.Kind.GRPC } & t.GRPCResponse
+  | {kind: t.Kind.JQ   } & t.JQResponse
+  | {kind: t.Kind.REDIS} & t.RedisResponse
+  | {kind: t.Kind.MD   } & t.MDResponse
+  | {kind: t.Kind.DIFF } & t.DIFFResponse
 ;
 
 export type HistoryEntry = {
   sent_at: Date,
   received_at: Date,
 } & (
-  {kind: database.Kind.HTTP,  request: database. HTTPRequest, response: database. HTTPResponse} |
-  {kind: database.Kind.SQL,   request: database.  SQLRequest, response: database.  SQLResponse} |
-  {kind: database.Kind.GRPC,  request: database. GRPCRequest, response: database. GRPCResponse} |
-  {kind: database.Kind.JQ,    request: database.   JQRequest, response: database.   JQResponse} |
-  {kind: database.Kind.REDIS, request: database.RedisRequest, response: database.RedisResponse} |
-  {kind: database.Kind.MD,    request: database.   MDRequest, response: database.   MDResponse} |
-  {kind: database.Kind.DIFF,  request: database.  DIFFRequest, response: database.  DIFFResponse}
+  {kind: t.Kind.HTTP,  request: t. HTTPRequest, response: t. HTTPResponse} |
+  {kind: t.Kind.SQL,   request: t.  SQLRequest, response: t.  SQLResponse} |
+  {kind: t.Kind.GRPC,  request: t. GRPCRequest, response: t. GRPCResponse} |
+  {kind: t.Kind.JQ,    request: t.   JQRequest, response: t.   JQResponse} |
+  {kind: t.Kind.REDIS, request: t.RedisRequest, response: t.RedisResponse} |
+  {kind: t.Kind.MD,    request: t.   MDRequest, response: t.   MDResponse} |
+  {kind: t.Kind.DIFF,  request: t. DIFFRequest, response: t. DIFFResponse}
 );
 
 export type RowValue = string | number | boolean | null;

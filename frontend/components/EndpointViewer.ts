@@ -1,7 +1,7 @@
 import {ComponentContainer} from "golden-layout";
-import * as database from "./../wailsjs/go/models.ts";
+import * as t from "../../types/models.ts";
 import {api} from "../api.ts";
-import {type HistoryEntry} from "../types.ts";
+import {type HistoryEntry} from "../../types/types.ts";
 import HTTPRequestView, {HTTPRequestViewResult} from "./HTTPRequestView.ts";
 import type {JSONSchema7} from "json-schema";
 import {m, signal} from "../utils.ts";
@@ -19,7 +19,7 @@ export default function EndpointViewer(
   const el: HTMLElement = container.element;
 
   const loadEndpointData = async (): Promise<{
-    exampleRequest: database.HTTPRequest,
+    exampleRequest: t.HTTPRequest,
     schema?: JSONSchema7,
   }> => {
     // First, get the endpoint list to extract schema
@@ -59,7 +59,7 @@ export default function EndpointViewer(
       initialRequest: exampleRequest,
       showRequest: signal(true),
       schema,
-      on: {send: async (request: database.HTTPRequest) => {
+      on: {send: async (request: t.HTTPRequest) => {
         const res = await api.requestPerformVirtualEndpointHTTPSource(sourceID, endpointIndex, request);
         if (res.kind === "err")
           throw new Error(`Could not perform request: ${res.value}`);
@@ -77,7 +77,7 @@ export default function EndpointViewer(
   });
 
   return {
-    loaded(r: {request: database.HTTPRequest, history: HistoryEntry[]}) {
+    loaded(r: {request: t.HTTPRequest, history: HistoryEntry[]}) {
       httpRequestView?.loaded(r);
     },
     push_history_entry(he: HistoryEntry) {

@@ -1,11 +1,10 @@
-import * as database from "./wailsjs/go/models.ts";
-import * as app from "./wailsjs/go/models.ts";
+import * as t from "../types/models.ts";
 import {NEmpty, NIcon, NList, NListItem, NTag, NTree, TagType, treeLabelClass, TreeOption} from "./components/dataview.ts";
 import {ContentCopyFilled, CopySharp, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, EditOutlined, Refresh} from "./components/icons.ts";
 import {NSelect} from "./components/input.ts";
 import {NScrollbar, NTabs} from "./components/layout.ts";
 import {api} from "./api.ts";
-import {HistoryEntry, Kinds} from "./types.ts";
+import {HistoryEntry, Kinds} from "../types/types.ts";
 import {store} from "./store.ts";
 import notification from "./notification.ts";
 import {clamp, DOMNode, m, setDisplay, signal} from "./utils.ts";
@@ -41,7 +40,7 @@ function formatTableLabel(args: {
   return `${name} (${rows.toLocaleString()} rows, ${formatSize(bytes)})`;
 }
 
-function formatEndpointLabel(endpoint: database.EndpointInfo): string {
+function formatEndpointLabel(endpoint: t.EndpointInfo): string {
   const {path} = endpoint;
   // Format: /route/
   // Ensure path starts with / and ends with / if not empty
@@ -107,17 +106,17 @@ function drag({node, dragNode, dropPosition}: {
   }
 }
 
-export function badge(kind: database.Kind): [string, string] {
+export function badge(kind: t.Kind): [string, string] {
   switch (kind) {
-  case database.Kind.HTTP:       return ["HTTP",  "lime"     ];
-  case database.Kind.SQL:        return ["SQL",   "lightblue"];
-  case database.Kind.GRPC:       return ["GRPC",  "cyan"     ];
-  case database.Kind.JQ:         return ["JQ",    "violet"   ];
-  case database.Kind.REDIS:      return ["REDIS", "red"      ];
-  case database.Kind.MD:         return ["MD",    "blue"     ];
-  case database.Kind.SQLSource:  return ["SQL*",  "blue"     ];
-  case database.Kind.HTTPSource: return ["HTTP*", "lime"     ];
-  case database.Kind.DIFF:       return ["DIFF",  "green"    ];
+  case t.Kind.HTTP:       return ["HTTP",  "lime"     ];
+  case t.Kind.SQL:        return ["SQL",   "lightblue"];
+  case t.Kind.GRPC:       return ["GRPC",  "cyan"     ];
+  case t.Kind.JQ:         return ["JQ",    "violet"   ];
+  case t.Kind.REDIS:      return ["REDIS", "red"      ];
+  case t.Kind.MD:         return ["MD",    "blue"     ];
+  case t.Kind.SQLSource:  return ["SQL*",  "blue"     ];
+  case t.Kind.HTTPSource: return ["HTTP*", "lime"     ];
+  case t.Kind.DIFF:       return ["DIFF",  "green"    ];
   default:                       return [String(kind), ""];
   }
 }
@@ -223,12 +222,12 @@ if (document.getElementById(PULSE_STYLE_ID) === null) {
 }
 
 const tableCache: Record<string, {
-  tables: Record<string, database.TableInfo>,
+  tables: Record<string, t.TableInfo>,
   lastFetch: number,
   loading?: boolean,
 }> = {};
 const endpointCache: Record<string, {
-  endpoints: database.EndpointInfo[],
+  endpoints: t.EndpointInfo[],
   lastFetch: number,
   loading?: boolean,
 }> = {};
@@ -318,14 +317,14 @@ export const sidebar = function() {
     // Fetch tables for expanded SQLSource (respect 5-min cache and loading state)
     const sqlSourceKeys = expandedKeys.filter(key =>
       key in store.requests
-      && store.requests[key].kind === database.Kind.SQLSource
+      && store.requests[key].kind === t.Kind.SQLSource
       && (!(key in tableCache) || Date.now() - tableCache[key].lastFetch > 300000)
       && !(key in tableCache && tableCache[key].loading === true));
 
     // Fetch endpoints for expanded HTTPSource (respect 5-min cache and loading state)
     const httpSourceKeys = expandedKeys.filter(key =>
       key in store.requests
-      && store.requests[key].kind === database.Kind.HTTPSource
+      && store.requests[key].kind === t.Kind.HTTPSource
       && (!(key in endpointCache) || Date.now() - endpointCache[key].lastFetch > 300000)
       && !(key in endpointCache && endpointCache[key].loading === true));
 
@@ -367,7 +366,7 @@ export const sidebar = function() {
         label: "Copy as curl",
         key: "copy-as-curl",
         icon: NIcon({component: ContentCopyFilled}),
-        show: store.requests[id].kind === database.Kind.HTTP,
+        show: store.requests[id].kind === t.Kind.HTTP,
         on: {
           click: () => {
             api.get(id).then(r => {
@@ -376,8 +375,8 @@ export const sidebar = function() {
                 return;
               }
 
-              const req = r.value.Request as unknown as database.HTTPRequest; // TODO: remove unknown cast
-              const httpToCurl = ({url, method, body, headers}: database.HTTPRequest) => {
+              const req = r.value.Request as unknown as t.HTTPRequest; // TODO: remove unknown cast
+              const httpToCurl = ({url, method, body, headers}: t.HTTPRequest) => {
                 const headersStr = headers.length > 0 ? " " + headers.map(({key, value}) => `-H "${key}: ${value}"`).join(" ") : "";
                 const bodyStr = body !== "" ? ` -d '${body}'` : "";
                 return `curl -X ${method} ${url}${headersStr}${bodyStr}`;
@@ -391,12 +390,12 @@ export const sidebar = function() {
         label: "Refresh",
         key: "refresh",
         icon: NIcon({component: Refresh}),
-        show: store.requests[id].kind === database.Kind.SQLSource || store.requests[id].kind === database.Kind.HTTPSource,
+        show: store.requests[id].kind === t.Kind.SQLSource || store.requests[id].kind === t.Kind.HTTPSource,
         on: {
           click: () => {
-            if (store.requests[id].kind === database.Kind.SQLSource) {
+            if (store.requests[id].kind === t.Kind.SQLSource) {
               fetchTables(id);
-            } else if (store.requests[id].kind === database.Kind.HTTPSource) {
+            } else if (store.requests[id].kind === t.Kind.HTTPSource) {
               fetchEndpoints(id);
             }
           },
@@ -446,15 +445,15 @@ export const sidebar = function() {
     }
 
     const data = (() => {
-      const mapper = (tree: app.Tree): TreeOption[] =>
+      const mapper = (tree: t.Tree): TreeOption[] =>
         Object.entries(tree.Dirs).map(([k, v]): TreeOption => ({
           key: k,
           label: basename(k),
           children: mapper(v),
         })).concat(Object.entries(tree.IDs).map(([id, basename]) => {
             const req = store.requests[id];
-            const isSQLSource = id in store.requests && req.kind === database.Kind.SQLSource;
-            const isHTTPSource = id in store.requests && req.kind === database.Kind.HTTPSource;
+            const isSQLSource = id in store.requests && req.kind === t.Kind.SQLSource;
+            const isHTTPSource = id in store.requests && req.kind === t.Kind.HTTPSource;
 
             const children: TreeOption[] | undefined = (() => {
               if (isSQLSource) {
@@ -517,13 +516,13 @@ export const sidebar = function() {
             // Only fetch data for sources that were JUST expanded
             const sqlSourceKeys = newlyExpandedKeys.filter(key =>
               key in store.requests
-              && store.requests[key].kind === database.Kind.SQLSource
+              && store.requests[key].kind === t.Kind.SQLSource
               && (!(key in tableCache) || Date.now() - tableCache[key].lastFetch > 300000)
               && !(key in tableCache && tableCache[key].loading === true));
 
             const httpSourceKeys = newlyExpandedKeys.filter(key =>
               key in store.requests
-              && store.requests[key].kind === database.Kind.HTTPSource
+              && store.requests[key].kind === t.Kind.HTTPSource
               && (!(key in endpointCache) || Date.now() - endpointCache[key].lastFetch > 300000)
               && !(key in endpointCache && endpointCache[key].loading === true));
 
@@ -727,11 +726,11 @@ export const sidebar = function() {
 
             // Check if this source is currently loading
             const isLoading =
-              (req.kind === database.Kind.SQLSource && option.key in tableCache && tableCache[option.key].loading === true) ||
-              (req.kind === database.Kind.HTTPSource && option.key in endpointCache && endpointCache[option.key].loading === true);
+              (req.kind === t.Kind.SQLSource && option.key in tableCache && tableCache[option.key].loading === true) ||
+              (req.kind === t.Kind.HTTPSource && option.key in endpointCache && endpointCache[option.key].loading === true);
 
             // Determine tag type - regular requests have no background, just colored text
-            const tagType = req.kind === database.Kind.HTTP ? "success" : "info";
+            const tagType = req.kind === t.Kind.HTTP ? "success" : "info";
 
             // The tree component automatically adds folder icon for items with children
             // We just need to render the badge and label
@@ -823,13 +822,13 @@ export const sidebar = function() {
     console.error("Failed to fetch expanded sources:", err);
   });
 
-  const new_select = NSelect<database.Kind>({
-    on: {update: (value: database.Kind) => {
+  const new_select = NSelect<t.Kind>({
+    on: {update: (value: t.Kind) => {
       newRequestKind.update(() => value);
       new_select.reset();
     }},
     placeholder: "New",
-    options: Kinds.map((kind: database.Kind) => ({label: kind.toUpperCase(), value: kind})),
+    options: Kinds.map((kind: t.Kind) => ({label: kind.toUpperCase(), value: kind})),
   });
 
   // TODO: whole history in reverse order

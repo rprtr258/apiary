@@ -1,10 +1,10 @@
 import {extractSubKind, load, RequestID} from "./db.ts";
-import * as app from "./frontend/wailsjs/go/models.ts";
+import * as t from "./types/models.ts";
 
-export async function List(): Promise<app.ListResponse> {
+export async function List(): Promise<t.ListResponse> {
   const j = await load();
-  const tree: app.Tree = {IDs: {}, Dirs: {}};
-  const requests: Record<RequestID, app.requestPreview> = {};
+  const tree: t.Tree = {IDs: {}, Dirs: {}};
+  const requests: Record<RequestID, t.requestPreview> = {};
   for (const req of j.request) {
     const kind = req.kind;
     const path = req.path;
@@ -27,7 +27,7 @@ export async function List(): Promise<app.ListResponse> {
       } else if (part in current.IDs) {
         current = current.Dirs[part];
       } else {
-        const child: app.Tree = {IDs: {}, Dirs: {}};
+        const child: t.Tree = {IDs: {}, Dirs: {}};
         current.Dirs[part] = child;
         current = child;
       }
@@ -41,16 +41,17 @@ export async function List(): Promise<app.ListResponse> {
   };
 }
 
-export async function Get(id: RequestID): Promise<app.GetResponse> {
+export async function Get(id: RequestID): Promise<t.GetResponse> {
   const j = await load();
-  const req = j.request.find(r => r.id === id); // TODO: map
+  const req = j.request.find(r => r.id === id)!; // TODO: map
+  const entry = j[req.kind][id];
   return {
     Request: {
       ID: id,
       Path: req.path,
-      Data: j[req.kind][id].request,
-      Responses: j[req.kind][id].responses,
+      Data: entry.request,
+      Responses: entry.responses,
     },
-    History: j[req.kind][id].responses,
+    History: entry.responses,
   };
 }

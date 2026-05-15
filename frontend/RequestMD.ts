@@ -1,16 +1,16 @@
 import {EditorState} from "@codemirror/state";
 import {EditorView, ViewPlugin, ViewUpdate} from "@codemirror/view";
 import {markdown} from "@codemirror/lang-markdown";
-import * as database from "./wailsjs/go/models.ts";
+import * as t from "../types/models.ts";
 import {NEmpty} from "./components/dataview.ts";
 import {NSplit} from "./components/layout.ts";
 import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
 import {get_request} from "./store.ts";
-import {HistoryEntry} from "./types.ts";
+import {HistoryEntry} from "../types/types.ts";
 import {api} from "./api.ts";
 import {m, Signal} from "./utils.ts";
 
-type Request = {kind: database.Kind.MD} & database.MDRequest;
+type Request = {kind: t.Kind.MD} & t.MDRequest;
 
 type Props = {
   value: string | null,
@@ -58,7 +58,7 @@ export default function(
     send: () => Promise<void>,
   },
 ): {
-  loaded(r: get_request): void,
+  loaded(r: get_request & {request: Request}): void,
   push_history_entry(he: HistoryEntry): void,
   unmount(): void,
 } {
@@ -95,7 +95,7 @@ export default function(
         el_error.style.display = "block";
       } else {
         el_error.style.display = "none";
-        const response = res.value.response as database.MDResponse;
+        const response = res.value.response as t.MDResponse;
 
         // Save scroll position before update
         const lastScrollTop = el_response.scrollTop;
@@ -112,7 +112,7 @@ export default function(
   };
 
   return {
-    loaded: (r: get_request) => {
+    loaded: (r: get_request & {request: Request}) => {
       const request = r.request;
       id = r.request.id;
 

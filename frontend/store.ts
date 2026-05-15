@@ -1,8 +1,7 @@
 import {ComponentItem, LayoutConfig, ResolvedLayoutConfig} from "golden-layout";
-import * as database from "./wailsjs/go/models.ts";
-import * as app from "./wailsjs/go/models.ts";
+import * as t from "../types/models.ts";
 import {api} from "./api.ts";
-import {type RequestData, type HistoryEntry, Request} from "./types.ts";
+import {type RequestData, type HistoryEntry, Request} from "../types/types.ts";
 import {signal, Signal} from "./utils.ts";
 import layout from "./layout.ts";
 import notification from "./notification.ts";
@@ -13,13 +12,13 @@ export type StateRequest = {
 export type StateSQLSourceTable = {
   sqlSourceID: string,
   tableName: string,
-  tableInfo: database.TableInfo,
-  database: database.Database,
+  tableInfo: t.TableInfo,
+  database: t.Database,
 };
 export type StateHTTPSourceEndpoint = {
   sourceID: string,
   endpointIndex: number,
-  endpointInfo: database.EndpointInfo,
+  endpointInfo: t.EndpointInfo,
 };
 export type State = StateRequest | StateSQLSourceTable | StateHTTPSourceEndpoint;
 
@@ -77,8 +76,8 @@ export function last_history_entry(request: get_request): HistoryEntry | undefin
 }
 
 export type Store = {
-  requestsTree : Signal<app.Tree>,
-  requests : Record<string, app.requestPreview>,
+  requestsTree : Signal<t.Tree>,
+  requests : Record<string, t.requestPreview>,
   requests2: Record<string, get_request>,
   requestNames: Record<string, string>,
   layoutConfig: LayoutConfig,
@@ -92,8 +91,8 @@ export type Store = {
   duplicate(id: string): Promise<void>,
   deleteRequest(id: string): Promise<void>,
   rename(id: string, newID: string): Promise<void>,
-  openTableViewer(sqlSourceID: string, tableName: string, tableInfo: database.TableInfo): void,
-  openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: database.EndpointInfo): void,
+  openTableViewer(sqlSourceID: string, tableName: string, tableInfo: t.TableInfo): void,
+  openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: t.EndpointInfo): void,
   // Tab navigation methods
   navigateToNextTab(): void,
   navigateToPreviousTab(): void,
@@ -125,7 +124,7 @@ export const store = ((): Store => {
     return findExistingTab<StateRequest>("MyComponent", t => t.id === activeID);
   }
   return {
-    requestsTree : signal({IDs: {}, Dirs: {}} as app.Tree),
+    requestsTree : signal({IDs: {}, Dirs: {}}),
     requests : {},
     requests2: {},
     requestNames: {},
@@ -178,7 +177,7 @@ export const store = ((): Store => {
 
       this.requestsTree.update(() => res.Tree);
 
-      function* mapper(tree: app.Tree): Generator<[string, string]> {
+      function* mapper(tree: t.Tree): Generator<[string, string]> {
         yield* Object.entries(tree.IDs);
         for (const subtree of Object.values(tree.Dirs))
           yield* mapper(subtree);
@@ -229,7 +228,7 @@ export const store = ((): Store => {
       component?.tab.setTitle(newName);
       await this.fetch();
     },
-    openTableViewer(sqlSourceID: string, tableName: string, tableInfo: database.TableInfo): void {
+    openTableViewer(sqlSourceID: string, tableName: string, tableInfo: t.TableInfo): void {
       if (findExistingTab<StateSQLSourceTable>("TableViewer", t => t.sqlSourceID === sqlSourceID && t.tableName === tableName) !== undefined)
         return;
 
@@ -241,7 +240,7 @@ export const store = ((): Store => {
         return;
       }
 
-      const sqlSourceRequest = sourceRequest.request as database.SQLSourceRequest;
+      const sqlSourceRequest = sourceRequest.request as t.SQLSourceRequest;
       const databaseType = sqlSourceRequest.database;
 
       const sourceName = this.requestNames[sqlSourceID] ?? sqlSourceID;
@@ -252,7 +251,7 @@ export const store = ((): Store => {
         database: databaseType,
       });
     },
-    openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: database.EndpointInfo): void {
+    openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: t.EndpointInfo): void {
       if (findExistingTab<StateHTTPSourceEndpoint>("EndpointViewer", t => t.sourceID === sourceID && t.endpointIndex === endpointIndex) !== undefined)
         return;
 
@@ -382,7 +381,7 @@ store.requestsTree.sub(function*() {
       openTabIds.set((c.toConfig().componentState as StateRequest).id, c);
 
     const treeIds = new Set<string>();
-    function collectIds(tree: app.Tree): void {
+    function collectIds(tree: t.Tree): void {
       for (const id in tree.IDs) {
         treeIds.add(id);
       }

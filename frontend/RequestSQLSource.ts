@@ -1,5 +1,5 @@
-import * as database from "./wailsjs/go/models.ts";
-import {Database} from "./types.ts";
+import * as t from "../types/models.ts";
+import {Database} from "../types/types.ts";
 import {api} from "./api.ts";
 import {get_request} from "./store.ts";
 import {m} from "./utils.ts";
@@ -8,7 +8,7 @@ import {NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {NTabs} from "./components/layout.ts";
 import SchemaCanvas from "./components/SchemaCanvas.ts";
 
-type Request = database.SQLSourceRequest;
+type Request = t.SQLSourceRequest;
 
 function StatusLabel() {
   const el = m("div", {style: {fontSize: ".8em", height: "1.2em"}});
