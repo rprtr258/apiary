@@ -1,0 +1,46 @@
+{
+  "include": [
+    "./**/*.ts"
+  ],
+  "exclude": ["dist"],
+  "compilerOptions": {
+    // Environment setup & latest features
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleDetection": "auto",
+
+    // Module resolution
+    "moduleResolution": "NodeNext",
+    "verbatimModuleSyntax": false,
+    "rewriteRelativeImportExtensions": true,
+
+    // Emit compiled JS to dist/
+    "outDir": "dist",
+    "noEmit": false,
+
+    // Best practices
+    "strict": true,
+    "skipLibCheck": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": true,
+
+    "allowJs": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "allowImportingTsExtensions": true,
+
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "forceConsistentCasingInFileNames": true,
+    "useDefineForClassFields": true,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true
+  }
+}
