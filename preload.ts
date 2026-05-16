@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron";
-// import * as t from "./types/models.ts";
+import * as t from "./types/models.ts";
 
 contextBridge.exposeInMainWorld("versions", {
   node: () => process.versions.node,
@@ -7,28 +7,29 @@ contextBridge.exposeInMainWorld("versions", {
   electron: () => process.versions.electron,
   // we can also expose variables, not just functions
 });
+
 contextBridge.exposeInMainWorld("api", {
-  // CountRowsSQLSource: (arg1:string,arg2:string) => Promise<number> = async () => 0,
-  // Create: (arg1:string,arg2:t.Kind) => Promise<t.ResponseNewRequest> = async () => t.ResponseNewRequest.createFrom({}),
-  // Delete: (arg1:string) => Promise<void> = async () => {},
-  // DescribeTableSQLSource: (arg1:string,arg2:string) => Promise<t.TableSchema> = async () => t.TableSchema.createFrom({}),
-  // Duplicate: (arg1:string) => Promise<t.ResponseNewRequest> = async () => t.ResponseNewRequest.createFrom({}),
-  // FetchSpecHTTPSource: (arg1:string) => Promise<void> = async () => {},
-  // GRPCMethods: (arg1:string) => Promise<t.grpcServiceMethods[]> = async () => [t.grpcServiceMethods.createFrom({})],
-  // GRPCQueryFake: (arg1:string,arg2:string) => Promise<string> = async () => "",
-  // GRPCQueryValidate: (arg1:string,arg2:string,arg3:string) => Promise<void> = async () => {},
-  // GenerateExampleRequestHTTPSource: (arg1:string,arg2:number) => Promise<t.HTTPRequest> = async () => t.HTTPRequest.createFrom({}),
-  Get: (arg1: string) => ipcRenderer.invoke("get-request", arg1),
-  // JQ: (arg1:string,arg2:string) => Promise<string[]> = async () => [],
-  List: () => ipcRenderer.invoke("list-requests"),
-  // ListEndpointsHTTPSource: (arg1:string) => Promise<t.EndpointInfo[]> = async () => [],
-  // ListTablesSQLSource: (arg1:string) => Promise<t.TableInfo[]> = async () => [],
-  // Perform: (arg1:string) => Promise<Record<string, any>> = async () => ({}),
-  // PerformSQLSource: (arg1:string,arg2:string) => Promise<Record<string, any>> = async () => ({}),
-  // PerformVirtualEndpointHTTPSource: (arg1:string,arg2:number,arg3:t.HTTPRequest) => Promise<Record<string, any>> = async () => ({}),
-  // Read: (arg1:string) => Promise<t.Request> = async () => t.Request.createFrom({}),
-  // Rename: (arg1:string,arg2:string) => Promise<void> = async () => {},
-  // TestHTTPSource: (arg1:string) => Promise<void> = async () => {},
-  // TestSQLSource: (arg1:string) => Promise<void> = async () => {},
-  // Update: (arg1:string,arg2:t.Kind,arg3:Record<string, any>) => Promise<void> = async () => {},
+  CountRowsSQLSource: (arg1: string, arg2: string): Promise<number> => ipcRenderer.invoke("CountRowsSQLSource", arg1, arg2),
+  Create: (arg1: string, arg2: t.Kind): Promise<t.ResponseNewRequest> => ipcRenderer.invoke("Create", arg1, arg2),
+  Delete: (arg1: string): Promise<void> => ipcRenderer.invoke("Delete", arg1),
+  DescribeTableSQLSource: (arg1: string, arg2: string): Promise<t.TableSchema> => ipcRenderer.invoke("DescribeTableSQLSource", arg1, arg2),
+  Duplicate: (arg1: string): Promise<t.ResponseNewRequest> => ipcRenderer.invoke("Duplicate", arg1),
+  FetchSpecHTTPSource: (arg1: string): Promise<void> => ipcRenderer.invoke("FetchSpecHTTPSource", arg1),
+  GRPCMethods: (arg1: string): Promise<t.grpcServiceMethods[]> => ipcRenderer.invoke("GRPCMethods", arg1),
+  GRPCQueryFake: (arg1: string, arg2: string): Promise<string> => ipcRenderer.invoke("GRPCQueryFake", arg1, arg2),
+  GRPCQueryValidate: (arg1: string, arg2: string, arg3: string): Promise<void> => ipcRenderer.invoke("GRPCQueryValidate", arg1, arg2, arg3),
+  GenerateExampleRequestHTTPSource: (arg1: string, arg2: number): Promise<t.HTTPRequest> => ipcRenderer.invoke("GenerateExampleRequestHTTPSource", arg1, arg2),
+  Get: (arg1: string): Promise<t.GetResponse> => ipcRenderer.invoke("Get", arg1),
+  JQ: (arg1: string, arg2: string): Promise<string[]> => ipcRenderer.invoke("JQ", arg1, arg2),
+  List: (): Promise<t.ListResponse> => ipcRenderer.invoke("List"),
+  ListEndpointsHTTPSource: (arg1: string): Promise<t.EndpointInfo[]> => ipcRenderer.invoke("ListEndpointsHTTPSource", arg1),
+  ListTablesSQLSource: (arg1: string): Promise<t.TableInfo[]> => ipcRenderer.invoke("ListTablesSQLSource", arg1),
+  Perform: (arg1: string): Promise<Record<string, unknown>> => ipcRenderer.invoke("Perform", arg1),
+  PerformSQLSource: (arg1: string, arg2: string): Promise<Record<string, unknown>> => ipcRenderer.invoke("PerformSQLSource", arg1, arg2),
+  PerformVirtualEndpointHTTPSource: (arg1: string, arg2: number, arg3: t.HTTPRequest): Promise<Record<string, unknown>> => ipcRenderer.invoke("PerformVirtualEndpointHTTPSource", arg1, arg2, arg3),
+  Read: (arg1: string): Promise<t.Request> => ipcRenderer.invoke("Read", arg1),
+  Rename: (arg1: string, arg2: string): Promise<void> => ipcRenderer.invoke("Rename", arg1, arg2),
+  TestHTTPSource: (arg1: string): Promise<void> => ipcRenderer.invoke("TestHTTPSource", arg1),
+  TestSQLSource: (arg1: string): Promise<void> => ipcRenderer.invoke("TestSQLSource", arg1),
+  Update: (arg1: string, arg2: t.Kind, arg3: Record<string, unknown>): Promise<void> => ipcRenderer.invoke("Update", arg1, arg2, arg3),
 });
