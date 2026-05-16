@@ -4,6 +4,7 @@ import {HistoryEntry, RequestData} from "../types/types.ts";
 
 const App = window.api;
 
+// TODO: remove, just use new Date
 function parseTime(s: string): Date {
   const d = new Date();
   d.setTime(Date.parse(s));

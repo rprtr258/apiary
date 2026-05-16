@@ -104,123 +104,8 @@
 // 	return resp[0], err
 // }
 
-// func (a *App) Get(id string) (GetResponse, error) {
-// 	request, err := a.get(database.RequestID(id))
-// 	if err != nil {
-// 		return GetResponse{}, errors.Wrapf(err, "get request id=%q", id)
-// 	}
-
-// 	history := fun.Map[D](func(h database.Response) D {
-// 		return D{
-// 			"sent_at":     h.SentAt.Format(time.RFC3339),
-// 			"received_at": h.ReceivedAt.Format(time.RFC3339),
-// 			"response":    h.Response,
-// 		}
-// 	}, Emptize(request.Responses)...)
-// 	slices.SortFunc(history, func(i, j D) int {
-// 		return strings.Compare(i["sent_at"].(string), j["sent_at"].(string))
-// 	})
-
-// 	return GetResponse{request, history}, nil
-// }
-
 // type ResponseNewRequest struct {
 // 	ID database.RequestID `json:"id"`
-// }
-
-// func (a *App) Create(
-// 	path string,
-// 	kind database.Kind,
-// ) (ResponseNewRequest, error) {
-// 	plugin, ok := database.Plugins[kind]
-// 	if !ok {
-// 		return ResponseNewRequest{}, errors.Errorf("unknown request kind %q", kind)
-// 	}
-
-// 	id, err := a.DB.Create(a.ctx, path, plugin.EmptyRequest)
-// 	if err != nil {
-// 		return ResponseNewRequest{}, errors.Wrap(err, "error while creating request")
-// 	}
-
-// 	return ResponseNewRequest{
-// 		ID: id,
-// 	}, nil
-// }
-
-// func (a *App) Duplicate(id string) (ResponseNewRequest, error) {
-// 	request, err := a.get(database.RequestID(id))
-// 	if err != nil {
-// 		return ResponseNewRequest{}, errors.Wrapf(err, "get original request id=%q", id)
-// 	}
-
-// 	newID, err := a.DB.Create(a.ctx, request.Path, request.Data)
-// 	return ResponseNewRequest{newID}, err
-// }
-
-// func (a *App) Read(requestID string) (database.Request, error) {
-// 	request, err := a.get(database.RequestID(requestID))
-// 	if err != nil {
-// 		return database.Request{}, errors.Wrapf(err, "get request id=%q", requestID)
-// 	}
-
-// 	return request, nil
-// }
-
-// func (a *App) Rename(requestID, newName string) error {
-// 	return errors.Wrap(a.DB.Rename(a.ctx, database.RequestID(requestID), newName), "rename request")
-// }
-
-// func parse[T database.EntryData](b []byte) (database.EntryData, error) {
-// 	var res T
-// 	if err := json.Unmarshal(b, &res); err != nil {
-// 		return res, errors.Wrapf(err, "unmarshal %T request", res)
-// 	}
-// 	return res, nil
-// }
-
-// func (a *App) Update(
-// 	requestID string,
-// 	kind database.Kind,
-// 	request map[string]any,
-// ) error {
-// 	b, err := json.Marshal(request)
-// 	if err != nil {
-// 		return errors.Wrap(err, "marshal request")
-// 	}
-
-// 	parseRequestt, ok := map[database.Kind]func([]byte) (database.EntryData, error){
-// 		database.KindHTTP:       parse[database.HTTPRequest],
-// 		database.KindSQL:        parse[database.SQLRequest],
-// 		database.KindGRPC:       parse[database.GRPCRequest],
-// 		database.KindJQ:         parse[database.JQRequest],
-// 		database.KindRedis:      parse[database.RedisRequest],
-// 		database.KindMD:         parse[database.MDRequest],
-// 		database.KindSQLSource:  parse[database.SQLSourceRequest],
-// 		database.KindHTTPSource: parse[database.HTTPSourceRequest],
-// 		database.KindDIFF:       parse[database.DIFFRequest],
-// 	}[kind]
-// 	if !ok {
-// 		return errors.Errorf("unknown request kind %q", kind)
-// 	}
-
-// 	requestt, err := parseRequestt(b)
-// 	if err != nil {
-// 		return errors.Wrap(err, "unmarshal request")
-// 	}
-
-// 	if err := a.DB.Update(
-// 		a.ctx,
-// 		database.RequestID(requestID),
-// 		requestt,
-// 	); err != nil {
-// 		return errors.Wrap(err, "update request")
-// 	}
-
-// 	return nil
-// }
-
-// func (a *App) Delete(requestID string) error {
-// 	return errors.Wrap(a.DB.Delete(a.ctx, database.RequestID(requestID)), "delete request")
 // }
 
 // // Perform create a handler that performs call and save result to history
@@ -569,19 +454,6 @@
 // 	Payload string,
 // ) error {
 // 	return errors.New("not implemented")
-// }
-
-// func (a *App) ListTablesSQLSource(requestID string) ([]database.TableInfo, error) {
-// 	request, err := a.get(database.RequestID(requestID))
-// 	if err != nil {
-// 		return nil, errors.Wrapf(err, "get request id=%q", requestID)
-// 	}
-// 	if request.Data.Kind() != database.KindSQLSource {
-// 		return nil, errors.Errorf("request %s is not SQLSource", requestID)
-// 	}
-
-// 	req := request.Data.(database.SQLSourceRequest)
-// 	return database.ListTables(a.ctx, req.Database, req.DSN)
 // }
 
 // func (a *App) DescribeTableSQLSource(requestID, tableName string) (database.TableSchema, error) {

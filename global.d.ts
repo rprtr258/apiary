@@ -1,6 +1,5 @@
+import {Request} from "./db.ts";
 import * as t from "./types/models.ts";
-
-// Type declarations for Electron preload bridge.
 
 interface Versions {
   node: () => string,
@@ -31,7 +30,7 @@ interface Api {
   Rename: (arg1:string,arg2:string) => Promise<void>,
   TestHTTPSource: (arg1:string) => Promise<void>,
   TestSQLSource: (arg1:string) => Promise<void>,
-  Update: (arg1:string,arg2:t.Kind,arg3:Record<string, any>) => Promise<void>,
+  Update: (arg1:string,arg2:t.Kind,arg3:Request["Data"]) => Promise<void>,
 }
 
 declare global {

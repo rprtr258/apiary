@@ -364,7 +364,7 @@ export async function get_request(request_id: string): Promise<get_request | nul
     received_at: new Date(r.received_at),
     kind,
     request: requestData,
-    response: r.response ?? r.data,
+    response: (r as any).data ?? r.response,
   } as HistoryEntry));
 
   store.requests2[request_id] = {request, history};
