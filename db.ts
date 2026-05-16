@@ -1,94 +1,114 @@
-import {readFile} from "fs/promises";
+import {readFile, writeFile} from "fs/promises";
+import {nanoid} from "nanoid";
 import * as t from "./types/models.ts";
 
 export type RequestID = string;
 
-type KV = {
-  key: string,
-  value: string,
+export function generateID(): RequestID {
+  return nanoid();
+}
+
+type KindEntry<Req, Resp> = {
+  request: Req,
+  responses: { // TODO: remove
+    SentAt: string,
+    ReceivedAt: string,
+    Response: Resp,
+  }[],
 };
 
-type RequestsData = {
-  [t.Kind.HTTP]: Record<RequestID, {
-    request: {
-      headers: KV[],
-      body: string,
-      method: string,
-      url: string,
-    },
-  }>,
-	[t.Kind.SQL]: Record<RequestID, {
-    request: {
-      database: string,
-      dsn: string,
-      query: string,
-    },
-  }>,
-	[t.Kind.SQLSource]: Record<RequestID, {
-    database: string,
-    dsn: string,
-  }>,
-	[t.Kind.MD]: Record<RequestID, {
-    request: {
-      database: string,
-    },
-  }>,
-	[t.Kind.JQ]: Record<RequestID, {
-    request: {
-      database: string,
-    },
-  }>,
-	[t.Kind.REDIS]: Record<RequestID, {
-    request: {
-      database: string,
-    },
-  }>,
-	[t.Kind.GRPC]: Record<RequestID, {
-    request: {
-      metadata: KV[],
-      method: string,
-      payload: string,
-      target: string,
-    },
-  }>,
-	[t.Kind.HTTPSource]: {
-    database: string,
-  },
-	[t.Kind.DIFF]: {
-    left: string,
-    right: string,
-  },
-};
-
-type DB = {
-  "$version": number,
-  app_version: string, // TODO: remove?
+type dbJSON = {
+  "$version": 1,
+  app_version: string,
   request: {
     id: RequestID,
     kind: t.Kind,
     path: string,
   }[],
-  response: Record<RequestID, {
-    id: string,
-    sent_at: string,
-    received_at: string,
-  }[]>,
-} & RequestsData;
+  [t.Kind.HTTP]: Record<RequestID, KindEntry<t.HTTPRequest, t.HTTPResponse>>,
+  [t.Kind.SQL]: Record<RequestID, KindEntry<t.SQLRequest, t.SQLResponse>>,
+  [t.Kind.JQ]: Record<RequestID, KindEntry<t.JQRequest, t.JQResponse>>,
+  [t.Kind.MD]: Record<RequestID, KindEntry<t.MDRequest, t.MDResponse>>,
+  [t.Kind.REDIS]: Record<RequestID, KindEntry<t.RedisRequest, t.RedisResponse>>,
+  [t.Kind.GRPC]: Record<RequestID, KindEntry<t.GRPCRequest, t.GRPCResponse>>,
+  [t.Kind.DIFF]: Record<RequestID, KindEntry<t.DIFFRequest, t.DIFFResponse>>,
+  [t.Kind.SQLSource]: Record<RequestID, t.SQLSourceRequest>,
+  [t.Kind.HTTPSource]: Record<RequestID, t.HTTPSourceRequest>,
+};
+
+type HistoryEntry<Req, Resp> = {
+  SentAt: Date,
+  ReceivedAt: Date,
+  // Request: Req, // TODO: use
+  Response: Resp,
+};
+
+type HistoryEntry2 = // TODO: just Request["Responses"][number]
+  | HistoryEntry<t.HTTPRequest, t.HTTPResponse>
+  | HistoryEntry<t.SQLRequest, t.SQLResponse>
+  | HistoryEntry<t.JQRequest, t.JQResponse>
+  | HistoryEntry<t.RedisRequest, t.RedisResponse>
+  | HistoryEntry<t.GRPCRequest, t.GRPCResponse>
+;
+
+export type Request = {
+	ID:        RequestID,
+	Path:      string,
+} & (
+  | {Kind: t.Kind.HTTP} & {
+    Data: t.HTTPRequest,
+    Responses: HistoryEntry<t.HTTPRequest, t.HTTPResponse>[],
+  }
+  | {Kind: t.Kind.SQL} & {
+    Data: t.SQLRequest,
+    Responses: HistoryEntry<t.SQLRequest, t.SQLResponse>[],
+  }
+  | {Kind: t.Kind.JQ} & {
+    Data: t.JQRequest,
+    Responses: HistoryEntry<t.JQRequest, t.JQResponse>[],
+  }
+  | {Kind: t.Kind.MD} & {
+    Data: t.MDRequest,
+    Responses: [],
+  }
+  | {Kind: t.Kind.REDIS} & {
+    Data: t.RedisRequest,
+    Responses: HistoryEntry<t.RedisRequest, t.RedisResponse>[],
+  }
+  | {Kind: t.Kind.GRPC} & {
+    Data: t.GRPCRequest,
+    Responses: HistoryEntry<t.GRPCRequest, t.GRPCResponse>[],
+  }
+  | {Kind: t.Kind.DIFF} & {
+    Data: t.DIFFRequest,
+    Responses: [],
+  }
+  | {Kind: t.Kind.SQLSource} & {
+    Data: t.SQLSourceRequest,
+    Responses: [],
+  }
+  | {Kind: t.Kind.HTTPSource} & {
+    Data: t.HTTPSourceRequest,
+    Responses: [],
+  }
+);
+
+export type DB = Record<RequestID, Request>;
 
 export function extractSubKind(
   j: DB,
   kind: t.Kind,
   id: RequestID,
 ): string {
-  const entry = (j[kind] as Record<string, unknown>)[id];
-  switch (kind) {
+  const entry = j[id];
+  switch (entry.Kind) {
     case t.Kind.HTTP:
-      return (entry as RequestsData[t.Kind.HTTP][string]).request.method;
+      return entry.Data.method;
     case t.Kind.SQL:
-      return (entry as RequestsData[t.Kind.SQL][string]).request.database;
+      return entry.Data.database;
     case t.Kind.SQLSource:
-      return (entry as RequestsData[t.Kind.SQLSource][string]).database;
-    // case database.Kind.HTTPSource: // TODO: swagger version
+      return entry.Data.database;
+    // case t.Kind.HTTPSource: // TODO: swagger version
     default:
       return "";
   }
@@ -96,5 +116,177 @@ export function extractSubKind(
 
 export async function load(): Promise<DB> {
   const b = await readFile("db.json");
-  return JSON.parse(b.toString()) as DB;
+  const raw = JSON.parse(b.toString()) as dbJSON;
+  const j = Object.fromEntries(raw.request.map(r => [r.id, (() => {
+    const kind: Pick<Request, "Data" | "Responses"> = (() => {
+      switch (r.kind) {
+      case t.Kind.HTTP:
+        const req = raw[r.kind][r.id];
+        return {
+          Data: req.request,
+          Responses: req.responses.map(resp => ({
+            SentAt: new Date(resp.SentAt),
+            ReceivedAt: new Date(resp.ReceivedAt),
+            Response: resp.Response,
+          })),
+        };
+      case t.Kind.SQL:
+        return {
+          Data: raw[r.kind][r.id].request,
+          Responses: raw[r.kind][r.id].responses.map(resp => ({
+            SentAt: new Date(resp.SentAt),
+            ReceivedAt: new Date(resp.ReceivedAt),
+            Response: resp.Response,
+          })),
+        };
+      case t.Kind.JQ:
+        return {
+          Data: raw[r.kind][r.id].request,
+          Responses: raw[r.kind][r.id].responses.map(resp => ({
+            SentAt: new Date(resp.SentAt),
+            ReceivedAt: new Date(resp.ReceivedAt),
+            Response: resp.Response,
+          })),
+        };
+      case t.Kind.MD:
+        return {
+          Data: raw[r.kind][r.id].request,
+          Responses: [],
+        };
+      case t.Kind.REDIS:
+        return {
+          Data: raw[r.kind][r.id].request,
+          Responses: raw[r.kind][r.id].responses.map(resp => ({
+            SentAt: new Date(resp.SentAt),
+            ReceivedAt: new Date(resp.ReceivedAt),
+            Response: resp.Response,
+          })),
+        };
+      case t.Kind.GRPC:
+        return {
+          Data: raw[r.kind][r.id].request,
+          Responses: raw[r.kind][r.id].responses.map(resp => ({
+            SentAt: new Date(resp.SentAt),
+            ReceivedAt: new Date(resp.ReceivedAt),
+            Response: resp.Response,
+          })),
+        };
+      case t.Kind.DIFF:
+        return {
+          Data: raw[r.kind][r.id].request,
+          Responses: [],
+        };
+      case t.Kind.SQLSource:
+        return {
+          Data: raw[r.kind][r.id],
+          Responses: [],
+        };
+      case t.Kind.HTTPSource:
+        return {
+          Data: raw[r.kind][r.id],
+          Responses: [],
+        };
+      default:
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+        throw new Error(`unknown kind ${r.kind}`);
+      }
+    })();
+
+    return {
+      ID: r.id,
+      Path: r.path,
+      Kind: r.kind,
+      ...kind,
+    } as Request;
+  })()]));
+  return j;
+}
+
+export async function save(j: DB): Promise<void> {
+  const raw: dbJSON = {
+    $version: 1,
+    app_version: "(devel)",
+    request: Object.values(j).map(r => ({
+      id: r.ID,
+      kind: r.Kind,
+      path: r.Path,
+    })),
+    http: Object.fromEntries(Object.entries(j).filter(([id, r]) => r.Kind === t.Kind.HTTP).map(([id, r]) => [id, {
+      request: r.Data,
+      responses: r.Responses,
+    } as KindEntry<t.HTTPRequest, t.HTTPResponse>])),
+    sql: Object.fromEntries(Object.entries(j).filter(([id, r]) => r.Kind === t.Kind.SQL).map(([id, r]) => [id, {
+      request: r.Data,
+      responses: r.Responses,
+    } as KindEntry<t.SQLRequest, t.SQLResponse>])),
+    jq: Object.fromEntries(Object.entries(j).filter(([id, r]) => r.Kind === t.Kind.JQ).map(([id, r]) => [id, {
+      request: r.Data,
+      responses: r.Responses,
+    } as KindEntry<t.JQRequest, t.JQResponse>])),
+    md: Object.fromEntries(Object.entries(j).filter(([id, r]) => r.Kind === t.Kind.MD).map(([id, r]) => [id, {request: r.Data} as KindEntry<t.MDRequest, t.MDResponse>])),
+    redis: Object.fromEntries(Object.entries(j).filter(([id, r]) => r.Kind === t.Kind.REDIS).map(([id, r]) => [id, {
+      request: r.Data,
+      responses: r.Responses,
+    } as KindEntry<t.RedisRequest, t.RedisResponse>])),
+    grpc: Object.fromEntries(Object.entries(j).filter(([id, r]) => r.Kind === t.Kind.GRPC).map(([id, r]) => [id, {
+      request: r.Data,
+      responses: r.Responses,
+    } as KindEntry<t.GRPCRequest, t.GRPCResponse>])),
+    diff: Object.fromEntries(Object.entries(j).filter(([id, r]) => r.Kind === t.Kind.DIFF).map(([id, r]) => [id, {request: r.Data} as KindEntry<t.DIFFRequest, t.DIFFResponse>])),
+    "http-source": Object.fromEntries(Object.entries(j).filter(([id, r]) => r.Kind === t.Kind.HTTPSource).map(([id, r]) => [id, r.Data as t.HTTPSourceRequest])),
+    "sql-source": Object.fromEntries(Object.entries(j).filter(([id, r]) => r.Kind === t.Kind.SQLSource).map(([id, r]) => [id, r.Data as t.SQLSourceRequest])),
+  };
+  await writeFile("db.json", JSON.stringify(raw, null, 2));
+}
+
+export async function create(
+  j: DB,
+  kind: t.Kind,
+  path: string,
+  data: Request["Data"],
+): Promise<RequestID> {
+  const id = generateID();
+  j[id] = {ID: id, Path: path, Kind: kind, Data: data, Responses: []} as Request;
+  await save(j);
+  return id;
+}
+
+export async function Delete(j: DB, id: RequestID): Promise<void> {
+  delete j[id];
+  await save(j);
+}
+
+export async function rename(j: DB, id: RequestID, newName: string): Promise<void> {
+  if (!(id in j))
+    throw new Error(`request ${id} not found`);
+  const req = j[id];
+  if (req.Path === newName) {
+    throw new Error(`request with name ${newName} already exists`);
+  }
+  req.Path = newName;
+  await save(j);
+}
+
+export async function update(
+  j: DB,
+  id: RequestID,
+  kind: t.Kind,
+  data: Request["Data"],
+): Promise<void> {
+  if (!(id in j))
+    throw new Error(`request ${id} not found`);
+  j[id].Data = data;
+  await save(j);
+}
+
+export async function createResponse(
+  j: DB,
+  id: RequestID,
+  response: HistoryEntry2,
+): Promise<void> {
+  if (!(id in j))
+    throw new Error(`request ${id} not found`);
+  const req = j[id];
+  (req.Responses as HistoryEntry2[]).push(response);
+  await save(j);
 }

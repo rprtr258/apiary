@@ -11,7 +11,7 @@
     "lint": "eslint '**/*.{ts,json}'",
     "lint:fix": "eslint --fix '**/*.{ts,json}'",
     "ci": "bun run scripts/ci.ts",
-    "test": "bun test --preload ./src/test.setup.ts src",
+    "test": "bun test --preload ./frontend/test.setup.ts ''",
     "test:e2e": "playwright test",
     "_build": "vite build",
     "_start": "vite build && electron .",
@@ -21,14 +21,15 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "electron": "^42.0.1",
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/lang-markdown": "^6.4.0",
     "@codemirror/lang-sql": "^6.9.0",
     "@fsegurai/codemirror-theme-github-dark": "^6.2.3",
     "codemirror": "^6.0.1",
     "codemirror-json-schema": "^0.8.1",
+    "electron": "^42.0.1",
     "golden-layout": "^2.6.0",
+    "nanoid": "^5.1.11",
     "perfect-arrows": "^0.3.7",
     "split-grid": "^1.0.11"
   },

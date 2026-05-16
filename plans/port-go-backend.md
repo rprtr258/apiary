@@ -144,7 +144,7 @@ Create `database/` directory alongside `db.ts` with one file per kind:
 - **`root api.ts`**: `List()`, `Get()` — keep as reference pattern
 - **`internal/app/handlers.ts`**: Full commented-out Go code converted to comments — the porting blueprint. Every function signature and logic is documented there.
 - **`frontend/api.ts`**: All API call wrappers defined but commented out — just uncomment and wire to IPC
-- **`frontend/wailsjs/go/models.ts`**: Type definitions (already accurate) — keep as-is
+- **`types/models.ts`**: Type definitions (already accurate) — keep as-is
 - **`internal/database/*.go`**: Each plugin file has the full implementation — the porting source
 
 ### npm dependencies to add
