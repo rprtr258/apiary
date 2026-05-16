@@ -176,4 +176,4 @@ export type HistoryEntry = {
   {kind: t.Kind.DIFF,  request: t. DIFFRequest, response: t. DIFFResponse}
 );
 
-export type RowValue = string | number | boolean | null;
+export type RowValue = Date | string | number | boolean | null;
