@@ -1,7 +1,7 @@
 import {ComponentContainer} from "golden-layout";
 import * as t from "../../types/models.ts";
 import {api} from "../api.ts";
-import {clamp, DOMNode, m, signal} from "../utils.ts";
+import {clamp, DOMNode, m, Signal, signal} from "../utils.ts";
 import {css} from "../styles.ts";
 import notification from "../notification.ts";
 import {RowValue} from "../../types/types.ts";
@@ -21,8 +21,10 @@ function render(v: RowValue): DOMNode {
     return m("span", {style: {color: "#e84e40"}}, String(v));
   case typeof v === "string":
     return v;
+  case v instanceof Date:
+    return v.toISOString();
   default:
-    notification.error({title: "unknown row value type", "typestr": String(v), "type": typeof v});
+    notification.error({title: "unknown row value type", "typestr": String(v), "type": typeof v, "json": JSON.stringify(v)});
     return String(v);
   }
 }
@@ -327,6 +329,44 @@ type Props = {
   database: t.Database,
 };
 
+type SortColumn = {
+  column: string,
+  direction: "asc" | "desc",
+  order: number, // 1-based index for display
+};
+
+function buildQuery(
+  page: number,
+  sortColumns: Signal<SortColumn[]>,
+  dbType: t.Database,
+  tableName: string,
+): string {
+  const offset = page * pageSize;
+
+  // Build ORDER BY clause if there are sort columns
+  let orderByClause = "";
+  if (sortColumns.value.length > 0) {
+    const orderByParts = sortColumns.value.map(sc => {
+      // Quote column name based on database type
+      let quotedColumn = sc.column;
+      switch (dbType) {
+        case t.Database.MYSQL:
+        case t.Database.SQLITE:
+          quotedColumn = `\`${sc.column}\``;
+          break;
+        case t.Database.POSTGRES:
+          quotedColumn = `"${sc.column}"`;
+          break;
+        // ClickHouse and others don't need quoting for standard identifiers
+      }
+      return `${quotedColumn} ${sc.direction.toUpperCase()}`;
+    });
+    orderByClause = `ORDER BY ${orderByParts.join(", ")}`;
+  }
+
+  return `SELECT * FROM ${tableName} ${orderByClause} LIMIT ${pageSize} OFFSET ${offset}`;
+}
+
 export default function(
   container: ComponentContainer,
   {sqlSourceID, tableName, tableInfo, database: dbType}: Props,
@@ -343,11 +383,6 @@ export default function(
   const totalRows = signal(tableInfo.rowCount);
 
   // Sorting state
-  type SortColumn = {
-    column: string,
-    direction: "asc" | "desc",
-    order: number, // 1-based index for display
-  };
   const sortColumns = signal<SortColumn[]>([]);
 
   // Sorting management functions
@@ -406,33 +441,6 @@ export default function(
   }());
 
   // Function to build query with sorting
-  const buildQuery = (page: number): string => {
-    const offset = page * pageSize;
-
-    // Build ORDER BY clause if there are sort columns
-    let orderByClause = "";
-    if (sortColumns.value.length > 0) {
-      const orderByParts = sortColumns.value.map(sc => {
-        // Quote column name based on database type
-        let quotedColumn = sc.column;
-        switch (dbType) {
-          case t.Database.MYSQL:
-          case t.Database.SQLITE:
-            quotedColumn = `\`${sc.column}\``;
-            break;
-          case t.Database.POSTGRES:
-            quotedColumn = `"${sc.column}"`;
-            break;
-          // ClickHouse and others don't need quoting for standard identifiers
-        }
-        return `${quotedColumn} ${sc.direction.toUpperCase()}`;
-      });
-      orderByClause = `ORDER BY ${orderByParts.join(", ")}`;
-    }
-
-    return `SELECT * FROM ${tableName} ${orderByClause} LIMIT ${pageSize} OFFSET ${offset}`;
-  };
-
   const prevDisabled = () => currentPage.value === 0;
   const nextDisabled = () => (currentPage.value + 1) * pageSize >= totalRows.value;
   const showingRows = () => {
@@ -459,7 +467,7 @@ export default function(
 
   async function loadData(page: number) {
     loading.update(() => true);
-    const query = buildQuery(page);
+    const query = buildQuery(page, sortColumns, dbType, tableName);
     const res = await api.requestPerformSQLSource(sqlSourceID, query);
     loading.update(() => false);
 

@@ -16,7 +16,7 @@ export default defineConfig({
           build: {
             outDir: "dist-electron",
             rollupOptions: {
-              external: ["electron"],
+              external: ["electron", "sqlite3"],
             },
           },
         },
@@ -40,5 +40,6 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: true,
+    // minify: false,
   },
 });

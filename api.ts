@@ -3,6 +3,8 @@ import * as t from "./types/models.ts";
 import {HTTPEmptyRequest, sendHTTP} from "./database/http.ts";
 import {JQEmptyRequest, sendJQ} from "./database/jq.ts";
 import {DefaultMarkdown, sendMD} from "./database/md.ts";
+import {sendSQL} from "./database/sql.ts";
+import {listTablesSQLSource, describeTableSQLSource, countRowsSQLSource, testSQLSource} from "./database/sql_source.ts";
 
 export async function List(): Promise<t.ListResponse> {
   const j = await load();
@@ -163,8 +165,11 @@ export async function Perform(id: RequestID): Promise<PerformResponse> {
   case t.Kind.JQ:
     result = await sendJQ(req.Data);
     break;
-  case database.Kind.MD:
+  case t.Kind.MD:
     result = await sendMD(req.Data);
+    break;
+  case t.Kind.SQL:
+    result = await sendSQL(req.Data);
     break;
   default:
     throw new Error(`Perform not yet implemented for kind ${req.Kind}`);
@@ -214,7 +219,7 @@ export async function PerformSQLSource(id: RequestID, query: string): Promise<Pe
     sent_at:     new Date().toISOString(),
     received_at: new Date().toISOString(),
     request:     sqlRequest,
-    response:    result.response,
+    response:    result,
   };
 }
 
@@ -322,4 +327,24 @@ async function getSpecData(sourceRequest: t.HTTPSourceRequest): Promise<string> 
   }
   // spec is inline in specData
   return sourceRequest.specData;
+}
+
+export async function ListEndpointsHTTPSource(_id: RequestID): Promise<t.EndpointInfo[]> {
+  throw new Error("HTTP Source not yet implemented");
+}
+
+export async function GenerateExampleRequestHTTPSource(_id: RequestID, _endpointIndex: number): Promise<t.HTTPRequest> {
+  throw new Error("HTTP Source not yet implemented");
+}
+
+export async function PerformVirtualEndpointHTTPSource(_sourceID: RequestID, _endpointIndex: number, _request: t.HTTPRequest): Promise<Record<string, unknown>> {
+  throw new Error("HTTP Source not yet implemented");
+}
+
+export async function TestHTTPSource(_id: RequestID): Promise<void> {
+  throw new Error("HTTP Source not yet implemented");
+}
+
+export async function FetchSpecHTTPSource(_id: RequestID): Promise<void> {
+  throw new Error("HTTP Source not yet implemented");
 }
