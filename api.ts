@@ -1,6 +1,7 @@
 import {create, createResponse, extractSubKind, load, Delete as remove, rename, update, RequestID, Request} from "./db.ts";
 import * as t from "./types/models.ts";
 import {HTTPEmptyRequest, sendHTTP} from "./database/http.ts";
+import {JQEmptyRequest, sendJQ} from "./database/jq.ts";
 
 export async function List(): Promise<t.ListResponse> {
   const j = await load();
@@ -74,7 +75,7 @@ function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   case t.Kind.SQL:
     return {dsn: ":memory:", database: t.Database.SQLITE, query: "SELECT 1"};
   case t.Kind.JQ:
-    return {query: ".", json: "{}"};
+    return JQEmptyRequest;
   case t.Kind.MD:
     return {data: ""};
   case t.Kind.REDIS:
@@ -160,21 +161,6 @@ export async function Perform(id: RequestID): Promise<PerformResponse> {
     break;
   case t.Kind.JQ:
     result = await sendJQ(req.Data);
-    break;
-  case t.Kind.MD:
-    result = await sendMD(req.Data);
-    break;
-  case t.Kind.SQL:
-    result = await sendSQL(req.Data);
-    break;
-  case t.Kind.REDIS:
-    result = await sendRedis(req.Data);
-    break;
-  case t.Kind.DIFF:
-    result = sendDIFF(req.Data);
-    break;
-  case t.Kind.GRPC:
-    result = await sendGRPC(req.Data);
     break;
   default:
     throw new Error(`Perform not yet implemented for kind ${req.Kind}`);

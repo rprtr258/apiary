@@ -13,6 +13,7 @@
         "codemirror-json-schema": "^0.8.1",
         "electron": "^42.0.1",
         "golden-layout": "^2.6.0",
+        "jq-wasm": "^1.1.0-jq-1.8.1",
         "nanoid": "^5.1.11",
         "perfect-arrows": "^0.3.7",
         "split-grid": "^1.0.11",
@@ -630,6 +631,8 @@
     "isexe": ["isexe@2.0.0", "", {}, "sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw=="],
 
     "jiti": ["jiti@2.7.0", "", { "bin": { "jiti": "lib/jiti-cli.mjs" } }, "sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ=="],
+
+    "jq-wasm": ["jq-wasm@1.1.0-jq-1.8.1", "", {}, "sha512-lWfu34lpDFIygOYcL5TzxhZIApDR9iR5XywcVoyUAZ6jlQrj8HKHOKeCcHgUm2dE9RVdbP3eqNAKGLuj+k4seQ=="],
 
     "js-yaml": ["js-yaml@4.1.1", "", { "dependencies": { "argparse": "^2.0.1" }, "bin": { "js-yaml": "bin/js-yaml.js" } }, "sha512-qQKT4zQxXl8lLwBtHMWwaTcGfFOZviOJet3Oy/xmGk2gZH677CJM9EvtfdSkgWcATZhj/55JZ0rmy3myCT5lsA=="],
 
