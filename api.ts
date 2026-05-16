@@ -1,5 +1,6 @@
 import {create, createResponse, extractSubKind, load, Delete as remove, rename, update, RequestID, Request} from "./db.ts";
 import * as t from "./types/models.ts";
+import {HTTPEmptyRequest, sendHTTP} from "./database/http.ts";
 
 export async function List(): Promise<t.ListResponse> {
   const j = await load();
@@ -69,7 +70,7 @@ export async function Get(id: RequestID): Promise<t.GetResponse> {
 function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   switch (kind) {
   case t.Kind.HTTP:
-    return {url: "", method: "GET", body: "", headers: []};
+    return HTTPEmptyRequest;
   case t.Kind.SQL:
     return {dsn: ":memory:", database: t.Database.SQLITE, query: "SELECT 1"};
   case t.Kind.JQ:
