@@ -25,13 +25,16 @@
     "@codemirror/lang-markdown": "^6.4.0",
     "@codemirror/lang-sql": "^6.9.0",
     "@fsegurai/codemirror-theme-github-dark": "^6.2.3",
+    "@types/sanitize-html": "^2.16.1",
     "codemirror": "^6.0.1",
     "codemirror-json-schema": "^0.8.1",
     "electron": "^42.0.1",
     "golden-layout": "^2.6.0",
     "jq-wasm": "^1.1.0-jq-1.8.1",
+    "marked": "^18.0.3",
     "nanoid": "^5.1.11",
     "perfect-arrows": "^0.3.7",
+    "sanitize-html": "^2.17.4",
     "split-grid": "^1.0.11"
   },
   "devDependencies": {

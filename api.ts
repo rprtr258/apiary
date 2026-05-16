@@ -2,6 +2,7 @@ import {create, createResponse, extractSubKind, load, Delete as remove, rename, 
 import * as t from "./types/models.ts";
 import {HTTPEmptyRequest, sendHTTP} from "./database/http.ts";
 import {JQEmptyRequest, sendJQ} from "./database/jq.ts";
+import {DefaultMarkdown, sendMD} from "./database/md.ts";
 
 export async function List(): Promise<t.ListResponse> {
   const j = await load();
@@ -77,7 +78,7 @@ function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   case t.Kind.JQ:
     return JQEmptyRequest;
   case t.Kind.MD:
-    return {data: ""};
+    return DefaultMarkdown;
   case t.Kind.REDIS:
     return {dsn: "localhost:6379", query: "KEYS *"};
   case t.Kind.GRPC:
@@ -161,6 +162,9 @@ export async function Perform(id: RequestID): Promise<PerformResponse> {
     break;
   case t.Kind.JQ:
     result = await sendJQ(req.Data);
+    break;
+  case database.Kind.MD:
+    result = await sendMD(req.Data);
     break;
   default:
     throw new Error(`Perform not yet implemented for kind ${req.Kind}`);

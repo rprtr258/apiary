@@ -8,6 +8,7 @@ export default defineConfig({
       {
         entry: "main.ts",
         vite: {
+          assetsInclude: ["**/*.md"],
           define: {
             __dirname: "import.meta.dirname",
             __filename: "import.meta.filename",
