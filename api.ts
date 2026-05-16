@@ -4,6 +4,7 @@ import {HTTPEmptyRequest, sendHTTP} from "./database/http.ts";
 import {JQEmptyRequest, sendJQ} from "./database/jq.ts";
 import {DefaultMarkdown, sendMD} from "./database/md.ts";
 import {sendSQL} from "./database/sql.ts";
+import {RedisEmptyRequest, sendRedis} from "./database/redis.ts";
 import {listTablesSQLSource, describeTableSQLSource, countRowsSQLSource, testSQLSource} from "./database/sql_source.ts";
 
 export async function List(): Promise<t.ListResponse> {
@@ -82,7 +83,7 @@ function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   case t.Kind.MD:
     return DefaultMarkdown;
   case t.Kind.REDIS:
-    return {dsn: "localhost:6379", query: "KEYS *"};
+    return RedisEmptyRequest;
   case t.Kind.GRPC:
     return {target: "", method: "", payload: "", metadata: []};
   case t.Kind.DIFF:
@@ -92,6 +93,7 @@ function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   case t.Kind.HTTPSource:
     return {serverUrl: "", specSource: "url", specData: "", auth: {type: "none"}};
   default:
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     throw new Error(`unknown kind ${kind}`);
   }
 }
@@ -170,6 +172,9 @@ export async function Perform(id: RequestID): Promise<PerformResponse> {
     break;
   case t.Kind.SQL:
     result = await sendSQL(req.Data);
+    break;
+  case t.Kind.REDIS:
+    result = await sendRedis(req.Data);
     break;
   default:
     throw new Error(`Perform not yet implemented for kind ${req.Kind}`);
