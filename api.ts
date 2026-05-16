@@ -5,6 +5,7 @@ import {JQEmptyRequest, sendJQ} from "./database/jq.ts";
 import {DefaultMarkdown, sendMD} from "./database/md.ts";
 import {sendSQL} from "./database/sql.ts";
 import {RedisEmptyRequest, sendRedis} from "./database/redis.ts";
+import {sendGRPC, grpcMethods, grpcQueryFake, grpcQueryValidate} from "./database/grpc.ts";
 import {parseSpec, generateExampleRequest, fetchSpec} from "./database/http_source.ts";
 import {listTablesSQLSource, describeTableSQLSource, countRowsSQLSource, testSQLSource} from "./database/sql_source.ts";
 
@@ -176,6 +177,9 @@ export async function Perform(id: RequestID): Promise<PerformResponse> {
     break;
   case t.Kind.REDIS:
     result = await sendRedis(req.Data);
+    break;
+  case t.Kind.GRPC:
+    result = await sendGRPC(req.Data);
     break;
   default:
     throw new Error(`Perform not yet implemented for kind ${req.Kind}`);
