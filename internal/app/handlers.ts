@@ -412,42 +412,6 @@
 // 	return convertObjectToJSONSchema(msg.Descriptor())
 // }
 
-// func (a *App) GRPCQueryFake(
-// 	Target string,
-// 	Method string, // NOTE: fully qualified
-// ) (string, error) {
-// 	reflSource, cc, err := database.Connect(a.ctx, Target)
-// 	if err != nil {
-// 		return "", errors.Wrap(err, "connect")
-// 	}
-// 	defer cc.Close()
-
-// 	dsc, err := reflSource.FindSymbol(Method)
-// 	if err != nil {
-// 		return "", errors.Wrap(err, "find method")
-// 	}
-
-// 	methodDesc := dsc.(*desc.MethodDescriptor)
-// 	// fmt.Println("    IN", strings.TrimPrefix(inputType.GetFullyQualifiedName(), pkg+"."))
-// 	// fmt.Println("    OUT", strings.TrimPrefix(methodDesc.GetOutputType().GetFullyQualifiedName(), pkg+"."))
-// 	m := dynamicpb.NewMessage(methodDesc.GetInputType().UnwrapMessage())
-
-// 	schema, err := ConvertMessageToJSONSchema(m)
-// 	// schema["$schema"]= "http://json-schema.org/schema#"
-// 	if err != nil {
-// 		return "", errors.Wrap(err, "convert message to json schema")
-// 	}
-
-// 	// jsonSchema, err := json.MarshalIndent(schema, "", "  ")
-// 	// check(err)
-
-// 	b, err := json.MarshalIndent(newFake(schema), "", "  ")
-// 	if err != nil {
-// 		return "", errors.Wrap(err, "marshal fake")
-// 	}
-// 	return string(b), nil
-// }
-
 // func (a *App) GRPCQueryValidate(
 // 	Target string,
 // 	Method string, // NOTE: fully qualified
