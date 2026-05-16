@@ -12,34 +12,34 @@
 - Never use `overflow: hidden`.
 - Never disable linter checks unless explicitly requested.
 - Never touch git (no commits, pushes, branches, etc.) unless explicitly requested by the user.
-- Run `bun run ci` and `bun run build` (in frontend/) after any code changes to ensure linting, typechecking, and build succeed.
+- Run `bun run ci` and `bun run build` after any code changes to ensure linting, typechecking, and build succeed.
 - Include updates to `AGENTS.md` for structural or architectural changes.
-- Use context-based cancellation in Go code.
-- Use zerolog for logging in Go.
+- Use context-based cancellation in backend code.
+- Use structured logging in backend code.
 - Maintain plugin architecture for request kinds.
 
 ## Commands
 
-- **Lint and Typecheck**: `bun run ci` (run in frontend/)
-- **Build Frontend**: `bun run build` (run in frontend/)
-- **Build Desktop App**: `wails build`
-- **Run Go Tests**: `go test ./internal/...`
+- **Lint and Typecheck**: `bun run ci`
+- **Build Frontend**: `bun run build`
+- **Build Desktop App**: `bun run dist:linux` (or `dist:mac` / `dist:win`)
+- **Run Unit Tests**: `bun run test`
+- **Run E2E Tests**: `bun run test:e2e`
 - **Create Release Tag**: `git tag v0.0.0 && git push origin v0.0.0` (triggers GitHub Actions release)
 
 ## Project Overview
 
-apiary is a cross-platform desktop application for managing API requests (HTTP, SQL, gRPC, Redis, JQ, Markdown, SQLSource, HTTPSource) using Go backend and vanilla TypeScript frontend via Wails.
+apiary is a cross-platform desktop application for managing API requests (HTTP, SQL, gRPC, Redis, JQ, Markdown, SQLSource, HTTPSource) using Electron backend and vanilla TypeScript frontend.
 
-- **Tech Stack**: Go, TypeScript, Wails, GoldenLayout, CodeMirror, JSON DB.
+- **Tech Stack**: TypeScript, Electron, Vite, GoldenLayout, CodeMirror, JSON DB.
 - **Directories**:
-  - `cmd/`: Test executables.
-  - `internal/app/`: Core backend app struct and bindings.
-  - `internal/database/`: Plugin system, request/response types, JSON DB logic.
+  - `database/`: Backend service implementations (HTTP, SQL, gRPC, Redis, etc.).
   - `frontend/`: Vanilla TypeScript UI components and logic.
+  - `types/`: Shared TypeScript type definitions.
 
 ## Code Style
 
-- **Go**: Standard idioms, zerolog logging, context cancellation, plugin modularity.
+- **TypeScript**: Standard idioms, strict mode, double quotes, const over let, prefer functional style (e.g., `data.map(item => item.value)`), no frameworks, direct DOM APIs.
 - **TypeScript**: Strict mode, double quotes, const over let, prefer functional style (e.g., `data.map(item => item.value)`), no frameworks, direct DOM APIs.
 - **General**: Modular code, backend/frontend separation, immutable variables, pure functions where possible.
 
@@ -119,12 +119,13 @@ numbers.forEach(n => console.log(n));
 
 ## Architecture Patterns
 
-- **Backend Plugins**: Each request kind (HTTP, SQL, etc.) has a plugin in `internal/database/` with `Perform`, `create`, `update`, `createResponse` functions, and Request/Response structs implementing `Kind()` and `MarshalJSON()`. HTTPSource is a source plugin for generating HTTP requests from OpenAPI specs.
+- **Backend Services**: Each request kind (HTTP, SQL, etc.) has a service module in `database/` with a `send*` function and a `*EmptyRequest` constant.
 - **Frontend Factories**: Each request kind has a `Request*.ts` factory function taking `(el, signal, handlers)` and returning `{loaded, push_history_entry, unmount}`. See `frontend` skill for detailed frontend engineering guidelines.
 - **Reactivity**: Use `signal<T>()` for state, but only if it is watched by using `sub`, otherwise use mutable locals. Use `m()` for DOM building, no VDOM.
 - **Components**: `N*` functions return DOM elements; `Request*` functions manage state in provided container.
 - **Store**: Central state management in `store.ts` with CRUD operations and backend coordination.
-- **Data Flow**: User → Signal → Store → Wails API → Store → DOM.
+- **Electron IPC**: Main process in `main.ts` handles IPC from renderer via `ipcMain.handle()`. Preload script (`preload.ts`) exposes secure API via `contextBridge.exposeInMainWorld`. Renderer communicates through `window.api`.
+- **Data Flow**: User → Signal → Store → IPC (window.api) → Main Process → Store → DOM.
 
 ### Architecture Documentation
 
@@ -136,27 +137,27 @@ numbers.forEach(n => console.log(n));
 ## Extensibility Rules
 
 - **New Request Kind**:
-  - Add plugin file in `internal/database/` with structs, functions, and register in `Plugins` map in `plugin.go`.
-  - Add `Request*.ts` in `frontend/src/` following factory pattern.
+  - Add service file in `database/` with `send*` function and `*EmptyRequest` constant.
+  - Add `Request*.ts` in `frontend/` following factory pattern.
   - Register in `App.ts` panelkaFactory.
-  - Add types to `api.ts` and export struct in `main.go`.
-- **Database**: JSON file `db.json`, versioned, migrate on startup.
+  - Add types to `types/models.ts`.
+  - Add IPC handler in `main.ts`.
+  - Add preload bridge in `preload.ts`.
+  - Add type definition in `global.d.ts`.
 
 ## Post-Task Checks
 
-- Run `bun run ci` for linting and typechecking (in frontend/).
-- Run `bun run build` for frontend build (in frontend/).
-- Run `go test ./internal/...` for backend tests.
-- Run `wails build` for full app build.
+- Run `bun run ci` for linting and typechecking.
+- Run `bun run build` for full build.
+- Run `bun run test` for unit tests.
 - Verify new request kinds work end-to-end.
 
 ## Release Process
 
 ### Version Management
-- **Version System**: Located in `internal/version/version.go`
-- **Build-time Injection**: Version, commit, and date set via `ldflags` during build
-- **Database Versioning**: `app_version` field stored in database JSON for migration tracking
-- **Version Format**: Semantic versioning (e.g., `vX.Y.Z`)
+- **Version System**: In `package.json` (`"version"` field) and git tags.
+- **Database Versioning**: `app_version` field stored in database JSON for migration tracking.
+- **Version Format**: Semantic versioning (e.g., `vX.Y.Z`).
 
 ### Creating a Release
 1. **Tag Creation**: `git tag vX.Y.Z`
@@ -166,24 +167,15 @@ numbers.forEach(n => console.log(n));
 
 ### GitHub Actions Workflow
 - **File**: `.github/workflows/release.yml`
-- **Triggers**: Push to tags matching `v[0-9]+.[0-9]+.[0-9]+`
+- **Triggers**: Push to tags matching `v[0-9]+.[0-9]+.[0-9]+`, or `workflow_dispatch`
+- **Build Tool**: `electron-builder` packages the Electron app
 - **Platforms**:
-  - Linux (amd64): `apiary-linux-amd64`
-  - macOS (amd64/arm64): `apiary-darwin-amd64`, `apiary-darwin-arm64`
-  - Windows (amd64): `apiary-windows-amd64.exe`
-- **Version Injection**: Uses `ldflags` to set version info in binaries
+  - Linux (amd64): `apiary-linux-amd64.AppImage`
+  - macOS (amd64): `apiary-darwin-x64.dmg`
+  - macOS (arm64): `apiary-darwin-arm64.dmg`
+  - Windows (amd64): `apiary-win-x64.exe` (NSIS installer)
+- **Artifact Names**: Defined in `package.json` under `"build"` config
 - **Database Compatibility**: New databases include `app_version` field
-
-### Testing Releases
-- Use `workflow_dispatch` with test version (e.g., `0.0.0-test`)
-- Check artifact naming and binary functionality
-- Verify version appears in app logs on startup
-
-### Window Visibility Behavior
-- **Development builds** (version = "(devel)" or pseudo-version): Window starts visible
-- **Release builds** (version = "vX.Y.Z"): Window starts hidden (`StartHidden: true`)
-- Controlled by `version.IsRelease()` in `main.go`
-- Helps with development workflow while maintaining clean startup for end users
 
 ## Frontend Development
 

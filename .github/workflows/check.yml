@@ -17,17 +17,62 @@ jobs:
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
-          path: frontend/node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lock', 'frontend/package.json') }}
+          path: node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', 'package.json') }}
           restore-keys: |
             bun-${{ runner.os }}-
 
       - name: Install deps
-        run: cd frontend && bun install
+        run: bun install
 
       - name: Run typecheck
-        run: cd frontend && bun run tsc -p tsconfig.json
+        run: bun run typecheck
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.2.5"
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', 'package.json') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install deps
+        run: bun install
+
+      - name: Run ESLint
+        run: bun run lint
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.2.5"
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', 'package.json') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Install deps
+        run: bun install
+
+      - name: Run unit tests
+        run: bun run test
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -95,17 +140,11 @@ jobs:
         with:
           bun-version: "1.2.5"
 
-      - name: Install go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-          cache: true
-
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
-          path: frontend/node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lock', 'frontend/package.json') }}
+          path: node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', 'package.json') }}
           restore-keys: |
             bun-${{ runner.os }}-
 
@@ -113,25 +152,28 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('package.json') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
-      - name: Cache Wails binary
-        uses: actions/cache@v4
-        with:
-          path: /home/runner/go/bin
-          key: wails-${{ runner.os }}-latest
+      - name: Install deps
+        run: bun install
+
+      - name: Install Playwright browsers
+        run: bunx playwright install chromium
+
+      - name: Build Vite (renderer + Electron main process)
+        run: bun run build
 
       - name: Run E2E tests
         env:
           CI: "1"
-        run: cd frontend && bun ./scripts/e2e-parallel.ts
+        run: bun run test:e2e
 
       - name: Upload Playwright traces
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-traces
-          path: frontend/test-results/
+          path: test-results/
           retention-days: 1
