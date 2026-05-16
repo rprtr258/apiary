@@ -24,8 +24,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: isCI ? "cd .. && xvfb-run -a wails dev -devserver 127.0.0.1:34116 -nosyncgomod -skipbindings -nogorebuild -noreload -race"
-                  : "cd .. &&             wails dev -devserver 127.0.0.1:34116 -nosyncgomod -skipbindings -nogorebuild -noreload -race",
+    command: "vite --port 34116",
     url: "http://localhost:34116",
     reuseExistingServer: !isCI,
     timeout: isCI ? 5*60*1000 : 60*1000,

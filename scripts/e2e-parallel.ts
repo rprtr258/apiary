@@ -33,26 +33,14 @@ async function all(...values: Promise<void>[]): Promise<void> {
 }
 
 async function main() {
-  console.log("Starting parallel E2E setup...");
-
-  const aptPackages = [
-    // Basic build tools
-    "pkg-config",
-    // GTK and WebKit for Wails
-    "libgtk-3-dev", "libwebkit2gtk-4.0-dev",
-  ];
+  console.log("Starting E2E setup...");
 
   await all(
-    (async () => {
-      await runCommand("sudo apt-get update");
-      await runCommand(`sudo apt-get install -y ${aptPackages.join(" ")}`);
-    })(),
-    runCommand("go install github.com/wailsapp/wails/v2/cmd/wails@latest", ".."),
     runCommand("bun install", "."),
-    runCommand("bunx playwright install"),
+    runCommand("bunx playwright install chromium"),
   );
 
-  await runCommand("wails doctor");
+  await runCommand("bun run build");
   await runCommand("bun run test:e2e");
 
   console.log("E2E tests completed successfully!");
