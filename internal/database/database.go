@@ -142,7 +142,7 @@ func (db *DB) flush() error {
 		return errors.Wrap(err, "encode db")
 	}
 
-	if err := os.WriteFile(db.filename, b, 0644); err != nil {
+	if err := os.WriteFile(db.filename, b, 0o644); err != nil {
 		return errors.Wrap(err, "write db")
 	}
 
@@ -198,6 +198,21 @@ func (db *DB) Create(
 	return id, db.flush()
 }
 
+func (db *DB) create(
+	ctx context.Context,
+	id RequestID,
+	path string,
+	request EntryData,
+) error {
+	db.Data[id] = Request{
+		ID:        id,
+		Path:      path,
+		Data:      request,
+		Responses: nil,
+	}
+	return nil
+}
+
 func (db *DB) Delete(ctx context.Context, id RequestID) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
@@ -249,6 +264,13 @@ func (db *DB) Update(
 	return db.flush()
 }
 
+func (db *DB) update(ctx context.Context, id RequestID, request EntryData) error {
+	tmp := db.Data[id]
+	tmp.Data = request
+	db.Data[id] = tmp
+	return nil
+}
+
 func (db *DB) CreateResponse(
 	ctx context.Context,
 	id RequestID,
@@ -275,28 +297,6 @@ func (db *DB) CreateResponse(
 	}
 
 	return db.flush()
-}
-
-func (db *DB) create(
-	ctx context.Context,
-	id RequestID,
-	path string,
-	request EntryData,
-) error {
-	db.Data[id] = Request{
-		ID:        id,
-		Path:      path,
-		Data:      request,
-		Responses: nil,
-	}
-	return nil
-}
-
-func (db *DB) update(ctx context.Context, id RequestID, request EntryData) error {
-	tmp := db.Data[id]
-	tmp.Data = request
-	db.Data[id] = tmp
-	return nil
 }
 
 func (db *DB) createResponse(
