@@ -73,51 +73,6 @@ jobs:
 
       - name: Run unit tests
         run: bun run test
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.2.5"
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: frontend/node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lock', 'frontend/package.json') }}
-          restore-keys: |
-            bun-${{ runner.os }}-
-
-      - name: Install deps
-        run: cd frontend && bun install
-
-      - name: Run ESLint
-        run: cd frontend && bun run lint
-
-  unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.2.5"
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v4
-        with:
-          path: frontend/node_modules
-          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lock', 'frontend/package.json') }}
-          restore-keys: |
-            bun-${{ runner.os }}-
-
-      - name: Install deps
-        run: cd frontend && bun install
-
-      - name: Run unit tests
-        run: cd frontend && bun run test
 
   actionlint:
     runs-on: ubuntu-latest

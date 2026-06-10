@@ -17,7 +17,8 @@
     "dist:linux": "vite build && electron-builder --linux",
     "dist:mac": "vite build && electron-builder --mac",
     "dist:win": "vite build && electron-builder --win",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "_start": "vite build && electron ."
   },
   "peerDependencies": {
     "typescript": "^6.0.3"

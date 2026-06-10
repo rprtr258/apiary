@@ -8,7 +8,7 @@ describe("GRPC", () => {
   });
 
   test("grpcQueryValidate passes for valid JSON", async () => {
-    await grpcQueryValidate("localhost:50051", "Service/Method", '{"name": "test"}');
+    await grpcQueryValidate("localhost:50051", "Service/Method", `{"name": "test"}`);
   });
 
   test("grpcQueryValidate throws for invalid JSON", async () => {

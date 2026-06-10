@@ -1,5 +1,5 @@
 import {marked} from "marked";
-import sanitizeHtml from 'sanitize-html';
+import sanitizeHtml from "sanitize-html";
 import type {MDRequest, MDResponse} from "../types/models.ts";
 import txt from "../internal/database/default.md" with {type: "text"};
 

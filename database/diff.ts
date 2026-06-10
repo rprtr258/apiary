@@ -55,7 +55,7 @@ function diffValues(
   path: string,
   indent: number,
   diffs: string[],
-  stats: {added: number; removed: number; changed: number},
+  stats: {added: number, removed: number, changed: number},
 ): void {
   const indentt = "  ".repeat(indent);
   if (left === right) {
@@ -83,7 +83,7 @@ function diffValues(
           diffs.push(indentt + `  - ${i}: ${JSON.stringify(left[i])},`);
           stats.removed++;
         } else {
-          diffValues(left[i]!, right[i]!, `${i}`, indent+1, diffs, stats);
+          diffValues(left[i], right[i], `${i}`, indent+1, diffs, stats);
         }
       }
       diffs.push(indentt + "],");
@@ -91,8 +91,8 @@ function diffValues(
       const leftObj = left as Record<string, JSONValue>;
       const rightObj = right as Record<string, JSONValue>;
       const allKeys = new Set([
-        ...Object.keys(left as Record<string, JSONValue>),
-        ...Object.keys(right as Record<string, JSONValue>),
+        ...Object.keys(left),
+        ...Object.keys(right),
       ]);
       diffs.push(indentt + "{");
       for (const key of allKeys) {
@@ -104,7 +104,7 @@ function diffValues(
           diffs.push(indentt + `- "${keyPath}": ${JSON.stringify(leftObj[key])},`);
           stats.removed++;
         } else {
-          diffValues(leftObj[key]!, rightObj[key]!, keyPath, indent+1, diffs, stats);
+          diffValues(leftObj[key], rightObj[key], keyPath, indent+1, diffs, stats);
         }
       }
       diffs.push(indentt + "}");
