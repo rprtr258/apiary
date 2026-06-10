@@ -150,7 +150,7 @@ describe("RequestDIFF", () => {
       sent_at: new Date(),
       received_at: new Date(),
       kind: t.Kind.DIFF,
-      request: {id: "test-id"},
+      request: {left: "", right: ""},
       response: {
         diff: "<div>Test diff</div>",
         stats: "Test stats",

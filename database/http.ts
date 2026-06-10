@@ -18,6 +18,6 @@ export async function sendHTTP(request: HTTPRequest): Promise<HTTPResponse> {
   return {
     code: response.status,
     body,
-    headers: Array.from(response.headers.entries().map(([value, key]): KV => ({key, value}))),
+    headers: Array.from(response.headers.entries().map(([key, value]): KV => ({key, value}))),
   };
 }

@@ -80,8 +80,8 @@ export type ResponseInfo = {
   content?: Record<string, MediaTypeInfo>,
 };
 export type MediaTypeInfo = {
-  schema: Record<string, any>,
-  example?: any,
+  schema: Record<string, unknown>,
+  example?: unknown,
 };
 export type RequestBodyInfo = {
   description: string,
@@ -93,8 +93,8 @@ export type ParameterInfo = {
   in: string,
   description: string,
   required: boolean,
-  schema: Record<string, any>,
-  example?: any,
+  schema: Record<string, unknown>,
+  example?: unknown,
 };
 export type EndpointInfo = {
   path: string,
@@ -173,12 +173,12 @@ export type RedisResponse = {
 export type Response = {
   sent_at: Time,
   received_at: Time,
-  response: any,
+  response: unknown,
 };
 export type Request = {
   ID: string,
   Path: string,
-  Data: any,
+  Data: unknown,
   Responses: Response[],
 };
 
@@ -190,7 +190,7 @@ export type SQLRequest = {
 export type SQLResponse = {
   columns: string[],
   types: string[],
-  rows: any[][],
+  rows: unknown[][],
 };
 export type SQLSourceRequest = {
   database: Database,

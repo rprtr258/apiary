@@ -1,8 +1,9 @@
 import * as t from "../types/models.ts";
 import {Result, err, ok} from "./result.ts";
 import {HistoryEntry, RequestData} from "../types/types.ts";
+import {Request} from "../db.ts";
 
-const App = window.api;
+const Api = window.api;
 
 // TODO: remove, just use new Date
 function parseTime(s: string): Date {
@@ -24,11 +25,11 @@ async function wrap<T>(f: () => Promise<T>, args: unknown): Promise<Result<T>> {
 
 export const api = {
   async collectionRequests(): Promise<Result<t.ListResponse>> {
-    return await wrap(async () => App.List(), {});
+    return await wrap(async () => Api.List(), {});
   },
 
   async get(id: string): Promise<Result<t.GetResponse>> {
-    const y = await wrap(async () => App.Get(id), {id});
+    const y = await wrap(async () => Api.Get(id), {id});
     // TODO: it seems that is not needed, remove if so
     return y.map((y: t.GetResponse) => {
       // NOTE: BEWARE, DIRTY TYPESCRIPT HACKS HERE
@@ -44,13 +45,13 @@ export const api = {
     name: string,
     kind: t.Kind,
   ): Promise<Result<t.ResponseNewRequest>> {
-    return await wrap(() => App.Create(name, kind), {name, kind});
+    return await wrap(() => Api.Create(name, kind), {name, kind});
   },
 
   async requestDuplicate(
     name: string,
   ): Promise<Result<t.ResponseNewRequest>> {
-    return await wrap(() => App.Duplicate(name), {name});
+    return await wrap(() => Api.Duplicate(name), {name});
   },
 
   async request_update(
@@ -58,83 +59,83 @@ export const api = {
     kind: t.Kind,
     req: Omit<RequestData, "kind">,
   ): Promise<Result<void>> {
-    return await wrap(() => App.Update(id, kind, req), {reqId: id, kind, req});
+    return await wrap(() => Api.Update(id, req as Request["Data"]), {reqId: id, kind, req});
   },
 
   async rename(
     id: string,
     newName: string,
   ): Promise<Result<void>> {
-    return await wrap(() => App.Rename(id, newName), {reqId: id, newName});
+    return await wrap(() => Api.Rename(id, newName), {reqId: id, newName});
   },
 
   async requestPerform(
     id: string,
   ): Promise<Result<HistoryEntry>> {
-    return await wrap(() => App.Perform(id), {reqId: id}) as Result<HistoryEntry>;
+    return await wrap(() => Api.Perform(id), {reqId: id}) as Result<HistoryEntry>;
   },
 
   async requestDelete(
     id: string,
   ): Promise<Result<void>> {
-    return await wrap(() => App.Delete(id), {reqId: id});
+    return await wrap(() => Api.Delete(id), {reqId: id});
   },
 
   async jq(
     data: string,
     query: string,
   ): Promise<Result<string[]>> {
-    return await wrap(() => App.JQ(data, query), {data, query});
+    return await wrap(() => Api.JQ(data, query), {data, query});
   },
 
   async grpcMethods(target: string): Promise<Result<t.grpcServiceMethods[]>> {
-    return await wrap(() => App.GRPCMethods(target), {target});
+    return await wrap(() => Api.GRPCMethods(target), {target});
   },
 
   async requestPerformSQLSource(
     id: string,
     query: string,
   ): Promise<Result<HistoryEntry>> {
-    return await wrap(() => App.PerformSQLSource(id, query), {reqId: id, query}) as Result<HistoryEntry>;
+    return await wrap(() => Api.PerformSQLSource(id, query), {reqId: id, query}) as Result<HistoryEntry>;
   },
 
   async requestTestSQLSource(
     id: string,
   ): Promise<Result<void>> {
-    return await wrap(() => App.TestSQLSource(id), {reqId: id});
+    return await wrap(() => Api.TestSQLSource(id), {reqId: id});
   },
 
   async requestListTablesSQLSource(
     id: string,
   ): Promise<Result<t.TableInfo[]>> {
-    return await wrap(() => App.ListTablesSQLSource(id), {reqId: id});
+    return await wrap(() => Api.ListTablesSQLSource(id), {reqId: id});
   },
 
   async requestDescribeTableSQLSource(
     id: string,
     tableName: string,
   ): Promise<Result<t.TableSchema>> {
-    return await wrap(() => App.DescribeTableSQLSource(id, tableName), {reqId: id, tableName});
+    return await wrap(() => Api.DescribeTableSQLSource(id, tableName), {reqId: id, tableName});
   },
 
   async requestCountRowsSQLSource(
     id: string,
     tableName: string,
   ): Promise<Result<number>> {
-    return await wrap(() => App.CountRowsSQLSource(id, tableName), {reqId: id, tableName});
+    return await wrap(() => Api.CountRowsSQLSource(id, tableName), {reqId: id, tableName});
   },
 
   async requestListEndpointsHTTPSource(
     id: string,
   ): Promise<Result<t.EndpointInfo[]>> {
-    return await wrap(() => App.ListEndpointsHTTPSource(id), {reqId: id});
+    return await wrap(() => Api.ListEndpointsHTTPSource(id), {reqId: id});
   },
 
   async requestGenerateExampleRequestHTTPSource(
     id: string,
     endpointIndex: number,
   ): Promise<Result<t.HTTPRequest>> {
-    return await wrap(() => App.GenerateExampleRequestHTTPSource(id, endpointIndex), {reqId: id, endpointIndex});
+    return await wrap(() => Api.GenerateExampleRequestHTTPSource(id, endpointIndex), {reqId: id, endpointIndex});
   },
 
   async requestPerformVirtualEndpointHTTPSource(
@@ -144,13 +145,13 @@ export const api = {
   ): Promise<Result<HistoryEntry>> {
     // The Go function expects *t.HTTPRequest (pointer) which can be nil
     // The TypeScript definition doesn't reflect this, so we need to cast
-    return await wrap(() => App.PerformVirtualEndpointHTTPSource(sourceID, endpointIndex, request),
+    return await wrap(() => Api.PerformVirtualEndpointHTTPSource(sourceID, endpointIndex, request),
       {sourceID, endpointIndex, request}) as Result<HistoryEntry>;
   },
 
   async requestTestHTTPSource(
     id: string,
   ): Promise<Result<void>> {
-    return await wrap(() => App.TestHTTPSource(id), {reqId: id});
+    return await wrap(() => Api.TestHTTPSource(id), {reqId: id});
   },
 };

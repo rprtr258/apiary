@@ -1,4 +1,4 @@
-import type {HTTPSourceRequest, HTTPRequest, EndpointInfo, ParameterInfo, MediaTypeInfo, RequestBodyInfo, ResponseInfo} from "../types/models.ts";
+import type {HTTPRequest, EndpointInfo, ParameterInfo, MediaTypeInfo, RequestBodyInfo, ResponseInfo} from "../types/models.ts";
 import type {OpenAPIV2, OpenAPIV3, OpenAPIV3_1} from "openapi-types";
 
 type OpenAPIObject     = OpenAPIV2.Document           |   OpenAPIV3.Document          | OpenAPIV3_1.Document;
@@ -22,26 +22,28 @@ export function parseSpec(specData: string): EndpointInfo[] {
   const spec = JSON.parse(specData) as OpenAPIObject;
   const endpoints: EndpointInfo[] = [];
 
-  if (!spec.paths)
+  if (spec.paths === undefined)
     return endpoints;
 
   for (const [path, pathItem] of Object.entries(spec.paths)) {
     const item = pathItem as PathItemObject | undefined;
-    if (!item) continue;
+    if (item === undefined)
+      continue;
 
     const methods = ["get", "post", "put", "delete", "patch", "head", "options"] as const;
     for (const method of methods) {
       const operation = item[method] as OperationObject | undefined;
-      if (!operation)
+      if (operation === undefined)
         continue;
 
+      const op = operation as OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject;
       endpoints.push({
         path,
         method: method.toUpperCase(),
         summary: operation.summary ?? operation.description ?? "",
         parameters: extractParameters(operation),
-        requestBody: operation.requestBody ? extractRequestBody(operation.requestBody) : undefined,
-        responses: extractResponses(operation.responses),
+        requestBody: op.requestBody !== undefined ? extractRequestBody(op.requestBody) : undefined,
+        responses: extractResponses(op.responses),
       });
     }
   }
@@ -55,8 +57,6 @@ export function generateExampleRequest(
 ): HTTPRequest {
   const endpoints = parseSpec(specData);
   const endpoint = endpoints[endpointIndex];
-  if (!endpoint)
-    throw new Error(`endpoint ${endpointIndex} not found`);
 
   const headers: Array<{key: string, value: string}> = [];
   for (const param of endpoint.parameters) {
@@ -67,11 +67,9 @@ export function generateExampleRequest(
   headers.push({key: "Content-Type", value: "application/json"});
 
   let body = "";
-  if (endpoint.requestBody) {
-    const mediaType = endpoint.requestBody.content?.["application/json"];
-    if (mediaType?.schema) {
-      body = JSON.stringify(generateExampleFromSchema(mediaType.schema), null, 2);
-    }
+  if (endpoint.requestBody !== undefined) {
+    const mediaType = endpoint.requestBody.content["application/json"];
+    body = JSON.stringify(generateExampleFromSchema(mediaType.schema), null, 2);
   }
 
   // Build URL with path params replaced
@@ -100,38 +98,40 @@ function extractParameters(operation: OperationObject): ParameterInfo[] {
     in: p.in,
     description: p.description ?? "",
     required: p.required ?? false,
-    schema: p.schema ?? {},
+    schema: p.schema as (Record<string, unknown> | undefined) ?? {},
     example: undefined,
   })) ?? [];
 }
 
 function extractRequestBody(requestBody: RequestBodyObject | ReferenceObject): RequestBodyInfo {
+  const body = "content" in requestBody ? requestBody : undefined;
   const content: Record<string, MediaTypeInfo> = {};
-  if (requestBody.content) {
-    for (const [mediaType, mediaTypeObj] of Object.entries(requestBody.content)) {
+  if (body?.content !== undefined) {
+    for (const [mediaType, mediaTypeObj] of Object.entries(body.content)) {
       content[mediaType] = {
-        schema: (mediaTypeObj as MediaTypeObject).schema as Record<string, unknown> ?? {},
+        schema: (mediaTypeObj as MediaTypeObject).schema as (Record<string, unknown> | undefined) ?? {},
         example: undefined,
       };
     }
   }
   return {
-    description: (requestBody.description as string) ?? "",
-    required: (requestBody.required as boolean) ?? false,
+    description: body?.description ?? "",
+    required: body?.required ?? false,
     content,
   };
 }
 
 function extractResponses(responses: ResponsesObject | undefined): Record<string, ResponseInfo> {
-  if (!responses) return {};
+  if (responses === undefined)
+    return {};
   const result: Record<string, ResponseInfo> = {};
   for (const [code, response] of Object.entries(responses)) {
     const respObj = response as {description?: string, content?: Record<string, MediaTypeObject>};
     const content: Record<string, MediaTypeInfo> = {};
-    if (respObj.content) {
+    if (respObj.content !== undefined) {
       for (const [mediaType, mediaTypeObj] of Object.entries(respObj.content)) {
         content[mediaType] = {
-          schema: mediaTypeObj.schema ?? {},
+          schema: mediaTypeObj.schema as (Record<string, unknown> | undefined) ?? {},
           example: undefined,
         };
       }
@@ -145,7 +145,8 @@ function extractResponses(responses: ResponsesObject | undefined): Record<string
 }
 
 function generateExampleValue(schema: Record<string, unknown> | undefined): string | number | boolean | null {
-  if (!schema) return "";
+  if (schema === undefined)
+    return "";
   switch (schema.type) {
     case "string":
       return (schema as {example?: string}).example ?? (schema as {enum?: string[]}).enum?.[0] ?? "string";
@@ -160,14 +161,16 @@ function generateExampleValue(schema: Record<string, unknown> | undefined): stri
 }
 
 function generateExampleFromSchema(schema: SchemaObject | undefined): unknown {
-  if (!schema) return null;
+  if (schema === undefined)
+    return null;
 
-  if (schema.example !== undefined) return schema.example;
+  if (schema.example !== undefined)
+    return schema.example;
 
   switch (schema.type) {
     case "object": {
       const obj: Record<string, unknown> = {};
-      if (schema.properties) {
+      if (schema.properties !== undefined) {
         for (const [key, prop] of Object.entries(schema.properties)) {
           obj[key] = generateExampleFromSchema(prop as Record<string, unknown>);
         }
@@ -175,7 +178,7 @@ function generateExampleFromSchema(schema: SchemaObject | undefined): unknown {
       return obj;
     }
     case "array":
-      return schema.items ? [generateExampleFromSchema(schema.items)] : [];
+      return schema.items !== undefined ? [generateExampleFromSchema(schema.items)] : [];
     case "string":
       return (schema as {enum?: unknown[]}).enum?.[0] ?? "string";
     case "integer":

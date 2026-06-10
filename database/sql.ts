@@ -27,7 +27,7 @@ async function sendPostgres(request: SQLRequest): Promise<SQLResponse> {
     return {
       columns: fields.map(f => f.name),
       types: fields.map(f => f.dataTypeID.toString()),
-      rows: result.rows.map(r => Object.values(r)),
+      rows: result.rows.map(r => Object.values(r as Record<string, unknown>)),
     };
   } finally {
     await client.end();
@@ -37,7 +37,7 @@ async function sendPostgres(request: SQLRequest): Promise<SQLResponse> {
 async function sendMySQL(request: SQLRequest): Promise<SQLResponse> {
   const connection = await mysql.createConnection(request.dsn);
   try {
-    const [rows, fields] = await connection.execute(request.query);
+    const [rows, fields] = await connection.execute(request.query) as [Record<string, unknown>[], {name: string, type?: number}[]];
     if (rows.length === 0) {
       return {columns: fields.map(f => f.name), types: [], rows: []}; // TODO: get column metadata
     }
@@ -73,7 +73,7 @@ async function sendClickHouse(request: SQLRequest): Promise<SQLResponse> {
   const client = createClient({url: request.dsn});
   try {
     const resultSet = await client.query({query: request.query, format: "JSONEachRow"});
-    const rows = await resultSet.json();
+    const rows: Record<string, unknown>[] = await resultSet.json();
     if (rows.length === 0) {
       return {columns: [], types: [], rows: []}; // TODO: get column metadata
     }

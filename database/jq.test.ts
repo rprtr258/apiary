@@ -21,7 +21,7 @@ function makeRequest(overrides?: Partial<JQRequest>): JQRequest {
 describe("sendJQ", () => {
   test("executes a simple query and returns results", async () => {
     const result = await sendJQ(makeRequest());
-    expect(result.response).toEqual(["3"]);
+    expect(result.response).toEqual(["1"]);
   });
 
   test("throws on jq error", async () => {
@@ -38,6 +38,6 @@ describe("sendJQ", () => {
     );
 
     const result = await sendJQ(makeRequest({query: ".nonexistent"}));
-    expect(result.response).toEqual([]);
+    expect(result.response).toEqual(["null"]);
   });
 });

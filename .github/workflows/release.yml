@@ -230,6 +230,7 @@ jobs:
             echo "Windows artifact NOT found"
             WINDOWS_FOUND=false
           fi
+          export WINDOWS_FOUND # TODO: unused
 
           # Require at least Linux and macOS artifacts
           if [[ "$LINUX_FOUND" == "true" ]] && [[ "$MACOS_FOUND" == "true" ]]; then

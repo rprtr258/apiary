@@ -13,6 +13,13 @@ export const JQEmptyRequest: JQRequest = {
 };
 
 export async function sendJQ(request: JQRequest): Promise<JQResponse> {
+  // try parse request as json
+  try {
+    JSON.parse(request.json);
+  } catch (e) {
+    return {response: request.json.split("\n")};
+  }
+
   const result = await jqWasm.raw(request.json, request.query, ["-r"]);
   if (result.exitCode !== 0) {
     throw new Error(`jq error: ${result.stderr}`);

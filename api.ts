@@ -1,4 +1,4 @@
-import {create, createResponse, extractSubKind, load, Delete as remove, rename, update, RequestID, Request} from "./db.ts";
+import {create, createResponse, extractSubKind, load, Delete as remove, rename, update, RequestID, Request, HistoryEntry2} from "./db.ts";
 import * as t from "./types/models.ts";
 import {HTTPEmptyRequest, sendHTTP} from "./database/http.ts";
 import {JQEmptyRequest, sendJQ} from "./database/jq.ts";
@@ -9,6 +9,7 @@ import {sendDIFF} from "./database/diff.ts";
 import {sendGRPC, grpcMethods, grpcQueryFake, grpcQueryValidate} from "./database/grpc.ts";
 import {parseSpec, generateExampleRequest, fetchSpec} from "./database/http_source.ts";
 import {listTablesSQLSource, describeTableSQLSource, countRowsSQLSource, testSQLSource} from "./database/sql_source.ts";
+import {HistoryEntry} from "./types/types.ts";
 
 export async function List(): Promise<t.ListResponse> {
   const j = await load();
@@ -17,7 +18,7 @@ export async function List(): Promise<t.ListResponse> {
   for (const [id, req] of Object.entries(j)) {
     const kind = req.Kind;
     const path = req.Path;
-    const subKind = extractSubKind(j, kind, id);
+    const subKind = extractSubKind(j, id);
 
     requests[id] = {
       kind: kind,
@@ -55,22 +56,22 @@ export async function Get(id: RequestID): Promise<t.GetResponse> {
   if (!(id in j))
     throw new Error(`request ${id} not found`);
   const entry = j[id];
-  const history = entry.Responses.map(h => ({
+  const history: HistoryEntry[] = entry.Responses.map(h => ({
     sent_at: h.SentAt,
     received_at: h.ReceivedAt,
     kind: entry.Kind,
     request: entry.Data,
     response: h.Response,
-  }));
+  } as HistoryEntry));
   history.sort((a, b) => a.sent_at.getTime() - b.sent_at.getTime());
   return {
     Request: {
       ID: id,
       Path: entry.Path,
       Data: entry.Data,
-      Responses: entry.Responses,
+      Responses: entry.Responses as t.Response[],
     },
-    History: history, // TODO: remove
+    History: history as unknown as t.Response[], // TODO: remove
   };
 }
 
@@ -132,7 +133,7 @@ export async function Read(id: RequestID): Promise<t.Request> {
     ID: id,
     Path: req.Path,
     Data: req.Data,
-    Responses: req.Responses,
+    Responses: req.Responses as unknown as t.Response[],
   };
 }
 
@@ -141,9 +142,9 @@ export async function Rename(id: RequestID, newName: string): Promise<void> {
   await rename(j, id, newName);
 }
 
-export async function Update(id: RequestID, kind: t.Kind, data: Request["Data"]): Promise<void> {
+export async function Update(id: RequestID, data: Request["Data"]): Promise<void> {
   const j = await load();
-  await update(j, id, kind, data);
+  await update(j, id, data);
 }
 
 type PerformResponse = {
@@ -190,7 +191,7 @@ export async function Perform(id: RequestID): Promise<PerformResponse> {
   }
   const received_at = new Date();
 
-  await createResponse(j, id, {SentAt: sent_at, ReceivedAt: received_at, Response: result});
+  await createResponse(j, id, {SentAt: sent_at, ReceivedAt: received_at, Response: result as HistoryEntry2["Response"]} as HistoryEntry2);
   return {
     RequestId:   id,
     sent_at:     sent_at.toISOString(),
@@ -297,7 +298,7 @@ export async function GenerateExampleRequestHTTPSource(id: RequestID, endpointIn
   return generateExampleRequest(specData, endpointIndex);
 }
 
-export async function PerformVirtualEndpointHTTPSource(sourceID: RequestID, endpointIndex: number, request: t.HTTPRequest): Promise<Record<string, unknown>> {
+export async function PerformVirtualEndpointHTTPSource(sourceID: RequestID, _endpointIndex: number, request: t.HTTPRequest): Promise<Record<string, unknown>> {
   // Perform an HTTP request generated from the OpenAPI spec
   const j = await load();
   const req = j[sourceID];
@@ -332,7 +333,7 @@ export async function FetchSpecHTTPSource(id: RequestID): Promise<void> {
   const req = j[id];
   const sourceRequest = req.Data as t.HTTPSourceRequest;
   const specData = await getSpecData(sourceRequest);
-  if (!specData)
+  if (specData === "")
     throw new Error("no spec data");
 }
 

@@ -356,7 +356,7 @@ export async function get_request(request_id: string): Promise<get_request | nul
     id: raw.Request.ID,
     path: raw.Request.Path,
     kind,
-    ...requestData,
+    ...(requestData as Omit<Request, "id" | "path" | "kind">),
   } as Request;
 
   const history: HistoryEntry[] = responses.map(r => ({
@@ -364,7 +364,7 @@ export async function get_request(request_id: string): Promise<get_request | nul
     received_at: new Date(r.received_at),
     kind,
     request: requestData,
-    response: (r as any).data ?? r.response,
+    response: r.response,
   } as HistoryEntry));
 
   store.requests2[request_id] = {request, history};

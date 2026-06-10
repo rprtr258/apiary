@@ -8,10 +8,10 @@ export function sendDIFF(request: DIFFRequest): DIFFResponse {
   let right: JSONValue;
   let leftType = "json";
   let rightType = "json";
-  try { left = JSON.parse(request.left); }
+  try { left = JSON.parse(request.left) as JSONValue; }
   catch { left = request.left; leftType = "text"; }
 
-  try { right = JSON.parse(request.right); }
+  try { right = JSON.parse(request.right) as JSONValue; }
   catch { right = request.right; rightType = "text"; }
 
   const diffs: string[] = [];
@@ -23,12 +23,12 @@ export function sendDIFF(request: DIFFRequest): DIFFResponse {
       // TODO: handle empty lines correctly
       if (change.added) {
         stats.added += change.count;
-        diffs.push(...change.value.split("\n").filter(s => s != "").map(s => "+ " + s));
+        diffs.push(...change.value.split("\n").filter(s => s !== "").map(s => "+ " + s));
       } else if (change.removed) {
         stats.removed += change.count;
-        diffs.push(...change.value.split("\n").filter(s => s != "").map(s => "- " + s));
+        diffs.push(...change.value.split("\n").filter(s => s !== "").map(s => "- " + s));
       } else {
-        diffs.push(...change.value.split("\n").filter(s => s != ""));
+        diffs.push(...change.value.split("\n").filter(s => s !== ""));
       }
     }
   } else {
@@ -42,7 +42,7 @@ export function sendDIFF(request: DIFFRequest): DIFFResponse {
   ].join(", ");
 
   return {
-    diff: diffs.length > 0 ? diffs.join("\n") : "No differences",
+    diff: (stats.added > 0 || stats.removed > 0 || stats.changed > 0) ? diffs.join("\n") : "No differences",
     stats: statsStr,
     leftType,
     rightType,
@@ -71,7 +71,7 @@ function diffValues(
     return;
   }
 
-  if (typeof left === "object" && typeof right === "object" && left !== null && right !== null) {
+  if (typeof left === "object" && typeof right === "object") {
     if (Array.isArray(left) && Array.isArray(right)) {
       const maxLen = Math.max(left.length, right.length);
       diffs.push(indentt + path + ": [");
@@ -96,7 +96,7 @@ function diffValues(
       ]);
       diffs.push(indentt + "{");
       for (const key of allKeys) {
-        const keyPath = path ? `${path}.${key}` : key;
+        const keyPath = path !== "" ? `${path}.${key}` : key;
         if (!(key in leftObj)) {
           diffs.push(indentt + `+ "${keyPath}": ${JSON.stringify(rightObj[key])},`);
           stats.added++;

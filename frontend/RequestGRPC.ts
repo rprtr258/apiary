@@ -122,7 +122,7 @@ export default function(
         value: svc.service + "." + method,
       }))]);
 
-      const request = r.request;
+      const request = r.request as Request;
       const update_request = (patch: Partial<t.GRPCRequest>): void => {
         loading_methods = true;
         el_send.disabled = true;
@@ -131,7 +131,7 @@ export default function(
           el_send.disabled = false;
         });
       };
-      update_response(last_history_entry(r)?.response);
+      update_response(last_history_entry(r)?.response as t.GRPCResponse | undefined);
 
       const el_input_group = NInputGroup({style: {
         gridColumn: "span 2",

@@ -177,7 +177,7 @@ export default function(
 
   return {
     loaded: (r: get_request) => {
-      const request = r.request;
+      const request = r.request as Request;
       id = r.request.id;
 
       // Create left editor

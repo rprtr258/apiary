@@ -4,7 +4,7 @@ import {grpcQueryFake, grpcQueryValidate} from "./grpc.ts";
 describe("GRPC", () => {
   test("grpcQueryFake returns a JSON string", async () => {
     const result = await grpcQueryFake("localhost:50051", "Service/Method");
-    expect(() => JSON.parse(result)).not.toThrow();
+    expect(() => JSON.parse(result) as unknown).not.toThrow();
   });
 
   test("grpcQueryValidate passes for valid JSON", async () => {

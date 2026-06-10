@@ -39,7 +39,7 @@ async function describePostgres(request: SQLRequest, tableName: string): Promise
     name: String(r[0]),
     type: String(r[1]),
     nullable: ["YES" as unknown, 1, true].includes(r[2]),
-    defaultValue: String(r[3] ?? ""),
+    defaultValue: JSON.stringify(r[3] ?? ""),
   }));
 
   // Get constraints
@@ -106,7 +106,7 @@ async function describeMySQL(request: SQLRequest, tableName: string): Promise<Ta
     name: String(r[0]),
     type: String(r[1]),
     nullable: ["YES" as unknown, 1, true].includes(r[2]),
-    defaultValue: String(r[3] ?? ""),
+    defaultValue: JSON.stringify(r[3] ?? ""),
   }));
 
   // Get constraints (simplified - PRIMARY KEY only)
@@ -138,7 +138,7 @@ async function describeSQLite(request: SQLRequest, tableName: string): Promise<T
     const name = String(r[1]);
     const typ = String(r[2]);
     const notnull = [1 as unknown, true, "1"].includes(r[3]);
-    const defaultVal = String(r[4] ?? "");
+    const defaultVal = JSON.stringify(r[4] ?? "");
     const pk = [1 as unknown, true, "1"].includes(r[5]);
 
     columns.push({name, type: typ, nullable: !notnull, defaultValue: defaultVal});
@@ -156,7 +156,7 @@ async function describeSQLite(request: SQLRequest, tableName: string): Promise<T
   `});
   const indexes: IndexInfo[] = idxResult.rows.map(r => ({
     name: String(r[0]),
-    definition: String(r[1] ?? ""),
+    definition: JSON.stringify(r[1] ?? ""),
   }));
 
   // Get foreign keys via PRAGMA foreign_key_list (returns: id, seq, table, from, to, on_update, on_delete, match)
@@ -184,7 +184,7 @@ async function describeClickHouse(request: SQLRequest, tableName: string): Promi
     name: String(r[0]),
     type: String(r[1]),
     nullable: String(r[1]).includes("Nullable"),
-    defaultValue: ["YES" as unknown, 1, true].includes(r[2]) ? String(r[3] ?? "") : "",
+    defaultValue: ["YES" as unknown, 1, true].includes(r[2]) ? JSON.stringify(r[3] ?? "") : "",
   }));
 
   return {columns, constraints: [], foreign_keys: [], indexes: []};

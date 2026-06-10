@@ -7,7 +7,9 @@ import {m} from "./utils.ts";
 
 type Request = t.HTTPSourceRequest;
 
+//@ts-expect-error // TODO: unused for now
 type AuthType = "none" | "basic" | "bearer" | "apikey" | "oauth";
+//@ts-expect-error // TODO: unused for now
 type SpecSource = "file" | "url";
 
 // Type declaration for showOpenFilePicker

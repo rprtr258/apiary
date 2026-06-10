@@ -621,7 +621,7 @@ export const sidebar = function() {
                 NTag({
                   type: "info",
                   style: {
-                    minWidth: "4em",
+                    minWidth: "2em",
                     justifyContent: "center",
                     display: "flex",
                     alignItems: "center",
@@ -630,7 +630,7 @@ export const sidebar = function() {
                     fontWeight: "bold",
                     padding: "2px 4px",
                   },
-                }, "TABLE"),
+                }, "TBL"),
                 m("span", {
                   style: {
                     flex: "1",
@@ -661,7 +661,7 @@ export const sidebar = function() {
                   NTag({
                     type: tagType,
                     style: {
-                      minWidth: "4em",
+                      minWidth: "2em",
                       justifyContent: "center",
                       display: "flex",
                       alignItems: "center",
@@ -703,7 +703,7 @@ export const sidebar = function() {
                     fontWeight: "bold",
                     padding: "2px 4px",
                   },
-                }, "ENDPT"),
+                }, "EP"),
                 m("span", {
                   style: {
                     flex: "1",

@@ -1,10 +1,12 @@
-import {EditorState} from "@codemirror/state";
+import {EditorState, Extension} from "@codemirror/state";
 import {EditorView} from "@codemirror/view";
 import {json} from "@codemirror/lang-json";
 import {jsonSchema} from "codemirror-json-schema";
 import type {JSONSchema7} from "json-schema";
 import {defaultEditorExtensions, defaultExtensions} from "./editor.ts";
 import {m} from "../utils.ts";
+
+const getJsonSchema = jsonSchema as (schema?: JSONSchema7) => Extension[]; // TODO: fix import
 
 type Props = {
   value: string | null,
@@ -28,7 +30,7 @@ export default function(props: Props) {
       ...defaultEditorExtensions(props.on.update),
       json(),
       // Add JSON Schema extension if schema is provided
-      ...(props.schema !== undefined ? [jsonSchema(props.schema)] : []),
+      ...(props.schema !== undefined ? [getJsonSchema(props.schema)] : []),
     ],
   });
 

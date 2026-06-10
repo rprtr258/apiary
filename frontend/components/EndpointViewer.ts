@@ -36,7 +36,7 @@ export default function EndpointViewer(
     const content = endpoints[endpointIndex].requestBody?.content;
     const schema: JSONSchema7 | undefined =
       content !== undefined && "application/json" in content ?
-      content["application/json"].schema as JSONSchema7 :
+      content["application/json"].schema :
       undefined;
 
     const exampleRes = await api.requestGenerateExampleRequestHTTPSource(sourceID, endpointIndex);

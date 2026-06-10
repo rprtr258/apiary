@@ -25,10 +25,10 @@ export async function sendGRPC(request: GRPCRequest): Promise<GRPCResponse> {
       (error, response) => {
         clearTimeout(timeout);
         client.close();
-        if (error) {
+        if (error !== null) {
           resolve({
-            response: error.details ?? error.message,
-            code: error.code ?? grpc.status.UNKNOWN,
+            response: `details: ${error.details}, message: ${error.message}, cause: ${error.cause as string}`,
+            code: error.code,
             metadata: [],
           });
         } else {
@@ -49,8 +49,8 @@ export async function grpcMethods(_target: string): Promise<grpcServiceMethods[]
 }
 
 export async function grpcQueryFake(
-  target: string,
-  method: string, // NOTE: fully qualified
+  _target: string,
+  _method: string, // NOTE: fully qualified
 ): Promise<string> {
   return JSON.stringify({name: "string"}, null, 2);
   // 	reflSource, cc, err := database.Connect(a.ctx, Target)

@@ -18,7 +18,7 @@ const mockRequest: get_request = {
       sent_at: new Date(),
       received_at: new Date(),
       kind: t.Kind.SQL,
-      request: {id: "test-id"},
+      request: {dsn: "", database: t.Database.POSTGRES, query: ""},
       response: {
         columns: ["id", "name"],
         types: ["int", "string"],
@@ -52,7 +52,7 @@ describe("RequestSQL", () => {
       sent_at: new Date(),
       received_at: new Date(),
       kind: t.Kind.SQL,
-      request: {id: "test-id"},
+      request: {dsn: "", database: t.Database.POSTGRES, query: ""},
       response: {
         columns: ["id", "name"],
         types: ["int", "string"],
@@ -83,7 +83,7 @@ describe("RequestSQL", () => {
       sent_at: new Date(),
       received_at: new Date(),
       kind: t.Kind.SQL,
-      request: {id: "test-id"},
+      request: {dsn: "", database: t.Database.POSTGRES, query: ""},
       response: {
         columns: [],
         types: [],

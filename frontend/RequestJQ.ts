@@ -55,8 +55,8 @@ export default function(
 
   return {
     loaded: (r: get_request) => {
-      const request = r.request;
-      update_response(last_history_entry(r)?.response);
+      const request = r.request as Request;
+      update_response(last_history_entry(r)?.response as t.JQResponse | undefined);
 
       const el_input_group = NInputGroup({style: {
         display: "grid",

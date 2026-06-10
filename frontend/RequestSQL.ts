@@ -38,7 +38,7 @@ export default function(
 
   return {
     loaded: (r: get_request): void => {
-      push_response(last_history_entry(r)?.response);
+      push_response(last_history_entry(r)?.response as t.SQLResponse | undefined);
       el_response.replaceChildren(el_scrollable);
 
       const request = r.request as Request;

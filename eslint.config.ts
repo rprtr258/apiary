@@ -1,5 +1,5 @@
 import js from "@eslint/js";
-import {defineConfig} from "eslint/config"; // eslint-disable-line
+import {defineConfig} from "eslint/config";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import stylistic from "@stylistic/eslint-plugin";
@@ -49,7 +49,7 @@ export default defineConfig([
         "multiline": {delimiter: "comma", requireLast: true},
         "singleline": {delimiter: "comma", requireLast: false},
       }],
-      "import/extensions": ["error", "always"],
+      "import/extensions": ["error", "ignorePackages"],
       "@typescript-eslint/no-floating-promises": ["off"],
       "@typescript-eslint/no-misused-promises": ["off"],
       "@typescript-eslint/no-unused-vars": ["off"/*"error", {argsIgnorePattern: "^_"}*/], // TODO: get back
@@ -73,6 +73,7 @@ export default defineConfig([
         allowRegExp: false,
         skipCompoundAssignments: false,
       }],
+      "@typescript-eslint/require-await": "off",
     },
   },
 ]);
