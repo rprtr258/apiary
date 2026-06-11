@@ -1,5 +1,11 @@
 import {Window, Document} from "happy-dom";
 
+// happy-dom on Bun does not expose native error constructors on Window.
+// Set them here so happy-dom internals can instantiate them.
+function patchWindow(w: Window): void {
+  w.SyntaxError = SyntaxError;
+}
+
 declare const globalThis: {
   window: Window,
   document: Document,
@@ -12,6 +18,7 @@ declare const globalThis: {
 };
 
 const window = new Window();
+patchWindow(window);
 globalThis.window = window;
 globalThis.document = window.document;
 globalThis.localStorage = window.localStorage;
