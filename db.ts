@@ -114,6 +114,7 @@ export function extractSubKind(
 }
 
 export async function load(): Promise<DB> {
+  // TODO: migrate db
   const b = await readFile("db.json");
   const raw = JSON.parse(b.toString()) as dbJSON;
   const j = Object.fromEntries((raw.request ?? []).map(r => [r.id, (() => {

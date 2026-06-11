@@ -1,6 +1,7 @@
 import path from "path";
 import {fileURLToPath} from "url";
 import {app, BrowserWindow, ipcMain} from "electron";
+import data from "./package.json" with {type: "json"};
 import * as t from "./types/models.ts";
 import {
   CountRowsSQLSource,
@@ -27,6 +28,15 @@ import {
   Update,
 } from "./api.ts";
 import {Request} from "./db.ts";
+
+const version = data.version;
+
+if (process.argv.includes("--version")) {
+  console.log(version);
+  process.exit(0);
+}
+
+// TODO: init/migrate db
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

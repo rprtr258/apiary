@@ -18,7 +18,7 @@ async function runCommand(command: string[]) {
 async function main() {
   console.log(styleText("greenBright", "Starting CI checks..."));
   await Promise.all([
-    runCommand(["tsc", "-p", "tsconfig.json"]),
+    runCommand(["bun", "run", "typecheck"]),
     runCommand(["bun", "run", "lint"]),
     runCommand(["bun", "run", "test"]),
   ]);

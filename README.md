@@ -1,15 +1,132 @@
-# my-electron-app
+# apiary
 
-To install dependencies:
+<img align="right" width="95" height="95"
+   alt="Philosopher’s stone, logo of PostCSS"
+   src="docs/public/logo.svg">
+
+A cross-platform desktop application for managing API requests (HTTP, SQL, gRPC, Redis, JQ, Markdown, SQLSource, HTTPSource) using Go backend and vanilla TypeScript frontend via Wails.
+
+## Features
+
+- **Multiple Request Types**: HTTP, SQL, gRPC, Redis, JQ, Markdown
+- **Source Plugins**: SQLSource, HTTPSource (OpenAPI)
+- **Cross-platform**: Linux, macOS, Windows
+- **Plugin Architecture**: Extensible request/response system
+- **JSON Database**: Simple file-based storage
+
+## Installation
+
+### Download Pre-built Binaries
+
+Download the latest release from [GitHub Releases](https://github.com/rprtr258/apiary/releases):
+
+- **Linux**: `apiary-linux-amd64`
+- **macOS (Intel)**: `apiary-darwin-amd64`
+- **macOS (Apple Silicon)**: `apiary-darwin-arm64`
+- **Windows**: `apiary-windows-amd64.exe`
+
+Make the binary executable (Linux/macOS):
 
 ```bash
+chmod +x apiary-linux-amd64
+```
+
+### Building from Source
+
+#### Prerequisites
+- Bun 1.3.14+
+
+#### Build Steps
+```bash
+# Clone the repository
+git clone https://github.com/rprtr258/apiary.git
+cd apiary
+
+# Install dependencies
 bun install
+
+# Build the application
+bun run build
+
+# The binary will be in build/bin/apiary (or apiary.exe on Windows)
 ```
 
-To run:
+## Usage
 
 ```bash
-bun run index.ts
+# Start the application
+./apiary
+
+# Show version information
+./apiary --version
+
+# Example output:
+# apiary version v0.1.0
+# commit: abc123def456
+# build date: 2025-01-31T16:00:00Z
 ```
 
-This project was created using `bun init` in bun v1.3.9. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+The application will create a `db.json` file in the current directory to store your requests and responses.
+
+## Development
+
+### Project Structure
+```text
+apiary/
+├── frontend/        # Frontend
+│   ├── src/         # Source code
+│   └── dist/        # Built assets
+├── internal/        # Go backend
+│   ├── app/         # Application core
+│   ├── database/    # Plugin system and JSON DB
+│   └── version/     # Version management
+├── cmd/             # Test executables
+└── build/           # Build outputs
+```
+
+### Development Commands
+```bash
+bun run _start       # Start electron app
+bun run build        # Build for production
+bun run lint         # Run linting
+bun run typecheck    # Run type checking
+bun run test         # Run tests
+bun run ci           # Run linting, type checking and tests
+```
+
+## Release Process
+
+### Creating a Release
+
+1. **Update version**: Ensure all changes are committed
+2. **Create tag**: `git tag v0.1.0`
+3. **Push tag**: `git push origin v0.1.0`
+
+The GitHub Actions workflow will automatically:
+- Build binaries for Linux, macOS, and Windows
+- Inject version information via `ldflags`
+- Create a GitHub Release with auto-generated notes
+- Attach all platform binaries
+
+### Testing Releases
+Use the manual workflow trigger in GitHub Actions with version `0.0.0-test` to test the release process without creating an actual release.
+
+### Version Management
+- Version is stored in `package.json`
+- Injected at build time via `ldflags`
+- Stored in database as `app_version` field for migration tracking
+- Displayed in logs and via `--version` flag
+
+## Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `bun run ci`
+5. Submit a pull request
+
+## License
+[Add license information here]
+
+## Acknowledgments
+- Uses [GoldenLayout](https://golden-layout.com/) for window management
+- [CodeMirror](https://codemirror.net/) for code editing

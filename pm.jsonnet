@@ -1,8 +1,8 @@
 [
   {
     name: "apiary",
-    command: "wails",
-    args: ["dev"],
+    command: "bun",
+    args: ["run", "_start"],
     autorestart: false,
     tags: ["apiary"]
   }
