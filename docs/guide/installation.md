@@ -40,7 +40,7 @@ apiary-windows-amd64.exe
 ### Prerequisites
 
 - **Go 1.25+**: [Install Go](https://go.dev/dl/)
-- **Bun 1.2.5+**: [Install Bun](https://bun.sh/)
+- **Bun 1.3.14+**: [Install Bun](https://bun.sh/)
 - **Wails CLI v2.11.0+**: [Install Wails](https://wails.io/docs/gettingstarted/installation/)
 
 ### Build Steps

@@ -64,7 +64,7 @@ async function describePostgres(request: SQLRequest, tableName: string): Promise
 
   // Get indexes
   const idxResult = await sendSQL({...request, query: `
-    SELECT idx.indexname, pg_get_indexdef(idx.indexrelid)
+    SELECT idx.indexname, idx.indexdef
     FROM pg_indexes idx
     WHERE idx.tablename = '${tableName}' AND idx.schemaname NOT IN ('pg_catalog', 'information_schema')
   `});

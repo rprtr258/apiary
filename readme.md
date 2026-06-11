@@ -35,7 +35,7 @@ chmod +x apiary-linux-amd64
 
 #### Prerequisites
 - Go 1.25+
-- Bun 1.2.5+
+- Bun 1.3.14+
 - Wails CLI v2.11.0+
 
 #### Build Steps
