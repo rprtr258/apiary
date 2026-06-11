@@ -1,5 +1,5 @@
 import * as t from "../types/models.ts";
-import {Result, err, ok} from "./result.ts";
+import {Result, try_} from "./result.ts";
 import {HistoryEntry, RequestData} from "../types/types.ts";
 import {Request} from "../db.ts";
 
@@ -13,14 +13,13 @@ function parseTime(s: string): Date {
 };
 
 async function wrap<T>(f: () => Promise<T>, args: unknown): Promise<Result<T>> {
-  try {
-    const res = await f();
-    console.log("FETCH", f, args, res);
-    return ok(res);
-  } catch (e) {
-    console.log("FETCH FAIL", f, args, e);
-    return err(String(e));
+  const res = await try_(f);
+  if (res.kind === "ok") {
+    console.log("FETCH", f, args, res.value);
+  } else {
+    console.log("FETCH FAIL", f, args, res.value);
   }
+  return res;
 }
 
 export const api = {
@@ -79,13 +78,6 @@ export const api = {
     id: string,
   ): Promise<Result<void>> {
     return await wrap(() => Api.Delete(id), {reqId: id});
-  },
-
-  async jq(
-    data: string,
-    query: string,
-  ): Promise<Result<string[]>> {
-    return await wrap(() => Api.JQ(data, query), {data, query});
   },
 
   async grpcMethods(target: string): Promise<Result<t.grpcServiceMethods[]>> {

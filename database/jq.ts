@@ -1,5 +1,5 @@
-import jqWasm from "jq-wasm";
 import type {JQRequest, JQResponse} from "../types/models.ts";
+import {jq} from "../shared/jq.ts";
 
 export const JQEmptyRequest: JQRequest = {
 	query: ".",
@@ -12,21 +12,6 @@ export const JQEmptyRequest: JQRequest = {
 }`,
 };
 
-export async function sendJQ(request: JQRequest): Promise<JQResponse> {
-  // try parse request as json
-  try {
-    JSON.parse(request.json);
-  } catch (e) {
-    return {response: request.json.split("\n")};
-  }
-
-  const result = await jqWasm.raw(request.json, request.query, ["-r"]);
-  if (result.exitCode !== 0) {
-    throw new Error(`jq error: ${result.stderr}`);
-  }
-
-  const lines = result.stdout
-    .split("\n")
-    .filter(line => line.length > 0);
-  return {response: lines};
+export async function sendJQ({json, query}: JQRequest): Promise<JQResponse> {
+  return {response: await jq(json, query)};
 }

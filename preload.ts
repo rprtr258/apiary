@@ -21,7 +21,6 @@ const api: Api = {
   GRPCQueryValidate:                (a1: string, a2: string, a3: string       ): Promise<void>                    => ipcRenderer.invoke("GRPCQueryValidate",                a1, a2, a3),
   GenerateExampleRequestHTTPSource: (a1: string, a2: number                   ): Promise<t.HTTPRequest>           => ipcRenderer.invoke("GenerateExampleRequestHTTPSource", a1, a2    ),
   Get:                              (a1: string                               ): Promise<t.GetResponse>           => ipcRenderer.invoke("Get",                              a1        ),
-  JQ:                               (a1: string, a2: string                   ): Promise<string[]>                => ipcRenderer.invoke("JQ",                               a1, a2    ),
   List:                             (                                         ): Promise<t.ListResponse>          => ipcRenderer.invoke("List"                                        ),
   ListEndpointsHTTPSource:          (a1: string                               ): Promise<t.EndpointInfo[]>        => ipcRenderer.invoke("ListEndpointsHTTPSource",          a1        ),
   ListTablesSQLSource:              (a1: string                               ): Promise<t.TableInfo[]>           => ipcRenderer.invoke("ListTablesSQLSource",              a1        ),

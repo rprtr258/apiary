@@ -1,6 +1,6 @@
 import {Option, some, none} from "./option.ts";
-import {Result, ok} from "./result.ts";
-import {api} from "./api.ts";
+import {Result, ok, try_} from "./result.ts";
+import {jq} from "../shared/jq.ts";
 
 export function arrayGet<T>(items: T[], index: number): Option<T> {
   return index >= 0 && index < items.length ? some(items[index]) : none;
@@ -25,8 +25,8 @@ export async function transform(body: string, query: string): Promise<Result<str
     return ok(formatResponse(body));
   }
 
-  const res = await api.jq(body, query);
-  return res.map((item: readonly string[]) => item.map(v => formatResponse(v)).join("\n"));
+  const res = await try_(() => jq(body, query));
+  return res.map((item: readonly string[]) => item.map(formatResponse).join("\n"));
 };
 
 type BaseDOMNode = HTMLElement | SVGSVGElement | string | null;

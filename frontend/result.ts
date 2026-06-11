@@ -26,3 +26,11 @@ export function err<T>(value: string): Result<T> {
     map_or_else: (_fv, fe) => fe(value),
   };
 }
+
+export async function try_<T>(f: () => Promise<T>): Promise<Result<T>> {
+  try {
+    return ok(await f());
+  } catch (e) {
+    return err(String(e));
+  }
+}

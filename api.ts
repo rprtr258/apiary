@@ -201,11 +201,6 @@ export async function Perform(id: RequestID): Promise<PerformResponse> {
   };
 }
 
-export async function JQ(json: string, query: string): Promise<string[]> {
-  const result = await sendJQ({json, query});
-  return result.response;
-}
-
 export async function GRPCMethods(target: string): Promise<t.grpcServiceMethods[]> {
   return await grpcMethods(target);
 }

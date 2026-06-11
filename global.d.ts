@@ -19,7 +19,6 @@ export interface Api {
   GRPCQueryValidate:                (arg1:string, arg2:string, arg3:string       ) => Promise<void>,
   GenerateExampleRequestHTTPSource: (arg1:string, arg2:number                    ) => Promise<t.HTTPRequest>,
   Get:                              (arg1:string                                 ) => Promise<t.GetResponse>,
-  JQ:                               (arg1:string, arg2:string                    ) => Promise<string[]>,
   List:                             (                                            ) => Promise<t.ListResponse>,
   ListEndpointsHTTPSource:          (arg1:string                                 ) => Promise<t.EndpointInfo[]>,
   ListTablesSQLSource:              (arg1:string                                 ) => Promise<t.TableInfo[]>,

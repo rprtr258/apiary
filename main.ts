@@ -14,7 +14,6 @@ import {
   GRPCMethods,
   GRPCQueryFake,
   GRPCQueryValidate,
-  JQ,
   List,
   ListEndpointsHTTPSource,
   ListTablesSQLSource,
@@ -68,7 +67,6 @@ ipcMain.handle("Rename", (_, id: string, newName: string) => Rename(id, newName)
 ipcMain.handle("Update", (_, id: string, data: Request["Data"]) => Update(id, data));
 ipcMain.handle("Delete", (_, id: string) => Delete(id));
 ipcMain.handle("Perform", (_, id: string) => Perform(id));
-ipcMain.handle("JQ", (_, json: string, query: string) => JQ(json, query));
 ipcMain.handle("GRPCMethods", (_, target: string) => GRPCMethods(target));
 ipcMain.handle("GRPCQueryFake", (_, target: string, method: string) => GRPCQueryFake(target, method));
 ipcMain.handle("GRPCQueryValidate", (_, target: string, method: string, payload: string) => GRPCQueryValidate(target, method, payload));
