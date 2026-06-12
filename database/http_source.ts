@@ -1,5 +1,6 @@
-import type {HTTPSourceRequest, HTTPRequest, EndpointInfo, ParameterInfo, MediaTypeInfo, RequestBodyInfo, ResponseInfo} from "../shared/types/models.ts";
+import type {HTTPSourceRequest, HTTPRequest, EndpointInfo, ParameterInfo, MediaTypeInfo, RequestBodyInfo, ResponseInfo, AuthConfig} from "../shared/types/models.ts";
 import type {OpenAPIV2, OpenAPIV3, OpenAPIV3_1} from "openapi-types";
+import {KV} from "../shared/types/models.ts";
 
 type OpenAPIObject     = OpenAPIV2.Document           |   OpenAPIV3.Document          | OpenAPIV3_1.Document;
 type PathItemObject    = OpenAPIV2.PathItemObject     |   OpenAPIV3.PathItemObject    | OpenAPIV3_1.PathItemObject;
@@ -59,13 +60,33 @@ export function parseSpec(specData: string): EndpointInfo[] {
 }
 
 export function generateExampleRequest(
-  specData: string,
-  endpointIndex: number,
+  endpoint: EndpointInfo,
+  serverURL: string,
+  auth: AuthConfig,
 ): HTTPRequest {
-  const endpoints = parseSpec(specData);
-  const endpoint = endpoints[endpointIndex];
+  const authHeaders: KV[] = [];
+  switch (auth.type) {
+  case "none":
+    break;
+  case "basic":
+    const {username, password} = auth;
+    const authHeader = `Basic ${btoa(`${username}:${password}`)}`;
+    authHeaders.push({key: "Authorization", value: authHeader});
+    break;
+  case "bearer":
+    const {token} = auth;
+    authHeaders.push({key: "Authorization", value: `Bearer ${token}`});
+    break;
+  case "apikey":
+    const {key, value} = auth;
+    authHeaders.push({key, value});
+    break;
+  case "oauth":
+    // TODO: implement
+    break;
+  }
 
-  const headers: Array<{key: string, value: string}> = [];
+  const headers: KV[] = [];
   for (const param of endpoint.parameters) {
     if (param.in === "header") {
       headers.push({key: param.name, value: String(generateExampleValue(param.schema) ?? "")});
@@ -80,7 +101,7 @@ export function generateExampleRequest(
   }
 
   // Build URL with path params replaced
-  let url = endpoint.path;
+  let url = serverURL + endpoint.path;
   for (const param of endpoint.parameters) {
     if (param.in === "path") {
       url = url.replace(`{${param.name}}`, String(generateExampleValue(param.schema) ?? param.name));

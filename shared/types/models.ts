@@ -1,21 +1,21 @@
+export type RequestID = string;
+
 export type GetResponse = {
   Request: Request,
   History: Response[],
 };
 export type requestPreview = {
+  name: string,
   kind: Kind,
   subKind: string,
 };
 export type Tree = {
-  IDs: Record<string, string>,
+  IDs: RequestID[],
   Dirs: Record<string, Tree>,
 };
 export type ListResponse = {
   Tree: Tree,
   Requests: Record<string, requestPreview>,
-};
-export type ResponseNewRequest = {
-  id: string,
 };
 
 export type grpcServiceMethods = {
@@ -47,13 +47,24 @@ export enum ColumnType {
   BOOLEAN = "boolean",
 }
 export type AuthConfig = {
-  type: string,
-  username?: string,
-  password?: string,
-  token?: string,
-  keyName?: string,
-  keyValue?: string,
+  type: "none",
+} | {
+  type: "basic",
+  username: string,
+  password: string,
+} | {
+  type: "bearer",
+  token: string,
+} | {
+  type: "apikey",
+  key: string,
+  value: string,
+} | {
+  type: "oauth",
+  token: string,
 };
+export type AuthType = AuthConfig["type"];
+
 export type ColumnInfo = {
   name: string,
   type: string,

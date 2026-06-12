@@ -1,5 +1,6 @@
 import {describe, test, expect} from "bun:test";
 import {parseSpec, generateExampleRequest} from "./http_source.ts";
+import {GenerateExampleRequestHTTPSource} from "../api.ts";
 
 const petstoreV2 = JSON.stringify({
   swagger: "2.0",
@@ -121,8 +122,8 @@ describe("parseSpec", () => {
 describe("generateExampleRequest", () => {
   test("generates example for v3 POST endpoint", () => {
     const endpoints = parseSpec(petstoreV3);
-    const postIdx = endpoints.findIndex(e => e.method === "POST");
-    const example = generateExampleRequest(petstoreV3, postIdx);
+    const endpoint = endpoints.find(e => e.method === "POST")!;
+    const example = generateExampleRequest(endpoint, "", {type: "none"});
     expect(example.method).toBe("POST");
     expect(example.body).toBeTruthy();
     expect(example.headers.some(h => h.key === "Content-Type")).toBe(true);
@@ -130,12 +131,12 @@ describe("generateExampleRequest", () => {
 
   test("generates example for v3 GET endpoint with query params", () => {
     const endpoints = parseSpec(petstoreV3);
-    const getIdx = endpoints.findIndex(e => e.method === "GET");
-    const example = generateExampleRequest(petstoreV3, getIdx);
+    const endpoint = endpoints.find(e => e.method === "GET")!;
+    const example = generateExampleRequest(endpoint, "", {type: "none"});
     expect(example.method).toBe("GET");
   });
 
   test("throws for invalid endpoint index", () => {
-    expect(() => generateExampleRequest(petstoreV3, 999)).toThrow();
+    expect(() => GenerateExampleRequestHTTPSource("", 999999)).toThrow();
   });
 });

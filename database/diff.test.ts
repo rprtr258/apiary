@@ -1,5 +1,50 @@
 import {describe, test, expect} from "bun:test";
-import {sendDIFF} from "./diff.ts";
+import {detectType, sendDIFF} from "./diff.ts";
+
+describe("detectType", () => {
+	for (const [name, tc] of Object.entries({
+		"empty string": {
+			input:    "",
+			expected: "text",
+		},
+		"whitespace only": {
+			input:    "   \n\t  ",
+			expected: "text",
+		},
+		"valid JSON object": {
+			input:    `{"name": "Alice", "age": 30}`,
+			expected: "json",
+		},
+		"valid JSON array": {
+			input:    `[1, 2, 3]`,
+			expected: "json",
+		},
+		"valid JSON string": {
+			input:    `"hello"`,
+			expected: "json",
+		},
+		"invalid JSON": {
+			input:    `{name: Alice}`,
+			expected: "text",
+		},
+		"plain text": {
+			input:    "Hello world",
+			expected: "text",
+		},
+		"JSON with whitespace": {
+			input:    "  { \"name\": \"Alice\" }  ",
+			expected: "json",
+		},
+	} as Record<string, {
+		input: string,
+		expected: ReturnType<typeof detectType>,
+	}>)) {
+		test(name, () => {
+			const result = detectType(tc.input);
+			expect(result).toBe(tc.expected);
+		});
+	}
+});
 
 describe("sendDIFF", () => {
   for (const [name, {left, right, leftType, rightType, diff, stats}] of Object.entries({

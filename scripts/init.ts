@@ -1,10 +1,10 @@
 import {
   HTTPRequest, SQLRequest,
   HTTPResponse, JQResponse, SQLResponse, GRPCResponse,
-  Database, Kind,
+  Database, Kind, RequestID,
 } from "../shared/types/models.ts";
 import {DefaultMarkdown} from "../database/md.ts";
-import {create, load, RequestID, Request, createResponse, HistoryEntry2} from "../db.ts";
+import {create, load, Request, createResponse, HistoryEntry2} from "../db.ts";
 
 const nil = null;
 
@@ -75,6 +75,10 @@ select now();`),
   "Sanya/test-sql": s("host=localhost user=postgres password=a port=5432 dbname=infrastructure-api-team sslmode=disable", Database.POSTGRES, `SELECT *
 FROM environment
 ORDER BY id`),
+  "work-beekeeper": [Kind.SQLSource, {
+    "dsn": "/home/rprtr258/Downloads/home/.config/beekeeper-studio/app.db",
+    "database": Database.SQLITE,
+  }],
 } as Record<string, [Kind, Request["Data"]]>)) {
   const id = await create(db, kind, path, data);
   ids[path] = id;

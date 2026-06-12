@@ -1,4 +1,4 @@
-import {create, createResponse, extractSubKind, load, Delete as remove, rename, update, RequestID, Request, HistoryEntry2} from "./db.ts";
+import {create, createResponse, extractSubKind, load, Delete as remove, rename, update, Request, HistoryEntry2} from "./db.ts";
 import * as t from "./shared/types/models.ts";
 import {HTTPEmptyRequest, sendHTTP} from "./database/http.ts";
 import {JQEmptyRequest, sendJQ} from "./database/jq.ts";
@@ -11,7 +11,7 @@ import {parseSpec, generateExampleRequest, fetchSpec} from "./database/http_sour
 import {listTablesSQLSource, describeTableSQLSource, countRowsSQLSource, testSQLSource} from "./database/sql_source.ts";
 import {HistoryEntry} from "./shared/types/types.ts";
 
-async function get(id: RequestID): Promise<Request> {
+async function get(id: t.RequestID): Promise<Request> {
   const j = await load();
   if (!(id in j))
     throw new Error(`request ${id} not found`);
@@ -20,45 +20,36 @@ async function get(id: RequestID): Promise<Request> {
 
 export async function List(): Promise<t.ListResponse> {
   const j = await load();
-  const tree: t.Tree = {IDs: {}, Dirs: {}};
-  const requests: Record<RequestID, t.requestPreview> = {};
+
+  const previews: Record<t.RequestID, t.requestPreview> = Object.fromEntries(Object.entries(j).map(([id, req]) => [id, {
+    name: req.Path.split("/").slice(-1)[0],
+    kind: req.Kind,
+    subKind: extractSubKind(j, id),
+  }]));
+
+  const tree: t.Tree = {IDs: [], Dirs: {}};
   for (const [id, req] of Object.entries(j)) {
-    const kind = req.Kind;
-    const path = req.Path;
-    const subKind = extractSubKind(j, id);
-
-    requests[id] = {
-      kind: kind,
-      subKind: subKind,
-    };
-
     // Build tree: split path by "/", create nested Dirs, put entry in IDs
-    const parts = path.split("/");
-    let current = tree;
-    for (const part of parts.slice(0, -1)) {
-      if (part === "") {
-        continue;
-      }
+    const parts = req.Path.split("/");
+    const current = parts.slice(0, -1).filter(part => part !== "").reduce((current: t.Tree, part: string): t.Tree => {
       if (part in current.Dirs) {
-        current = current.Dirs[part]!;
-      } else if (part in current.IDs) {
-        current = current.Dirs[part];
+        return current.Dirs[part];
       } else {
-        const child: t.Tree = {IDs: {}, Dirs: {}};
+        const child: t.Tree = {IDs: [], Dirs: {}};
         current.Dirs[part] = child;
-        current = child;
+        return child;
       }
-    }
-    current.IDs[id] = parts.slice(-1)[0];
+    }, tree);
+    current.IDs.push(id);
   }
 
   return {
     Tree: tree,
-    Requests: requests,
+    Requests: previews,
   };
 }
 
-export async function Get(id: RequestID): Promise<t.GetResponse> {
+export async function Get(id: t.RequestID): Promise<t.GetResponse> {
   const entry = await get(id);
   const history: HistoryEntry[] = entry.Responses.map(h => ({
     sent_at: h.SentAt,
@@ -106,29 +97,27 @@ function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   }
 }
 
-export async function Create(path: string, kind: t.Kind): Promise<t.ResponseNewRequest> {
+export async function Create(path: string, kind: t.Kind): Promise<t.RequestID> {
   const j = await load();
   const emptyData = emptyRequestForKind(kind);
-  const id = await create(j, kind, path, emptyData);
-  return {id};
+  return await create(j, kind, path, emptyData);
 }
 
-export async function Duplicate(id: RequestID): Promise<t.ResponseNewRequest> {
+export async function Duplicate(id: t.RequestID): Promise<t.RequestID> {
   const j = await load();
   if (!(id in j))
     throw new Error(`request ${id} not found`);
   const entry = j[id];
   // TODO: find copies and increment
-  const newId = await create(j, entry.Kind, entry.Path + " (copy)", entry.Data);
-  return {id: newId};
+  return await create(j, entry.Kind, entry.Path + " (copy)", entry.Data);
 }
 
-export async function Delete(id: RequestID): Promise<void> {
+export async function Delete(id: t.RequestID): Promise<void> {
   const j = await load();
   await remove(j, id);
 }
 
-export async function Read(id: RequestID): Promise<t.Request> {
+export async function Read(id: t.RequestID): Promise<t.Request> {
   const j = await load();
   if (!(id in j))
     throw new Error(`request ${id} not found`);
@@ -141,25 +130,26 @@ export async function Read(id: RequestID): Promise<t.Request> {
   };
 }
 
-export async function Rename(id: RequestID, newName: string): Promise<void> {
+export async function Rename(id: t.RequestID, newName: string): Promise<void> {
   const j = await load();
   await rename(j, id, newName);
 }
 
-export async function Update(id: RequestID, data: Request["Data"]): Promise<void> {
+export async function Update(id: t.RequestID, data: Request["Data"]): Promise<void> {
   const j = await load();
   await update(j, id, data);
 }
 
 type PerformResponse = {
-  RequestId:   RequestID,
+  RequestId:   t.RequestID,
   sent_at:     string, // TODO: Date
   received_at: string, // TODO: Date
   request:     unknown,
   response:    unknown,
 };
 
-export async function Perform(id: RequestID): Promise<PerformResponse> {
+// Perform create a handler that performs call and save result to history
+export async function Perform(id: t.RequestID): Promise<PerformResponse> {
   const j = await load();
   if (!(id in j))
     throw new Error(`request ${id} not found`);
@@ -167,136 +157,174 @@ export async function Perform(id: RequestID): Promise<PerformResponse> {
   const req = j[id];
 
   const sent_at = new Date();
-  let result: unknown;
+  let response: unknown;
   switch (req.Kind) {
   case t.Kind.HTTP:
-    result = await sendHTTP(req.Data);
+    response = await sendHTTP(req.Data);
     break;
   case t.Kind.JQ:
-    result = await sendJQ(req.Data);
+    response = await sendJQ(req.Data);
     break;
   case t.Kind.MD:
-    result = await sendMD(req.Data);
+    response = await sendMD(req.Data);
     break;
   case t.Kind.SQL:
-    result = await sendSQL(req.Data);
+    response = await sendSQL(req.Data);
     break;
   case t.Kind.REDIS:
-    result = await sendRedis(req.Data);
+    response = await sendRedis(req.Data);
     break;
   case t.Kind.GRPC:
-    result = await sendGRPC(req.Data);
+    response = await sendGRPC(req.Data);
     break;
   case t.Kind.DIFF:
-    result = sendDIFF(req.Data);
+    response = sendDIFF(req.Data);
     break;
   default:
     throw new Error(`Perform not yet implemented for kind ${req.Kind}`);
   }
   const received_at = new Date();
 
-  await createResponse(j, id, {SentAt: sent_at, ReceivedAt: received_at, Response: result as HistoryEntry2["Response"]} as HistoryEntry2);
+  await createResponse(j, id, {SentAt: sent_at, ReceivedAt: received_at, Response: response as HistoryEntry2["Response"]} as HistoryEntry2);
   return {
     RequestId:   id,
     sent_at:     sent_at.toISOString(),
     received_at: received_at.toISOString(),
     request:     req.Data,
-    response:    result,
+    response:    response,
   };
 }
 
-export async function GRPCMethods(target: string): Promise<t.grpcServiceMethods[]> {
-  return await grpcMethods(target);
+export async function GRPCMethods(id: t.RequestID): Promise<t.grpcServiceMethods[]> {
+  const req = await get(id);
+  if (req.Kind !== t.Kind.GRPC)
+    throw new Error(`query kind is ${req.Kind}, expected grpc`);
+  return await grpcMethods(req.Data.target);
 }
 
 export async function GRPCQueryFake(target: string, method: string): Promise<string> {
   return await grpcQueryFake(target, method);
 }
 
+// NOTE: method fully qualified
 export async function GRPCQueryValidate(target: string, method: string, payload: string): Promise<void> {
   await grpcQueryValidate(target, method, payload);
 }
 
-export async function PerformSQLSource(id: RequestID, query: string): Promise<PerformResponse> {
+export async function PerformSQLSource(id: t.RequestID, query: string): Promise<PerformResponse> {
   const j = await load();
   if (!(id in j))
     throw new Error(`request ${id} not found`);
   const req = j[id];
-  const sourceRequest = req.Data as t.SQLSourceRequest;
-  const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query};
+  if (req.Kind !== t.Kind.SQLSource)
+    throw new Error(`request ${id} is not SQLSource`);
+
+  const sourceRequest = req.Data;
   const sent_at = new Date();
+  const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query};
   const result = await sendSQL(sqlRequest);
   const received_at = new Date();
-  await createResponse(j, id, {SentAt: sent_at, ReceivedAt: received_at, Response: result});
   return {
     RequestId:   id,
-    sent_at:     new Date().toISOString(),
-    received_at: new Date().toISOString(),
+    sent_at:     sent_at.toISOString(),
+    received_at: received_at.toISOString(),
     request:     sqlRequest,
     response:    result,
   };
 }
 
-export async function TestSQLSource(id: RequestID): Promise<void> {
+export async function TestSQLSource(id: t.RequestID): Promise<void> {
   const req = await get(id);
-  const sourceRequest = req.Data as t.SQLSourceRequest;
-  const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query: "SELECT 1"};
-  await testSQLSource(sqlRequest);
+  if (req.Kind !== t.Kind.SQLSource)
+    throw new Error(`request ${id} is not SQLSource`);
+  const {dsn, database} = req.Data;
+  await testSQLSource({dsn, database});
 }
 
-export async function ListTablesSQLSource(id: RequestID): Promise<t.TableInfo[]> {
+export async function ListTablesSQLSource(id: t.RequestID): Promise<t.TableInfo[]> {
   const req = await get(id) as Request & {Kind: t.Kind.SQLSource};
   const sourceRequest = req.Data;
   const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query: ""};
   return await listTablesSQLSource(sqlRequest);
 }
 
-export async function DescribeTableSQLSource(id: RequestID, tableName: string): Promise<t.TableSchema> {
-  const req = await get(id) as Request & {Kind: t.Kind.SQLSource};
-  const sourceRequest = req.Data;
-  const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query: ""};
-  return await describeTableSQLSource(sqlRequest, tableName);
+export async function DescribeTableSQLSource(id: t.RequestID, tableName: string): Promise<t.TableSchema> {
+  const req = await get(id);
+  if (req.Kind !== t.Kind.SQLSource)
+    throw new Error(`request ${id} is not SQLSource`);
+  const {dsn, database} = req.Data;
+  return await describeTableSQLSource({dsn, database}, tableName);
 }
 
-export async function CountRowsSQLSource(id: RequestID, tableName: string): Promise<number> {
-  const req = await get(id) as Request & {Kind: t.Kind.SQLSource};
-  const sourceRequest = req.Data;
-  const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query: ""};
-  return await countRowsSQLSource(sqlRequest, tableName);
+export async function CountRowsSQLSource(id: t.RequestID, tableName: string): Promise<number> {
+  const req = await get(id);
+  if (req.Kind !== t.Kind.SQLSource)
+    throw new Error(`request ${id} is not SQLSource`);
+  const {dsn, database} = req.Data;
+  return await countRowsSQLSource({dsn, database}, tableName);
 }
 
-export async function ListEndpointsHTTPSource(id: RequestID): Promise<t.EndpointInfo[]> {
-  const req = await get(id) as Request & {Kind: t.Kind.HTTPSource};
+export async function ListEndpointsHTTPSource(id: t.RequestID): Promise<t.EndpointInfo[]> {
+  const req = await get(id);
+  if (req.Kind !== t.Kind.HTTPSource)
+    throw new Error(`request ${id} is not HTTPSource`);
   const sourceRequest = req.Data;
   const specData = await fetchSpec(sourceRequest);
   return parseSpec(specData);
 }
 
-export async function GenerateExampleRequestHTTPSource(id: RequestID, endpointIndex: number): Promise<t.HTTPRequest> {
-  const req = await get(id) as Request & {Kind: t.Kind.HTTPSource};
+export async function GenerateExampleRequestHTTPSource(id: t.RequestID, endpointIndex: number): Promise<t.HTTPRequest> {
+  const req = await get(id);
+  if (req.Kind !== t.Kind.HTTPSource)
+    throw new Error(`request ${id} is not HTTPSource`);
+
   const sourceRequest = req.Data;
-  const specData = await fetchSpec(sourceRequest);
-  return generateExampleRequest(specData, endpointIndex);
+  const spec = await fetchSpec(sourceRequest);
+  const endpoints = parseSpec(spec);
+  if (endpointIndex < 0 || endpointIndex >= endpoints.length)
+    throw new Error(`invalid endpoint index ${endpointIndex}`);
+
+  return generateExampleRequest(endpoints[endpointIndex], sourceRequest.serverUrl, sourceRequest.auth);
 }
 
-export async function PerformVirtualEndpointHTTPSource(sourceID: RequestID, _endpointIndex: number, request: t.HTTPRequest): Promise<Record<string, unknown>> {
+export async function PerformVirtualEndpointHTTPSource(sourceID: t.RequestID, endpointIndex: number, modifiedRequest?: Partial<t.HTTPRequest>): Promise<Record<string, unknown>> {
   // Perform an HTTP request generated from the OpenAPI spec
   const j = await load();
   const req = j[sourceID];
+  if (req.Kind !== t.Kind.HTTPSource)
+    throw new Error(`request ${sourceID} is not HTTPSource`);
+
+  const spec = await fetchSpec(req.Data);
+  const endpoints = parseSpec(spec);
+  if (endpointIndex < 0 || endpointIndex >= endpoints.length)
+    throw new Error(`invalid endpoint index ${endpointIndex}`);
+
+  const exampleRequest = generateExampleRequest(endpoints[endpointIndex], req.Data.serverUrl, req.Data.auth);
+  // Merge with modified request if provided
+  const finalRequest = exampleRequest;
+  if (modifiedRequest !== undefined) {
+    // Merge fields from modifiedRequest into exampleRequest
+    finalRequest.method = modifiedRequest.method ?? finalRequest.method;
+    finalRequest.url = modifiedRequest.url ?? finalRequest.url;
+    finalRequest.body = modifiedRequest.body ?? finalRequest.body;
+    if ((modifiedRequest.headers ?? []).length > 0) {
+      finalRequest.headers = modifiedRequest.headers!;
+    }
+  }
+
   const sent_at = new Date();
-  const result = await sendHTTP(request);
+  const result = await sendHTTP(finalRequest);
   const received_at = new Date();
-  await createResponse(j, sourceID, {SentAt: sent_at, ReceivedAt: received_at, Response: result});
   return {
     RequestId:   sourceID,
     sent_at:     sent_at.toISOString(),
     received_at: received_at.toISOString(),
-    request:     req.Data,
+    request:     finalRequest,
     response:    result,
   };
 }
 
-export async function TestHTTPSource(id: RequestID): Promise<void> {
+export async function TestHTTPSource(id: t.RequestID): Promise<void> {
   const req = await get(id);
   if (req.Kind !== t.Kind.HTTPSource)
     throw new Error(`request ${id} is not HTTPSource`);
@@ -306,10 +334,13 @@ export async function TestHTTPSource(id: RequestID): Promise<void> {
   parseSpec(specData);
 }
 
-export async function FetchSpecHTTPSource(id: RequestID): Promise<void> {
+export async function FetchSpecHTTPSource(id: t.RequestID): Promise<void> {
   const req = await get(id);
-  const sourceRequest = req.Data as t.HTTPSourceRequest;
+  if (req.Kind !== t.Kind.HTTPSource)
+    throw new Error(`request ${id} is not HTTPSource`);
+  const sourceRequest = req.Data;
   const specData = await fetchSpec(sourceRequest);
   if (specData === "")
     throw new Error("no spec data");
+  // TODO: use(return?) specData
 }

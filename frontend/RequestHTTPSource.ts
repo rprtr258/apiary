@@ -8,8 +8,6 @@ import {m} from "./utils.ts";
 type Request = t.HTTPSourceRequest;
 
 //@ts-expect-error // TODO: unused for now
-type AuthType = "none" | "basic" | "bearer" | "apikey" | "oauth";
-//@ts-expect-error // TODO: unused for now
 type SpecSource = "file" | "url";
 
 // Type declaration for showOpenFilePicker
@@ -45,7 +43,7 @@ function AuthFields(auth: t.AuthConfig, onUpdate: (patch: Partial<t.AuthConfig>)
     onUpdate({type: validAuthType});
   }
 
-  const authTypeSelect = NSelect({
+  const authTypeSelect = NSelect<t.AuthType>({
     label: validAuthType,
     options: [
       {label: "none", value: "none"},
@@ -54,32 +52,31 @@ function AuthFields(auth: t.AuthConfig, onUpdate: (patch: Partial<t.AuthConfig>)
       {label: "apikey", value: "apikey"},
       {label: "oauth", value: "oauth"},
     ],
-    on: {update: (type: string) => onUpdate({type: type})},
+    on: {update: type => onUpdate({type})},
   });
 
   const fields: HTMLElement[] = [m("label", "Auth Type"), authTypeSelect.el];
-
   switch (auth.type) {
   case "basic":
     fields.push(
-      m("label", "Username"), NInput({value: auth.username ?? "", on: {update: (v: string) => onUpdate({username: v})}}),
-      m("label", "Password"), NInput({value: auth.password ?? "", on: {update: (v: string) => onUpdate({password: v})}}),
+      m("label", "Username"), NInput({value: auth.username, on: {update: (v: string) => onUpdate({username: v})}}),
+      m("label", "Password"), NInput({value: auth.password, on: {update: (v: string) => onUpdate({password: v})}}),
     );
     break;
   case "bearer":
     fields.push(
-      m("label", "Token"), NInput({value: auth.token ?? "", on: {update: (v: string) => onUpdate({token: v})}}),
+      m("label", "Token"), NInput({value: auth.token, on: {update: (v: string) => onUpdate({token: v})}}),
     );
     break;
   case "apikey":
     fields.push(
-      m("label", "Key Name"), NInput({value: auth.keyName ?? "", on: {update: (v: string) => onUpdate({keyName: v})}}),
-      m("label", "Key Value"), NInput({value: auth.keyValue ?? "", on: {update: (v: string) => onUpdate({keyValue: v})}}),
+      m("label", "Key Name"), NInput({value: auth.key, on: {update: (v: string) => onUpdate({key: v})}}),
+      m("label", "Key Value"), NInput({value: auth.value, on: {update: (v: string) => onUpdate({value: v})}}),
     );
     break;
   case "oauth":
     fields.push(
-      m("label", "Token"), NInput({value: auth.token ?? "", on: {update: (v: string) => onUpdate({token: v})}}), // placeholder
+      m("label", "Token"), NInput({value: auth.token, on: {update: (v: string) => onUpdate({token: v})}}), // placeholder // TODO: implement
     );
     break;
   }
@@ -224,8 +221,8 @@ export default function(
       });
 
       const authFieldsContainer = m("div");
-      const updateAuthFields = () => authFieldsContainer.replaceChildren(AuthFields(request.auth, (patch) => {
-        update_request({auth: {...request.auth, ...patch}});
+      const updateAuthFields = () => authFieldsContainer.replaceChildren(AuthFields(request.auth, patch => {
+        update_request({auth: {...request.auth, ...patch} as t.AuthConfig});
       }));
       updateAuthFields();
 

@@ -2,8 +2,8 @@ import type {JQRequest, JQResponse} from "../shared/types/models.ts";
 import {jq} from "../shared/jq.ts";
 
 export const JQEmptyRequest: JQRequest = {
-	query: ".",
-	json: `{
+  query: ".",
+  json: `{
   "string": "string",
   "number": 42,
   "bool": true,

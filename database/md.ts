@@ -11,13 +11,13 @@ export async function sendMD(request: MDRequest): Promise<MDResponse> {
     extensions: {
       childTokens: {},
       renderers: {
-	// pikchr "github.com/jchenry/goldmark-pikchr"
-	// img64 "github.com/tenkoh/goldmark-img64"
-	// mathml "github.com/wyatt915/goldmark-treeblood"
-	// emoji "github.com/yuin/goldmark-emoji"
-	// highlighting "github.com/yuin/goldmark-highlighting/v2"
-	// "go.abhg.dev/goldmark/mermaid"
-	// "go.abhg.dev/goldmark/toc"
+  // pikchr "github.com/jchenry/goldmark-pikchr"
+  // img64 "github.com/tenkoh/goldmark-img64"
+  // mathml "github.com/wyatt915/goldmark-treeblood"
+  // emoji "github.com/yuin/goldmark-emoji"
+  // highlighting "github.com/yuin/goldmark-highlighting/v2"
+  // "go.abhg.dev/goldmark/mermaid"
+  // "go.abhg.dev/goldmark/toc"
         // extension.Footnote,
         // emoji.Emoji,
         // extension.Typographer,

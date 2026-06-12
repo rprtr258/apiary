@@ -11,10 +11,10 @@ contextBridge.exposeInMainWorld("versions", {
 
 const api: Api = {
   CountRowsSQLSource:               (a1: string, a2: string                   ): Promise<number>                  => ipcRenderer.invoke("CountRowsSQLSource",               a1, a2    ),
-  Create:                           (a1: string, a2: t.Kind                   ): Promise<t.ResponseNewRequest>    => ipcRenderer.invoke("Create",                           a1, a2    ),
+  Create:                           (a1: string, a2: t.Kind                   ): Promise<t.RequestID>             => ipcRenderer.invoke("Create",                           a1, a2    ),
   Delete:                           (a1: string                               ): Promise<void>                    => ipcRenderer.invoke("Delete",                           a1        ),
   DescribeTableSQLSource:           (a1: string, a2: string                   ): Promise<t.TableSchema>           => ipcRenderer.invoke("DescribeTableSQLSource",           a1, a2    ),
-  Duplicate:                        (a1: string                               ): Promise<t.ResponseNewRequest>    => ipcRenderer.invoke("Duplicate",                        a1        ),
+  Duplicate:                        (a1: string                               ): Promise<t.RequestID>             => ipcRenderer.invoke("Duplicate",                        a1        ),
   FetchSpecHTTPSource:              (a1: string                               ): Promise<void>                    => ipcRenderer.invoke("FetchSpecHTTPSource",              a1        ),
   GRPCMethods:                      (a1: string                               ): Promise<t.grpcServiceMethods[]>  => ipcRenderer.invoke("GRPCMethods",                      a1        ),
   GRPCQueryFake:                    (a1: string, a2: string                   ): Promise<string>                  => ipcRenderer.invoke("GRPCQueryFake",                    a1, a2    ),

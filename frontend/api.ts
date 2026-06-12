@@ -43,13 +43,13 @@ export const api = {
   async requestCreate(
     name: string,
     kind: t.Kind,
-  ): Promise<Result<t.ResponseNewRequest>> {
+  ): Promise<Result<t.RequestID>> {
     return await wrap(() => Api.Create(name, kind), {name, kind});
   },
 
   async requestDuplicate(
     name: string,
-  ): Promise<Result<t.ResponseNewRequest>> {
+  ): Promise<Result<t.RequestID>> {
     return await wrap(() => Api.Duplicate(name), {name});
   },
 

@@ -11,7 +11,7 @@ export async function listTablesSQLSource(request: SQLRequest): Promise<TableInf
   }));
 }
 
-export async function describeTableSQLSource(request: SQLRequest, tableName: string): Promise<TableSchema> {
+export async function describeTableSQLSource(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   switch (request.database) {
   case Database.POSTGRES:
     return describePostgres(request, tableName);
@@ -27,7 +27,7 @@ export async function describeTableSQLSource(request: SQLRequest, tableName: str
   }
 }
 
-async function describePostgres(request: SQLRequest, tableName: string): Promise<TableSchema> {
+async function describePostgres(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   // Get columns
   const colResult = await sendSQL({...request, query: `
     SELECT column_name, data_type, is_nullable = 'YES', column_default
@@ -94,7 +94,7 @@ async function describePostgres(request: SQLRequest, tableName: string): Promise
   return {columns, constraints, foreign_keys: foreignKeys, indexes};
 }
 
-async function describeMySQL(request: SQLRequest, tableName: string): Promise<TableSchema> {
+async function describeMySQL(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   // Get columns
   const colResult = await sendSQL({...request, query: `
     SELECT column_name, column_type, is_nullable = 'YES', column_default
@@ -128,7 +128,7 @@ async function describeMySQL(request: SQLRequest, tableName: string): Promise<Ta
   return {columns, constraints, foreign_keys: [], indexes: []};
 }
 
-async function describeSQLite(request: SQLRequest, tableName: string): Promise<TableSchema> {
+async function describeSQLite(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   const columns: ColumnInfo[] = [];
   const constraints: ConstraintInfo[] = [];
 
@@ -173,7 +173,7 @@ async function describeSQLite(request: SQLRequest, tableName: string): Promise<T
   return {columns, constraints, foreign_keys: foreignKeys, indexes};
 }
 
-async function describeClickHouse(request: SQLRequest, tableName: string): Promise<TableSchema> {
+async function describeClickHouse(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   // Get columns
   const colResult = await sendSQL({...request, query: `
     SELECT name, type, default_kind != '', default_expression
@@ -190,15 +190,39 @@ async function describeClickHouse(request: SQLRequest, tableName: string): Promi
   return {columns, constraints: [], foreign_keys: [], indexes: []};
 }
 
-export async function countRowsSQLSource(request: SQLRequest, tableName: string): Promise<number> {
+export async function countRowsSQLSource(request: Omit<SQLRequest, "query">, tableName: string): Promise<number> {
   // Quote each part of schema-qualified names separately
   const quoted = tableName.split(".").map(p => `"${p}"`).join(".");
   const result = await sendSQL({...request, query: `SELECT COUNT(*) FROM ${quoted}`});
   return Number(result.rows[0]?.[0] ?? 0);
 }
 
-export async function testSQLSource(request: SQLRequest): Promise<void> {
+export async function testSQLSource(request: Omit<SQLRequest, "query">): Promise<void> {
   await sendSQL({...request, query: "SELECT 1"});
+  // switch req.Database {
+  // case database.DBClickhouse:
+  //   opts, err := clickhouse.ParseDSN(req.DSN)
+  //   if err != nil {
+  //     return errors.Wrap(err, "parse DSN")
+  //   }
+
+  //   db := clickhouse.OpenDB(opts)
+  //   defer db.Close()
+
+  //   db.SetMaxIdleConns(5)
+  //   db.SetMaxOpenConns(10)
+  //   db.SetConnMaxLifetime(time.Hour)
+
+  //   return errors.Wrap(db.PingContext(a.ctx), "ping database")
+  // default:
+  //   db, err := sql.Open(string(req.Database), req.DSN)
+  //   if err != nil {
+  //     return errors.Wrap(err, "connect to database")
+  //   }
+  //   defer db.Close()
+
+  //   return errors.Wrap(db.PingContext(a.ctx), "ping database")
+  // }
 }
 
 function introspectionQueryTables(request: SQLRequest): string {

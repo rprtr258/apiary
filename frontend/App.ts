@@ -456,7 +456,7 @@ function preApp(root: HTMLElement, store: Store) {
         continue;
       }
 
-      inputRename.value = store.requestsTree.value.IDs[renameID];
+      inputRename.value = store.requests[renameID].name;
       if (!shown) {
         modalRename.show();
         shown = true;

@@ -7,19 +7,19 @@
 // opts2 := &clickhouse.Options{
 // Addr: []string{"play.clickhouse.com:9440"},
 // Auth: clickhouse.Auth{
-// 	Database: "default",
-// 	Username: "play",
-// 	Password: "",
+//   Database: "default",
+//   Username: "play",
+//   Password: "",
 // },
 // TLS: &tls.Config{
-// 	InsecureSkipVerify: true,
+//   InsecureSkipVerify: true,
 // },
 // Settings: clickhouse.Settings{
-// 	"max_execution_time": 60,
+//   "max_execution_time": 60,
 // },
 // DialTimeout: time.Second * 30,
 // Compression: &clickhouse.Compression{
-// 	Method: clickhouse.CompressionLZ4,
+//   Method: clickhouse.CompressionLZ4,
 // },
 // BlockBufferSize:      10,
 // MaxCompressionBuffer: 10240,
@@ -58,11 +58,11 @@
 
 // rowPtrs := make([]any, len(columns))
 // for i := range rowPtrs {
-// 	rowPtrs[i] = &rowDest[i]
+//   rowPtrs[i] = &rowDest[i]
 // }
 
 // if err := rows.Scan(rowPtrs...); err != nil {
-// 	return errors.Wrap(err, "scan row")
+//   return errors.Wrap(err, "scan row")
 // }
 
 // rowsData = append(rowsData, rowDest)

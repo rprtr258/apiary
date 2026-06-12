@@ -450,7 +450,7 @@ export const sidebar = function() {
           key: k,
           label: basename(k),
           children: mapper(v),
-        })).concat(Object.entries(tree.IDs).map(([id, basename]) => {
+        })).concat(tree.IDs.map(id => {
             const req = store.requests[id];
             const isSQLSource = id in store.requests && req.kind === t.Kind.SQLSource;
             const isHTTPSource = id in store.requests && req.kind === t.Kind.HTTPSource;
@@ -491,12 +491,11 @@ export const sidebar = function() {
               return undefined;
             })();
 
-            const item: TreeOption = {
+            return {
               key: id,
-              label: basename,
+              label: store.requests[id].name,
               ...(children !== undefined ? {children} : {}), // Only set children for SQLSource/HTTPSource
             };
-            return item;
         }));
       return mapper(requestsTree);
     })();

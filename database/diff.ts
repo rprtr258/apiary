@@ -1,18 +1,15 @@
 import {diffLines} from "diff";
 import type {DIFFRequest, DIFFResponse} from "../shared/types/models.ts";
+import {type JSONValue} from "../shared/types/types.ts";
 
-type JSONValue = string | number | boolean | null | JSONValue[] | {[key: string]: JSONValue};
+export function detectType(s: string): "json" | "text" {
+  try { JSON.parse(s); return "json"; }
+  catch { return "text"; }
+}
 
 export function sendDIFF(request: DIFFRequest): DIFFResponse {
-  let left: JSONValue;
-  let right: JSONValue;
-  let leftType = "json";
-  let rightType = "json";
-  try { left = JSON.parse(request.left) as JSONValue; }
-  catch { left = request.left; leftType = "text"; }
-
-  try { right = JSON.parse(request.right) as JSONValue; }
-  catch { right = request.right; rightType = "text"; }
+  const leftType = detectType(request.left);
+  const rightType = detectType(request.left);
 
   const diffs: string[] = [];
   const stats = {added: 0, removed: 0, changed: 0};
@@ -32,6 +29,8 @@ export function sendDIFF(request: DIFFRequest): DIFFResponse {
       }
     }
   } else {
+    const left: JSONValue = JSON.parse(request.left) as JSONValue;
+    const right: JSONValue = JSON.parse(request.right) as JSONValue;
     diffValues(left, right, "", 0, diffs, stats);
   }
 

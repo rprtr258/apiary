@@ -1,105 +1,105 @@
 package database
 
 import (
-	"context"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
+  "context"
+  "encoding/base64"
+  "encoding/json"
+  "fmt"
+  "io"
+  "net/http"
+  "net/url"
+  "sort"
+  "strconv"
+  "strings"
+  "time"
 
-	"github.com/go-openapi/loads"
-	"github.com/go-openapi/spec"
-	"github.com/pkg/errors"
-	. "github.com/rprtr258/apiary/internal/json"
-	"github.com/rprtr258/fun"
-	"github.com/rs/zerolog/log"
+  "github.com/go-openapi/loads"
+  "github.com/go-openapi/spec"
+  "github.com/pkg/errors"
+  . "github.com/rprtr258/apiary/internal/json"
+  "github.com/rprtr258/fun"
+  "github.com/rs/zerolog/log"
 )
 
 type SpecSource string
 
 const (
-	// TODO: add string spec source
-	SpecSourceFile SpecSource = "file"
-	SpecSourceURL  SpecSource = "url"
+  // TODO: add string spec source
+  SpecSourceFile SpecSource = "file"
+  SpecSourceURL  SpecSource = "url"
 )
 
 type AuthType string
 
 const (
-	AuthNone   AuthType = "none"
-	AuthBasic  AuthType = "basic"
-	AuthBearer AuthType = "bearer"
-	AuthAPIKey AuthType = "apikey"
-	AuthOAuth  AuthType = "oauth"
+  AuthNone   AuthType = "none"
+  AuthBasic  AuthType = "basic"
+  AuthBearer AuthType = "bearer"
+  AuthAPIKey AuthType = "apikey"
+  AuthOAuth  AuthType = "oauth"
 )
 
 type AuthConfig struct {
-	Type     AuthType `json:"type"`
-	Username string   `json:"username,omitempty"`
-	Password string   `json:"password,omitempty"`
-	Token    string   `json:"token,omitempty"`
-	KeyName  string   `json:"keyName,omitempty"`
-	KeyValue string   `json:"keyValue,omitempty"`
+  Type     AuthType `json:"type"`
+  Username string   `json:"username,omitempty"`
+  Password string   `json:"password,omitempty"`
+  Token    string   `json:"token,omitempty"`
+  KeyName  string   `json:"keyName,omitempty"`
+  KeyValue string   `json:"keyValue,omitempty"`
 }
 
 type EndpointInfo struct {
-	Path        string                  `json:"path"`
-	Method      string                  `json:"method"`
-	Summary     string                  `json:"summary"`
-	Parameters  []ParameterInfo         `json:"parameters"`
-	RequestBody *RequestBodyInfo        `json:"requestBody,omitempty"`
-	Responses   map[string]ResponseInfo `json:"responses"`
+  Path        string                  `json:"path"`
+  Method      string                  `json:"method"`
+  Summary     string                  `json:"summary"`
+  Parameters  []ParameterInfo         `json:"parameters"`
+  RequestBody *RequestBodyInfo        `json:"requestBody,omitempty"`
+  Responses   map[string]ResponseInfo `json:"responses"`
 }
 
 type ParameterInfo struct {
-	Name        string `json:"name"`
-	In          string `json:"in"`
-	Description string `json:"description"`
-	Required    bool   `json:"required"`
-	Schema      D      `json:"schema"`
-	Example     any    `json:"example,omitempty"`
+  Name        string `json:"name"`
+  In          string `json:"in"`
+  Description string `json:"description"`
+  Required    bool   `json:"required"`
+  Schema      D      `json:"schema"`
+  Example     any    `json:"example,omitempty"`
 }
 
 type RequestBodyInfo struct {
-	Description string                   `json:"description"`
-	Required    bool                     `json:"required"`
-	Content     map[string]MediaTypeInfo `json:"content"`
+  Description string                   `json:"description"`
+  Required    bool                     `json:"required"`
+  Content     map[string]MediaTypeInfo `json:"content"`
 }
 
 type MediaTypeInfo struct {
-	Schema  D   `json:"schema"`
-	Example any `json:"example,omitempty"`
+  Schema  D   `json:"schema"`
+  Example any `json:"example,omitempty"`
 }
 
 type ResponseInfo struct {
-	Description string                   `json:"description"`
-	Content     map[string]MediaTypeInfo `json:"content,omitempty"`
+  Description string                   `json:"description"`
+  Content     map[string]MediaTypeInfo `json:"content,omitempty"`
 }
 
 const KindHTTPSource Kind = "http-source"
 
 type HTTPSourceRequest struct {
-	ServerURL  string     `json:"serverUrl"`
-	SpecSource SpecSource `json:"specSource"`
-	SpecData   string     `json:"specData"`
-	Auth       AuthConfig `json:"auth"`
+  ServerURL  string     `json:"serverUrl"`
+  SpecSource SpecSource `json:"specSource"`
+  SpecData   string     `json:"specData"`
+  Auth       AuthConfig `json:"auth"`
 }
 
 func (HTTPSourceRequest) Kind() Kind { return KindHTTPSource }
 
 var pluginHTTPSource = plugin{
-	EmptyRequest:   HTTPSourceEmptyRequest,
-	enum:           enumElem[Kind]{KindHTTPSource, "HTTPSource"},
-	Perform:        nil, // TODO: see PerformVirtualEndpointHTTPSource handler
-	create:         (*DB).create,
-	update:         (*DB).update,
-	createResponse: false,
+  EmptyRequest:   HTTPSourceEmptyRequest,
+  enum:           enumElem[Kind]{KindHTTPSource, "HTTPSource"},
+  Perform:        nil, // TODO: see PerformVirtualEndpointHTTPSource handler
+  create:         (*DB).create,
+  update:         (*DB).update,
+  createResponse: false,
 }
 
 var HTTPSourceEmptyRequest = HTTPSourceRequest{"", SpecSourceFile, "", AuthConfig{Type: AuthNone}}
@@ -109,479 +109,479 @@ type HTTPSourceResponse struct{}
 func (HTTPSourceResponse) Kind() Kind { return KindHTTPSource }
 
 func FetchSpec(ctx context.Context, source SpecSource, data string) (string, error) {
-	switch source {
-	case SpecSourceFile:
-		return data, nil // assume data is the content
-	case SpecSourceURL:
-		client := &http.Client{Timeout: 30 * time.Second}
-		resp, err := client.Get(data)
-		if err != nil {
-			return "", errors.Wrap(err, "fetch spec from URL")
-		}
-		defer resp.Body.Close()
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return "", errors.Wrap(err, "read spec response")
-		}
-		if resp.StatusCode != http.StatusOK {
-			return "", errors.Errorf("unexpected status code: %d, body: %q", resp.StatusCode, body)
-		}
-		return string(body), nil
-	default:
-		return "", errors.New("unknown spec source")
-	}
+  switch source {
+  case SpecSourceFile:
+    return data, nil // assume data is the content
+  case SpecSourceURL:
+    client := &http.Client{Timeout: 30 * time.Second}
+    resp, err := client.Get(data)
+    if err != nil {
+      return "", errors.Wrap(err, "fetch spec from URL")
+    }
+    defer resp.Body.Close()
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+      return "", errors.Wrap(err, "read spec response")
+    }
+    if resp.StatusCode != http.StatusOK {
+      return "", errors.Errorf("unexpected status code: %d, body: %q", resp.StatusCode, body)
+    }
+    return string(body), nil
+  default:
+    return "", errors.New("unknown spec source")
+  }
 }
 
 func ParseSpec(specJSON string) ([]EndpointInfo, error) {
-	// Load and expand the spec to resolve references
-	doc, err := loads.Analyzed([]byte(specJSON), "")
-	if err != nil {
-		return nil, errors.Wrap(err, "load spec")
-	}
+  // Load and expand the spec to resolve references
+  doc, err := loads.Analyzed([]byte(specJSON), "")
+  if err != nil {
+    return nil, errors.Wrap(err, "load spec")
+  }
 
-	// Expand references
-	if err := spec.ExpandSpec(doc.Spec(), &spec.ExpandOptions{}); err != nil {
-		return nil, errors.Wrap(err, "expand spec references")
-	}
+  // Expand references
+  if err := spec.ExpandSpec(doc.Spec(), &spec.ExpandOptions{}); err != nil {
+    return nil, errors.Wrap(err, "expand spec references")
+  }
 
-	swag := doc.Spec()
+  swag := doc.Spec()
 
-	// Collect and sort paths for stable ordering
-	paths := fun.Keys(swag.Paths.Paths)
-	sort.Strings(paths)
+  // Collect and sort paths for stable ordering
+  paths := fun.Keys(swag.Paths.Paths)
+  sort.Strings(paths)
 
-	endpoints := []EndpointInfo{}
-	for _, path := range paths {
-		pathItem := swag.Paths.Paths[path]
-		// Define method order for stable iteration
-		methodOperations := []struct {
-			method    string
-			operation *spec.Operation
-		}{
-			{"get", pathItem.Get},
-			{"head", pathItem.Head},
-			{"post", pathItem.Post},
-			{"put", pathItem.Put},
-			{"patch", pathItem.Patch},
-			{"delete", pathItem.Delete},
-			{"options", pathItem.Options},
-		}
-		for _, mo := range methodOperations {
-			if mo.operation == nil {
-				continue
-			}
+  endpoints := []EndpointInfo{}
+  for _, path := range paths {
+    pathItem := swag.Paths.Paths[path]
+    // Define method order for stable iteration
+    methodOperations := []struct {
+      method    string
+      operation *spec.Operation
+    }{
+      {"get", pathItem.Get},
+      {"head", pathItem.Head},
+      {"post", pathItem.Post},
+      {"put", pathItem.Put},
+      {"patch", pathItem.Patch},
+      {"delete", pathItem.Delete},
+      {"options", pathItem.Options},
+    }
+    for _, mo := range methodOperations {
+      if mo.operation == nil {
+        continue
+      }
 
-			parameters := fun.Map[ParameterInfo](func(param spec.Parameter) ParameterInfo {
-				return ParameterInfo{
-					Name:        param.Name,
-					In:          param.In,
-					Description: param.Description,
-					Required:    param.Required,
-					Schema:      schemaToMap(param.Schema),
-					Example:     param.Example,
-				}
-			}, mo.operation.Parameters...)
+      parameters := fun.Map[ParameterInfo](func(param spec.Parameter) ParameterInfo {
+        return ParameterInfo{
+          Name:        param.Name,
+          In:          param.In,
+          Description: param.Description,
+          Required:    param.Required,
+          Schema:      schemaToMap(param.Schema),
+          Example:     param.Example,
+        }
+      }, mo.operation.Parameters...)
 
-			// Request body (Swagger 2.0: parameters with in="body")
-			// Swagger 2.0 only allows one body parameter
-			bodyParam, _, ok := fun.Index(func(param spec.Parameter) bool {
-				return param.In == "body"
-			}, mo.operation.Parameters...)
+      // Request body (Swagger 2.0: parameters with in="body")
+      // Swagger 2.0 only allows one body parameter
+      bodyParam, _, ok := fun.Index(func(param spec.Parameter) bool {
+        return param.In == "body"
+      }, mo.operation.Parameters...)
 
-			endpoint := EndpointInfo{
-				Path:       path,
-				Method:     strings.ToUpper(mo.method),
-				Summary:    mo.operation.Summary,
-				Parameters: parameters,
-				RequestBody: fun.OptMap(fun.Optional(bodyParam, ok), func(bodyParam spec.Parameter) RequestBodyInfo {
-					content := map[string]MediaTypeInfo{}
-					// For Swagger 2.0, body parameter has a schema
-					if bodyParam.Schema != nil {
-						// Convert schema to map
-						// Use first consume type or default to application/json
-						contentType := "application/json"
-						if len(mo.operation.Consumes) > 0 {
-							contentType = mo.operation.Consumes[0]
-						}
-						content[contentType] = MediaTypeInfo{
-							Schema:  schemaToMap(bodyParam.Schema),
-							Example: bodyParam.Example,
-						}
-					}
+      endpoint := EndpointInfo{
+        Path:       path,
+        Method:     strings.ToUpper(mo.method),
+        Summary:    mo.operation.Summary,
+        Parameters: parameters,
+        RequestBody: fun.OptMap(fun.Optional(bodyParam, ok), func(bodyParam spec.Parameter) RequestBodyInfo {
+          content := map[string]MediaTypeInfo{}
+          // For Swagger 2.0, body parameter has a schema
+          if bodyParam.Schema != nil {
+            // Convert schema to map
+            // Use first consume type or default to application/json
+            contentType := "application/json"
+            if len(mo.operation.Consumes) > 0 {
+              contentType = mo.operation.Consumes[0]
+            }
+            content[contentType] = MediaTypeInfo{
+              Schema:  schemaToMap(bodyParam.Schema),
+              Example: bodyParam.Example,
+            }
+          }
 
-					return RequestBodyInfo{
-						Description: bodyParam.Description,
-						Required:    bodyParam.Required,
-						Content:     content,
-					}
-				}).Ptr(),
-				Responses: map[string]ResponseInfo{},
-			}
+          return RequestBodyInfo{
+            Description: bodyParam.Description,
+            Required:    bodyParam.Required,
+            Content:     content,
+          }
+        }).Ptr(),
+        Responses: map[string]ResponseInfo{},
+      }
 
-			// Responses
-			for code, resp := range mo.operation.Responses.StatusCodeResponses {
-				// Parse response schema if present
-				content := map[string]MediaTypeInfo{}
-				if resp.Schema != nil {
-					// Use first produce type or default to application/json
-					contentType := "application/json"
-					if len(mo.operation.Produces) > 0 {
-						contentType = mo.operation.Produces[0]
-					}
-					content[contentType] = MediaTypeInfo{
-						Schema: schemaToMap(resp.Schema),
-					}
-				}
-				endpoint.Responses[strconv.Itoa(code)] = ResponseInfo{
-					Description: resp.Description,
-					Content:     content,
-				}
-			}
+      // Responses
+      for code, resp := range mo.operation.Responses.StatusCodeResponses {
+        // Parse response schema if present
+        content := map[string]MediaTypeInfo{}
+        if resp.Schema != nil {
+          // Use first produce type or default to application/json
+          contentType := "application/json"
+          if len(mo.operation.Produces) > 0 {
+            contentType = mo.operation.Produces[0]
+          }
+          content[contentType] = MediaTypeInfo{
+            Schema: schemaToMap(resp.Schema),
+          }
+        }
+        endpoint.Responses[strconv.Itoa(code)] = ResponseInfo{
+          Description: resp.Description,
+          Content:     content,
+        }
+      }
 
-			endpoints = append(endpoints, endpoint)
-		}
-	}
+      endpoints = append(endpoints, endpoint)
+    }
+  }
 
-	return endpoints, nil
+  return endpoints, nil
 }
 
 // schemaToMap converts a spec.Schema to a map for JSON serialization
 func schemaToMap(schema *spec.Schema) D {
-	if schema == nil {
-		return nil
-	}
+  if schema == nil {
+    return nil
+  }
 
-	// Marshal to JSON and unmarshal to map to get full structure
-	jsonBytes, err := json.Marshal(schema)
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to marshal schema, using default")
-		return D{"type": "object"}
-	}
+  // Marshal to JSON and unmarshal to map to get full structure
+  jsonBytes, err := json.Marshal(schema)
+  if err != nil {
+    log.Warn().Err(err).Msg("failed to marshal schema, using default")
+    return D{"type": "object"}
+  }
 
-	var result D
-	if err := json.Unmarshal(jsonBytes, &result); err != nil {
-		log.Warn().Err(err).Msg("failed to unmarshal schema, using default")
-		return D{"type": "object"}
-	}
+  var result D
+  if err := json.Unmarshal(jsonBytes, &result); err != nil {
+    log.Warn().Err(err).Msg("failed to unmarshal schema, using default")
+    return D{"type": "object"}
+  }
 
-	return result
+  return result
 }
 
 // TODO: randomize
 func GenerateExampleRequest(endpoint EndpointInfo, serverURL string, auth AuthConfig) HTTPRequest {
-	urlStr := serverURL + endpoint.Path
+  urlStr := serverURL + endpoint.Path
 
-	// Replace path params with examples
-	for _, param := range endpoint.Parameters {
-		if param.In == "path" {
-			example := param.Example
-			if example == nil {
-				// placeholder
-				switch param.Schema["type"] {
-				case "string":
-					example = "string"
-				case "integer":
-					example = 42
-				default:
-					example = "placeholder"
-				}
-			}
-			urlStr = strings.ReplaceAll(urlStr, "{"+param.Name+"}", fmt.Sprintf("%v", example))
-		}
-	}
+  // Replace path params with examples
+  for _, param := range endpoint.Parameters {
+    if param.In == "path" {
+      example := param.Example
+      if example == nil {
+        // placeholder
+        switch param.Schema["type"] {
+        case "string":
+          example = "string"
+        case "integer":
+          example = 42
+        default:
+          example = "placeholder"
+        }
+      }
+      urlStr = strings.ReplaceAll(urlStr, "{"+param.Name+"}", fmt.Sprintf("%v", example))
+    }
+  }
 
-	authHeaders := []KV{}
-	switch auth.Type {
-	case AuthBasic:
-		if auth.Username != "" || auth.Password != "" {
-			// Basic auth: base64 encode username:password
-			authHeader := "Basic " + base64.StdEncoding.EncodeToString([]byte(auth.Username+":"+auth.Password))
-			authHeaders = append(authHeaders, KV{Key: "Authorization", Value: authHeader})
-		}
-	case AuthBearer:
-		authHeaders = append(authHeaders, KV{Key: "Authorization", Value: "Bearer " + auth.Token})
-	case AuthAPIKey:
-		authHeaders = append(authHeaders, KV{Key: auth.KeyName, Value: auth.KeyValue})
-	}
+  authHeaders := []KV{}
+  switch auth.Type {
+  case AuthBasic:
+    if auth.Username != "" || auth.Password != "" {
+      // Basic auth: base64 encode username:password
+      authHeader := "Basic " + base64.StdEncoding.EncodeToString([]byte(auth.Username+":"+auth.Password))
+      authHeaders = append(authHeaders, KV{Key: "Authorization", Value: authHeader})
+    }
+  case AuthBearer:
+    authHeaders = append(authHeaders, KV{Key: "Authorization", Value: "Bearer " + auth.Token})
+  case AuthAPIKey:
+    authHeaders = append(authHeaders, KV{Key: auth.KeyName, Value: auth.KeyValue})
+  }
 
-	queryParameters := []KV{}
-	for _, param := range endpoint.Parameters {
-		example := param.Example
-		if example == nil && param.Schema != nil {
-			// Generate example from schema
-			example = generateParameterExampleFromSchema(param.Schema)
-		}
-		if example == nil {
-			example = "placeholder"
-		}
-		kv := KV{Key: param.Name, Value: fmt.Sprintf("%v", example)}
-		switch param.In {
-		case "query":
-			queryParameters = append(queryParameters, kv)
-		case "header":
-			authHeaders = append(authHeaders, kv)
-		}
-	}
+  queryParameters := []KV{}
+  for _, param := range endpoint.Parameters {
+    example := param.Example
+    if example == nil && param.Schema != nil {
+      // Generate example from schema
+      example = generateParameterExampleFromSchema(param.Schema)
+    }
+    if example == nil {
+      example = "placeholder"
+    }
+    kv := KV{Key: param.Name, Value: fmt.Sprintf("%v", example)}
+    switch param.In {
+    case "query":
+      queryParameters = append(queryParameters, kv)
+    case "header":
+      authHeaders = append(authHeaders, kv)
+    }
+  }
 
-	// query string
-	if len(queryParameters) > 0 {
-		uv := url.Values{}
-		for _, q := range queryParameters {
-			uv.Add(q.Key, q.Value)
-		}
-		urlStr += "?" + uv.Encode()
-	}
+  // query string
+  if len(queryParameters) > 0 {
+    uv := url.Values{}
+    for _, q := range queryParameters {
+      uv.Add(q.Key, q.Value)
+    }
+    urlStr += "?" + uv.Encode()
+  }
 
-	body := ""
-	if endpoint.RequestBody != nil && len(endpoint.RequestBody.Content) > 0 {
-		// Use first content type
-		for contentType, mediaType := range endpoint.RequestBody.Content {
-			if mediaType.Example != nil {
-				if jsonBytes, err := json.MarshalIndent(mediaType.Example, "", "  "); err == nil {
-					body = string(jsonBytes)
-				} else {
-					body = fmt.Sprintf("%v", mediaType.Example)
-				}
-			} else if mediaType.Schema != nil {
-				body = generateExampleFromSchema(mediaType.Schema)
-			}
-			// Add Content-Type header
-			if body != "" {
-				authHeaders = append(authHeaders, KV{Key: "Content-Type", Value: contentType})
-			}
-			break // Use first content type
-		}
-	}
+  body := ""
+  if endpoint.RequestBody != nil && len(endpoint.RequestBody.Content) > 0 {
+    // Use first content type
+    for contentType, mediaType := range endpoint.RequestBody.Content {
+      if mediaType.Example != nil {
+        if jsonBytes, err := json.MarshalIndent(mediaType.Example, "", "  "); err == nil {
+          body = string(jsonBytes)
+        } else {
+          body = fmt.Sprintf("%v", mediaType.Example)
+        }
+      } else if mediaType.Schema != nil {
+        body = generateExampleFromSchema(mediaType.Schema)
+      }
+      // Add Content-Type header
+      if body != "" {
+        authHeaders = append(authHeaders, KV{Key: "Content-Type", Value: contentType})
+      }
+      break // Use first content type
+    }
+  }
 
-	return HTTPRequest{
-		URL:     urlStr,
-		Method:  endpoint.Method,
-		Body:    body,
-		Headers: authHeaders,
-	}
+  return HTTPRequest{
+    URL:     urlStr,
+    Method:  endpoint.Method,
+    Body:    body,
+    Headers: authHeaders,
+  }
 }
 
 // generateExampleFromSchema generates a JSON example from a schema map
 func generateExampleFromSchema(schema D) string {
-	if schema == nil {
-		return "{}"
-	}
+  if schema == nil {
+    return "{}"
+  }
 
-	// Get schema type
-	schemaType, _ := schema["type"].(string)
+  // Get schema type
+  schemaType, _ := schema["type"].(string)
 
-	switch schemaType {
-	case "object":
-		return generateObjectExample(schema)
-	case "array":
-		return generateArrayExample(schema)
-	case "string":
-		// Check for format or enum
-		if enum, ok := schema["enum"].(A); ok && len(enum) > 0 {
-			return fmt.Sprintf(`"%v"`, enum[0])
-		}
-		if format, ok := schema["format"].(string); ok {
-			switch format {
-			case "date-time":
-				// return time.Now().Format(time.RFC3339) // TODO: now
-				return `"2024-01-01T12:00:00Z"`
-			case "date":
-				return `"2024-01-01"`
-				// return time.Now().Format(time.DateOnly) // TODO: now
-			case "email":
-				return `"user@example.com"`
-			case "uuid":
-				return `"123e4567-e89b-12d3-a456-426614174000"`
-			default:
-				return `"example"`
-			}
-		}
-		return `"example"`
-	case "integer", "number":
-		if format, ok := schema["format"].(string); ok {
-			switch format {
-			case "int32", "int64":
-				return "42"
-			case "float", "double":
-				return "3.14"
-			}
-		}
-		return "42"
-	case "boolean":
-		return "true"
-	case "null":
-		return "null"
-	default:
-		// Check for $ref or allOf/anyOf/oneOf
-		if ref, ok := schema["$ref"].(string); ok && ref != "" {
-			// For refs, just return empty object
-			return "{}"
-		}
-		// Default to empty object
-		return "{}"
-	}
+  switch schemaType {
+  case "object":
+    return generateObjectExample(schema)
+  case "array":
+    return generateArrayExample(schema)
+  case "string":
+    // Check for format or enum
+    if enum, ok := schema["enum"].(A); ok && len(enum) > 0 {
+      return fmt.Sprintf(`"%v"`, enum[0])
+    }
+    if format, ok := schema["format"].(string); ok {
+      switch format {
+      case "date-time":
+        // return time.Now().Format(time.RFC3339) // TODO: now
+        return `"2024-01-01T12:00:00Z"`
+      case "date":
+        return `"2024-01-01"`
+        // return time.Now().Format(time.DateOnly) // TODO: now
+      case "email":
+        return `"user@example.com"`
+      case "uuid":
+        return `"123e4567-e89b-12d3-a456-426614174000"`
+      default:
+        return `"example"`
+      }
+    }
+    return `"example"`
+  case "integer", "number":
+    if format, ok := schema["format"].(string); ok {
+      switch format {
+      case "int32", "int64":
+        return "42"
+      case "float", "double":
+        return "3.14"
+      }
+    }
+    return "42"
+  case "boolean":
+    return "true"
+  case "null":
+    return "null"
+  default:
+    // Check for $ref or allOf/anyOf/oneOf
+    if ref, ok := schema["$ref"].(string); ok && ref != "" {
+      // For refs, just return empty object
+      return "{}"
+    }
+    // Default to empty object
+    return "{}"
+  }
 }
 
 // generateObjectExample generates an example for object type
 func generateObjectExample(schema D) string {
-	properties, _ := schema["properties"].(D)
-	required, _ := schema["required"].(A)
+  properties, _ := schema["properties"].(D)
+  required, _ := schema["required"].(A)
 
-	if len(properties) == 0 {
-		return "{}"
-	}
+  if len(properties) == 0 {
+    return "{}"
+  }
 
-	// Get sorted property names for deterministic output
-	propNames := fun.Keys(properties)
-	sort.Strings(propNames)
+  // Get sorted property names for deterministic output
+  propNames := fun.Keys(properties)
+  sort.Strings(propNames)
 
-	example := make(D)
-	for _, propName := range propNames {
-		propSchema := properties[propName]
-		propMap, ok := propSchema.(D)
-		if !ok {
-			continue
-		}
+  example := make(D)
+  for _, propName := range propNames {
+    propSchema := properties[propName]
+    propMap, ok := propSchema.(D)
+    if !ok {
+      continue
+    }
 
-		// Check if property is required
-		isRequired := false
-		for _, req := range required {
-			if reqStr, ok := req.(string); ok && reqStr == propName {
-				isRequired = true
-				break
-			}
-		}
+    // Check if property is required
+    isRequired := false
+    for _, req := range required {
+      if reqStr, ok := req.(string); ok && reqStr == propName {
+        isRequired = true
+        break
+      }
+    }
 
-		// Include required properties, and if none are required, include first few properties
-		if isRequired || len(required) == 0 {
-			propType, _ := propMap["type"].(string)
-			switch propType {
-			case "string":
-				// Check for enum or format
-				if enum, ok := propMap["enum"].(A); ok && len(enum) > 0 {
-					example[propName] = enum[0]
-				} else if format, ok := propMap["format"].(string); ok {
-					switch format {
-					case "date-time":
-						example[propName] = "2024-01-01T12:00:00Z"
-					case "date":
-						example[propName] = "2024-01-01"
-					case "email":
-						example[propName] = "user@example.com"
-					case "uuid":
-						example[propName] = "123e4567-e89b-12d3-a456-426614174000"
-					default:
-						example[propName] = "example"
-					}
-				} else {
-					example[propName] = "example"
-				}
-			case "integer", "number":
-				if format, ok := propMap["format"].(string); ok {
-					switch format {
-					case "int32", "int64":
-						example[propName] = 42
-					case "float", "double":
-						example[propName] = 3.14
-					default:
-						example[propName] = 42
-					}
-				} else {
-					example[propName] = 42
-				}
-			case "boolean":
-				example[propName] = true
-			case "array":
-				example[propName] = A{"item1", "item2"}
-			case "object":
-				example[propName] = D{"key": "value"}
-			default:
-				example[propName] = nil
-			}
+    // Include required properties, and if none are required, include first few properties
+    if isRequired || len(required) == 0 {
+      propType, _ := propMap["type"].(string)
+      switch propType {
+      case "string":
+        // Check for enum or format
+        if enum, ok := propMap["enum"].(A); ok && len(enum) > 0 {
+          example[propName] = enum[0]
+        } else if format, ok := propMap["format"].(string); ok {
+          switch format {
+          case "date-time":
+            example[propName] = "2024-01-01T12:00:00Z"
+          case "date":
+            example[propName] = "2024-01-01"
+          case "email":
+            example[propName] = "user@example.com"
+          case "uuid":
+            example[propName] = "123e4567-e89b-12d3-a456-426614174000"
+          default:
+            example[propName] = "example"
+          }
+        } else {
+          example[propName] = "example"
+        }
+      case "integer", "number":
+        if format, ok := propMap["format"].(string); ok {
+          switch format {
+          case "int32", "int64":
+            example[propName] = 42
+          case "float", "double":
+            example[propName] = 3.14
+          default:
+            example[propName] = 42
+          }
+        } else {
+          example[propName] = 42
+        }
+      case "boolean":
+        example[propName] = true
+      case "array":
+        example[propName] = A{"item1", "item2"}
+      case "object":
+        example[propName] = D{"key": "value"}
+      default:
+        example[propName] = nil
+      }
 
-			// Include all properties when none are required, but limit to 10 to avoid huge examples
-			if len(required) == 0 && len(example) >= 10 {
-				break
-			}
-		}
-	}
+      // Include all properties when none are required, but limit to 10 to avoid huge examples
+      if len(required) == 0 && len(example) >= 10 {
+        break
+      }
+    }
+  }
 
-	if len(example) == 0 {
-		return "{}"
-	}
+  if len(example) == 0 {
+    return "{}"
+  }
 
-	jsonBytes, err := json.MarshalIndent(example, "", "  ")
-	if err != nil {
-		return "{}"
-	}
-	return string(jsonBytes)
+  jsonBytes, err := json.MarshalIndent(example, "", "  ")
+  if err != nil {
+    return "{}"
+  }
+  return string(jsonBytes)
 }
 
 // generateArrayExample generates an example for array type
 func generateArrayExample(schema D) string {
-	items, ok := schema["items"].(D)
-	if !ok {
-		return "[]"
-	}
+  items, ok := schema["items"].(D)
+  if !ok {
+    return "[]"
+  }
 
-	// Generate one example item
-	itemExample := generateExampleFromSchema(items)
-	// Parse the item example to create an array
-	var itemObj any
-	if err := json.Unmarshal([]byte(itemExample), &itemObj); err != nil {
-		return "[]"
-	}
+  // Generate one example item
+  itemExample := generateExampleFromSchema(items)
+  // Parse the item example to create an array
+  var itemObj any
+  if err := json.Unmarshal([]byte(itemExample), &itemObj); err != nil {
+    return "[]"
+  }
 
-	arrayExample := A{itemObj}
-	jsonBytes, err := json.MarshalIndent(arrayExample, "", "  ")
-	if err != nil {
-		return "[]"
-	}
-	return string(jsonBytes)
+  arrayExample := A{itemObj}
+  jsonBytes, err := json.MarshalIndent(arrayExample, "", "  ")
+  if err != nil {
+    return "[]"
+  }
+  return string(jsonBytes)
 }
 
 // generateParameterExampleFromSchema generates a simple example value from a schema map for parameters
 func generateParameterExampleFromSchema(schema D) any {
-	if schema == nil {
-		return "example"
-	}
+  if schema == nil {
+    return "example"
+  }
 
-	schemaType, _ := schema["type"].(string)
+  schemaType, _ := schema["type"].(string)
 
-	switch schemaType {
-	case "string":
-		// Check for format or enum
-		if enum, ok := schema["enum"].(A); ok && len(enum) > 0 {
-			return enum[0]
-		}
-		if format, ok := schema["format"].(string); ok {
-			switch format {
-			case "date-time":
-				return "2024-01-01T12:00:00Z"
-			case "date":
-				return "2024-01-01"
-			case "email":
-				return "user@example.com"
-			case "uuid":
-				return "123e4567-e89b-12d3-a456-426614174000"
-			}
-		}
-		return "example"
-	case "integer", "number":
-		if format, ok := schema["format"].(string); ok {
-			switch format {
-			case "int32", "int64":
-				return 42
-			case "float", "double":
-				return 3.14
-			}
-		}
-		return 42
-	case "boolean":
-		return true
-	case "array":
-		return "item1,item2" // CSV format for query parameters
-	default:
-		return "example"
-	}
+  switch schemaType {
+  case "string":
+    // Check for format or enum
+    if enum, ok := schema["enum"].(A); ok && len(enum) > 0 {
+      return enum[0]
+    }
+    if format, ok := schema["format"].(string); ok {
+      switch format {
+      case "date-time":
+        return "2024-01-01T12:00:00Z"
+      case "date":
+        return "2024-01-01"
+      case "email":
+        return "user@example.com"
+      case "uuid":
+        return "123e4567-e89b-12d3-a456-426614174000"
+      }
+    }
+    return "example"
+  case "integer", "number":
+    if format, ok := schema["format"].(string); ok {
+      switch format {
+      case "int32", "int64":
+        return 42
+      case "float", "double":
+        return 3.14
+      }
+    }
+    return 42
+  case "boolean":
+    return true
+  case "array":
+    return "item1,item2" // CSV format for query parameters
+  default:
+    return "example"
+  }
 }

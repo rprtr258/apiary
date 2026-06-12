@@ -2,9 +2,7 @@ import {readFile, writeFile} from "fs/promises";
 import {nanoid} from "nanoid";
 import * as t from "./shared/types/models.ts";
 
-export type RequestID = string;
-
-export function generateID(): RequestID {
+export function generateID(): t.RequestID {
   return nanoid();
 }
 
@@ -21,19 +19,19 @@ type dbJSON = {
   "$version": 1,
   app_version: string,
   request?: {
-    id: RequestID,
+    id: t.RequestID,
     kind: t.Kind,
     path: string,
   }[],
-  [t.Kind.HTTP]: Record<RequestID, KindEntry<t.HTTPRequest, t.HTTPResponse>>,
-  [t.Kind.SQL]: Record<RequestID, KindEntry<t.SQLRequest, t.SQLResponse>>,
-  [t.Kind.JQ]: Record<RequestID, KindEntry<t.JQRequest, t.JQResponse>>,
-  [t.Kind.MD]: Record<RequestID, KindEntry<t.MDRequest, t.MDResponse>>,
-  [t.Kind.REDIS]: Record<RequestID, KindEntry<t.RedisRequest, t.RedisResponse>>,
-  [t.Kind.GRPC]: Record<RequestID, KindEntry<t.GRPCRequest, t.GRPCResponse>>,
-  [t.Kind.DIFF]: Record<RequestID, KindEntry<t.DIFFRequest, t.DIFFResponse>>,
-  [t.Kind.SQLSource]: Record<RequestID, t.SQLSourceRequest>,
-  [t.Kind.HTTPSource]: Record<RequestID, t.HTTPSourceRequest>,
+  [t.Kind.HTTP]:       Record<t.RequestID, KindEntry<t.HTTPRequest, t.HTTPResponse>>,
+  [t.Kind.SQL]:        Record<t.RequestID, KindEntry<t.SQLRequest, t.SQLResponse>>,
+  [t.Kind.JQ]:         Record<t.RequestID, KindEntry<t.JQRequest, t.JQResponse>>,
+  [t.Kind.MD]:         Record<t.RequestID, KindEntry<t.MDRequest, t.MDResponse>>,
+  [t.Kind.REDIS]:      Record<t.RequestID, KindEntry<t.RedisRequest, t.RedisResponse>>,
+  [t.Kind.GRPC]:       Record<t.RequestID, KindEntry<t.GRPCRequest, t.GRPCResponse>>,
+  [t.Kind.DIFF]:       Record<t.RequestID, KindEntry<t.DIFFRequest, t.DIFFResponse>>,
+  [t.Kind.SQLSource]:  Record<t.RequestID, t.SQLSourceRequest>,
+  [t.Kind.HTTPSource]: Record<t.RequestID, t.HTTPSourceRequest>,
 };
 
 type HistoryEntry<_Req, Resp> = {
@@ -52,8 +50,8 @@ export type HistoryEntry2 = // TODO: just Request["Responses"][number]
 ;
 
 export type Request = {
-	ID:        RequestID,
-	Path:      string,
+  ID:        t.RequestID,
+  Path:      string,
 } & (
   | {Kind: t.Kind.HTTP} & {
     Data: t.HTTPRequest,
@@ -93,11 +91,11 @@ export type Request = {
   }
 );
 
-export type DB = Record<RequestID, Request>;
+export type DB = Record<t.RequestID, Request>;
 
 export function extractSubKind(
   j: DB,
-  id: RequestID,
+  id: t.RequestID,
 ): string {
   const entry = j[id];
   switch (entry.Kind) {
@@ -252,21 +250,21 @@ export async function create(
   kind: t.Kind,
   path: string,
   data: Request["Data"],
-): Promise<RequestID> {
+): Promise<t.RequestID> {
   const id = generateID();
   j[id] = {ID: id, Path: path, Kind: kind, Data: data, Responses: []} as Request;
   await save(j);
   return id;
 }
 
-export async function Delete(j: DB, id: RequestID): Promise<void> {
+export async function Delete(j: DB, id: t.RequestID): Promise<void> {
   if (!(id in j))
     throw new Error(`request ${id} not found`);
   delete j[id];
   await save(j);
 }
 
-export async function rename(j: DB, id: RequestID, newName: string): Promise<void> {
+export async function rename(j: DB, id: t.RequestID, newName: string): Promise<void> {
   if (!(id in j))
     throw new Error(`request ${id} not found`);
   const existing = Object.values(j).find(r => r.Path === newName && r.ID !== id);
@@ -280,7 +278,7 @@ export async function rename(j: DB, id: RequestID, newName: string): Promise<voi
 
 export async function update(
   j: DB,
-  id: RequestID,
+  id: t.RequestID,
   data: Request["Data"],
 ): Promise<void> {
   if (!(id in j))
@@ -292,7 +290,7 @@ export async function update(
 
 export async function createResponse(
   j: DB,
-  id: RequestID,
+  id: t.RequestID,
   response: HistoryEntry2,
 ): Promise<void> {
   if (!(id in j))

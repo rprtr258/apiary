@@ -124,7 +124,7 @@ export const store = ((): Store => {
     return findExistingTab<StateRequest>("MyComponent", t => t.id === activeID);
   }
   return {
-    requestsTree : signal({IDs: {}, Dirs: {}}),
+    requestsTree : signal({IDs: [], Dirs: {}}),
     requests : {},
     requests2: {},
     requestNames: {},
@@ -380,9 +380,9 @@ store.requestsTree.sub(function*() {
     for (const c of layout.tabs().filter(c => c.componentType === "MyComponent"))
       openTabIds.set((c.toConfig().componentState as StateRequest).id, c);
 
-    const treeIds = new Set<string>();
+    const treeIds = new Set<string>(); // TODO: get straight from previews map
     function collectIds(tree: t.Tree): void {
-      for (const id in tree.IDs) {
+      for (const id of tree.IDs) {
         treeIds.add(id);
       }
       for (const dir in tree.Dirs) {
