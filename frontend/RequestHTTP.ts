@@ -1,5 +1,5 @@
-import * as t from "../types/models.ts";
-import {type HistoryEntry} from "../types/types.ts";
+import * as t from "../shared/types/models.ts";
+import {type HistoryEntry} from "../shared/types/types.ts";
 import {type get_request} from "./store.ts";
 import {Signal} from "./utils.ts";
 import HTTPRequestView, {HTTPRequestViewResult} from "./components/HTTPRequestView.ts";

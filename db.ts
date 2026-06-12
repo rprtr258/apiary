@@ -1,6 +1,6 @@
 import {readFile, writeFile} from "fs/promises";
 import {nanoid} from "nanoid";
-import * as t from "./types/models.ts";
+import * as t from "./shared/types/models.ts";
 
 export type RequestID = string;
 

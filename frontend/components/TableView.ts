@@ -1,10 +1,10 @@
 import {ComponentContainer} from "golden-layout";
-import * as t from "../../types/models.ts";
+import * as t from "../../shared/types/models.ts";
 import {api} from "../api.ts";
 import {clamp, DOMNode, m, Signal, signal} from "../utils.ts";
 import {css} from "../styles.ts";
 import notification from "../notification.ts";
-import {RowValue} from "../../types/types.ts";
+import {RowValue} from "../../shared/types/types.ts";
 import {NButton} from "./input.ts";
 import {NScrollbar, NTabs} from "./layout.ts";
 import {NIcon} from "./dataview.ts";

@@ -1,4 +1,4 @@
-import type {GRPCRequest, GRPCResponse, grpcServiceMethods} from "../types/models.ts";
+import type {GRPCRequest, GRPCResponse, grpcServiceMethods} from "../shared/types/models.ts";
 import * as grpc from "@grpc/grpc-js";
 
 export async function sendGRPC(request: GRPCRequest): Promise<GRPCResponse> {

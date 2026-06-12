@@ -1,7 +1,7 @@
 import {ComponentItem, LayoutConfig, ResolvedLayoutConfig} from "golden-layout";
-import * as t from "../types/models.ts";
+import * as t from "../shared/types/models.ts";
 import {api} from "./api.ts";
-import {type RequestData, type HistoryEntry, Request} from "../types/types.ts";
+import {type RequestData, type HistoryEntry, Request} from "../shared/types/types.ts";
 import {signal, Signal} from "./utils.ts";
 import layout from "./layout.ts";
 import notification from "./notification.ts";

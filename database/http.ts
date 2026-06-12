@@ -1,4 +1,4 @@
-import type {KV, HTTPRequest, HTTPResponse} from "../types/models.ts";
+import type {KV, HTTPRequest, HTTPResponse} from "../shared/types/models.ts";
 
 export const HTTPEmptyRequest: HTTPRequest = {
   url: "", // TODO: insert last url used

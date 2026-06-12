@@ -1,12 +1,12 @@
 import {EditorState} from "@codemirror/state";
 import {EditorView, ViewPlugin, ViewUpdate} from "@codemirror/view";
 import {markdown} from "@codemirror/lang-markdown";
-import * as t from "../types/models.ts";
+import * as t from "../shared/types/models.ts";
 import {NEmpty} from "./components/dataview.ts";
 import {NSplit} from "./components/layout.ts";
 import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
 import {get_request} from "./store.ts";
-import {HistoryEntry} from "../types/types.ts";
+import {HistoryEntry} from "../shared/types/types.ts";
 import {api} from "./api.ts";
 import {m, Signal} from "./utils.ts";
 

@@ -1,10 +1,10 @@
-import * as t from "../types/models.ts";
+import * as t from "../shared/types/models.ts";
 import {NEmpty, NIcon, NList, NListItem, NTag, NTree, TagType, treeLabelClass, TreeOption} from "./components/dataview.ts";
 import {ContentCopyFilled, CopySharp, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, EditOutlined, Refresh} from "./components/icons.ts";
 import {NSelect} from "./components/input.ts";
 import {NScrollbar, NTabs} from "./components/layout.ts";
 import {api} from "./api.ts";
-import {HistoryEntry, Kinds} from "../types/types.ts";
+import {HistoryEntry, Kinds} from "../shared/types/types.ts";
 import {store} from "./store.ts";
 import notification from "./notification.ts";
 import {clamp, DOMNode, m, setDisplay, signal} from "./utils.ts";

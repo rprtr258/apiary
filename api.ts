@@ -1,5 +1,5 @@
 import {create, createResponse, extractSubKind, load, Delete as remove, rename, update, RequestID, Request, HistoryEntry2} from "./db.ts";
-import * as t from "./types/models.ts";
+import * as t from "./shared/types/models.ts";
 import {HTTPEmptyRequest, sendHTTP} from "./database/http.ts";
 import {JQEmptyRequest, sendJQ} from "./database/jq.ts";
 import {DefaultMarkdown, sendMD} from "./database/md.ts";
@@ -9,7 +9,14 @@ import {sendDIFF} from "./database/diff.ts";
 import {sendGRPC, grpcMethods, grpcQueryFake, grpcQueryValidate} from "./database/grpc.ts";
 import {parseSpec, generateExampleRequest, fetchSpec} from "./database/http_source.ts";
 import {listTablesSQLSource, describeTableSQLSource, countRowsSQLSource, testSQLSource} from "./database/sql_source.ts";
-import {HistoryEntry} from "./types/types.ts";
+import {HistoryEntry} from "./shared/types/types.ts";
+
+async function get(id: RequestID): Promise<Request> {
+  const j = await load();
+  if (!(id in j))
+    throw new Error(`request ${id} not found`);
+  return j[id];
+}
 
 export async function List(): Promise<t.ListResponse> {
   const j = await load();
@@ -52,10 +59,7 @@ export async function List(): Promise<t.ListResponse> {
 }
 
 export async function Get(id: RequestID): Promise<t.GetResponse> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
-  const entry = j[id];
+  const entry = await get(id);
   const history: HistoryEntry[] = entry.Responses.map(h => ({
     sent_at: h.SentAt,
     received_at: h.ReceivedAt,
@@ -234,62 +238,44 @@ export async function PerformSQLSource(id: RequestID, query: string): Promise<Pe
 }
 
 export async function TestSQLSource(id: RequestID): Promise<void> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
-  const req = j[id];
+  const req = await get(id);
   const sourceRequest = req.Data as t.SQLSourceRequest;
   const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query: "SELECT 1"};
   await testSQLSource(sqlRequest);
 }
 
 export async function ListTablesSQLSource(id: RequestID): Promise<t.TableInfo[]> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
-  const req = j[id] as Request & {Kind: t.Kind.SQLSource};
+  const req = await get(id) as Request & {Kind: t.Kind.SQLSource};
   const sourceRequest = req.Data;
   const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query: ""};
   return await listTablesSQLSource(sqlRequest);
 }
 
 export async function DescribeTableSQLSource(id: RequestID, tableName: string): Promise<t.TableSchema> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
-  const req = j[id];
-  const sourceRequest = req.Data as t.SQLSourceRequest;
+  const req = await get(id) as Request & {Kind: t.Kind.SQLSource};
+  const sourceRequest = req.Data;
   const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query: ""};
   return await describeTableSQLSource(sqlRequest, tableName);
 }
 
 export async function CountRowsSQLSource(id: RequestID, tableName: string): Promise<number> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
-  const req = j[id];
-  const sourceRequest = req.Data as t.SQLSourceRequest;
+  const req = await get(id) as Request & {Kind: t.Kind.SQLSource};
+  const sourceRequest = req.Data;
   const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query: ""};
   return await countRowsSQLSource(sqlRequest, tableName);
 }
 
 export async function ListEndpointsHTTPSource(id: RequestID): Promise<t.EndpointInfo[]> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
-  const req = j[id];
-  const sourceRequest = req.Data as t.HTTPSourceRequest;
-  const specData = await getSpecData(sourceRequest);
+  const req = await get(id) as Request & {Kind: t.Kind.HTTPSource};
+  const sourceRequest = req.Data;
+  const specData = await fetchSpec(sourceRequest);
   return parseSpec(specData);
 }
 
 export async function GenerateExampleRequestHTTPSource(id: RequestID, endpointIndex: number): Promise<t.HTTPRequest> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
-  const req = j[id];
-  const sourceRequest = req.Data as t.HTTPSourceRequest;
-  const specData = await getSpecData(sourceRequest);
+  const req = await get(id) as Request & {Kind: t.Kind.HTTPSource};
+  const sourceRequest = req.Data;
+  const specData = await fetchSpec(sourceRequest);
   return generateExampleRequest(specData, endpointIndex);
 }
 
@@ -311,31 +297,19 @@ export async function PerformVirtualEndpointHTTPSource(sourceID: RequestID, _end
 }
 
 export async function TestHTTPSource(id: RequestID): Promise<void> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
-  const req = j[id];
-  const sourceRequest = req.Data as t.HTTPSourceRequest;
+  const req = await get(id);
+  if (req.Kind !== t.Kind.HTTPSource)
+    throw new Error(`request ${id} is not HTTPSource`);
+  const sourceRequest = req.Data;
   // Verify spec is parseable
-  const specData = await getSpecData(sourceRequest);
+  const specData = await fetchSpec(sourceRequest);
   parseSpec(specData);
 }
 
 export async function FetchSpecHTTPSource(id: RequestID): Promise<void> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
-  const req = j[id];
+  const req = await get(id);
   const sourceRequest = req.Data as t.HTTPSourceRequest;
-  const specData = await getSpecData(sourceRequest);
+  const specData = await fetchSpec(sourceRequest);
   if (specData === "")
     throw new Error("no spec data");
-}
-
-async function getSpecData(sourceRequest: t.HTTPSourceRequest): Promise<string> {
-  if (sourceRequest.specSource === "url") {
-    return await fetchSpec(sourceRequest.specData);
-  }
-  // spec is inline in specData
-  return sourceRequest.specData;
 }

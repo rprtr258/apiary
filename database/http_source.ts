@@ -1,4 +1,4 @@
-import type {HTTPRequest, EndpointInfo, ParameterInfo, MediaTypeInfo, RequestBodyInfo, ResponseInfo} from "../types/models.ts";
+import type {HTTPSourceRequest, HTTPRequest, EndpointInfo, ParameterInfo, MediaTypeInfo, RequestBodyInfo, ResponseInfo} from "../shared/types/models.ts";
 import type {OpenAPIV2, OpenAPIV3, OpenAPIV3_1} from "openapi-types";
 
 type OpenAPIObject     = OpenAPIV2.Document           |   OpenAPIV3.Document          | OpenAPIV3_1.Document;
@@ -11,11 +11,18 @@ type MediaTypeObject   = /*OpenAPIV2.MediaTypeObject  |*/ OpenAPIV3.MediaTypeObj
 type ResponsesObject   = /*OpenAPIV2.ResponsesObject  |*/ OpenAPIV3.ResponsesObject   | OpenAPIV3_1.ResponsesObject;
 type ReferenceObject   =   OpenAPIV2.ReferenceObject  |   OpenAPIV3.ReferenceObject   | OpenAPIV3_1.ReferenceObject;
 
-export async function fetchSpec(url: string): Promise<string> {
-  const resp = await fetch(url);
-  if (!resp.ok)
-    throw new Error(`failed to fetch spec: ${resp.status}`);
-  return await resp.text();
+export async function fetchSpec(sourceRequest: HTTPSourceRequest): Promise<string> {
+  switch (sourceRequest.specSource) {
+  case "url":
+    const url = sourceRequest.specData;
+    const resp = await fetch(url);
+    if (!resp.ok)
+      throw new Error(`failed to fetch spec: ${resp.status}`);
+    return await resp.text();
+  case "file":
+    // spec is inline in specData
+    return sourceRequest.specData;
+  }
 }
 
 export function parseSpec(specData: string): EndpointInfo[] {

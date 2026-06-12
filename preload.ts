@@ -1,5 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron/renderer";
-import * as t from "./types/models.ts";
+import * as t from "./shared/types/models.ts";
 import {Request} from "./db.ts";
 import {type Api} from "./global.ts";
 

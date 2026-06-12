@@ -1,5 +1,5 @@
 import {describe, test, expect, beforeAll} from "bun:test";
-import {Database, type SQLRequest, type RedisRequest} from "./types/models.ts";
+import {Database, type SQLRequest, type RedisRequest} from "./shared/types/models.ts";
 import {sendSQL} from "./database/sql.ts";
 import {listTablesSQLSource, describeTableSQLSource, countRowsSQLSource, testSQLSource} from "./database/sql_source.ts";
 import {sendRedis} from "./database/redis.ts";

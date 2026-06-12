@@ -1,4 +1,4 @@
-import type {JQRequest, JQResponse} from "../types/models.ts";
+import type {JQRequest, JQResponse} from "../shared/types/models.ts";
 import {jq} from "../shared/jq.ts";
 
 export const JQEmptyRequest: JQRequest = {

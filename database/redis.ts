@@ -1,5 +1,5 @@
 import {createClient} from "redis";
-import type {RedisRequest, RedisResponse} from "../types/models.ts";
+import type {RedisRequest, RedisResponse} from "../shared/types/models.ts";
 
 export const RedisEmptyRequest: RedisRequest = {dsn: "localhost:6379", query: "KEYS *"};
 

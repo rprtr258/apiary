@@ -4,6 +4,7 @@
   "explorer.fileNesting.patterns": {
     "package.json": "eslint.config.ts, tsconfig.json, bun.lock, Makefile, vite.config.ts, index.html",
     "*.proto": "$(capture).ts, $(capture)_pb.js, $(capture)_grpc_pb.js",
+    "*.ts": "$(capture).test.ts",
     ".gitignore": ".gitattributes, .ignore, .coderabbit.yaml",
     ".env": ".zellij.kdl, docker-compose.yaml, pm.jsonnet",
     "AGENTS.md": "opencode.jsonc"

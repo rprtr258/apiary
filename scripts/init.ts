@@ -2,7 +2,7 @@ import {
   HTTPRequest, SQLRequest,
   HTTPResponse, JQResponse, SQLResponse, GRPCResponse,
   Database, Kind,
-} from "../types/models.ts";
+} from "../shared/types/models.ts";
 import {DefaultMarkdown} from "../database/md.ts";
 import {create, load, RequestID, Request, createResponse, HistoryEntry2} from "../db.ts";
 

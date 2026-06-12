@@ -1,4 +1,4 @@
-import * as t from "../../types/models.ts";
+import * as t from "../../shared/types/models.ts";
 import {m} from "../utils.ts";
 import {NIcon} from "./dataview.ts";
 import {DeleteOutline} from "./icons.ts";

@@ -1,6 +1,6 @@
-import * as t from "../types/models.ts";
+import * as t from "../shared/types/models.ts";
 import {Result, try_} from "./result.ts";
-import {HistoryEntry, RequestData} from "../types/types.ts";
+import {HistoryEntry, RequestData} from "../shared/types/types.ts";
 import {Request} from "../db.ts";
 
 const Api = window.api;

@@ -1,5 +1,5 @@
-import * as t from "../types/models.ts";
-import {Database} from "../types/types.ts";
+import * as t from "../shared/types/models.ts";
+import {Database} from "../shared/types/types.ts";
 import {api} from "./api.ts";
 import {get_request} from "./store.ts";
 import {m} from "./utils.ts";

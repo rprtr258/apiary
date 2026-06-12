@@ -1,7 +1,7 @@
 import {describe, test, expect, mock} from "bun:test";
 import RequestSQL from "./RequestSQL.ts";
 import {signal} from "./utils.ts";
-import * as t from "../types/models.ts";
+import * as t from "../shared/types/models.ts";
 import {get_request} from "./store.ts";
 
 const mockRequest: get_request = {

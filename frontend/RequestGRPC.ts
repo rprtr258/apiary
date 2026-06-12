@@ -1,5 +1,5 @@
-import * as t from "../types/models.ts";
-import {GRPCCodes, HistoryEntry} from "../types/types.ts";
+import * as t from "../shared/types/models.ts";
+import {GRPCCodes, HistoryEntry} from "../shared/types/types.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {m, setDisplay, Signal} from "./utils.ts";
 import ParamsList from "./components/ParamsList.ts";

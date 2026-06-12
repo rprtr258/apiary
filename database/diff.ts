@@ -1,5 +1,5 @@
 import {diffLines} from "diff";
-import type {DIFFRequest, DIFFResponse} from "../types/models.ts";
+import type {DIFFRequest, DIFFResponse} from "../shared/types/models.ts";
 
 type JSONValue = string | number | boolean | null | JSONValue[] | {[key: string]: JSONValue};
 

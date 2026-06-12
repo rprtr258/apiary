@@ -1,7 +1,7 @@
 import {ComponentContainer} from "golden-layout";
-import * as t from "../../types/models.ts";
+import * as t from "../../shared/types/models.ts";
 import {api} from "../api.ts";
-import {type HistoryEntry} from "../../types/types.ts";
+import {type HistoryEntry} from "../../shared/types/types.ts";
 import HTTPRequestView, {HTTPRequestViewResult} from "./HTTPRequestView.ts";
 import type {JSONSchema7} from "json-schema";
 import {m, signal} from "../utils.ts";

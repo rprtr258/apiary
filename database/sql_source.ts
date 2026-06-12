@@ -1,4 +1,4 @@
-import {type TableInfo, type TableSchema, type ColumnInfo, type ConstraintInfo, type IndexInfo, type ForeignKey, type SQLRequest, Database} from "../types/models.ts";
+import {type TableInfo, type TableSchema, type ColumnInfo, type ConstraintInfo, type IndexInfo, type ForeignKey, type SQLRequest, Database} from "../shared/types/models.ts";
 import {sendSQL} from "./sql.ts";
 
 export async function listTablesSQLSource(request: SQLRequest): Promise<TableInfo[]> {

@@ -2,7 +2,7 @@ import {NEmpty} from "./components/dataview.ts";
 import {NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {get_request} from "./store.ts";
 import {api} from "./api.ts";
-import * as t from "../types/models.ts";
+import * as t from "../shared/types/models.ts";
 import {m} from "./utils.ts";
 
 type Request = t.HTTPSourceRequest;
@@ -209,16 +209,16 @@ export default function(
         update_request({specSource: validSpecSource});
       }
 
-      const specSourceSelect = NSelect({
+      const specSourceSelect = NSelect<"file" | "url">({
         label: validSpecSource,
         options: [
           {label: "file", value: "file"},
           {label: "url", value: "url"},
         ],
-          on: {update: (source: string) => {
-            update_request({specSource: source});
+          on: {update: specSource => {
+            update_request({specSource});
             // Update the UI to show file picker or URL input
-            request.specSource = source;
+            request.specSource = specSource;
             updateSpecInputUI();
           }},
       });

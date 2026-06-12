@@ -1,5 +1,5 @@
 import {describe, test, expect, mock, expectTypeOf} from "bun:test";
-import * as t from "./types/models.ts";
+import * as t from "./shared/types/models.ts";
 import {type DB, type Request, generateID, load, create, Delete, rename, update, createResponse, HistoryEntry2} from "./db.ts";
 
 // Mock writeFile to avoid touching disk

@@ -1,5 +1,5 @@
 import {getBoxToBoxArrow} from "perfect-arrows";
-import * as t from "../../types/models.ts";
+import * as t from "../../shared/types/models.ts";
 import {m, s} from "../utils.ts";
 
 export function range(start: number, end: number): number[] {

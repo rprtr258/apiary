@@ -3,10 +3,10 @@ import {NEmpty} from "./components/dataview.ts";
 import {NSplit} from "./components/layout.ts";
 import ViewJSON from "./components/ViewJSON.ts";
 import EditorJSON from "./components/EditorJSON.ts";
-import * as t from "../types/models.ts";
+import * as t from "../shared/types/models.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {m, Signal, setDisplay, signal} from "./utils.ts";
-import {HistoryEntry} from "../types/types.ts";
+import {HistoryEntry} from "../shared/types/types.ts";
 
 type Request = {kind: t.Kind.REDIS} & t.RedisRequest;
 

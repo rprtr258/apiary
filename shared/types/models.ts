@@ -137,7 +137,7 @@ export type HTTPResponse = {
 };
 export type HTTPSourceRequest = {
   serverUrl: string,
-  specSource: string,
+  specSource: "file" | "url",
   specData: string,
   auth: AuthConfig,
 };

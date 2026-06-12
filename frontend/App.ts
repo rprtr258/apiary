@@ -1,6 +1,6 @@
 import {ComponentContainer, Tab} from "golden-layout";
-import * as t from "../types/models.ts";
-import {Kinds, HistoryEntry, Request} from "../types/types.ts";
+import * as t from "../shared/types/models.ts";
+import {Kinds, HistoryEntry, Request} from "../shared/types/types.ts";
 import {m, setDisplay, Signal, signal} from "./utils.ts";
 import {
   StateRequest, StateHTTPSourceEndpoint, StateSQLSourceTable,

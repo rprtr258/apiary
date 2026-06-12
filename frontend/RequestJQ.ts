@@ -1,4 +1,4 @@
-import * as t from "../types/models.ts";
+import * as t from "../shared/types/models.ts";
 import {NInput, NButton, NInputGroup} from "./components/input.ts";
 import {NEmpty} from "./components/dataview.ts";
 import ViewJSON from "./components/ViewJSON.ts";
@@ -6,7 +6,7 @@ import EditorJSON from "./components/EditorJSON.ts";
 import {NSplit} from "./components/layout.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {m, setDisplay, Signal} from "./utils.ts";
-import {HistoryEntry} from "../types/types.ts";
+import {HistoryEntry} from "../shared/types/types.ts";
 
 type Request = {kind: t.Kind.JQ} & t.JQRequest;
 

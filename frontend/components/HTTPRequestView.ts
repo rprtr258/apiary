@@ -1,5 +1,5 @@
-import * as t from "../../types/models.ts";
-import {HistoryEntry, Method as Methods, HTTPCodes} from "../../types/types.ts";
+import * as t from "../../shared/types/models.ts";
+import {HistoryEntry, Method as Methods, HTTPCodes} from "../../shared/types/types.ts";
 import {m, setDisplay, Signal, signal} from "../utils.ts";
 import notification from "../notification.ts";
 import {NInputGroup, NInput, NSelect, NButton} from "./input.ts";

@@ -3,7 +3,7 @@ import mysql from "mysql2/promise.js";
 import sqlite3 from "sqlite3";
 import {open} from "sqlite";
 import {createClient} from "@clickhouse/client";
-import {Database, type SQLRequest, type SQLResponse} from "../types/models.ts";
+import {Database, type SQLRequest, type SQLResponse} from "../shared/types/models.ts";
 
 export async function sendSQL(request: SQLRequest): Promise<SQLResponse> {
   switch (request.database) {

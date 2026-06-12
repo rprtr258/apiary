@@ -1,5 +1,5 @@
-import * as t from "../types/models.ts";
-import {Database, HistoryEntry, RowValue} from "../types/types.ts";
+import * as t from "../shared/types/models.ts";
+import {Database, HistoryEntry, RowValue} from "../shared/types/types.ts";
 import {m, setDisplay, Signal} from "./utils.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {NEmpty} from "./components/dataview.ts";
