@@ -15,9 +15,8 @@ type KindEntry<Req, Resp> = {
   }[],
 };
 
-type dbJSON = {
+type v1 = {
   "$version": 1,
-  app_version: string,
   request?: {
     id: t.RequestID,
     kind: t.Kind,
@@ -114,7 +113,7 @@ export function extractSubKind(
 export async function load(): Promise<DB> {
   // TODO: migrate db
   const b = await readFile("db.json");
-  const raw = JSON.parse(b.toString()) as dbJSON;
+  const raw = JSON.parse(b.toString()) as v1;
   const j = Object.fromEntries((raw.request ?? []).map(r => [r.id, (() => {
     const kind: Pick<Request, "Data" | "Responses"> = (() => {
       switch (r.kind) {
@@ -201,9 +200,8 @@ export async function load(): Promise<DB> {
 }
 
 export async function save(j: DB): Promise<void> {
-  const raw: dbJSON = {
+  const raw: v1 = {
     $version: 1,
-    app_version: "(devel)",
     request: Object.values(j).map(r => ({
       id: r.ID,
       kind: r.Kind,
