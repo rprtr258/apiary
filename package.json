@@ -23,7 +23,8 @@
     "dist:mac": "vite build && electron-builder --mac",
     "dist:win": "vite build && electron-builder --win",
     "typecheck": "tsc --noEmit",
-    "_start": "vite build && electron ."
+    "_start": "vite build && electron .",
+    "gen:grpc": "grpc_tools_node_protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./ --js_out=import_style=commonjs,binary:./ --grpc_out=grpc_js:./ ./scripts/grpc/helloworld.proto && sed -i '1i/* eslint-disable */' ./scripts/grpc/helloworld.ts && sed -i '2i// @ts-nocheck' ./scripts/grpc/helloworld.ts"
   },
   "peerDependencies": {
     "typescript": "^6.0.3"
@@ -61,6 +62,7 @@
     "@stylistic/eslint-plugin": "^5.6.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/bun": "^1.3.5",
+    "@types/google-protobuf": "^3.15.12",
     "@types/node": "^25.7.0",
     "@types/pg": "^8.20.0",
     "electron-builder": "^26.0.12",
@@ -69,8 +71,11 @@
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-n": "^16.4.0",
     "eslint-plugin-promise": "^6.1.1",
+    "google-protobuf": "^4.0.2",
+    "grpc-tools": "^1.13.1",
     "happy-dom": "^20.3.4",
     "jiti": "^2.6.1",
+    "protoc-gen-ts": "^0.8.7",
     "tslib": "^2.8.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.50.1",

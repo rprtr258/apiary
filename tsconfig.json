@@ -26,7 +26,7 @@
     "noUncheckedIndexedAccess": false,
     "noImplicitOverride": true,
 
-    "allowJs": false,
+    "allowJs": true, // TODO: false
     "noPropertyAccessFromIndexSignature": false,
     "allowImportingTsExtensions": true,
 

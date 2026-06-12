@@ -1,41 +1,13 @@
-package main
+import {readFileSync} from "fs";
 
-import (
-	"fmt"
-	"os"
+const filename = process.argv.length > 1 ? process.argv[1] : "db.json";
 
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+const f = readFileSync(filename);
+void(f);
 
-	"github.com/rprtr258/apiary/internal/database"
-)
+// res, err := database.Decoder.ParseBytes(f)
+// if err != nil {
+//   return errors.Wrap(err, "parse file")
+// }
 
-func run(args []string) error {
-	filename := "db.json"
-	if len(args) > 1 {
-		filename = os.Args[1]
-	}
-
-	f, err := os.ReadFile(filename)
-	if err != nil {
-		return errors.Wrap(err, "read file")
-	}
-
-	res, err := database.Decoder.ParseBytes(f)
-	if err != nil {
-		return errors.Wrap(err, "parse file")
-	}
-
-	fmt.Println(res)
-
-	return nil
-}
-
-func main() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-
-	if err := run(os.Args); err != nil {
-		log.Fatal().Err(err).Msg("App stopped unexpectedly")
-	}
-}
+// console.log(res);
