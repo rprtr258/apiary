@@ -1,3 +1,4 @@
+import path from "path";
 import {defineConfig, type Plugin} from "vite";
 import electron, {ElectronOptions} from "vite-plugin-electron";
 
@@ -8,6 +9,11 @@ export default defineConfig({
       {
         entry: "main.ts",
         vite: {
+          resolve: {
+            alias: {
+              "@": path.resolve(__dirname, "shared"),
+            },
+          },
           assetsInclude: ["**/*.md"],
           define: {
             __dirname: "import.meta.dirname",
@@ -27,6 +33,11 @@ export default defineConfig({
           args.reload();
         },
         vite: {
+          resolve: {
+            alias: {
+              "@": path.resolve(__dirname, "shared"),
+            },
+          },
           build: {
             outDir: "dist-electron",
             rollupOptions: {
@@ -41,5 +52,10 @@ export default defineConfig({
     outDir: "dist",
     sourcemap: true,
     // minify: false,
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "shared"),
+    },
   },
 });

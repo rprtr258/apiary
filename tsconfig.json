@@ -4,16 +4,18 @@
   ],
   "exclude": ["dist"],
   "compilerOptions": {
+    "paths": {
+      "@/*": ["./shared/*"],
+    },
     // Environment setup & latest features
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "target": "ESNext",
-    "module": "NodeNext",
+    "module": "preserve",
     "moduleDetection": "auto",
 
     // Module resolution
-    "moduleResolution": "NodeNext",
+    "moduleResolution": "bundler",
     "verbatimModuleSyntax": false,
-    "rewriteRelativeImportExtensions": true,
 
     // Emit compiled JS to dist/
     "outDir": "dist",

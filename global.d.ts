@@ -1,5 +1,5 @@
 import {Request} from "./db.ts";
-import * as t from "./shared/types/models.ts";
+import * as t from "@/types/models.ts";
 
 interface Versions {
   node: () => string,

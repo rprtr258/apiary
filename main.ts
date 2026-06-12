@@ -2,7 +2,7 @@ import path from "path";
 import {fileURLToPath} from "url";
 import {app, BrowserWindow, ipcMain} from "electron";
 import data from "./package.json" with {type: "json"};
-import * as t from "./shared/types/models.ts";
+import * as t from "@/types/models.ts";
 import {
   CountRowsSQLSource,
   Create,
@@ -26,8 +26,8 @@ import {
   TestHTTPSource,
   TestSQLSource,
   Update,
-} from "./api.ts";
-import {Request} from "./db.ts";
+} from "./main/api.ts";
+import {Request} from "./main/db.ts";
 
 const version = data.version;
 

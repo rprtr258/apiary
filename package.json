@@ -15,7 +15,7 @@
     "lint": "eslint '**/*.{ts,json}'",
     "lint:fix": "eslint --fix '**/*.{ts,json}'",
     "ci": "bun run scripts/ci.ts",
-    "test": "bun test --preload ./frontend/test.setup.ts --path-ignore-patterns=frontend/e2e/** --path-ignore-patterns=integration.test.ts ''",
+    "test": "bun test --preload ./renderer/test.setup.ts --path-ignore-patterns=renderer/e2e/* --path-ignore-patterns=main/integration.test.ts ''",
     "test:integration": "bun test integration.test.ts",
     "test:e2e": "playwright test",
     "dist": "vite build && electron-builder",
@@ -30,6 +30,7 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
+    "@apidevtools/swagger-parser": "^12.1.0",
     "@clickhouse/client": "^1.18.5",
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/lang-markdown": "^6.4.0",
@@ -38,6 +39,7 @@
     "@grpc/grpc-js": "^1.14.3",
     "@grpc/proto-loader": "^0.8.1",
     "@types/sanitize-html": "^2.16.1",
+    "ajv": "^8.17.1",
     "codemirror": "^6.0.1",
     "codemirror-json-schema": "^0.8.1",
     "diff": "^9.0.0",

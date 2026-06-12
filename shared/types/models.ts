@@ -1,26 +1,8 @@
 export type RequestID = string;
 
-export type GetResponse = {
-  Request: Request,
-  History: Response[],
-};
-export type requestPreview = {
-  name: string,
-  kind: Kind,
-  subKind: string,
-};
-export type Tree = {
-  IDs: RequestID[],
-  Dirs: Record<string, Tree>,
-};
-export type ListResponse = {
-  Tree: Tree,
-  Requests: Record<string, requestPreview>,
-};
-
-export type grpcServiceMethods = {
-  service: string,
-  methods: string[],
+export type KV = {
+  key: string,
+  value: string,
 };
 
 export enum Kind {
@@ -34,18 +16,40 @@ export enum Kind {
   HTTPSource = "http-source",
   DIFF = "diff",
 }
-export enum Database {
-  POSTGRES = "postgres",
-  MYSQL = "mysql",
-  SQLITE = "sqlite",
-  CLICKHOUSE = "clickhouse",
-}
-export enum ColumnType {
-  STRING = "string",
-  NUMBER = "number",
-  TIME = "time",
-  BOOLEAN = "boolean",
-}
+
+export type GetResponse = {
+  Request: Request,
+  History: Response[],
+};
+
+export type requestPreview = {
+  name: string,
+  kind: Kind,
+  subKind: string,
+};
+
+export type Tree = {
+  IDs: RequestID[],
+  Dirs: Record<string, Tree>,
+};
+
+export type ListResponse = {
+  Tree: Tree,
+  Requests: Record<string, requestPreview>,
+};
+
+// JSONSchema represents the structure of a JSON schema
+export type JSONSchema = { // TODO: reuse from lib
+  type: "object",
+  properties: Record<string, JSONSchema>,
+  oneOf?: JSONSchema[],
+} | {
+  type: "array",
+  items: JSONSchema,
+} | {
+  type: "number" | "integer" | "string",
+};
+
 export type AuthConfig = {
   type: "none",
 } | {
@@ -64,6 +68,19 @@ export type AuthConfig = {
   token: string,
 };
 export type AuthType = AuthConfig["type"];
+
+export enum Database {
+  POSTGRES = "postgres",
+  MYSQL = "mysql",
+  SQLITE = "sqlite",
+  CLICKHOUSE = "clickhouse",
+}
+export enum ColumnType {
+  STRING = "string",
+  NUMBER = "number",
+  TIME = "time",
+  BOOLEAN = "boolean",
+}
 
 export type ColumnInfo = {
   name: string,
@@ -91,7 +108,7 @@ export type ResponseInfo = {
   content?: Record<string, MediaTypeInfo>,
 };
 export type MediaTypeInfo = {
-  schema: Record<string, unknown>,
+  schema: JSONSchema,
   example?: unknown,
 };
 export type RequestBodyInfo = {
@@ -120,10 +137,12 @@ export type ForeignKey = {
   table: string,
   to: string,
 };
-export type KV = {
-  key: string,
-  value: string,
+
+export type grpcServiceMethods = {
+  service: string,
+  methods: string[],
 };
+
 export type GRPCRequest = {
   target: string,
   method: string,
@@ -135,23 +154,27 @@ export type GRPCResponse = {
   code: number,
   metadata: KV[],
 };
+
 export type HTTPRequest = {
   url: string,
   method: string,
   body: string,
   headers: KV[],
 };
+
 export type HTTPResponse = {
   code: number,
   body: string,
   headers: KV[],
 };
+
 export type HTTPSourceRequest = {
   serverUrl: string,
   specSource: "file" | "url",
   specData: string,
   auth: AuthConfig,
 };
+
 export type IndexInfo = {
   name: string,
   definition: string,

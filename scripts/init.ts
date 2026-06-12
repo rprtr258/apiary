@@ -2,9 +2,9 @@ import {
   HTTPRequest, SQLRequest,
   HTTPResponse, JQResponse, SQLResponse, GRPCResponse,
   Database, Kind, RequestID,
-} from "../shared/types/models.ts";
-import {DefaultMarkdown} from "../database/md.ts";
-import {create, load, Request, createResponse, HistoryEntry2} from "../db.ts";
+} from "@/types/models.ts";
+import {DefaultMarkdown} from "../main/database/md.ts";
+import {create, load, Request, createResponse, HistoryEntry2} from "../main/db.ts";
 
 const nil = null;
 
