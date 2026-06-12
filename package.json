@@ -60,6 +60,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@grpc/reflection": "^1.0.4",
     "@playwright/test": "^1.57.0",
     "@stylistic/eslint-plugin": "^5.6.1",
     "@types/better-sqlite3": "^7.6.13",

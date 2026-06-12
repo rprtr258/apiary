@@ -14,7 +14,7 @@ export default defineConfig({
               "@": path.resolve(__dirname, "shared"),
             },
           },
-          assetsInclude: ["**/*.md"],
+          assetsInclude: ["**/*.md", "**/*.proto"],
           define: {
             __dirname: "import.meta.dirname",
             __filename: "import.meta.filename",

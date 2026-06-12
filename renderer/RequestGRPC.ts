@@ -7,6 +7,7 @@ import {NInput, NButton, NInputGroup, NSelect} from "./components/input.ts";
 import {NTabs, NSplit} from "./components/layout.ts";
 import {NTag, NTable, NEmpty} from "./components/dataview.ts";
 import ViewJSON from "./components/ViewJSON.ts";
+import {api} from "./api.ts";
 
 type Request = {kind: t.Kind.GRPC} & t.GRPCRequest;
 
@@ -88,7 +89,7 @@ export default function(
     }
   };
 
-  const methods : {
+  let methods : {
     service: string,
     methods: string[],
   }[] = [];
@@ -98,15 +99,15 @@ export default function(
       // const notification = useNotification();
 
       // watch(() => request.value?.target, async () => {
-      //   loadingMethods.value = true;
-      //   const res = await api.grpcMethods(id);
-      //   loadingMethods.value = false;
-      //   if (res.kind === "err") {
-      //     notification.error({title: "Error fetching GRPC methods", content: res.value});
-      //     return;
-      //   }
-      //   methods.value = res.value;
-      // }, {immediate: true});
+        loading_methods = true;
+        api.grpcMethods(r.request.id).then(res => {
+          loading_methods = false;
+          if (res.kind === "err") {
+            // notification.error({title: "Error fetching GRPC methods", content: res.value});
+            return;
+          }
+          methods = res.value;
+        });
 
       const el_send = NButton({
         primary: true,

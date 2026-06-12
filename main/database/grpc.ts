@@ -1,107 +1,227 @@
 import * as grpc from "@grpc/grpc-js";
-import type {GRPCRequest, GRPCResponse, grpcServiceMethods, JSONSchema} from "@/types/models.ts";
-import {JSONValue} from "@/types/types.ts";
+import protobuf from "protobufjs";
+import "protobufjs/ext/descriptor";
+import type {GRPCRequest, GRPCResponse, grpcServiceMethods, JSONSchema, KV} from "@/types/models.ts";
+import type {JSONValue} from "@/types/types.ts";
+import descriptorJson from "protobufjs/google/protobuf/descriptor.json" with {type: "json"};
+import reflectionProtoDefinition from "./reflection.proto" with {type: "text"};
 
-export async function sendGRPC(request: GRPCRequest): Promise<GRPCResponse> {
-  const metadata = new grpc.Metadata();
-  for (const kv of request.metadata) {
-    metadata.add(kv.key, kv.value);
+// ---------------------------------------------------------------------------
+// Reflection protocol support
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Reflection message types (lazily initialized)
+// ---------------------------------------------------------------------------
+
+let reflectionReqType: protobuf.Type | undefined;
+let reflectionRespType: protobuf.Type | undefined;
+
+function ensureReflectionTypes(): void {
+  if (reflectionReqType !== undefined) {
+    return;
   }
+  const root = protobuf.parse(reflectionProtoDefinition).root;
+  reflectionReqType = root.lookupType("grpc.reflection.v1alpha.ServerReflectionRequest");
+  reflectionRespType = root.lookupType("grpc.reflection.v1alpha.ServerReflectionResponse");
+}
 
-  const client = new grpc.Client(request.target, grpc.credentials.createInsecure());
+// ---------------------------------------------------------------------------
+// gRPC reflection client helper
+// ---------------------------------------------------------------------------
 
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      client.close();
-      reject(new Error("GRPC deadline exceeded"));
-    }, 10000);
+/**
+ * Make a single request to the gRPC reflection service and return the response.
+ *
+ * The reflection service uses a bidi streaming RPC (ServerReflectionInfo)
+ * where each request produces exactly one response.
+ */
+function makeReflectionCall(
+  client: grpc.Client,
+  request: Record<string, unknown>,
+  deadlineMs: number,
+): Promise<Record<string, unknown>> {
+  ensureReflectionTypes();
+  const reqType = reflectionReqType!;
+  const respType = reflectionRespType!;
 
-    client.makeUnaryRequest(
-      request.method,
-      (value: Buffer) => value,
-      (value: Buffer) => value,
-      Buffer.from(request.payload, "utf-8"),
-      metadata,
-      {},
-      (error, response) => {
-        clearTimeout(timeout);
-        client.close();
-        if (error !== null) {
-          resolve({
-            response: `details: ${error.details}, message: ${error.message}, cause: ${error.cause as string}`,
-            code: error.code,
-            metadata: [],
-          });
-        } else {
-          const responseStr = response instanceof Buffer ? response.toString("utf-8") : JSON.stringify(response);
-          resolve({
-            response: responseStr,
-            code: grpc.status.OK,
-            metadata: [],
-          });
+  const deadline = Date.now() + deadlineMs;
+
+  return new Promise<Record<string, unknown>>((resolve, reject) => {
+    return client.makeUnaryRequest<Record<string, unknown>, Record<string, unknown>>(
+      "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo",
+      (req: Record<string, unknown>): Buffer => Buffer.from(reqType.encode(req).finish()),
+      (data: Buffer): Record<string, unknown> => respType.decode(data) as unknown as Record<string, unknown>,
+      request,
+      new grpc.Metadata(),
+      {deadline},
+      (err, resp) => {
+        if (err !== null) {
+          reject(err);
         }
+        resolve(resp!);
       },
     );
   });
 }
 
-function splitService(serviceName: string): [pkg: string, short: string] {
-  const dotI = serviceName.lastIndexOf(".");
-  return [serviceName.substring(0, dotI), serviceName.substring(dotI+1)];
+// ---------------------------------------------------------------------------
+// Reflection-style service discovery
+// ---------------------------------------------------------------------------
+
+/**
+ * List all gRPC services available on the target server via reflection.
+ */
+async function listServicesReflection(target: string, deadlineMs: number): Promise<string[]> {
+  const client = new grpc.Client(target, grpc.credentials.createInsecure());
+
+  try {
+    console.log({host: "", listServices: ""});
+    const response = await makeReflectionCall(
+      client,
+      {host: "", listServices: ""},
+      deadlineMs,
+    );
+
+    const listResp = response["listServicesResponse"] as Record<string, unknown> | undefined;
+    if (listResp === undefined) {
+      throw new Error("Unexpected reflection response: missing list_services_response");
+    }
+
+    const services = listResp["service"] as Array<Record<string, unknown>>;
+    return services.map(s => s["name"] as string);
+  } finally {
+    client.close();
+  }
 }
 
-function trimPrefix(s: string, prefix: string): string {
-  return s.startsWith(prefix) ? s.substring(prefix.length) : s;
+/**
+ * Get the file descriptor for a symbol (fully qualified service or method name)
+ * using gRPC reflection.
+ */
+async function getFileDescriptorSetBytes(
+  target: string,
+  symbol: string,
+  deadlineMs: number,
+): Promise<Uint8Array[]> {
+  const client = new grpc.Client(target, grpc.credentials.createInsecure());
+
+  try {
+    const response = await makeReflectionCall(
+      client,
+      {host: "", fileContainingSymbol: symbol},
+      deadlineMs,
+    );
+
+    const fdResp = response["fileDescriptorResponse"] as Record<string, unknown> | undefined;
+    if (fdResp === undefined) {
+      throw new Error(
+        `Unexpected reflection response for symbol "${symbol}": missing file_descriptor_response`,
+      );
+    }
+
+    return fdResp["fileDescriptorProto"] as Uint8Array[];
+  } finally {
+    client.close();
+  }
 }
 
-export async function grpcMethods(_target: string): Promise<grpcServiceMethods[]> {
-  // reflSource, cc, err := database.Connect(a.ctx, request.Data.(database.GRPCRequest).Target)
-  // if err != nil {
-  //   return nil, errors.Wrap(err, "connect")
-  // }
-  // defer cc.Close()
+// ---------------------------------------------------------------------------
+// Protobuf descriptor -> JSONSchema conversion
+// ---------------------------------------------------------------------------
 
-  const services: string[] = [];
-  // services, err := grpcurl.ListServices(reflSource)
-  // if err != nil {
-  //   return nil, errors.Wrap(err, "list services")
-  // }
+const descriptorTypesRoot: protobuf.Root = protobuf.Root.fromJSON(descriptorJson);
+const FileDescriptorSetType = descriptorTypesRoot.lookupType("google.protobuf.FileDescriptorSet");
 
-  return services.map(service => {
-    const [pkg, serviceName] = splitService(service);
-
-    const methods: string[] = [];
-  //   methods, err := grpcurl.ListMethods(reflSource, service)
-  //   if err != nil {
-  //     return nil, errors.Wrapf(err, "list service %s methods", service)
-  //   }
-
-    const prefix = pkg + "." + serviceName + ".";
-    return {
-      service,
-      methods: [
-        ...methods, // TODO: do we need that?
-        ...methods.map(method => trimPrefix(method, prefix)),
-      ],
-    };
-  });
+/**
+ * Load a FileDescriptorProto protobuf root from raw descriptor bytes.
+ */
+function loadRootFromDescriptorByte(blob: Uint8Array): protobuf.Root {
+  const fdp = descriptorTypesRoot.lookupType("google.protobuf.FileDescriptorProto").decode(blob);
+  const set = FileDescriptorSetType.create({file: [fdp]});
+  const setBytes = FileDescriptorSetType.encode(set).finish();
+  // protobufjs/ext/descriptor adds fromDescriptor at runtime
+  const RootCtor = protobuf.Root as unknown as {fromDescriptor(buf: Uint8Array): protobuf.Root};
+  return RootCtor.fromDescriptor(setBytes);
 }
 
-function ConvertMessageToJSONSchema(/*msg: protoreflect.Message*/): JSONSchema {
-  // return convertObjectToJSONSchema(msg.Descriptor())
-  return {type: "string"};
+/**
+ * Convert a protobuf field type to a JSONSchema type string.
+ */
+function fieldTypeToSchemaType(field: protobuf.Field): JSONSchema | null {
+  switch (field.type) {
+  case "double":
+  case "float":
+    return {type: "number"};
+  case "int32":
+  case "int64":
+  case "uint32":
+  case "uint64":
+  case "sint32":
+  case "sint64":
+  case "fixed32":
+  case "fixed64":
+  case "sfixed32":
+  case "sfixed64":
+    return {type: "integer"};
+  case "bool":
+    return {type: "string"};
+  case "string":
+    return {type: "string"};
+  case "bytes":
+    return {type: "string"};
+  case "enum":
+    return {type: "string"};
+  case "message":
+    return null; // Nested messages are handled separately
+  default:
+    return null;
+  }
 }
+
+/**
+ * Convert a protobufjs Type/Message to a JSONSchema.
+ */
+function convertMessageToSchema(msgType: protobuf.Type): JSONSchema {
+  const properties: Record<string, JSONSchema> = {};
+
+  for (const field of msgType.fieldsArray) {
+    let fieldSchema: JSONSchema | null = fieldTypeToSchemaType(field);
+
+    if (fieldSchema === null) {
+      if (field.resolvedType instanceof protobuf.Type) {
+        fieldSchema = convertMessageToSchema(field.resolvedType);
+      } else {
+        fieldSchema = {type: "string"};
+      }
+    }
+
+    if (field.repeated === true) {
+      properties[field.name] = {type: "array", items: fieldSchema};
+    } else {
+      properties[field.name] = fieldSchema;
+    }
+  }
+
+  return {type: "object", properties};
+}
+
+// ---------------------------------------------------------------------------
+// Fake payload generation (ported from Go implementation)
+// ---------------------------------------------------------------------------
 
 function newFake(js: JSONSchema): JSONValue {
   switch (js.type) {
   case "object":
-    return Object.fromEntries(Object.entries(js.properties).map(([k, v]) => {
-      const itemSchema =
-        v.type === "object" && v.oneOf !== undefined ?
-        v.oneOf[Math.random() * v.oneOf.length] :
-        v;
-      return [k, newFake(itemSchema)];
-    }));
+    return Object.fromEntries(
+      Object.entries(js.properties).map(([k, v]) => {
+        const itemSchema =
+          v.type === "object" && v.oneOf !== undefined ?
+          v.oneOf[Math.floor(Math.random() * v.oneOf.length)] :
+          v;
+        return [k, newFake(itemSchema)];
+      }),
+    );
   case "array":
     return [newFake(js.items)];
   case "number":
@@ -115,115 +235,412 @@ function newFake(js: JSONSchema): JSONValue {
   }
 }
 
-// func convertFieldToJSONSchema(field protoreflect.FieldDescriptor) (JSONSchema, error) {
-//   var fieldSchema JSONSchema
-//   switch field.Kind() {
-//   case protoreflect.BoolKind:
-//     fieldSchema.Type = "boolean"
-//   case protoreflect.Int32Kind, protoreflect.Int64Kind,
-//     protoreflect.Uint32Kind, protoreflect.Uint64Kind,
-//     protoreflect.Sint32Kind, protoreflect.Sint64Kind,
-//     protoreflect.Sfixed32Kind, protoreflect.Sfixed64Kind,
-//     protoreflect.Fixed32Kind, protoreflect.Fixed64Kind:
-//     fieldSchema.Type = "integer"
-//   case protoreflect.FloatKind,
-//     protoreflect.DoubleKind:
-//     fieldSchema.Type = "number"
-//   case protoreflect.StringKind:
-//     fieldSchema.Type = "string"
-//   case protoreflect.BytesKind:
-//     fieldSchema.Type = "string"
-//     // TODO: support bytes
-//   case protoreflect.MessageKind:
-//     var err error
-//     fieldSchema, err = convertObjectToJSONSchema(field.Message())
-//     if err != nil {
-//       return JSONSchema{}, err
-//     }
-//   case protoreflect.EnumKind:
-//     fieldSchema.Type = "string"
-//     vals := field.Enum().Values()
-//     for i := 0; i < vals.Len(); i++ {
-//       val := vals.Get(i)
-//       fmt.Println("ENUM", i, val.Name())
-//     }
-//   default:
-//     return JSONSchema{}, errors.Errorf("unsupported field kind: %v", field.Kind())
-//   }
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
-//   if field.IsList() {
-//     return JSONSchema{
-//       Type:  "array",
-//       Items: &fieldSchema,
-//     }, nil
-//   }
+/**
+ * Send a gRPC request to the target server using reflection-based protobuf
+ * serialization.
+ *
+ * Ported from internal/plugin_grpc.go (sendGRPC):
+ *   - Go uses grpcurl.InvokeRPC with reflection-based descriptor source
+ *   - TS uses reflection to discover input/output message types, then
+ *     uses @grpc/grpc-js Client.makeUnaryRequest with protobufjs
+ *     serialization/deserialization
+ *   - Captures response trailers (via status event) as metadata
+ */
+export async function sendGRPC(request: GRPCRequest): Promise<GRPCResponse> {
+  // Parse method: fully qualified "package.Service/Method"
+  const [serviceFull, methodName] = splitMethodName(request.method);
+  if (serviceFull === null || methodName === null) {
+    return {
+      response: `Invalid method format "${request.method}": expected "package.Service/Method"`,
+      code: grpc.status.INVALID_ARGUMENT,
+      metadata: [],
+    };
+  }
 
-//   return fieldSchema, nil
-// }
+  const deadlineMs = 10000;
 
-// func convertObjectToJSONSchema(msg protoreflect.MessageDescriptor) (JSONSchema, error) {
-//   fields := msg.Fields()
-//   properties := make(map[string]JSONSchema, fields.Len())
-//   for i := 0; i < fields.Len(); i++ {
-//     field := fields.Get(i)
-//     fieldSchema, err := convertFieldToJSONSchema(field)
-//     if err != nil {
-//       return JSONSchema{}, err
-//     }
+  // 1. Discover input/output types via reflection
+  let inputType: protobuf.Type;
+  let outputType: protobuf.Type;
+  try {
+    const fdsBlobs = await getFileDescriptorSetBytes(
+      request.target,
+      serviceFull,
+      deadlineMs,
+    );
 
-//     if oneof := field.ContainingOneof(); oneof != nil {
-//       oneofName := string(oneof.Name())
-//       if _, ok := properties[oneofName]; !ok {
-//         properties[oneofName] = JSONSchema{
-//           Type:  "object",
-//           OneOf: []JSONSchema{},
-//         }
-//       }
-//       m := properties[oneofName]
-//       m.OneOf = append(m.OneOf, JSONSchema{
-//         Type:       "object",
-//         Properties: map[string]JSONSchema{string(field.Name()): fieldSchema},
-//       })
-//       properties[oneofName] = m
-//     } else {
-//       properties[string(field.Name())] = fieldSchema
-//     }
-//   }
+    // Search all file descriptors for the service definition
+    let inputTypeName: string | undefined;
+    let outputTypeName: string | undefined;
 
-//   return JSONSchema{
-//     Type:       "object",
-//     Properties: properties,
-//     Items:      nil,
-//   }, nil
-// }
+    for (const blob of fdsBlobs) {
+      const root = loadRootFromDescriptorByte(blob);
 
-export async function grpcQueryFake(
-  _target: string,
-  _method: string, // NOTE: fully qualified
-): Promise<string> {
-  //   reflSource, cc, err := database.Connect(a.ctx, Target)
-  //   if err != nil {
-  //     return "", errors.Wrap(err, "connect")
-  //   }
-  //   defer cc.Close()
+      // Look up the service definition to find method types
+      const svc = root.lookupService(serviceFull);
+      const method = svc.methodsArray.find(m => m.name === methodName);
+      if (method === undefined) {
+        continue;
+      }
 
-  //   dsc, err := reflSource.FindSymbol(Method)
-  //   if err != nil {
-  //     return "", errors.Wrap(err, "find method")
-  //   }
+      inputTypeName = method.requestType;
+      outputTypeName = method.responseType;
+      break;
+    }
 
-  //   methodDesc := dsc.(*desc.MethodDescriptor)
-  //   // fmt.Println("    IN", strings.TrimPrefix(inputType.GetFullyQualifiedName(), pkg+"."))
-  //   // fmt.Println("    OUT", strings.TrimPrefix(methodDesc.GetOutputType().GetFullyQualifiedName(), pkg+"."))
-  //   m := dynamicpb.NewMessage(methodDesc.GetInputType().UnwrapMessage())
+    if (inputTypeName === undefined || outputTypeName === undefined) {
+      // Fallback: try the method path directly without reflection
+      return await sendGRPCFallback(request);
+    }
 
-  const schema = ConvertMessageToJSONSchema(/*m*/);
-  // schema["$schema"]= "http://json-schema.org/schema#"
+    // Load the full file descriptors again to get the message types
+    inputType = createTypeFromFds(fdsBlobs, inputTypeName);
+    outputType = createTypeFromFds(fdsBlobs, outputTypeName);
+  } catch {
+    // Fallback: try the method path directly without reflection
+    return await sendGRPCFallback(request);
+  }
 
-  return JSON.stringify(newFake(schema), null, 2);
+  // 2. Serialize request payload
+  let parsedPayload: Record<string, unknown>;
+  try {
+    parsedPayload = JSON.parse(request.payload) as Record<string, unknown>;
+  } catch {
+    return {
+      response: `Invalid JSON payload: ${request.payload}`,
+      code: grpc.status.INVALID_ARGUMENT,
+      metadata: [],
+    };
+  }
+
+  const verifyErr = inputType.verify(parsedPayload);
+  if (verifyErr !== null) {
+    return {
+      response: `Payload validation error: ${verifyErr}`,
+      code: grpc.status.INVALID_ARGUMENT,
+      metadata: [],
+    };
+  }
+
+  // 3. Make the RPC call
+  const client = new grpc.Client(request.target, grpc.credentials.createInsecure());
+
+  const grpcMetadata = new grpc.Metadata();
+  for (const kv of request.metadata) {
+    grpcMetadata.add(kv.key, kv.value);
+  }
+
+  const methodPath = `/${request.method}`;
+  const deadline = Date.now() + deadlineMs;
+
+  return new Promise<GRPCResponse>((resolve, _reject) => {
+    let statusCode = grpc.status.OK;
+    let responseTrailers: KV[] = [];
+
+    const call = client.makeUnaryRequest(
+      methodPath,
+      (req: Record<string, unknown>): Buffer =>
+        Buffer.from(inputType.encode(req).finish()),
+      (data: Buffer): Record<string, unknown> => {
+        const decoded = outputType.decode(data);
+        return outputType.toObject(decoded, {
+          longs: String,
+          enums: String,
+          bytes: String,
+          defaults: true,
+          arrays: true,
+          objects: true,
+        });
+      },
+      parsedPayload,
+      grpcMetadata,
+      {deadline},
+      (error, response) => {
+        client.close();
+        if (error !== null) {
+          resolve({
+            response: error.details !== "" ? error.details : error.message,
+            code: error.code,
+            metadata:
+              responseTrailers.length > 0 ?
+              responseTrailers :
+              metadataToKV(error.metadata),
+          });
+        } else {
+          const responseStr = response !== undefined
+            ? JSON.stringify(response)
+            : "";
+          resolve({
+            response: responseStr,
+            code: statusCode,
+            metadata: responseTrailers,
+          });
+        }
+      },
+    );
+
+    call.on("metadata", (_md: grpc.Metadata) => {
+      // Response headers - currently not captured
+    });
+
+    call.on("status", (status: grpc.StatusObject) => {
+      statusCode = status.code;
+      responseTrailers = metadataToKV(status.metadata);
+    });
+  });
 }
 
-export async function grpcQueryValidate(_target: string, _method: string, payload: string): Promise<void> {
-  // TODO: implement
-  JSON.parse(payload);
+/**
+ * Fallback sendGRPC without reflection support.
+ * Uses raw Buffer serialization when the reflection service is unavailable.
+ */
+async function sendGRPCFallback(request: GRPCRequest): Promise<GRPCResponse> {
+  const client = new grpc.Client(request.target, grpc.credentials.createInsecure());
+
+  const grpcMetadata = new grpc.Metadata();
+  for (const kv of request.metadata) {
+    grpcMetadata.add(kv.key, kv.value);
+  }
+
+  const methodPath = request.method.startsWith("/")
+    ? request.method
+    : `/${request.method}`;
+
+  return new Promise<GRPCResponse>((resolve, _reject) => {
+    const timeout = setTimeout(() => {
+      client.close();
+      resolve({
+        response: "deadline exceeded",
+        code: grpc.status.DEADLINE_EXCEEDED,
+        metadata: [],
+      });
+    }, 10000);
+
+    let statusCode = grpc.status.OK;
+    let responseTrailers: KV[] = [];
+
+    const call = client.makeUnaryRequest(
+      methodPath,
+      (val: Buffer) => val,
+      (val: Buffer) => val,
+      Buffer.from(request.payload, "utf-8"),
+      grpcMetadata,
+      (error, response) => {
+        clearTimeout(timeout);
+        client.close();
+        if (error !== null) {
+          resolve({
+            response: error.details !== "" ? error.details : error.message,
+            code: error.code,
+            metadata:
+              responseTrailers.length > 0 ?
+              responseTrailers :
+              metadataToKV(error.metadata),
+          });
+        } else {
+          const responseStr = response instanceof Buffer
+            ? response.toString("utf-8")
+            : JSON.stringify(response);
+          resolve({
+            response: responseStr,
+            code: statusCode,
+            metadata: responseTrailers,
+          });
+        }
+      },
+    );
+
+    call.on("metadata", (_md: grpc.Metadata) => {
+      // Response headers - currently not captured
+    });
+
+    call.on("status", (status: grpc.StatusObject) => {
+      statusCode = status.code;
+      responseTrailers = metadataToKV(status.metadata);
+    });
+  });
+}
+
+/**
+ * Split a fully qualified method name "package.Service/Method" into
+ * [package.Service, Method].
+ */
+function splitMethodName(method: string): [string | null, string | null] {
+  const slashIdx = method.lastIndexOf("/");
+  if (slashIdx === -1) {
+    return [null, null];
+  }
+  return [method.substring(0, slashIdx), method.substring(slashIdx + 1)];
+}
+
+/**
+ * Create a protobufjs Type from a list of FileDescriptorProto blobs
+ * by searching for the named type across all descriptors.
+ */
+function createTypeFromFds(fdsBlobs: Uint8Array[], typeName: string): protobuf.Type {
+  for (const blob of fdsBlobs) {
+    try {
+      const root = loadRootFromDescriptorByte(blob);
+      const resolvedType = root.lookupType(typeName);
+      return resolvedType;
+    } catch {
+      // Type not in this descriptor; try next
+    }
+  }
+  throw new Error(`Type "${typeName}" not found in any file descriptor`);
+}
+
+function metadataToKV(md: grpc.Metadata): KV[] {
+  const entries: KV[] = [];
+  for (const [key, raw] of Object.entries(md.getMap())) {
+    const strValue = raw instanceof Buffer ? raw.toString("utf-8") : String(raw);
+    entries.push({key, value: strValue});
+  }
+  return entries;
+}
+
+// ---------------------------------------------------------------------------
+// Service / Method discovery
+// ---------------------------------------------------------------------------
+
+/**
+ * List gRPC service methods via reflection.
+ *
+ * Ported from internal/plugin_grpc.go:
+ *   - Go uses grpcreflect/grpcurl to discover services/methods
+ *   - TS uses grpc.reflection.v1alpha.ServerReflection protocol
+ */
+export async function grpcMethods(target: string): Promise<grpcServiceMethods[]> {
+  const deadlineMs = 10000;
+  const services = await listServicesReflection(target, deadlineMs);
+  console.log("SERVICE", services);
+
+  return await Promise.all(services.map(async service => {
+    const fdsBlobs = await getFileDescriptorSetBytes(target, service, deadlineMs);
+
+    // Find the service definition and extract method names
+    const methods = fdsBlobs.flatMap(blob => {
+      const root = loadRootFromDescriptorByte(blob);
+      const svc = root.lookupService(service);
+      return svc.methodsArray.map(m => m.name);
+    });
+
+    return {service, methods};
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Fake payload generation (via reflection schema)
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a fake JSON payload for a gRPC method.
+ *
+ * Ported from internal/plugin_grpc.go (create/update query fakes):
+ *   - Go uses reflection to discover input type schema, then generates fake data
+ *   - TS uses the gRPC reflection protocol to discover the input type,
+ *     converts it to JSONSchema, and generates a fake payload.
+ */
+export async function grpcQueryFake(
+  target: string,
+  method: string,
+): Promise<string> {
+  const [serviceFull, methodName] = splitMethodName(method);
+  if (serviceFull === null || methodName === null) {
+    return JSON.stringify({error: `Invalid method format "${method}": expected "package.Service/Method"`}, null, 2);
+  }
+
+  const deadlineMs = 10000;
+
+  try {
+    const fdsBlobs = await getFileDescriptorSetBytes(target, serviceFull, deadlineMs);
+
+    let inputTypeName: string | undefined;
+
+    for (const blob of fdsBlobs) {
+      const root = loadRootFromDescriptorByte(blob);
+      const svc = root.lookupService(serviceFull);
+      const methodDef = svc.methodsArray.find(m => m.name === methodName);
+      if (methodDef !== undefined) {
+        inputTypeName = methodDef.requestType;
+        break;
+      }
+    }
+
+    if (inputTypeName === undefined) {
+      return JSON.stringify({error: `Method "${method}" not found on server`}, null, 2);
+    }
+
+    const msgType = createTypeFromFds(fdsBlobs, inputTypeName);
+    const schema = convertMessageToSchema(msgType);
+
+    return JSON.stringify(newFake(schema), null, 2);
+  } catch (err) {
+    return JSON.stringify(
+      {error: `Failed to generate fake payload: ${(err as Error).message}`},
+      null,
+      2,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Payload validation (via reflection schema)
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate a JSON payload for a gRPC method.
+ *
+ * Ported from internal/plugin_grpc.go (grpcQueryValidate):
+ *   - Go validates payload against the method's input schema using reflection
+ *   - TS uses the gRPC reflection protocol to discover the input type,
+ *     then validates the payload against the protobuf schema.
+ */
+export async function grpcQueryValidate(
+  target: string,
+  method: string,
+  payload: string,
+): Promise<void> {
+  const [serviceFull, methodName] = splitMethodName(method);
+  if (serviceFull === null || methodName === null) {
+    throw new Error(`Invalid method format "${method}": expected "package.Service/Method"`);
+  }
+
+  const deadlineMs = 10000;
+
+  const fdsBlobs = await getFileDescriptorSetBytes(target, serviceFull, deadlineMs);
+
+  let inputTypeName: string | undefined;
+
+  for (const blob of fdsBlobs) {
+    const root = loadRootFromDescriptorByte(blob);
+    const svc = root.lookupService(serviceFull);
+    const methodDef = svc.methodsArray.find(m => m.name === methodName);
+    if (methodDef !== undefined) {
+      inputTypeName = methodDef.requestType;
+      break;
+    }
+  }
+
+  if (inputTypeName === undefined) {
+    throw new Error(`Method "${method}" not found on server`);
+  }
+
+  const msgType = createTypeFromFds(fdsBlobs, inputTypeName);
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(payload) as Record<string, unknown>;
+  } catch (err) {
+    throw new Error(`Invalid JSON: ${(err as Error).message}`);
+  }
+
+  const verifyErr = msgType.verify(parsed);
+  if (verifyErr !== null) {
+    throw new Error(`Validation error: ${verifyErr}`);
+  }
 }
