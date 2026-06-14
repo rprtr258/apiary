@@ -2,7 +2,7 @@ import path from "path";
 import {fileURLToPath} from "url";
 import {app, BrowserWindow, ipcMain} from "electron";
 import data from "./package.json" with {type: "json"};
-import * as t from "@/types/models.ts";
+import * as t from "@/types.ts";
 import {
   CountRowsSQLSource,
   Create,

@@ -22,7 +22,7 @@ features:
     details: Supports HTTP, SQL, gRPC, Redis, JQ, Markdown, SQLSource, and HTTPSource plugins. Extensible plugin system for custom request types.
     icon: 🚀
   - title: Cross-Platform
-    details: Available for Linux, macOS, and Windows. Built with Go and TypeScript using Wails for native desktop experience.
+    details: Available for Linux, macOS, and Windows. Built with TypeScript using electron for cross-platform desktop experience.
     icon: 💻
   - title: JSON Database
     details: Simple file-based storage with automatic versioning. All requests and responses stored in a single db.json file.
@@ -68,9 +68,9 @@ If you prefer to build from source:
 ```bash
 git clone https://github.com/rprtr258/apiary.git
 cd apiary
-# go, wails and bun required
-wails build
-# check build/bin for built binary
+# bun required
+bun run dist
+# check release for built binary
 ```
 
 ## Features in Detail

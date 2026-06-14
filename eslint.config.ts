@@ -7,9 +7,6 @@ import importPlugin from "eslint-plugin-import";
 
 export default defineConfig([
   {
-    ignores: ["wailsjs/**"],
-  },
-  {
     files: ["**/*.{ts}"],
     plugins: {js},
     ...js.configs.recommended,

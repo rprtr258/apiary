@@ -1,5 +1,5 @@
-import {Option, some, none} from "./option.ts";
-import {Result, ok, try_} from "./result.ts";
+import {Option, some, none} from "@/option.ts";
+import {Result, ok, try_} from "@/result.ts";
 import {jq} from "@/jq.ts";
 
 export function arrayGet<T>(items: T[], index: number): Option<T> {

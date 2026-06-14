@@ -1,7 +1,6 @@
-import * as t from "@/types/models.ts";
-import {GRPCCodes, HistoryEntry} from "@/types/types.ts";
+import * as t from "@/types.ts";
 import {get_request, last_history_entry} from "./store.ts";
-import {m, setDisplay, Signal} from "./utils.ts";
+import {m, setDisplay, Signal} from "./lib/utils.ts";
 import ParamsList from "./components/ParamsList.ts";
 import {NInput, NButton, NInputGroup, NSelect} from "./components/input.ts";
 import {NTabs, NSplit} from "./components/layout.ts";
@@ -13,7 +12,7 @@ type Request = {kind: t.Kind.GRPC} & t.GRPCRequest;
 
 function responseBadge(response: {code: number}) {
   const code = response.code;
-  const tooltip = code in GRPCCodes ? `${code} ${GRPCCodes[code as keyof typeof GRPCCodes]}` : `${code}`;
+  const tooltip = code in t.GRPCCodes ? `${code} ${t.GRPCCodes[code as keyof typeof t.GRPCCodes]}` : `${code}`;
 
   return NTag({
     type: code === 0 ? "success" : "error",
@@ -30,7 +29,7 @@ export default function(
   },
 ): {
   loaded(r: get_request): void,
-  push_history_entry(he: HistoryEntry): void,
+  push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 } {
   el.append(NEmpty({description: "Loading request..."}));

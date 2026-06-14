@@ -16,7 +16,7 @@ function* dfs_node(c: ContentItem): Generator<ComponentItem, void, void> {
 
 let instance: GoldenLayout | undefined = undefined;
 
-export default (() => ({
+export default {
   init(
     el: HTMLElement,
     layoutConfig: LayoutConfig,
@@ -82,4 +82,4 @@ export default (() => ({
   clear(): void {
     instance?.clear();
   },
-}))();
+};

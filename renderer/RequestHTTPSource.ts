@@ -2,8 +2,8 @@ import {NEmpty} from "./components/dataview.ts";
 import {NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {get_request} from "./store.ts";
 import {api} from "./api.ts";
-import * as t from "@/types/models.ts";
-import {m} from "./utils.ts";
+import * as t from "@/types.ts";
+import {m} from "./lib/utils.ts";
 
 type Request = t.HTTPSourceRequest;
 

@@ -1,5 +1,5 @@
-import {m, DOMNode, setDisplay, clone} from "../utils.ts";
-import {css} from "../styles.ts";
+import {m, DOMNode, setDisplay, clone} from "../lib/utils.ts";
+import {css} from "../lib/styles.ts";
 import {KeyESC, KeyDown, KeyUp, KeyEnter} from "./icons.ts";
 
 export const styles = {

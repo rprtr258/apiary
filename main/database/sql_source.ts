@@ -1,10 +1,15 @@
-import {type TableInfo, type TableSchema, type ColumnInfo, type ConstraintInfo, type IndexInfo, type ForeignKey, type SQLRequest, Database} from "@/types/models.ts";
+import {type TableInfo, type TableSchema, type ColumnInfo, type ConstraintInfo, type IndexInfo, type ForeignKey, type SQLRequest, SQLSourceRequest} from "@/types.ts";
 import {sendSQL} from "./sql.ts";
+
+export const EmptyRequest: SQLSourceRequest = {
+  dsn: ":memory:",
+  database: "sqlite",
+};
 
 export async function listTables(request: Omit<SQLRequest, "query">): Promise<TableInfo[]> {
   const tables = await (async (): Promise<TableInfo[]> => {
   switch (request.database) {
-  case Database.POSTGRES: {
+  case "postgres": {
     const tablesResult = await sendSQL({...request, query: `
       SELECT
         t.tablename,
@@ -16,7 +21,7 @@ export async function listTables(request: Omit<SQLRequest, "query">): Promise<Ta
     `});
     return tablesResult.rows.map(([name, rowCount, sizeBytes]): TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
   }
-  case Database.MYSQL: {
+  case "mysql": {
     const dbName = (await sendSQL({...request, query: "SELECT DATABASE()"})).rows[0][0] as string;
     const tablesResult = await sendSQL({...request, query: `
       SELECT
@@ -28,7 +33,7 @@ export async function listTables(request: Omit<SQLRequest, "query">): Promise<Ta
     `}); // TODO: pass dbname as arg
     return tablesResult.rows.map(([name, rowCount, sizeBytes]): TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
   }
-  case Database.SQLITE: {
+  case "sqlite": {
     const tableNames = (await sendSQL({...request, query: `SELECT name FROM sqlite_master WHERE type='table'`})).rows.map(r => String(r[0]));
     const tables: TableInfo[] = [];
     // TODO: async map
@@ -41,7 +46,7 @@ export async function listTables(request: Omit<SQLRequest, "query">): Promise<Ta
     }
     return tables;
   }
-  case Database.CLICKHOUSE: {
+  case "clickhouse": {
     return (await sendSQL({...request, query: `
       SELECT
         name,
@@ -62,14 +67,10 @@ export async function listTables(request: Omit<SQLRequest, "query">): Promise<Ta
 
 export async function describeTable(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   switch (request.database) {
-  case Database.POSTGRES:
-    return describePostgres(request, tableName);
-  case Database.MYSQL:
-    return describeMySQL(request, tableName);
-  case Database.SQLITE:
-    return describeSQLite(request, tableName);
-  case Database.CLICKHOUSE:
-    return describeClickHouse(request, tableName);
+  case "postgres":   return describePostgres(request, tableName);
+  case "mysql":      return describeMySQL(request, tableName);
+  case "sqlite":     return describeSQLite(request, tableName);
+  case "clickhouse": return describeClickHouse(request, tableName);
   default:
     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     throw new Error(`unsupported database type: ${request.database}`);

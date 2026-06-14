@@ -1,7 +1,7 @@
 import {describe, test, expect, mock} from "bun:test";
 import {raw} from "jq-wasm";
 import {sendJQ} from "./jq.ts";
-import type {JQRequest} from "@/types/models.ts";
+import type {JQRequest} from "@/types.ts";
 
 // Mock jq-wasm
 mock.module("jq-wasm", () => ({

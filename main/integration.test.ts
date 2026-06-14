@@ -1,5 +1,5 @@
 import {describe, test, expect, beforeAll} from "bun:test";
-import {Database, type SQLRequest, type RedisRequest} from "@/types/models.ts";
+import {type SQLRequest, type RedisRequest} from "@/types.ts";
 import {sendSQL} from "./database/sql.ts";
 import {listTables, describeTable, countRowsSQLSource, testSQLSource} from "./database/sql_source.ts";
 import {sendRedis} from "./database/redis.ts";
@@ -9,7 +9,7 @@ import {grpcMethods} from "./database/grpc.ts";
 const pgDSN = process.env.PG_DSN ?? "postgres://postgres:password@localhost:5432/postgres";
 
 function pgRequest(query: string): SQLRequest {
-  return {dsn: pgDSN, database: Database.POSTGRES, query};
+  return {dsn: pgDSN, database: "postgres", query};
 }
 
 describe("sendSQL (postgres)", () => {

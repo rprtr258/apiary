@@ -1,6 +1,6 @@
 import {describe, test, expect} from "bun:test";
 import {NTag, NResult, NEmpty, NList, NListItem, Json} from "./dataview.ts";
-import {m} from "../utils.ts";
+import {m} from "../lib/utils.ts";
 
 describe("Json component", () => {
   test("renders JSON data as formatted string", () => {

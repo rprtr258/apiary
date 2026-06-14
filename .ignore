@@ -1,4 +1,4 @@
-build/
-frontend/dist/
-frontend/node_modules/
+release/
+dist/
+dist-electron/
 db.json

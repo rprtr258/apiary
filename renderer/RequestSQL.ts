@@ -1,6 +1,5 @@
-import * as t from "@/types/models.ts";
-import {Database, HistoryEntry, RowValue} from "@/types/types.ts";
-import {m, setDisplay, Signal} from "./utils.ts";
+import * as t from "@/types.ts";
+import {m, setDisplay, Signal} from "./lib/utils.ts";
 import {get_request, last_history_entry} from "./store.ts";
 import {NEmpty} from "./components/dataview.ts";
 import {NButton, NInput, NInputGroup, NSelect} from "./components/input.ts";
@@ -19,7 +18,7 @@ export default function(
   },
 ): {
   loaded(r: get_request): void,
-  push_history_entry(he: HistoryEntry): void,
+  push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 } {
   el.append(NEmpty({description: "Loading request..."}));
@@ -32,7 +31,7 @@ export default function(
 
     // TODO: fix duplicate column names
     el_response.style.justifyContent = "";
-    dataTable.update({columns: response.columns, rows: response.rows as RowValue[][], types: response.types, on: {}});
+    dataTable.update({columns: response.columns, rows: response.rows as t.RowValue[][], types: response.types, on: {}});
   };
   const unmounts: (() => void)[] = [];
 
@@ -69,9 +68,9 @@ export default function(
       },
         NSelect({
           style: {minWidth: "0"},
-          label: Database[request.database],
-          options: Object.keys(Database).map(db => ({label: Database[db as keyof typeof Database], value: db})),
-          on: {update: (database: string) => update_request({database: database as Database})},
+          label: t.Database[request.database],
+          options: Object.keys(t.Database).map(db => ({label: t.Database[db as keyof typeof t.Database], value: db})),
+          on: {update: (database: string) => update_request({database: database as t.Database})},
         }).el,
         NInput({
           placeholder: "DSN",
@@ -96,7 +95,7 @@ export default function(
       }()));
       el.replaceChildren(el_container);
     },
-    push_history_entry(he: HistoryEntry) {
+    push_history_entry(he: t.HistoryEntry) {
       push_response(he.response as t.SQLResponse);
     },
     unmount() {

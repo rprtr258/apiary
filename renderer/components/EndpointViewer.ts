@@ -1,10 +1,9 @@
 import {ComponentContainer} from "golden-layout";
-import * as t from "@/types/models.ts";
+import * as t from "@/types.ts";
 import {api} from "../api.ts";
-import {type HistoryEntry} from "@/types/types.ts";
 import HTTPRequestView, {HTTPRequestViewResult} from "./HTTPRequestView.ts";
 import type {JSONSchema7} from "json-schema";
-import {m, signal} from "../utils.ts";
+import {m, signal} from "../lib/utils.ts";
 import {NEmpty} from "./dataview.ts";
 
 export interface EndpointViewerProps {
@@ -77,10 +76,10 @@ export default function EndpointViewer(
   });
 
   return {
-    loaded(r: {request: t.HTTPRequest, history: HistoryEntry[]}) {
+    loaded(r: {request: t.HTTPRequest, history: t.HistoryEntry[]}) {
       httpRequestView?.loaded(r);
     },
-    push_history_entry(he: HistoryEntry) {
+    push_history_entry(he: t.HistoryEntry) {
       httpRequestView?.push_history_entry(he);
     },
     unmount() {

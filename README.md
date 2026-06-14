@@ -4,7 +4,7 @@
    alt="Philosopher’s stone, logo of PostCSS"
    src="docs/public/logo.svg">
 
-A cross-platform desktop application for managing API requests (HTTP, SQL, gRPC, Redis, JQ, Markdown, SQLSource, HTTPSource) using Go backend and vanilla TypeScript frontend via Wails.
+A cross-platform desktop application for managing API requests (HTTP, SQL, gRPC, Redis, JQ, Markdown, SQLSource, HTTPSource) using `electron` and vanilla `TypeScript` frontend.
 
 ## Features
 
@@ -38,17 +38,11 @@ chmod +x apiary-linux-amd64
 
 #### Build Steps
 ```bash
-# Clone the repository
-git clone https://github.com/rprtr258/apiary.git
+git clone https://github.com/rprtr258/apiary.git # Clone the repository
 cd apiary
-
-# Install dependencies
-bun install
-
-# Build the application
-bun run build
-
-# The binary will be in build/bin/apiary (or apiary.exe on Windows)
+bun install # Install dependencies
+bun run dist # Build the application
+# The binary will be in release/ directory
 ```
 
 ## Usage
@@ -72,16 +66,16 @@ The application will create a `db.json` file in the current directory to store y
 
 ### Project Structure
 ```text
-apiary/
-├── frontend/        # Frontend
-│   ├── src/         # Source code
-│   └── dist/        # Built assets
-├── internal/        # Go backend
-│   ├── app/         # Application core
-│   ├── database/    # Plugin system and JSON DB
-│   └── version/     # Version management
-├── cmd/             # Test executables
-└── build/           # Build outputs
+renderer/        # Renderer process (frontend)
+├── components/  # Shared components
+└── lib/         # Shared frontend logic
+main/            # Main process (backend)
+├── database/    # Plugin system and JSON DB
+├── api.ts       # RPC handlers implementation
+└── version/     # Version management
+shared/          # Shared logic
+└── types/       # Shared types
+scripts/         # Test scripts
 ```
 
 ### Development Commands
@@ -97,14 +91,13 @@ bun run ci           # Run linting, type checking and tests
 ## Release Process
 
 ### Creating a Release
-
 1. **Update version**: Ensure all changes are committed
+2. **Update `package.json`**: Bump `version`
 2. **Create tag**: `git tag v0.1.0`
 3. **Push tag**: `git push origin v0.1.0`
 
 The GitHub Actions workflow will automatically:
 - Build binaries for Linux, macOS, and Windows
-- Inject version information via `ldflags`
 - Create a GitHub Release with auto-generated notes
 - Attach all platform binaries
 
@@ -113,8 +106,7 @@ Use the manual workflow trigger in GitHub Actions with version `0.0.0-test` to t
 
 ### Version Management
 - Version is stored in `package.json`
-- Injected at build time via `ldflags`
-- Stored in database as `app_version` field for migration tracking
+- Stored in database as `version` field for migration tracking
 - Displayed in logs and via `--version` flag
 
 ## Contributing

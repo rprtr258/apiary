@@ -1,4 +1,4 @@
-import {s} from "../utils.ts";
+import {s} from "../lib/utils.ts";
 
 const _props = (n: number) => ({
   xmlns: "http://www.w3.org/2000/svg" as const,

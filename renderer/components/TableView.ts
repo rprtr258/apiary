@@ -1,17 +1,16 @@
 import {ComponentContainer} from "golden-layout";
-import * as t from "@/types/models.ts";
+import * as t from "@/types.ts";
+import {none, Option, some} from "@/option.ts";
 import {api} from "../api.ts";
-import {clamp, DOMNode, m, Signal, signal} from "../utils.ts";
-import {css} from "../styles.ts";
-import notification from "../notification.ts";
-import {RowValue} from "@/types/types.ts";
+import {clamp, DOMNode, m, Signal, signal} from "../lib/utils.ts";
+import {css} from "../lib/styles.ts";
+import notification from "../lib/notification.ts";
 import {NButton} from "./input.ts";
 import {NScrollbar, NTabs} from "./layout.ts";
 import {NIcon} from "./dataview.ts";
 import {CheckSquareOutlined, ClockCircleOutlined, FieldNumberOutlined, ItalicOutlined, QuestionCircleOutlined} from "./icons.ts";
-import {none, Option, some} from "../option.ts";
 
-function render(v: RowValue): DOMNode {
+function render(v: t.RowValue): DOMNode {
   switch (true) {
   case v === null:
     return m("span", {style: {color: "grey"}}, "(NULL)");
@@ -170,7 +169,7 @@ function render_column_with_sort(
 type DataTableProps = {
   columns: string[],
   types: string[],
-  rows: RowValue[][],
+  rows: t.RowValue[][],
   sortColumns?: {column: string, direction: "asc" | "desc", order: number}[],
   on: {
     sortAdd?: (column: string, direction: "asc" | "desc") => void,
@@ -350,11 +349,11 @@ function buildQuery(
       // Quote column name based on database type
       let quotedColumn = sc.column;
       switch (dbType) {
-        case t.Database.MYSQL:
-        case t.Database.SQLITE:
+        case "mysql":
+        case "sqlite":
           quotedColumn = `\`${sc.column}\``;
           break;
-        case t.Database.POSTGRES:
+        case "postgres":
           quotedColumn = `"${sc.column}"`;
           break;
         // ClickHouse and others don't need quoting for standard identifiers
@@ -479,7 +478,7 @@ export default function(
     }
     dataTable.update({
       columns: data?.columns ?? [],
-      rows: (data?.rows ?? []) as RowValue[][],
+      rows: (data?.rows ?? []) as t.RowValue[][],
       types: data?.types ?? [],
       sortColumns: sortColumns.value,
       on: {

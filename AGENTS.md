@@ -140,7 +140,7 @@ numbers.forEach(n => console.log(n));
   - Add service file in `database/` with `send*` function and `*EmptyRequest` constant.
   - Add `Request*.ts` in `frontend/` following factory pattern.
   - Register in `App.ts` panelkaFactory.
-  - Add types to `types/models.ts`.
+  - Add types to `types/`.
   - Add IPC handler in `main.ts`.
   - Add preload bridge in `preload.ts`.
   - Add type definition in `global.d.ts`.

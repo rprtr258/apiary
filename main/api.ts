@@ -1,5 +1,4 @@
-import {create, createResponse, extractSubKind, load, Delete as remove, rename, update, Request, HistoryEntry2} from "./db.ts";
-import * as t from "@/types/models.ts";
+import {create, createResponse, extractSubKind, load, Delete as remove, rename, update, Request, HistoryEntry} from "./db.ts";
 import {EmptyRequest as HTTPEmptyRequest, sendHTTP} from "./database/http.ts";
 import {EmptyRequest as JQEmptyRequest, sendJQ} from "./database/jq.ts";
 import {DefaultMarkdown, sendMD} from "./database/md.ts";
@@ -8,8 +7,8 @@ import {EmptyRequest as RedisEmptyRequest, sendRedis} from "./database/redis.ts"
 import {sendDIFF} from "./database/diff.ts";
 import {sendGRPC, grpcMethods, grpcQueryFake, grpcQueryValidate} from "./database/grpc.ts";
 import {parseSpec, generateExampleRequest, fetchSpec} from "./database/http_source.ts";
-import {listTables, describeTable, countRowsSQLSource, testSQLSource} from "./database/sql_source.ts";
-import {HistoryEntry} from "@/types/types.ts";
+import {listTables, describeTable, countRowsSQLSource, testSQLSource, EmptyRequest as SQLSourceEmptyRequest} from "./database/sql_source.ts";
+import * as t from "@/types.ts";
 
 async function get(id: t.RequestID): Promise<Request> {
   const j = await load();
@@ -51,13 +50,13 @@ export async function List(): Promise<t.ListResponse> {
 
 export async function Get(id: t.RequestID): Promise<t.GetResponse> {
   const entry = await get(id);
-  const history: HistoryEntry[] = entry.Responses.map(h => ({
+  const history: t.HistoryEntry[] = entry.Responses.map(h => ({
     sent_at: h.SentAt,
     received_at: h.ReceivedAt,
     kind: entry.Kind,
     request: entry.Data,
     response: h.Response,
-  } as HistoryEntry));
+  } as t.HistoryEntry));
   history.sort((a, b) => a.sent_at.getTime() - b.sent_at.getTime());
   return {
     Request: {
@@ -88,7 +87,7 @@ function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   case t.Kind.DIFF:
     return {left: "", right: ""};
   case t.Kind.SQLSource:
-    return {dsn: ":memory:", database: t.Database.SQLITE};
+    return SQLSourceEmptyRequest;
   case t.Kind.HTTPSource:
     return {serverUrl: "", specSource: "url", specData: "", auth: {type: "none"}};
   default:
@@ -117,7 +116,7 @@ export async function Delete(id: t.RequestID): Promise<void> {
   await remove(j, id);
 }
 
-export async function Read(id: t.RequestID): Promise<t.Request> {
+export async function Read(id: t.RequestID): Promise<t.Request2> {
   const j = await load();
   if (!(id in j))
     throw new Error(`request ${id} not found`);
@@ -185,7 +184,7 @@ export async function Perform(id: t.RequestID): Promise<PerformResponse> {
   }
   const received_at = new Date();
 
-  await createResponse(j, id, {SentAt: sent_at, ReceivedAt: received_at, Response: response as HistoryEntry2["Response"]} as HistoryEntry2);
+  await createResponse(j, id, {SentAt: sent_at, ReceivedAt: received_at, Response: response as HistoryEntry["Response"]} as HistoryEntry);
   return {
     RequestId:   id,
     sent_at:     sent_at.toISOString(),

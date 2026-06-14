@@ -1,6 +1,6 @@
 import {describe, test, expect, mock, beforeEach} from "bun:test";
 import {CommandPalette, Footer, styles} from "./CommandPalette.ts";
-import {m} from "../utils.ts";
+import {m} from "../lib/utils.ts";
 import {KeyboardEvent} from "happy-dom";
 
 function keyEvent(key: string): Event {

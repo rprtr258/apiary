@@ -1,7 +1,7 @@
 import {describe, test, expect, mock} from "bun:test";
 import RequestDIFF from "./RequestDIFF.ts";
-import {signal} from "./utils.ts";
-import * as t from "@/types/models.ts";
+import {signal} from "./lib/utils.ts";
+import * as t from "@/types.ts";
 import {get_request} from "./store.ts";
 
 const mockRequest: get_request = {

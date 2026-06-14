@@ -1,14 +1,13 @@
 import {ComponentContainer, Tab} from "golden-layout";
-import * as t from "@/types/models.ts";
-import {Kinds, HistoryEntry, Request} from "@/types/types.ts";
-import {m, setDisplay, Signal, signal} from "./utils.ts";
+import * as t from "@/types.ts";
+import {Kinds, HistoryEntry, Request} from "@/types.ts";
+import {m, setDisplay, Signal, signal} from "./lib/utils.ts";
+import notification from "./lib/notification.ts";
 import {
   StateRequest, StateHTTPSourceEndpoint, StateSQLSourceTable,
-  Store,
   get_request, handleCloseTab, updateLocalstorage, update_request, send, last_history_entry,
-  store,
+  Store, store,
 } from "./store.ts";
-import notification from "./notification.ts";
 import layout from "./layout.ts";
 import {NInput} from "./components/input.ts";
 import {NModal, NSplit} from "./components/layout.ts";

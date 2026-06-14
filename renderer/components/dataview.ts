@@ -1,5 +1,5 @@
-import {css} from "../styles.ts";
-import {clone, m, DOMNode} from "../utils.ts";
+import {css} from "../lib/styles.ts";
+import {clone, m, DOMNode} from "../lib/utils.ts";
 import {ResultInfo, FolderOpenOutlined, FolderOutlined} from "./icons.ts";
 
 export function Json<T>(props: {data: T}) {

@@ -1,7 +1,7 @@
 import {describe, test, expect, mock} from "bun:test";
 import RequestSQL from "./RequestSQL.ts";
-import {signal} from "./utils.ts";
-import * as t from "@/types/models.ts";
+import {signal} from "./lib/utils.ts";
+import * as t from "@/types.ts";
 import {get_request} from "./store.ts";
 
 const mockRequest: get_request = {
@@ -9,7 +9,7 @@ const mockRequest: get_request = {
     id: "test-id",
     path: "",
     kind: t.Kind.SQL,
-    database: t.Database.POSTGRES,
+    database: "postgres",
     dsn: "test-dsn",
     query: "SELECT * FROM test",
   },
@@ -18,7 +18,7 @@ const mockRequest: get_request = {
       sent_at: new Date(),
       received_at: new Date(),
       kind: t.Kind.SQL,
-      request: {dsn: "", database: t.Database.POSTGRES, query: ""},
+      request: {dsn: "", database: "postgres", query: ""},
       response: {
         columns: ["id", "name"],
         types: ["int", "string"],
@@ -52,7 +52,7 @@ describe("RequestSQL", () => {
       sent_at: new Date(),
       received_at: new Date(),
       kind: t.Kind.SQL,
-      request: {dsn: "", database: t.Database.POSTGRES, query: ""},
+      request: {dsn: "", database: "postgres", query: ""},
       response: {
         columns: ["id", "name"],
         types: ["int", "string"],
@@ -83,7 +83,7 @@ describe("RequestSQL", () => {
       sent_at: new Date(),
       received_at: new Date(),
       kind: t.Kind.SQL,
-      request: {dsn: "", database: t.Database.POSTGRES, query: ""},
+      request: {dsn: "", database: "postgres", query: ""},
       response: {
         columns: [],
         types: [],

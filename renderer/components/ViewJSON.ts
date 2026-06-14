@@ -1,11 +1,10 @@
 import {EditorState} from "@codemirror/state";
 import {EditorView} from "@codemirror/view";
 import {json} from "@codemirror/lang-json";
-import {transform} from "../utils.ts";
+import {m, transform} from "../lib/utils.ts";
 import {NInput} from "./input.ts";
 import {NTooltip} from "./dataview.ts";
 import {defaultExtensions} from "./editor.ts";
-import {m} from "../utils.ts";
 
 export default function(init_value: string) {
   const state = {

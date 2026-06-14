@@ -68,7 +68,7 @@ cd frontend && bun run build
 
 ### 2. Build Application
 ```bash
-wails build
+bun run dist
 ```
 
 ### 3. Test End-to-End

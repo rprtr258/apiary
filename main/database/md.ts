@@ -1,6 +1,6 @@
 import {marked} from "marked";
 import sanitizeHtml from "sanitize-html";
-import type {MDRequest, MDResponse} from "@/types/models.ts";
+import type {MDRequest, MDResponse} from "@/types.ts";
 import txt from "./default.md" with {type: "text"};
 
 export const DefaultMarkdown: MDRequest = {data: txt};

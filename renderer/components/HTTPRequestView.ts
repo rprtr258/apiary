@@ -1,7 +1,7 @@
-import * as t from "@/types/models.ts";
-import {HistoryEntry, Method as Methods, HTTPCodes} from "@/types/types.ts";
-import {m, setDisplay, Signal, signal} from "../utils.ts";
-import notification from "../notification.ts";
+import * as t from "@/types.ts";
+import {HistoryEntry, Method as Methods, HTTPCodes} from "@/types.ts";
+import {m, setDisplay, Signal, signal} from "../lib/utils.ts";
+import notification from "../lib/notification.ts";
 import {NInputGroup, NInput, NSelect, NButton} from "./input.ts";
 import {NTabs, NSplit} from "./layout.ts";
 import {NTag, NTable, NEmpty} from "./dataview.ts";

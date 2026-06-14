@@ -1,13 +1,12 @@
-import * as t from "@/types/models.ts";
+import * as t from "@/types.ts";
 import {NEmpty, NIcon, NList, NListItem, NTag, NTree, TagType, treeLabelClass, TreeOption} from "./components/dataview.ts";
 import {ContentCopyFilled, CopySharp, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, EditOutlined, Refresh} from "./components/icons.ts";
 import {NSelect} from "./components/input.ts";
 import {NScrollbar, NTabs} from "./components/layout.ts";
 import {api} from "./api.ts";
-import {HistoryEntry, Kinds} from "@/types/types.ts";
 import {store} from "./store.ts";
-import notification from "./notification.ts";
-import {clamp, DOMNode, m, setDisplay, signal} from "./utils.ts";
+import notification from "./lib/notification.ts";
+import {clamp, DOMNode, m, setDisplay, signal} from "./lib/utils.ts";
 import {useLocalStorage} from "./lib/localStorage.ts";
 
 function basename(id: string): string {
@@ -152,7 +151,7 @@ function httpMethodProps(method: string): HTTPMethodProps {
   return {...colors, tagType};
 }
 
-type Kind = typeof Kinds[number];
+type Kind = typeof t.Kinds[number];
 export const newRequestKind = signal<Kind | undefined>(undefined);
 export const newRequestName = signal<string | undefined>(undefined);
 export const renameID = signal<string | undefined>(undefined);
@@ -827,11 +826,11 @@ export const sidebar = function() {
       new_select.reset();
     }},
     placeholder: "New",
-    options: Kinds.map((kind: t.Kind) => ({label: kind.toUpperCase(), value: kind})),
+    options: t.Kinds.map((kind: t.Kind) => ({label: kind.toUpperCase(), value: kind})),
   });
 
   // TODO: whole history in reverse order
-  const history = [] as HistoryEntry[];
+  const history = [] as t.HistoryEntry[];
 
   const el = m("aside", {style: {
     color: "rgba(255, 255, 255, 0.82)",

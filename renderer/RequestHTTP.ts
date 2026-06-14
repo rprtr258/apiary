@@ -1,7 +1,6 @@
-import * as t from "@/types/models.ts";
-import {type HistoryEntry} from "@/types/types.ts";
+import * as t from "@/types.ts";
 import {type get_request} from "./store.ts";
-import {Signal} from "./utils.ts";
+import {Signal} from "./lib/utils.ts";
 import HTTPRequestView, {HTTPRequestViewResult} from "./components/HTTPRequestView.ts";
 
 type Request = t.HTTPRequest;
@@ -15,7 +14,7 @@ export default function(
   },
 ): {
   loaded(r: get_request): void,
-  push_history_entry(he: HistoryEntry): void,
+  push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 } {
   let httpRequestView: HTTPRequestViewResult | null = null;
@@ -50,7 +49,7 @@ export default function(
         history: r.history,
       });
     },
-    push_history_entry(he: HistoryEntry) {
+    push_history_entry(he: t.HistoryEntry) {
       httpRequestView?.push_history_entry(he);
     },
     unmount() {

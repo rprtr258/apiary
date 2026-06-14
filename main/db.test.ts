@@ -1,6 +1,6 @@
 import {describe, test, expect, mock, expectTypeOf} from "bun:test";
-import * as t from "@/types/models.ts";
-import {type DB, type Request, generateID, load, create, Delete, rename, update, createResponse, HistoryEntry2} from "./db.ts";
+import * as t from "@/types.ts";
+import {type DB, type Request, generateID, load, create, Delete, rename, update, createResponse, HistoryEntry} from "./db.ts";
 
 // Mock writeFile to avoid touching disk
 const writeFile = mock(() => Promise.resolve());
@@ -57,7 +57,7 @@ describe("create", () => {
     const db = emptyDB();
     const id = await create(db, t.Kind.SQL, "test-sql", {
       dsn: "postgres://localhost:5432/test",
-      database: t.Database.POSTGRES,
+      database: "postgres",
       query: "SELECT 1",
     });
 
@@ -67,7 +67,7 @@ describe("create", () => {
       Path: "test-sql",
       Data: {
         query: "SELECT 1",
-        database: t.Database.POSTGRES,
+        database: "postgres",
         dsn: "postgres://localhost:5432/test",
       },
       Responses: [],
@@ -167,7 +167,7 @@ describe("createResponse", () => {
 
   test("throws when creating response for non-existent request", () => {
     const db = emptyDB();
-    expect(createResponse(db, "nonexistent", {} as HistoryEntry2)).rejects.toThrow("nonexistent");
+    expect(createResponse(db, "nonexistent", {} as HistoryEntry)).rejects.toThrow("nonexistent");
   });
 });
 

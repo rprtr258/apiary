@@ -2,9 +2,9 @@ import {
   HTTPRequest, SQLRequest,
   HTTPResponse, JQResponse, SQLResponse, GRPCResponse,
   Database, Kind, RequestID,
-} from "@/types/models.ts";
+} from "@/types.ts";
 import {DefaultMarkdown} from "../main/database/md.ts";
-import {create, load, Request, createResponse, HistoryEntry2} from "../main/db.ts";
+import {create, load, Request, createResponse, HistoryEntry} from "../main/db.ts";
 
 const nil = null;
 
@@ -69,15 +69,15 @@ for (const [path, [kind, data]] of Object.entries({
   "Sanya/google":              h("http://google.com", "POST", "", []),
   "Sanya/sanya_1":             h("http://google.com", "GET", "", []),
   "Sanya/subdir/test-create":  h("https://webhook-test.mautic.com/1kzqk261", "POST", "axaxaxaxa", [["xxx", "yyy"]]),
-  "sqlborn": s("host=localhost user=postgres password=a port=5432 dbname=infrastructure-api-team sslmode=disable", Database.POSTGRES, `-- select * from resource_type
+  "sqlborn": s("host=localhost user=postgres password=a port=5432 dbname=infrastructure-api-team sslmode=disable", "postgres", `-- select * from resource_type
 -- select * from environment
 select now();`),
-  "Sanya/test-sql": s("host=localhost user=postgres password=a port=5432 dbname=infrastructure-api-team sslmode=disable", Database.POSTGRES, `SELECT *
+  "Sanya/test-sql": s("host=localhost user=postgres password=a port=5432 dbname=infrastructure-api-team sslmode=disable", "postgres", `SELECT *
 FROM environment
 ORDER BY id`),
   "work-beekeeper": [Kind.SQLSource, {
     "dsn": "/home/rprtr258/Downloads/home/.config/beekeeper-studio/app.db",
-    "database": Database.SQLITE,
+    "database": "sqlite",
   }],
 } as Record<string, [Kind, Request["Data"]]>)) {
   const id = await create(db, kind, path, data);
@@ -378,6 +378,6 @@ for (const [path, entries] of Object.entries({
 } as Record<string, [sent_at: string, received_at: string, response: unknown][]>)) {
   const id = ids[path];
   for (const [sent_at, received_at, response] of entries) {
-    createResponse(db, id, {SentAt: time(sent_at), ReceivedAt: time(received_at), Response: response} as HistoryEntry2);
+    createResponse(db, id, {SentAt: time(sent_at), ReceivedAt: time(received_at), Response: response} as HistoryEntry);
   }
 }

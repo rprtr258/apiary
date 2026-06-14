@@ -1,10 +1,9 @@
 import {ComponentItem, LayoutConfig, ResolvedLayoutConfig} from "golden-layout";
-import * as t from "@/types/models.ts";
+import * as t from "@/types.ts";
 import {api} from "./api.ts";
-import {type RequestData, type HistoryEntry, Request} from "@/types/types.ts";
-import {signal, Signal} from "./utils.ts";
+import {signal, Signal} from "./lib/utils.ts";
 import layout from "./layout.ts";
-import notification from "./notification.ts";
+import notification from "./lib/notification.ts";
 
 export type StateRequest = {
   id: string,
@@ -68,10 +67,10 @@ export function handleCloseTab(id: string) {
 }
 
 export type get_request = {
-  request: Request,
-  history: HistoryEntry[],
+  request: t.Request,
+  history: t.HistoryEntry[],
 };
-export function last_history_entry(request: get_request): HistoryEntry | undefined {
+export function last_history_entry(request: get_request): t.HistoryEntry | undefined {
   return request.history[request.history.length - 1];
 }
 
@@ -86,7 +85,7 @@ export type Store = {
   requestID(): string | null,
   selectRequest(id: string): void,
   fetch(): Promise<void>,
-  createRequest(id: string, kind: RequestData["kind"]): Promise<void>,
+  createRequest(id: string, kind: t.RequestData["kind"]): Promise<void>,
   duplicate(id: string): Promise<void>,
   deleteRequest(id: string): Promise<void>,
   rename(id: string, newID: string): Promise<void>,
@@ -175,7 +174,7 @@ export const store = ((): Store => {
 
       this.requestsTree.update(() => res.Tree);
     },
-    async createRequest(id: string, kind: RequestData["kind"]): Promise<void> {
+    async createRequest(id: string, kind: t.RequestData["kind"]): Promise<void> {
       const res = await api.requestCreate(id, kind);
       if (res.kind === "err") {
         notification.error({title: "Could not create request", error: res.value});
@@ -312,9 +311,9 @@ export async function send(id: string): Promise<void> {
   store.requests2[id].history.push(res.value);
 }
 
-export async function update_request(id: string, patch: Partial<Request>): Promise<void> {
+export async function update_request(id: string, patch: Partial<t.Request>): Promise<void> {
   const old_request = store.requests2[id].request;
-  const new_request = {...old_request, ...patch} as Request;
+  const new_request = {...old_request, ...patch} as t.Request;
   store.requests2[id].request = new_request; // NOTE: optimistic update
   const res = await api.request_update(id, new_request.kind, new_request);
   if (res.kind === "err") {
@@ -336,7 +335,7 @@ export async function get_request(request_id: string): Promise<get_request | nul
   }
 
   // Reshape raw IPC response into frontend types
-  // The IPC Get function returns models.ts shapes ({ID, Path, Data, Responses}),
+  // The IPC Get function returns types.ts shapes ({ID, Path, Data, Responses}),
   // but components expect the flattened types.ts Request ({id, path, kind, ...fields})
   const raw = res.value;
   const kind = store.requests[request_id].kind;
@@ -347,16 +346,16 @@ export async function get_request(request_id: string): Promise<get_request | nul
     id: raw.Request.ID,
     path: raw.Request.Path,
     kind,
-    ...(requestData as Omit<Request, "id" | "path" | "kind">),
-  } as Request;
+    ...(requestData as Omit<t.Request, "id" | "path" | "kind">),
+  } as t.Request;
 
-  const history: HistoryEntry[] = responses.map(r => ({
+  const history: t.HistoryEntry[] = responses.map(r => ({
     sent_at: new Date(r.sent_at),
     received_at: new Date(r.received_at),
     kind,
     request: requestData,
     response: r.response,
-  } as HistoryEntry));
+  } as t.HistoryEntry));
 
   store.requests2[request_id] = {request, history};
   return store.requests2[request_id];

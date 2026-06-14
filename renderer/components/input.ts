@@ -1,5 +1,5 @@
-import {m, DOMNode, setDisplay} from "../utils.ts";
-import {css} from "../styles.ts";
+import {m, DOMNode, setDisplay} from "../lib/utils.ts";
+import {css} from "../lib/styles.ts";
 
 type NInputProps = {
   placeholder?: string,

@@ -1,6 +1,6 @@
 import {readFile, writeFile} from "fs/promises";
 import {nanoid} from "nanoid";
-import * as t from "@/types/models.ts";
+import * as t from "@/types.ts";
 
 export function generateID(): t.RequestID {
   return nanoid();
@@ -33,19 +33,19 @@ type v1 = {
   [t.Kind.HTTPSource]: Record<t.RequestID, t.HTTPSourceRequest>,
 };
 
-type HistoryEntry<_Req, Resp> = {
+type historyEntry<_Req, Resp> = {
   SentAt: Date,
   ReceivedAt: Date,
   // Request: Req, // TODO: use
   Response: Resp,
 };
 
-export type HistoryEntry2 = // TODO: just Request["Responses"][number]
-  | HistoryEntry<t.HTTPRequest, t.HTTPResponse>
-  | HistoryEntry<t.SQLRequest, t.SQLResponse>
-  | HistoryEntry<t.JQRequest, t.JQResponse>
-  | HistoryEntry<t.RedisRequest, t.RedisResponse>
-  | HistoryEntry<t.GRPCRequest, t.GRPCResponse>
+export type HistoryEntry = // TODO: just Request["Responses"][number]
+  | historyEntry<t.HTTPRequest, t.HTTPResponse>
+  | historyEntry<t.SQLRequest, t.SQLResponse>
+  | historyEntry<t.JQRequest, t.JQResponse>
+  | historyEntry<t.RedisRequest, t.RedisResponse>
+  | historyEntry<t.GRPCRequest, t.GRPCResponse>
 ;
 
 export type Request = {
@@ -54,15 +54,15 @@ export type Request = {
 } & (
   | {Kind: t.Kind.HTTP} & {
     Data: t.HTTPRequest,
-    Responses: HistoryEntry<t.HTTPRequest, t.HTTPResponse>[],
+    Responses: historyEntry<t.HTTPRequest, t.HTTPResponse>[],
   }
   | {Kind: t.Kind.SQL} & {
     Data: t.SQLRequest,
-    Responses: HistoryEntry<t.SQLRequest, t.SQLResponse>[],
+    Responses: historyEntry<t.SQLRequest, t.SQLResponse>[],
   }
   | {Kind: t.Kind.JQ} & {
     Data: t.JQRequest,
-    Responses: HistoryEntry<t.JQRequest, t.JQResponse>[],
+    Responses: historyEntry<t.JQRequest, t.JQResponse>[],
   }
   | {Kind: t.Kind.MD} & {
     Data: t.MDRequest,
@@ -70,11 +70,11 @@ export type Request = {
   }
   | {Kind: t.Kind.REDIS} & {
     Data: t.RedisRequest,
-    Responses: HistoryEntry<t.RedisRequest, t.RedisResponse>[],
+    Responses: historyEntry<t.RedisRequest, t.RedisResponse>[],
   }
   | {Kind: t.Kind.GRPC} & {
     Data: t.GRPCRequest,
-    Responses: HistoryEntry<t.GRPCRequest, t.GRPCResponse>[],
+    Responses: historyEntry<t.GRPCRequest, t.GRPCResponse>[],
   }
   | {Kind: t.Kind.DIFF} & {
     Data: t.DIFFRequest,
@@ -289,12 +289,12 @@ export async function update(
 export async function createResponse(
   j: DB,
   id: t.RequestID,
-  response: HistoryEntry2,
+  response: HistoryEntry,
 ): Promise<void> {
   if (!(id in j))
     throw new Error(`request ${id} not found`);
 
   const req = j[id];
-  (req.Responses as HistoryEntry2[]).push(response);
+  (req.Responses as HistoryEntry[]).push(response);
   await save(j);
 }

@@ -1,15 +1,14 @@
 import {EditorState, RangeSetBuilder} from "@codemirror/state";
 import {EditorView, ViewPlugin, ViewUpdate, Decoration} from "@codemirror/view";
 import {json} from "@codemirror/lang-json";
-import * as t from "@/types/models.ts";
+import * as t from "@/types.ts";
 import {NEmpty} from "./components/dataview.ts";
 import {NSplit} from "./components/layout.ts";
 import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
 import {get_request} from "./store.ts";
-import {HistoryEntry} from "@/types/types.ts";
 import {api} from "./api.ts";
-import {m, Signal} from "./utils.ts";
-import {css} from "./styles.ts";
+import {m, Signal} from "./lib/utils.ts";
+import {css} from "./lib/styles.ts";
 
 // Add diff highlighting CSS styles
 const diffAddedLineCl = css(`
@@ -120,7 +119,7 @@ export default function(
   },
 ): {
   loaded(r: get_request): void,
-  push_history_entry(he: HistoryEntry): void,
+  push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 } {
   el.append(NEmpty({description: "Loading request..."}));
@@ -254,7 +253,7 @@ export default function(
       update_diff(); // Initial diff
     },
 
-    push_history_entry(_he: HistoryEntry) {
+    push_history_entry(_he: t.HistoryEntry) {
       // No history storage for DIFF plugin
     },
 

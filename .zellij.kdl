@@ -17,12 +17,12 @@ layout {
   }
   tab name="dev" {
     pane {
-      command "wails"
-      args "dev"
+      command "bun"
+      args "run" "_start"
     }
   }
   tab name="ai" {
-    pane command="opencode"
+    pane command="pi"
   }
   tab name="shell" {
     pane

@@ -3,11 +3,11 @@ import mysql from "mysql2/promise.js";
 import sqlite3 from "sqlite3";
 import {open} from "sqlite";
 import {createClient} from "@clickhouse/client";
-import {ColumnType, Database, type SQLRequest, type SQLResponse} from "@/types/models.ts";
+import {ColumnType, type SQLRequest, type SQLResponse} from "@/types.ts";
 
 export const EmptyRequest: SQLRequest = {
   dsn: ":memory:", // TODO: insert last dsn used
-  database: Database.SQLITE,
+  database: "sqlite",
   query: "SELECT 1",
 };
 
@@ -33,10 +33,10 @@ function convertTypes(columns: number, rows: unknown[][]): ColumnType[] {
 
 export async function sendSQL(request: SQLRequest): Promise<SQLResponse> {
   switch (request.database) {
-  case Database.POSTGRES:   return sendPostgres(request);
-  case Database.MYSQL:      return sendMySQL(request);
-  case Database.SQLITE:     return sendSQLite(request);
-  case Database.CLICKHOUSE: return sendClickHouse(request);
+  case "postgres":   return sendPostgres(request);
+  case "mysql":      return sendMySQL(request);
+  case "sqlite":     return sendSQLite(request);
+  case "clickhouse": return sendClickHouse(request);
   default:
     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     throw new Error(`unsupported database type: ${request.database}`);

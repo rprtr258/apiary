@@ -1,14 +1,13 @@
 import {EditorState} from "@codemirror/state";
 import {EditorView, ViewPlugin, ViewUpdate} from "@codemirror/view";
 import {markdown} from "@codemirror/lang-markdown";
-import * as t from "@/types/models.ts";
+import * as t from "@/types.ts";
 import {NEmpty} from "./components/dataview.ts";
 import {NSplit} from "./components/layout.ts";
 import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
 import {get_request} from "./store.ts";
-import {HistoryEntry} from "@/types/types.ts";
 import {api} from "./api.ts";
-import {m, Signal} from "./utils.ts";
+import {m, Signal} from "./lib/utils.ts";
 
 type Request = {kind: t.Kind.MD} & t.MDRequest;
 
@@ -59,7 +58,7 @@ export default function(
   },
 ): {
   loaded(r: get_request & {request: Request}): void,
-  push_history_entry(he: HistoryEntry): void,
+  push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 } {
   el.append(NEmpty({description: "Loading request..."}));

@@ -1,6 +1,6 @@
 import {dereference} from "@apidevtools/swagger-parser";
 import type {OpenAPI, OpenAPIV2, OpenAPIV3, OpenAPIV3_1} from "openapi-types";
-import type {HTTPSourceRequest, HTTPRequest, EndpointInfo, ParameterInfo, MediaTypeInfo, RequestBodyInfo, ResponseInfo, AuthConfig, KV, JSONSchema} from "@/types/models.ts";
+import type {HTTPSourceRequest, HTTPRequest, EndpointInfo, ParameterInfo, MediaTypeInfo, RequestBodyInfo, ResponseInfo, AuthConfig, KV, JSONSchema} from "@/types.ts";
 
 type PathItemObject    = OpenAPIV2.PathItemObject     |   OpenAPIV3.PathItemObject    | OpenAPIV3_1.PathItemObject;
 type OperationObject   = OpenAPIV2.OperationObject    |   OpenAPIV3.OperationObject   | OpenAPIV3_1.OperationObject;

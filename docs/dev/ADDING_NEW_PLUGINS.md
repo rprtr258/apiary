@@ -220,21 +220,15 @@ Create `frontend/src/Request<NAME>.test.ts` with:
 
 #### 3.1 Run Tests
 ```bash
-# Backend tests
-go test ./internal/database/... -v
-go test ./internal/... -v
-
-# Frontend type checking
-cd frontend && bun run ci
-
-# Frontend build
-cd frontend && bun run build
+bun run test
+bun run ci
+bun run build
 ```
 
 #### 3.2 Build Application
 ```bash
 # Full application build
-wails build
+bun run dist
 ```
 
 #### 3.3 Test End-to-End
@@ -280,9 +274,8 @@ wails build
 3. Run `bun run ci` for frontend type checking
 
 ### Build Failures
-1. Run `go test ./internal/...` for backend issues
-2. Run `cd frontend && bun run build` for frontend issues
-3. Check Wails bindings generation
+1. Run `bun run test` for test issues
+2. Run `bun run build` for build issues
 
 ### Database Migration Issues
 If adding 12th+ plugin:

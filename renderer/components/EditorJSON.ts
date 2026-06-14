@@ -4,7 +4,7 @@ import {json} from "@codemirror/lang-json";
 import {jsonSchema} from "codemirror-json-schema";
 import type {JSONSchema7} from "json-schema";
 import {defaultEditorExtensions, defaultExtensions} from "./editor.ts";
-import {m} from "../utils.ts";
+import {m} from "../lib/utils.ts";
 
 type Props = {
   value: string | null,

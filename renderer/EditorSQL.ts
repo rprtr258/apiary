@@ -2,7 +2,7 @@ import {EditorState} from "@codemirror/state";
 import {EditorView} from "@codemirror/view";
 import {PostgreSQL, sql} from "@codemirror/lang-sql";
 import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
-import {m} from "./utils.ts";
+import {m} from "./lib/utils.ts";
 
 type Props = {
   class?: string,

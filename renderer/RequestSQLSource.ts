@@ -1,8 +1,7 @@
-import * as t from "@/types/models.ts";
-import {Database} from "@/types/types.ts";
+import * as t from "@/types.ts";
 import {api} from "./api.ts";
 import {get_request} from "./store.ts";
-import {m} from "./utils.ts";
+import {m} from "./lib/utils.ts";
 import {NEmpty} from "./components/dataview.ts";
 import {NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {NTabs} from "./components/layout.ts";
@@ -64,12 +63,12 @@ export default function(
         },
       }, [
         NSelect({
-          label: Database[request.database],
+          label: t.Database[request.database],
           options: Object
-            .keys(Database)
-            .map(db => db as keyof typeof Database)
-            .map(db => ({label: Database[db], value: db})),
-          on: {update: (database: string) => update_request({database: database as Database})},
+            .keys(t.Database)
+            .map(db => db as keyof typeof t.Database)
+            .map(db => ({label: t.Database[db], value: db})),
+          on: {update: (database: string) => update_request({database: database as t.Database})},
         }).el,
         m("div", {style: {
           display: "flex",

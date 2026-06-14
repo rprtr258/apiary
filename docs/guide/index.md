@@ -34,7 +34,7 @@ Apiary is built with:
 
 - **Backend**: Go (Golang) for request execution and plugin system
 - **Frontend**: Vanilla TypeScript with no frameworks
-- **Desktop Framework**: Wails for native desktop integration
+- **Desktop Framework**: electron for cross-platform desktop integration
 - **UI Components**: GoldenLayout for window management, CodeMirror for editors
 - **Storage**: JSON file with versioning and migration support
 

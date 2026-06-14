@@ -1,6 +1,5 @@
-import * as t from "@/types/models.ts";
-import {Result, try_} from "./result.ts";
-import {HistoryEntry, RequestData} from "@/types/types.ts";
+import * as t from "@/types.ts";
+import {Result, try_} from "@/result.ts";
 import {Request} from "../main/db.ts";
 
 const Api = window.api;
@@ -32,7 +31,7 @@ export const api = {
     // TODO: it seems that is not needed, remove if so
     return y.map((y: t.GetResponse) => {
       // NOTE: BEWARE, DIRTY TYPESCRIPT HACKS HERE
-      const history = y.History as unknown as HistoryEntry[];
+      const history = y.History as unknown as t.HistoryEntry[];
       for (const req of history) {
         req.sent_at = parseTime(req.sent_at as unknown as string);
       }
@@ -56,7 +55,7 @@ export const api = {
   async request_update(
     id: string,
     kind: t.Kind,
-    req: Omit<RequestData, "kind">,
+    req: Omit<t.RequestData, "kind">,
   ): Promise<Result<void>> {
     return await wrap(() => Api.Update(id, req as Request["Data"]), {reqId: id, kind, req});
   },
@@ -70,8 +69,8 @@ export const api = {
 
   async requestPerform(
     id: string,
-  ): Promise<Result<HistoryEntry>> {
-    return await wrap(() => Api.Perform(id), {reqId: id}) as Result<HistoryEntry>;
+  ): Promise<Result<t.HistoryEntry>> {
+    return await wrap(() => Api.Perform(id), {reqId: id}) as Result<t.HistoryEntry>;
   },
 
   async requestDelete(
@@ -87,8 +86,8 @@ export const api = {
   async requestPerformSQLSource(
     id: string,
     query: string,
-  ): Promise<Result<HistoryEntry>> {
-    return await wrap(() => Api.PerformSQLSource(id, query), {reqId: id, query}) as Result<HistoryEntry>;
+  ): Promise<Result<t.HistoryEntry>> {
+    return await wrap(() => Api.PerformSQLSource(id, query), {reqId: id, query}) as Result<t.HistoryEntry>;
   },
 
   async requestTestSQLSource(
@@ -134,11 +133,11 @@ export const api = {
     sourceID: string,
     endpointIndex: number,
     request: t.HTTPRequest,
-  ): Promise<Result<HistoryEntry>> {
+  ): Promise<Result<t.HistoryEntry>> {
     // The Go function expects *t.HTTPRequest (pointer) which can be nil
     // The TypeScript definition doesn't reflect this, so we need to cast
     return await wrap(() => Api.PerformVirtualEndpointHTTPSource(sourceID, endpointIndex, request),
-      {sourceID, endpointIndex, request}) as Result<HistoryEntry>;
+      {sourceID, endpointIndex, request}) as Result<t.HistoryEntry>;
   },
 
   async requestTestHTTPSource(

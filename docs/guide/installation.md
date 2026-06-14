@@ -38,32 +38,19 @@ apiary-windows-amd64.exe
 ## Building from Source
 
 ### Prerequisites
-
-- **Go 1.25+**: [Install Go](https://go.dev/dl/)
 - **Bun 1.3.14+**: [Install Bun](https://bun.sh/)
-- **Wails CLI v2.11.0+**: [Install Wails](https://wails.io/docs/gettingstarted/installation/)
 
 ### Build Steps
-
-1. Clone the repository:
-
 ```bash
+# Clone the repository:
 git clone https://github.com/rprtr258/apiary.git
 cd apiary
-```
 
-2. Install frontend dependencies:
-
-```bash
-cd frontend
+# Install dependencies:
 bun install
-cd ..
-```
 
-3. Build the application:
-
-```bash
-wails build
+# Build the application:
+bun run dist
 ```
 
 The built binary will be located in `build/bin/`:
@@ -76,7 +63,7 @@ The built binary will be located in `build/bin/`:
 To run Apiary in development mode with hot reload:
 
 ```bash
-wails dev
+bun run _start
 ```
 
 ## First Run

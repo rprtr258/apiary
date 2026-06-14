@@ -1,6 +1,6 @@
 import {diffLines} from "diff";
-import type {DIFFRequest, DIFFResponse} from "@/types/models.ts";
-import {type JSONValue} from "@/types/types.ts";
+import type {DIFFRequest, DIFFResponse} from "@/types.ts";
+import {type JSONValue} from "@/types.ts";
 
 export function detectType(s: string): "json" | "text" {
   try { JSON.parse(s); return "json"; }
