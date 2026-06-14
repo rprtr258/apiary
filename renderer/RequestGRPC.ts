@@ -89,10 +89,7 @@ export default function(
     }
   };
 
-  let methods : {
-    service: string,
-    methods: string[],
-  }[] = [];
+  let methods: {[service: string]: string[]} = {};
   let loading_methods = false;
   return {
     loaded: (r: get_request): void => {
@@ -116,11 +113,11 @@ export default function(
       }, "Send");
 
       // TODO: group by service
-      const selectOptions = methods.flatMap(svc => [{
-        label: svc.service,
-      }, ...svc.methods.map(method => ({
+      const selectOptions = Object.entries(methods).sort(([s1], [s2]) => s1.localeCompare(s2)).flatMap(([service, methods]) => [{
+        label: service,
+      }, ...methods.map(method => ({
         label: method,
-        value: svc.service + "." + method,
+        value: service + "." + method,
       }))]);
 
       const request = r.request as Request;

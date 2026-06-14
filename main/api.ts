@@ -195,7 +195,7 @@ export async function Perform(id: t.RequestID): Promise<PerformResponse> {
   };
 }
 
-export async function GRPCMethods(id: t.RequestID): Promise<t.grpcServiceMethods[]> {
+export async function GRPCMethods(id: t.RequestID): Promise<Record<string, string[]>> {
   const req = await get(id);
   if (req.Kind !== t.Kind.GRPC)
     throw new Error(`query kind is ${req.Kind}, expected grpc`);

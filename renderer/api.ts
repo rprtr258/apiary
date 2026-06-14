@@ -80,7 +80,7 @@ export const api = {
     return await wrap(() => Api.Delete(id), {reqId: id});
   },
 
-  async grpcMethods(target: string): Promise<Result<t.grpcServiceMethods[]>> {
+  async grpcMethods(target: string): Promise<Result<Record<string, string[]>>> {
     return await wrap(() => Api.GRPCMethods(target), {target});
   },
 

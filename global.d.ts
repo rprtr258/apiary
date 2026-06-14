@@ -14,7 +14,7 @@ export interface Api {
   DescribeTableSQLSource:           (arg1:string, arg2:string                    ) => Promise<t.TableSchema>,
   Duplicate:                        (arg1:string                                 ) => Promise<t.ResponseNewRequest>,
   FetchSpecHTTPSource:              (arg1:string                                 ) => Promise<void>,
-  GRPCMethods:                      (arg1:string                                 ) => Promise<t.grpcServiceMethods[]>,
+  GRPCMethods:                      (arg1:string                                 ) => Promise<Record<string, string[]>>,
   GRPCQueryFake:                    (arg1:string, arg2:string                    ) => Promise<string>,
   GRPCQueryValidate:                (arg1:string, arg2:string, arg3:string       ) => Promise<void>,
   GenerateExampleRequestHTTPSource: (arg1:string, arg2:number                    ) => Promise<t.HTTPRequest>,

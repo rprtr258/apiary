@@ -1,7 +1,7 @@
 import * as grpc from "@grpc/grpc-js";
 import protobuf from "protobufjs";
 import "protobufjs/ext/descriptor";
-import type {GRPCRequest, GRPCResponse, grpcServiceMethods, JSONSchema, KV} from "@/types/models.ts";
+import type {GRPCRequest, GRPCResponse, JSONSchema, KV} from "@/types/models.ts";
 import type {JSONValue} from "@/types/types.ts";
 import descriptorJson from "protobufjs/google/protobuf/descriptor.json" with {type: "json"};
 import reflectionProtoDefinition from "./reflection.proto" with {type: "text"};
@@ -509,17 +509,13 @@ function metadataToKV(md: grpc.Metadata): KV[] {
 
 /**
  * List gRPC service methods via reflection.
- *
- * Ported from internal/plugin_grpc.go:
- *   - Go uses grpcreflect/grpcurl to discover services/methods
- *   - TS uses grpc.reflection.v1alpha.ServerReflection protocol
  */
-export async function grpcMethods(target: string): Promise<grpcServiceMethods[]> {
+export async function grpcMethods(target: string): Promise<Record<string, string[]>> {
   const deadlineMs = 10000;
   const services = await listServicesReflection(target, deadlineMs);
   console.log("SERVICE", services);
 
-  return await Promise.all(services.map(async service => {
+  return Object.fromEntries((await Promise.all(services.map(async service => {
     const fdsBlobs = await getFileDescriptorSetBytes(target, service, deadlineMs);
 
     // Find the service definition and extract method names
@@ -530,7 +526,7 @@ export async function grpcMethods(target: string): Promise<grpcServiceMethods[]>
     });
 
     return {service, methods};
-  }));
+  }))).map(({service, methods}) => [service, methods.sort()]));
 }
 
 // ---------------------------------------------------------------------------

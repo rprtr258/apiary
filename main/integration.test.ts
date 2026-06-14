@@ -3,6 +3,7 @@ import {Database, type SQLRequest, type RedisRequest} from "@/types/models.ts";
 import {sendSQL} from "./database/sql.ts";
 import {listTables, describeTable, countRowsSQLSource, testSQLSource} from "./database/sql_source.ts";
 import {sendRedis} from "./database/redis.ts";
+import {grpcMethods} from "./database/grpc.ts";
 
 
 const pgDSN = process.env.PG_DSN ?? "postgres://postgres:password@localhost:5432/postgres";
@@ -97,5 +98,12 @@ describe("sendRedis", () => {
   test("KEYS returns array", async () => {
     const result = await sendRedis(req("KEYS *"));
     expect(typeof result.response).toBe("string");
+  });
+});
+
+describe("grpc", () => {
+  test("list methods", async () => {
+    const methods = await grpcMethods("localhost:50051");
+    expect(methods).toEqual({"SayHello": ["helloworld.Greeter"]});
   });
 });

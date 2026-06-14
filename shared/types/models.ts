@@ -138,11 +138,6 @@ export type ForeignKey = {
   to: string,
 };
 
-export type grpcServiceMethods = {
-  service: string,
-  methods: string[],
-};
-
 export type GRPCRequest = {
   target: string,
   method: string,
