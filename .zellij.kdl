@@ -19,6 +19,7 @@ layout {
     pane {
       command "bun"
       args "run" "_start"
+      start_suspended true
     }
   }
   tab name="ai" {

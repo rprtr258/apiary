@@ -22,7 +22,7 @@ export default defineConfig({
           build: {
             outDir: "dist-electron",
             rollupOptions: {
-              external: ["sqlite3"],
+              external: ["better-sqlite3"],
             },
           },
         },

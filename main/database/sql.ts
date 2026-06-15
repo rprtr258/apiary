@@ -1,7 +1,6 @@
 import pg from "pg";
 import mysql from "mysql2/promise.js";
-import sqlite3 from "sqlite3";
-import {open} from "sqlite";
+import Database from "better-sqlite3";
 import {createClient} from "@clickhouse/client";
 import {ColumnType, type SQLRequest, type SQLResponse} from "@/types.ts";
 
@@ -77,10 +76,10 @@ async function sendMySQL(request: SQLRequest): Promise<SQLResponse> {
   }
 }
 
-async function sendSQLite(request: SQLRequest): Promise<SQLResponse> {
-  const db = await open({filename: request.dsn, driver: sqlite3.Database});
+function sendSQLite(request: SQLRequest): SQLResponse {
+  const db = new Database(request.dsn);
   try {
-    const rows: Record<string, unknown>[] = await db.all(request.query);
+    const rows = db.prepare(request.query).all() as Record<string, unknown>[];
     if (rows.length === 0) {
       return {columns: [], types: [], rows: []}; // TODO: get column metadata
     }
