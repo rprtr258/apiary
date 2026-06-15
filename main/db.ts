@@ -112,7 +112,15 @@ export function extractSubKind(
 
 export async function load(): Promise<DB> {
   // TODO: migrate db
-  const b = await readFile("db.json");
+  let b: Buffer;
+  try {
+    b = await readFile("db.json");
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      return {};
+    }
+    throw err;
+  }
   const raw = JSON.parse(b.toString()) as v1;
   const j = Object.fromEntries((raw.request ?? []).map(r => [r.id, (() => {
     const kind: Pick<Request, "Data" | "Responses"> = (() => {
