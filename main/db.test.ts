@@ -2,10 +2,17 @@ import {describe, test, expect, mock, expectTypeOf} from "bun:test";
 import * as t from "@/types.ts";
 import {type DB, type Request, generateID, load, create, Delete, rename, update, createResponse, HistoryEntry} from "./db.ts";
 
-// Mock writeFile to avoid touching disk
+// Controllable mock: by default readFile succeeds with "{}"
+// Set mockReadFileErr to throw ENOENT for a specific test
+let mockReadFileErr: Error | null = null;
 const writeFile = mock(() => Promise.resolve());
 mock.module("fs/promises", () => ({
-  readFile: () => Promise.resolve(`{}`),
+  readFile: () => {
+    if (mockReadFileErr !== null) {
+      return Promise.reject(mockReadFileErr);
+    }
+    return Promise.resolve(`{}`);
+  },
   writeFile,
 }));
 
@@ -176,5 +183,20 @@ describe("load", () => {
     // readFile is mocked to return "{}" which is empty
     const db = await load();
     expect(db).toBeTruthy();
+  });
+
+  test("if db.json does not exist, load() should create it", async () => {
+    mockReadFileErr = Object.assign(new Error("ENOENT"), {code: "ENOENT"});
+
+    writeFile.mockClear();
+    try {
+      const db = await load();
+      expect(db).toEqual({});
+      // load() should write an empty DB to disk when file is missing
+      expect(writeFile).toHaveBeenCalled();
+    } finally {
+      mockReadFileErr = null;
+      writeFile.mockClear();
+    }
   });
 });

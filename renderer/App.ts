@@ -1,4 +1,4 @@
-import {ComponentContainer, Tab} from "golden-layout";
+import {ComponentContainer, LayoutConfig, Tab} from "golden-layout";
 import * as t from "@/types.ts";
 import {Kinds, HistoryEntry, Request} from "@/types.ts";
 import {m, setDisplay, Signal, signal} from "./lib/utils.ts";
@@ -288,6 +288,7 @@ const panelkaFactory = (
     },
   });
 
+
   container.on("tab", (tab: Tab): void => {
     eye_unsub = show_request.sub(function*() {
       while (true) {
@@ -342,6 +343,42 @@ const panelkaFactory = (
   return {el};
 };
 
+// Local type for layout config items with mutable content.
+// Golden-layout's types mark content as readonly on ComponentItemConfig, but these are freshly deserialized JSON objects — mutation is safe.
+type LayoutConfigNode = {
+  type: string,
+  content?: LayoutConfigNode[], // TODO: remove this kostyl and do filtering before giving shit to golden layout
+  componentType?: string,
+  componentState?: Record<string, unknown>,
+};
+
+// Remove tabs from layout config that reference requests no longer in the DB.
+// This prevents golden-layout from trying to open tabs with stale IDs.
+function stripStaleTabs(config: LayoutConfig, validIds: Set<string>): void {
+  const root = config.root as LayoutConfigNode | undefined;
+  if (root === undefined)
+    return;
+  root.content = filterContent(root.content, validIds);
+}
+
+function filterContent(content: LayoutConfigNode[] | undefined, validIds: Set<string>): LayoutConfigNode[] | undefined {
+  if (content === undefined)
+    return undefined;
+
+  const filtered: LayoutConfigNode[] = content
+    .filter(item => item.type === "component" && item.componentType === "MyComponent")
+    .filter(item => {
+      const state = item.componentState;
+      return state === undefined || validIds.has(String(state["id"])); // Drop this tab
+    })
+    .map(item => {
+      // Recurse into sub-containers
+      item.content = filterContent(item.content, validIds);
+      return item;
+    });
+  return filtered.length > 0 ? filtered : undefined;
+}
+
 export default function(root: HTMLElement) {
   void store.fetch().then(() => preApp(root, store));
 }
@@ -373,6 +410,8 @@ function preApp(root: HTMLElement, store: Store) {
       app_container.style.gridTemplateColumns = sidebarHidden ? "3em 5px 1fr" : "300px 5px 1fr";
     }
   }());
+
+  stripStaleTabs(store.layoutConfig, new Set(Object.keys(store.requests)));
 
   layout.init(el_layout, store.layoutConfig, {
     "MyComponent": (container, state) => panelkaFactory(container, state as StateRequest),

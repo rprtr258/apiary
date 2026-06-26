@@ -117,7 +117,9 @@ export async function load(): Promise<DB> {
     b = await readFile("db.json");
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      return {};
+      const j: DB = {};
+      await save(j);
+      return j;
     }
     throw err;
   }
