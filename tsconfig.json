@@ -19,7 +19,7 @@
 
     // Emit compiled JS to dist/
     "outDir": "dist",
-    "noEmit": false,
+    "noEmit": true,
 
     // Best practices
     "strict": true,
