@@ -16,7 +16,7 @@ function convertTypes(columns: number, rows: unknown[][]): ColumnType[] {
     return new Array<ColumnType>(columns).fill(ColumnType.STRING); // TODO: unknown fallback
   }
 
-  return Array(columns).map((_, i) => {
+  return Array.from({length: columns}).map((_, i) => {
     const row = rows.map(r => r[i]).filter(r => r !== null);
     return ((): ColumnType => {
       switch (typeof row[0]) {

@@ -24,7 +24,8 @@
     "dist:win": "vite build && electron-builder --win",
     "typecheck": "tsc --noEmit",
     "_start": "vite build && electron .",
-    "gen:grpc": "grpc_tools_node_protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./ --js_out=import_style=commonjs,binary:./ --grpc_out=grpc_js:./ ./scripts/grpc/helloworld.proto && sed -i '1i/* eslint-disable */' ./scripts/grpc/helloworld.ts && sed -i '2i// @ts-nocheck' ./scripts/grpc/helloworld.ts"
+    "gen:grpc": "grpc_tools_node_protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./ --js_out=import_style=commonjs,binary:./ --grpc_out=grpc_js:./ ./scripts/grpc/helloworld.proto && sed -i '1i/* eslint-disable */' ./scripts/grpc/helloworld.ts && sed -i '2i// @ts-nocheck' ./scripts/grpc/helloworld.ts",
+    "kal": "electron-rebuild"
   },
   "peerDependencies": {
     "typescript": "^6.0.3"
@@ -35,6 +36,7 @@
     "@codemirror/lang-json": "^6.0.2",
     "@codemirror/lang-markdown": "^6.5.0",
     "@codemirror/lang-sql": "^6.10.0",
+    "@electron/rebuild": "^4.0.4",
     "@fsegurai/codemirror-theme-github-dark": "^6.2.5",
     "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.1",

@@ -41,7 +41,7 @@ export async function listTables(request: Omit<SQLRequest, "query">): Promise<Ta
       // Approximate size (rough estimate)
       const colRows = (await sendSQL({...request, query: `PRAGMA table_info(${table})`})).rows.map(([_cid, name, _ctype, _notnull, _dflt, _pk]) => name as string);
       const lengthExpr = colRows.map(c => `COALESCE(LENGTH("${c}"),0)`).join(" + ");
-      const [rowCount, sizeBytes] = (await sendSQL({...request, query: `SELECT COUNT(*) AS rows, SUM(${lengthExpr}) AS payload FROM "${table}"`})).rows[0];
+      const [rowCount, sizeBytes] = (await sendSQL({...request, query: `SELECT COUNT(*) AS rows, COALESCE(SUM(${lengthExpr}), 0) AS payload FROM "${table}"`})).rows[0];
       tables.push({name: table, rowCount: rowCount as number, sizeBytes: sizeBytes as number});
     }
     return tables;

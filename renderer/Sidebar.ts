@@ -6,7 +6,7 @@ import {NScrollbar, NTabs} from "./components/layout.ts";
 import {api} from "./api.ts";
 import {store} from "./store.ts";
 import notification from "./lib/notification.ts";
-import {clamp, DOMNode, m, setDisplay, signal} from "./lib/utils.ts";
+import {clamp, DOMNode, formatSize, m, setDisplay, signal} from "./lib/utils.ts";
 import {useLocalStorage} from "./lib/localStorage.ts";
 
 function basename(id: string): string {
@@ -15,19 +15,6 @@ function basename(id: string): string {
 
 function dirname(id: string): string {
   return id.split("/").slice(0, -1).join("/");
-}
-
-const units = ["B", "KiB", "MiB", "GiB", "TiB"] as const;
-function formatSize(bytes: number): string {
-  if (bytes < 1024)
-    return `${bytes} B`;
-
-  const unitIndex = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(1024)),
-    units.length - 1,
-  );
-  const size = bytes / Math.pow(1024, unitIndex);
-  return `${size.toFixed(1)} ${units[unitIndex]}`;
 }
 
 function formatTableLabel(args: {

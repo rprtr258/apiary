@@ -275,3 +275,16 @@ export function setDisplay(el: ToggleDisplayElement, show: boolean): void {
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
+
+const units = ["B", "KiB", "MiB", "GiB", "TiB"] as const;
+export function formatSize(bytes: number): string {
+  if (bytes < 1024)
+    return `${bytes} B`;
+
+  const unitIndex = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
+  const size = bytes / Math.pow(1024, unitIndex);
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
+}
