@@ -9,6 +9,18 @@ import {lintKeymap} from "@codemirror/lint";
 import {githubDark} from "@fsegurai/codemirror-theme-github-dark";
 
 export const defaultExtensions = [
+  // prevent CodeMirror from inserting newline on Ctrl+Enter;
+  // the global keydown handler in App.ts triggers the actual send
+  // Must be before defaultKeymap in extensions so it registers first
+  EditorView.domEventHandlers({
+    keydown: (e: KeyboardEvent) => {
+      if (e.key === "Enter" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+        e.preventDefault();
+        return true;
+      }
+      return false;
+    },
+  }),
   keymap.of([
     ...standardKeymap,
     ...defaultKeymap,
@@ -34,6 +46,7 @@ export function defaultEditorExtensions(onChange: (doc: string) => void): Extens
       ...lintKeymap,
       {key: "Tab", run: indentMore},
     ]),
+
     lineNumbers(),
     highlightActiveLineGutter(),
     history(),
