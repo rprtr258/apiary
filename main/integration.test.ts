@@ -8,8 +8,8 @@ import {grpcMethods} from "./database/grpc.ts";
 
 const pgDSN = process.env.PG_DSN ?? "postgres://postgres:password@localhost:5432/postgres";
 
-function pgRequest(query: string): SQLRequest {
-  return {dsn: pgDSN, database: "postgres", query};
+function pgRequest(query?: string): SQLRequest {
+  return {dsn: pgDSN, database: "postgres", query: query ?? ""};
 }
 
 describe("sendSQL (postgres)", () => {
@@ -45,17 +45,22 @@ describe("SQLSource (postgres)", () => {
   });
 
   test("lists tables", async () => {
-    const tables = await listTables(pgRequest(""));
+    const tables = await listTables(pgRequest());
     expect(tables.some(t => t.name === tableName)).toBe(true);
+    expect(tables).toEqual([
+      {name: "departments", rowCount: 3, sizeBytes: 49152},
+      {name: "employees", rowCount: 4, sizeBytes: 32768},
+      {name: "test_sql_source", rowCount: 2, sizeBytes: 16384},
+    ]);
   });
 
   test("counts rows", async () => {
-    const count = await countRowsSQLSource(pgRequest(""), tableName);
+    const count = await countRowsSQLSource(pgRequest(), tableName);
     expect(count).toBeGreaterThanOrEqual(2);
   });
 
   test("describes table", async () => {
-    const schema = await describeTable(pgRequest(""), tableName);
+    const schema = await describeTable(pgRequest(), tableName);
     expect(schema.columns).toEqual([
       {
         name: "id",
@@ -73,7 +78,7 @@ describe("SQLSource (postgres)", () => {
   });
 
   test("pings with SELECT 1", async () => {
-    await testSQLSource(pgRequest(""));
+    await testSQLSource(pgRequest());
   });
 });
 

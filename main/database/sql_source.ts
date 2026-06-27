@@ -10,27 +10,31 @@ export async function listTables(request: Omit<SQLRequest, "query">): Promise<Ta
   const tables = await (async (): Promise<TableInfo[]> => {
   switch (request.database) {
   case "postgres": {
-    const tablesResult = await sendSQL({...request, query: `
-      SELECT
-        t.tablename,
-        COALESCE(s.n_live_tup, 0) as row_count,
-        pg_total_relation_size(t.schemaname || '.' || t.tablename) as size_bytes
-      FROM pg_catalog.pg_tables t
-      LEFT JOIN pg_stat_user_tables s ON t.tablename = s.relname AND t.schemaname = s.schemaname
-      WHERE t.schemaname NOT IN ('pg_catalog', 'information_schema')
-    `});
-    return tablesResult.rows.map(([name, rowCount, sizeBytes]): TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
+    const tablesResult = await sendSQL({...request, query: `SELECT
+  tablename,
+  (xpath('/row/c/text()', query_to_xml(
+    format('SELECT count(*) AS c FROM %I.%I', schemaname, tablename),
+    false, true, ''
+  )))[1]::text::bigint as row_count,
+  pg_total_relation_size(schemaname || '.' || tablename) as size_bytes
+FROM pg_catalog.pg_tables
+WHERE schemaname NOT IN ('pg_catalog', 'information_schema')`});
+    return tablesResult
+      .rows
+      .map(([name, rowCount, sizeBytes]): TableInfo => ({
+        name: name as string,
+        rowCount: Number(rowCount),
+        sizeBytes: Number(sizeBytes),
+      }));
   }
   case "mysql": {
     const dbName = (await sendSQL({...request, query: "SELECT DATABASE()"})).rows[0][0] as string;
-    const tablesResult = await sendSQL({...request, query: `
-      SELECT
-        table_name,
-        table_rows,
-        data_length + index_length
-      FROM information_schema.TABLES
-      WHERE table_schema = '${dbName}'
-    `}); // TODO: pass dbname as arg
+    const tablesResult = await sendSQL({...request, query: `SELECT
+  table_name,
+  table_rows,
+  data_length + index_length
+FROM information_schema.TABLES
+WHERE table_schema = '${dbName}'`}); // TODO: pass dbname as arg
     return tablesResult.rows.map(([name, rowCount, sizeBytes]): TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
   }
   case "sqlite": {
@@ -47,14 +51,12 @@ export async function listTables(request: Omit<SQLRequest, "query">): Promise<Ta
     return tables;
   }
   case "clickhouse": {
-    return (await sendSQL({...request, query: `
-      SELECT
-        name,
-        total_rows,
-        total_bytes
-      FROM system.tables
-      WHERE database = currentDatabase()
-    `})).rows.map(([name, rowCount, sizeBytes]): TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
+    return (await sendSQL({...request, query: `SELECT
+  name,
+  total_rows,
+  total_bytes
+FROM system.tables
+WHERE database = currentDatabase()`})).rows.map(([name, rowCount, sizeBytes]): TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
   }
   default:
     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions

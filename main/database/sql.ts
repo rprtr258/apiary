@@ -43,8 +43,12 @@ export async function sendSQL(request: SQLRequest): Promise<SQLResponse> {
 }
 
 async function sendPostgres(request: SQLRequest): Promise<SQLResponse> {
+  let {dsn} = request;
+  if (!dsn.startsWith("postgres://"))
+    dsn = `postgres://${dsn}`;
+
   // TODO: parse dsn like host=localhost user=postgres password=password port=5432 dbname=postgres sslmode=disable
-  const client = new pg.Client({connectionString: request.dsn, ssl: {rejectUnauthorized: false}});
+  const client = new pg.Client({connectionString: dsn, ssl: false});
   await client.connect();
   try {
     const result = await client.query(request.query);
