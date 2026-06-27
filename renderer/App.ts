@@ -93,7 +93,7 @@ function getCommandPaletteItems(): Item[] {
           label: "Run",
           shortcut: ["Ctrl", "Enter"],
           perform: () => {
-            send(currentID);
+            activeFrameSend?.();
           },
         },
         {
@@ -247,6 +247,7 @@ type Panelka = {
 type Frame = {
   loaded(r: get_request): void,
   push_history_entry?(he: HistoryEntry): void, // show last history entry
+  send?: () => Promise<void>,
   unmount(): void,
 };
 
@@ -273,6 +274,9 @@ function createFrame(
       return RequestHTTPSource(el, {update: on.update});
   }
 }
+
+// Track send handler for the active frame so keyboard shortcuts (Ctrl+Enter) also render results
+let activeFrameSend: (() => Promise<void>) | undefined;
 
 const panelkaFactory = (
   container: ComponentContainer,
@@ -306,6 +310,8 @@ const panelkaFactory = (
     // Track when this tab becomes active
     container.on("show", () => {
       store.activeComponentID = id;
+      // reuse frame's send wrapper that includes push_history_entry
+      activeFrameSend = frame.send;
     });
     container.on("destroy", () => {
       eye_unsub();
@@ -313,6 +319,7 @@ const panelkaFactory = (
       // Clear active component ID if this was the active component
       if (store.activeComponentID === id) {
         store.activeComponentID = null;
+        activeFrameSend = undefined;
       }
     });
 
@@ -338,6 +345,9 @@ const panelkaFactory = (
     },
     eye,
   );
+  frame.send = () => send(id).then(_ => {
+    frame.push_history_entry?.(last_history_entry(store.requests2[id])!);
+  });
   const frame_unsub = () => frame.unmount();
   get_request(id).then(r => r !== null && frame.loaded(r));
   return {el};
@@ -589,7 +599,7 @@ function preApp(root: HTMLElement, store: Store) {
       if (currentID === null) {
         return;
       }
-      send(currentID);
+      activeFrameSend?.();
     }
 
     // Check for Ctrl+W - Close tab
