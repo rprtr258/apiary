@@ -1,124 +1,103 @@
 # apiary
 
 <img align="right" width="95" height="95"
-   alt="Philosopher’s stone, logo of PostCSS"
+   alt="apiary logo"
    src="docs/public/logo.svg">
 
-A cross-platform desktop application for managing API requests (HTTP, SQL, gRPC, Redis, JQ, Markdown, SQLSource, HTTPSource) using `electron` and vanilla `TypeScript` frontend.
+A desktop API client that speaks HTTP, SQL, gRPC, Redis, and more — all in one window. No more switching between Postman, TablePlus, RedisInsight, and a terminal for `jq`.
 
-## Features
+- **Seven protocols, one app.** HTTP requests, SQL queries (MySQL, PostgreSQL, SQLite, ClickHouse), gRPC calls, Redis commands, `jq` JSON filtering, Markdown preview, and DIFF comparisons — without leaving the window.
+- **Source plugins.** Import OpenAPI specs as browsable API collections, or connect a SQL database and explore tables like endpoints.
+- **JSON database.** Your requests and responses live in a simple `db.json` file — easy to version-control, diff, and backup.
+- **Vanilla TypeScript.** Built with Electron, GoldenLayout, and CodeMirror. No React, no Vue, no framework overhead.
 
-- **Multiple Request Types**: HTTP, SQL, gRPC, Redis, JQ, Markdown
-- **Source Plugins**: SQLSource, HTTPSource (OpenAPI)
-- **Cross-platform**: Linux, macOS, Windows
-- **Plugin Architecture**: Extensible request/response system
-- **JSON Database**: Simple file-based storage
+![](docs/public/screenshot.png)
 
-## Installation
+## Getting started
 
-### Download Pre-built Binaries
+### Download
 
-Download the latest release from [GitHub Releases](https://github.com/rprtr258/apiary/releases):
+Grab the latest binary from [GitHub Releases](https://github.com/rprtr258/apiary/releases):
 
-- **Linux**: `apiary-linux-amd64`
-- **macOS (Intel)**: `apiary-darwin-amd64`
-- **macOS (Apple Silicon)**: `apiary-darwin-arm64`
-- **Windows**: `apiary-windows-amd64.exe`
+| Platform | File |
+|----------|------|
+| Linux (x64) | `apiary-linux-x64.AppImage` |
+| macOS (Intel) | `apiary-darwin-x64.dmg` |
+| macOS (Apple Silicon) | `apiary-darwin-arm64.dmg` |
+| Windows (x64) | `apiary-win-x64.exe` |
 
-Make the binary executable (Linux/macOS):
+Make it executable (Linux/macOS):
 
 ```bash
-chmod +x apiary-linux-amd64
+chmod +x apiary-linux-x64.AppImage
+./apiary-linux-x64.AppImage
 ```
 
-### Building from Source
+### Build from source
 
-#### Prerequisites
-- Bun 1.3.14+
-
-#### Build Steps
 ```bash
-git clone https://github.com/rprtr258/apiary.git # Clone the repository
+# Prerequisites: Bun 1.3.14+
+git clone https://github.com/rprtr258/apiary.git
 cd apiary
-bun install # Install dependencies
-bun run dist # Build the application
-# The binary will be in release/ directory
+bun install
+bun run dist          # builds for current platform
+# Binary lands in release/
 ```
 
-## Usage
+### Development servers (optional)
+
+Docker Compose spins up test services for local development:
 
 ```bash
-# Start the application
-./apiary
-
-# Show version information
-./apiary --version
-
-# Example output:
-# apiary version v0.1.0
-# commit: abc123def456
-# build date: 2025-01-31T16:00:00Z
+docker compose up -d     # MySQL, PostgreSQL, Redis, gRPC, PetStore API
 ```
 
-The application will create a `db.json` file in the current directory to store your requests and responses.
+## How it works
+
+Launch apiary, and it creates a `db.json` file in the current directory. Each request is a row with a kind tag (http, sql, grpc, redis, jq, md, diff) and its parameters. The UI is a tabbed workspace powered by [GoldenLayout](https://golden-layout.com/) with [CodeMirror](https://codemirror.net/) editors.
 
 ## Development
 
-### Project Structure
-```text
-renderer/        # Renderer process (frontend)
-├── components/  # Shared components
-└── lib/         # Shared frontend logic
-main/            # Main process (backend)
-├── database/    # Plugin system and JSON DB
-├── api.ts       # RPC handlers implementation
-└── version/     # Version management
-shared/          # Shared logic
-└── types/       # Shared types
-scripts/         # Test scripts
-```
-
-### Development Commands
 ```bash
-bun run _start       # Start electron app
-bun run build        # Build for production
-bun run lint         # Run linting
-bun run typecheck    # Run type checking
-bun run test         # Run tests
-bun run ci           # Run linting, type checking and tests
+bun run dev              # dev server with hot reload
+bun run build            # production build
+bun run lint             # check linting
+bun run typecheck        # check types
+bun run test             # run unit tests
+bun run test:e2e         # run Playwright E2E tests
+bun run ci               # lint + typecheck + tests
 ```
 
-## Release Process
+### Project structure
 
-### Creating a Release
-1. **Update version**: Ensure all changes are committed
-2. **Update `package.json`**: Bump `version`
-2. **Create tag**: `git tag v0.1.0`
-3. **Push tag**: `git push origin v0.1.0`
+```
+main/                   # Electron main process
+├── api.ts              # IPC handlers
+├── db.ts               # JSON database
+├── database/           # Protocol implementations
+│   ├── http.ts         ─ sendHTTP()
+│   ├── sql.ts          ─ sendSQL()
+│   ├── grpc.ts         ─ sendGRPC()
+│   ├── redis.ts        ─ sendRedis()
+│   ├── jq.ts           ─ sendJQ()
+│   ├── md.ts           ─ sendMD()
+│   ├── diff.ts         ─ sendDIFF()
+│   ├── http_source.ts  ─ OpenAPI source plugin
+│   └── sql_source.ts   ─ SQL source plugin
+renderer/               # Electron renderer process
+├── App.ts              ─ main application
+├── Request*.ts         ─ per-protocol request editors
+├── Sidebar.ts          ─ navigation
+└── components/         ─ shared UI components
+shared/                 # Shared between main and renderer
+└── types/              ─ protocol type definitions
+```
 
-The GitHub Actions workflow will automatically:
-- Build binaries for Linux, macOS, and Windows
-- Create a GitHub Release with auto-generated notes
-- Attach all platform binaries
+## Creating a release
 
-### Testing Releases
-Use the manual workflow trigger in GitHub Actions with version `0.0.0-test` to test the release process without creating an actual release.
+```bash
+git tag v0.0.4
+git push origin v0.0.4
+```
 
-### Version Management
-- Version is stored in `package.json`
-- Stored in database as `version` field for migration tracking
-- Displayed in logs and via `--version` flag
-
-## Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `bun run ci`
-5. Submit a pull request
-
-## License
-[Add license information here]
-
-## Acknowledgments
-- Uses [GoldenLayout](https://golden-layout.com/) for window management
-- [CodeMirror](https://codemirror.net/) for code editing
+GitHub Actions builds binaries for all platforms and publishes a release.
