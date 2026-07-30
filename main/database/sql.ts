@@ -80,8 +80,12 @@ async function sendPostgres(request: SQLRequest): Promise<SQLResponse> {
   if (!dsn.startsWith("postgres://"))
     dsn = `postgres://${dsn}`;
 
+  // Use libpq sslmode semantics so sslmode=require/prefer accept self-signed
+  // certs instead of pg's non-standard default that treats them as verify-full.
+  dsn += (dsn.includes("?") ? "&" : "?") + "uselibpqcompat=true";
+
   // TODO: parse dsn like host=localhost user=postgres password=password port=5432 dbname=postgres sslmode=disable
-  const client = new pg.Client({connectionString: dsn, ssl: false});
+  const client = new pg.Client({connectionString: dsn});
   await client.connect();
   try {
     const result = await client.query(request.query);

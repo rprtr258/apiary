@@ -6,6 +6,25 @@ export const EmptyRequest: SQLSourceRequest = {
   database: "sqlite",
 };
 
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Parse which columns a constraint references. For PRIMARY KEY / UNIQUE /
+// FOREIGN KEY the definition's first (...) is a plain column list. CHECK
+// definitions are expressions, so match column names as identifiers after
+// stripping string literals and ::type casts.
+function parseConstraintColumns(definition: string, type: string, columnNames: string[]): string[] {
+  if (type === "CHECK") {
+    const cleaned = definition.replace(/'[^']*'/g, "").replace(/::\w+/g, "");
+    return columnNames.filter(name => new RegExp(`\\b${escapeRegExp(name)}\\b`).test(cleaned));
+  }
+  const match = definition.match(/\(([^)]+)\)/);
+  if (match === null)
+    return [];
+  return match[1].split(",").map(part => part.trim());
+}
+
 export async function listTables(request: Omit<SQLRequest, "query">): Promise<TableInfo[]> {
   const tables = await (async (): Promise<TableInfo[]> => {
   switch (request.database) {
@@ -117,6 +136,7 @@ WHERE rel.relname = '${tableName}' AND nsp.nspname NOT IN ('pg_catalog', 'inform
     name: name as string,
     type: typ as string,
     definition: def as string,
+    columns: parseConstraintColumns(def as string, typ as string, columns.map(c => c.name)),
   }));
 
   // Get indexes
@@ -175,7 +195,12 @@ ORDER BY ordinal_position`});
   column_name
 FROM information_schema.key_column_usage
 WHERE table_name = '${tableName}' AND table_schema = DATABASE() AND constraint_name = 'PRIMARY'`}); // TODO: pass tableName as arg
-    constraints = conResult.rows.map(r => ({name: String(r[0]), type: "PRIMARY KEY", definition: `PRIMARY KEY (${r[1] as string})`}));
+    constraints = conResult.rows.map(r => ({
+      name: String(r[0]),
+      type: "PRIMARY KEY",
+      definition: `PRIMARY KEY (${r[1] as string})`,
+      columns: [String(r[1])],
+    }));
   } catch (_e) {
     // Constraints query is best-effort
   }
@@ -199,7 +224,12 @@ async function describeSQLite(request: Omit<SQLRequest, "query">, tableName: str
 
     columns.push({name, typename: typ, type: typ as ColumnType, nullable: !notnull, defaultValue: defaultVal});
     if (pk) {
-      constraints.push({name: "PRIMARY KEY", type: "PRIMARY KEY", definition: `PRIMARY KEY (${name})`});
+      constraints.push({
+        name: "PRIMARY KEY",
+        type: "PRIMARY KEY",
+        definition: `PRIMARY KEY (${name})`,
+        columns: [name],
+      });
     }
   }
 

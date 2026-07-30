@@ -9,13 +9,6 @@ export function range(start: number, end: number): number[] {
 
 type SchemaData = {name: string, schema: t.TableSchema}[];
 
-function parseColumns(definition: string): string[] {
-  const match = definition.match(/\(([^)]+)\)/);
-  if (match === null)
-    return [];
-  return match[1].split(",").map(part => part.trim());
-}
-
 function hashColor(str: string): string {
   const hash = [...str].map(c => c.charCodeAt(0)).reduce((h, c) => c + (h << 5) - h, 0);
   const hue = Math.abs(hash) % 360;
@@ -25,9 +18,9 @@ function hashColor(str: string): string {
 function getColumnConstraints(table: {name: string, schema: t.TableSchema}): Record<string, string[]> {
   const constraints = Object.fromEntries(table.schema.columns.map(col => [col.name, [] as string[]]));
   for (const constraint of table.schema.constraints) {
-    const cols = parseColumns(constraint.definition);
-    for (const col of cols) {
-      constraints[col].push(constraint.type);
+    for (const col of constraint.columns) {
+      if (col in constraints)
+        constraints[col].push(constraint.type);
     }
   }
   return constraints;

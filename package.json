@@ -23,7 +23,7 @@
     "dist:mac": "vite build && electron-builder --mac",
     "dist:win": "vite build && electron-builder --win",
     "typecheck": "tsc --noEmit",
-    "_start": "vite build && electron .",
+    "_start": "vite build && electron . --no-sandbox",
     "gen:grpc": "grpc_tools_node_protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./ --js_out=import_style=commonjs,binary:./ --grpc_out=grpc_js:./ ./scripts/grpc/helloworld.proto && sed -i '1i/* eslint-disable */' ./scripts/grpc/helloworld.ts && sed -i '2i// @ts-nocheck' ./scripts/grpc/helloworld.ts",
     "kal": "electron-rebuild"
   },

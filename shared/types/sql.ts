@@ -30,6 +30,7 @@ export type ConstraintInfo = {
   name: string,
   type: string,
   definition: string,
+  columns: string[],
 };
 
 export type ForeignKey = {
