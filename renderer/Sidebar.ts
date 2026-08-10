@@ -8,6 +8,7 @@ import {store} from "./store.ts";
 import notification from "./lib/notification.ts";
 import {clamp, DOMNode, formatSize, m, setDisplay, signal} from "./lib/utils.ts";
 import {useLocalStorage} from "./lib/localStorage.ts";
+import type {Result} from "@/result.ts";
 
 function basename(id: string): string {
   return id.split("/").pop() ?? "";
@@ -218,6 +219,30 @@ const endpointCache: Record<string, {
   loading?: boolean,
 }> = {};
 
+const STALE_AFTER = 1000*60*5; // 5 minutes
+
+type E = {lastFetch: number, loading?: boolean};
+function isStale(cache: Record<string, E>, key: string): boolean {
+  if (!(key in cache))
+    return true;
+  const entry = cache[key];
+  return Date.now() - entry.lastFetch > STALE_AFTER && entry.loading !== true;
+}
+
+function staleSourceKeys(keys: string[]): {sql: string[], http: string[]} {
+  const sql: string[] = [];
+  const http: string[] = [];
+  for (const key of keys.filter(key => key in store.requests)) {
+    const kind = store.requests[key].kind;
+    if (kind === t.Kind.SQLSource && isStale(tableCache, key)) {
+      sql.push(key);
+    } else if (kind === t.Kind.HTTPSource && isStale(endpointCache, key)) {
+      http.push(key);
+    }
+  }
+  return {sql, http};
+}
+
 export const sidebarHidden = signal(false);
 export const sidebar = function() {
   const collapseButtonClosed = [NIcon({component: DoubleRightOutlined})];
@@ -244,80 +269,64 @@ export const sidebar = function() {
 
   const treeContainer = m("div", {style: {minHeight: "0"}});
 
-  async function fetchTables(sqlSourceID: string): Promise<void> {
-    // Set loading state
-    if (!(sqlSourceID in tableCache)) {
-      tableCache[sqlSourceID] = {tables: {}, lastFetch: 0};
+  async function fetchCached<V>(
+    cache: Record<string, E & V>,
+    key: string,
+    init: () => V,
+    fetch: (key: string) => Promise<Result<V>>,
+    errorTitle: string,
+  ): Promise<void> {
+    if (!(key in cache)) {
+      cache[key] = {
+        lastFetch: 0,
+        ...init(),
+      };
     }
-    tableCache[sqlSourceID].loading = true;
-    updateTree(); // Show loading state
-
-    const res = await api.requestListTablesSQLSource(sqlSourceID);
-
+    cache[key].loading = true;
+    updateTree();
+    const res = await fetch(key);
     if (res.kind === "err") {
-      notification.error({title: "Could not fetch tables", error: res.value});
-      // Clear loading state, keep old data if any
-      tableCache[sqlSourceID].loading = false;
+      notification.error({title: errorTitle, error: res.value});
+      cache[key].loading = false;
       updateTree();
-      return; // Don't update cache on error
+      return;
     }
-
-    tableCache[sqlSourceID] = {
+    cache[key] = {
       lastFetch: Date.now(),
-      tables: Object.fromEntries(res.value.map(t => [t.name, t])),
-      loading: false,
+      loading: false, 
+      ...res.value,
     };
     updateTree();
   }
 
-  async function fetchEndpoints(httpSourceID: string): Promise<void> {
-    // Set loading state
-    if (!(httpSourceID in endpointCache)) {
-      endpointCache[httpSourceID] = {endpoints: [], lastFetch: 0};
-    }
-    endpointCache[httpSourceID].loading = true;
-    updateTree(); // Show loading state
+  const fetchTables = (sqlSourceID: string): Promise<void> =>
+    fetchCached(
+      tableCache,
+      sqlSourceID,
+      () => ({tables: {}}),
+      (id: string) => api.requestListTablesSQLSource(id).then(r => r.map(tables => ({tables: Object.fromEntries(tables.map(table => [table.name, table]))}))),
+      "Could not fetch tables",
+    );
 
-    const res = await api.requestListEndpointsHTTPSource(httpSourceID);
+  const fetchEndpoints = (httpSourceID: string): Promise<void> =>
+    fetchCached(
+      endpointCache,
+      httpSourceID,
+      () => ({endpoints: []}),
+      (id: string) => api.requestListEndpointsHTTPSource(id).then(r => r.map(endpoints => ({endpoints}))),
+      "Could not fetch endpoints",
+    );
 
-    if (res.kind === "err") {
-      notification.error({title: "Could not fetch endpoints", error: res.value});
-      // Clear loading state, keep old data if available
-      endpointCache[httpSourceID].loading = false;
-      updateTree();
-      return; // Don't update cache on error
-    }
-
-    endpointCache[httpSourceID] = {
-      lastFetch: Date.now(),
-      endpoints: res.value,
-      loading: false,
-    };
-    updateTree();
+  async function fetchSources(keys: string[]): Promise<void> {
+    const {sql, http} = staleSourceKeys(keys);
+    await Promise.all([
+      ...sql.map(fetchTables),
+      ...http.map(fetchEndpoints),
+    ]);
   }
 
   async function fetchExpandedSources(): Promise<void> {
-    // Fetch data for expanded source requests
-    const expandedKeys = expandedKeysSignal.value;
-
-    // Fetch tables for expanded SQLSource (respect 5-min cache and loading state)
-    const sqlSourceKeys = expandedKeys.filter(key =>
-      key in store.requests
-      && store.requests[key].kind === t.Kind.SQLSource
-      && (!(key in tableCache) || Date.now() - tableCache[key].lastFetch > 300000)
-      && !(key in tableCache && tableCache[key].loading === true));
-
-    // Fetch endpoints for expanded HTTPSource (respect 5-min cache and loading state)
-    const httpSourceKeys = expandedKeys.filter(key =>
-      key in store.requests
-      && store.requests[key].kind === t.Kind.HTTPSource
-      && (!(key in endpointCache) || Date.now() - endpointCache[key].lastFetch > 300000)
-      && !(key in endpointCache && endpointCache[key].loading === true));
-
-    await Promise.all([
-      ...sqlSourceKeys.map(key => fetchTables(key)),
-      ...httpSourceKeys.map(key => fetchEndpoints(key)),
-    ]);
+    await fetchSources(expandedKeysSignal.value);
   }
 
   function showContextMenu(id: string, event: MouseEvent): void {
@@ -425,24 +434,20 @@ export const sidebar = function() {
     const requestsTree = store.requestsTree.value;
     // Save scroll position before update
     const scrollContainer = treeContainer.querySelector(".n-scrollbar-container");
-    let scrollTop = 0;
-    if (scrollContainer !== null) {
-      scrollTop = scrollContainer.scrollTop;
-    }
+    const scrollTop = scrollContainer?.scrollTop ?? 0;
 
     const data = (() => {
-      const mapper = (tree: t.Tree): TreeOption[] =>
-        Object.entries(tree.Dirs).map(([k, v]): TreeOption => ({
+      const mapper = (tree: t.Tree): TreeOption[] => [
+        ...Object.entries(tree.Dirs).map(([k, v]): TreeOption => ({
           key: k,
           label: basename(k),
           children: mapper(v),
-        })).concat(tree.IDs.map(id => {
+        })),
+        ...tree.IDs.map(id => {
             const req = store.requests[id];
-            const isSQLSource = id in store.requests && req.kind === t.Kind.SQLSource;
-            const isHTTPSource = id in store.requests && req.kind === t.Kind.HTTPSource;
-
             const children: TreeOption[] | undefined = (() => {
-              if (isSQLSource) {
+              switch (true) {
+              case req.kind === t.Kind.SQLSource:
                 if (id in tableCache && Object.keys(tableCache[id].tables).length > 0) {
                   return Object.values(tableCache[id].tables).map(table => ({
                     key: `virtual:table:${id}:${table.name}`,
@@ -458,7 +463,7 @@ export const sidebar = function() {
                     disabled: true,
                   }];
                 }
-              } else if (isHTTPSource) {
+              case req.kind === t.Kind.HTTPSource:
                 if (id in endpointCache && endpointCache[id].endpoints.length > 0) {
                   return endpointCache[id].endpoints.map((endpoint, index) => ({
                     key: `virtual:endpoint:${id}:${index}`,
@@ -473,8 +478,9 @@ export const sidebar = function() {
                     disabled: true,
                   }];
                 }
+              default:
+                return undefined;
               }
-              return undefined;
             })();
 
             return {
@@ -482,7 +488,8 @@ export const sidebar = function() {
               label: store.requests[id].name,
               ...(children !== undefined ? {children} : {}), // Only set children for SQLSource/HTTPSource
             };
-        }));
+        }),
+      ];
       return mapper(requestsTree);
     })();
 
@@ -495,26 +502,8 @@ export const sidebar = function() {
             const oldKeys = expandedKeysSignal.value;
             expandedKeysSignal.update(() => keys);
 
-            // Find keys that were just expanded (in new keys but not in old keys)
-            const newlyExpandedKeys = keys.filter(key => !oldKeys.includes(key));
-
-            // Only fetch data for sources that were JUST expanded
-            const sqlSourceKeys = newlyExpandedKeys.filter(key =>
-              key in store.requests
-              && store.requests[key].kind === t.Kind.SQLSource
-              && (!(key in tableCache) || Date.now() - tableCache[key].lastFetch > 300000)
-              && !(key in tableCache && tableCache[key].loading === true));
-
-            const httpSourceKeys = newlyExpandedKeys.filter(key =>
-              key in store.requests
-              && store.requests[key].kind === t.Kind.HTTPSource
-              && (!(key in endpointCache) || Date.now() - endpointCache[key].lastFetch > 300000)
-              && !(key in endpointCache && endpointCache[key].loading === true));
-
-            await Promise.all([
-              ...sqlSourceKeys.map(key => fetchTables(key)),
-              ...httpSourceKeys.map(key => fetchEndpoints(key)),
-            ]);
+            // Fetch data for sources that were just expanded (staleness/loading guarded inside fetchSources)
+            await fetchSources(keys.filter(key => !oldKeys.includes(key)));
           },
           drop: drag,
           context_menu: (option: TreeOption, event: MouseEvent) => {
