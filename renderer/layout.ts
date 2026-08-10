@@ -66,6 +66,15 @@ export default {
     else
       console.error("Cannot focus tab: root is not a Stack:", root);
   },
+  activeTab(): ComponentItem | undefined {
+    const inst = instance;
+    if (inst === undefined) return undefined;
+    if (inst.focusedComponentItem !== undefined) return inst.focusedComponentItem;
+    const root = inst.rootItem;
+    if (((root): root is Stack => root?.isStack === true)(root))
+      return root.getActiveComponentItem() ?? undefined;
+    return undefined;
+  },
   move(tab: ComponentItem, fn: (index: number) => number) {
     const parent = tab.parent;
     if (parent?.isStack !== true) return;
@@ -81,5 +90,11 @@ export default {
   },
   clear(): void {
     instance?.clear();
+  },
+  closeFocused(): boolean {
+    const item = instance?.focusedComponentItem;
+    if (item === undefined) return false;
+    item.remove();
+    return true;
   },
 };

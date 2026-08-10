@@ -22,6 +22,8 @@ function render(v: t.RowValue): DOMNode {
     return v;
   case v instanceof Date:
     return v.toISOString();
+  case typeof v === "object":
+    return JSON.stringify(v);
   default:
     notification.error({title: "unknown row value type", "typestr": String(v), "type": typeof v, "json": JSON.stringify(v)});
     return String(v);

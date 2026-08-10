@@ -5,7 +5,7 @@ import {m, setDisplay, Signal, signal} from "./lib/utils.ts";
 import notification from "./lib/notification.ts";
 import {
   StateRequest, StateHTTPSourceEndpoint, StateSQLSourceTable,
-  get_request, handleCloseTab, updateLocalstorage, update_request, send, last_history_entry,
+  get_request, updateLocalstorage, update_request, send, last_history_entry,
   Store, store,
 } from "./store.ts";
 import layout from "./layout.ts";
@@ -138,9 +138,7 @@ function getCommandPaletteItems(): Item[] {
           label: "Close tab",
           shortcut: ["Ctrl", "W"],
           perform: () => {
-            const currentID = store.requestID();
-            if (currentID === null) return;
-            handleCloseTab(currentID);
+            layout.closeFocused();
           },
         },
         {
@@ -360,33 +358,51 @@ type LayoutConfigNode = {
   content?: LayoutConfigNode[], // TODO: remove this kostyl and do filtering before giving shit to golden layout
   componentType?: string,
   componentState?: Record<string, unknown>,
+  activeItemIndex?: number,
 };
 
-// Remove tabs from layout config that reference requests no longer in the DB.
-// This prevents golden-layout from trying to open tabs with stale IDs.
+// Remove tabs from layout config whose underlying request/source no longer exists in the DB,
+// and clamp stack activeItemIndex so golden-layout does not crash on load with an out-of-range index.
 function stripStaleTabs(config: LayoutConfig, validIds: Set<string>): void {
   const root = config.root as LayoutConfigNode | undefined;
   if (root === undefined)
     return;
-  root.content = filterContent(root.content, validIds);
+  filterNode(root, validIds);
 }
 
-function filterContent(content: LayoutConfigNode[] | undefined, validIds: Set<string>): LayoutConfigNode[] | undefined {
-  if (content === undefined)
-    return undefined;
+// Keep a component tab only if the request/source it references still exists.
+function isComponentValid(node: LayoutConfigNode, validIds: Set<string>): boolean {
+  const state = node.componentState;
+  switch (node.componentType) {
+    case "MyComponent":
+      return state === undefined || validIds.has(String(state["id"]));
+    case "TableViewer":
+      return state !== undefined && validIds.has(String(state["sqlSourceID"]));
+    case "EndpointViewer":
+      return state !== undefined && validIds.has(String(state["sourceID"]));
+    default:
+      return true;
+  }
+}
 
-  const filtered: LayoutConfigNode[] = content
-    .filter(item => item.type === "component" && item.componentType === "MyComponent")
-    .filter(item => {
-      const state = item.componentState;
-      return state === undefined || validIds.has(String(state["id"])); // Drop this tab
-    })
-    .map(item => {
-      // Recurse into sub-containers
-      item.content = filterContent(item.content, validIds);
-      return item;
-    });
-  return filtered.length > 0 ? filtered : undefined;
+// Recursively drop stale component tabs and the containers left empty by dropping.
+// Returns false when the node itself should be dropped from its parent.
+function filterNode(node: LayoutConfigNode, validIds: Set<string>): boolean {
+  if (node.type === "component")
+    return isComponentValid(node, validIds);
+
+  if (node.content !== undefined) {
+    node.content = node.content.filter(child => filterNode(child, validIds));
+  }
+  if (node.type === "stack") {
+    if (node.content === undefined || node.content.length === 0) {
+      node.content = undefined;
+      return false;
+    }
+    const idx = node.activeItemIndex ?? 0;
+    node.activeItemIndex = Math.min(Math.max(idx, 0), node.content.length - 1);
+  }
+  return true;
 }
 
 export default function(root: HTMLElement) {
@@ -608,11 +624,7 @@ function preApp(root: HTMLElement, store: Store) {
       if (anyModalIsOpen()) {
         return;
       }
-      const currentID = store.requestID();
-      if (currentID === null) {
-        return;
-      }
-      handleCloseTab(currentID);
+      layout.closeFocused();
     }
 
     // Check for Ctrl+PgDown - Next tab

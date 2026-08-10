@@ -101,16 +101,6 @@ export type Store = {
 export const store = ((): Store => {
   let activeComponentID: string | null = null;
   type RequestTab = {id: string, item: ComponentItem};
-  function getAllOpenTabs(): RequestTab[] {
-    return layout
-      .tabs()
-      .filter(item => item.componentType === "MyComponent")
-      .map(item => ({
-        id: (item.toConfig().componentState as StateRequest).id,
-        item,
-      }))
-      .toArray();
-  }
   function activateTab({id, item}: RequestTab): void {
     layout.focus(item);
     activeComponentID = id;
@@ -249,38 +239,33 @@ export const store = ((): Store => {
       layout.addItem("EndpointViewer", `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`, {sourceID, endpointIndex, endpointInfo});
     },
     navigateToNextTab(): void {
-      const allTabs = getAllOpenTabs();
-      if (allTabs.length === 0) return;
+      const active = layout.activeTab();
+      if (active === undefined) return;
+      const parent = active.parent;
+      if (parent?.isStack !== true) return;
 
-      const currentID = this.requestID();
-      if (currentID === null) {
-        // If no tab is active, activate the first one
-        activateTab(allTabs[0]);
-        return;
-      }
-
-      const currentIndex = allTabs.findIndex(tab => tab.id === currentID);
-      if (currentIndex === -1) return;
+      const allTabs = parent.contentItems as ComponentItem[];
+      const currentIndex = allTabs.indexOf(active);
+      if (currentIndex === -1 || allTabs.length <= 1) return;
 
       const nextIndex = (currentIndex + 1) % allTabs.length;
-      activateTab(allTabs[nextIndex]);
+      const next = allTabs[nextIndex];
+      layout.focus(next);
+      activeComponentID = (next.toConfig().componentState as Partial<StateRequest>).id ?? null;
     },
     navigateToPreviousTab(): void {
-      const allTabs = getAllOpenTabs();
-      if (allTabs.length === 0) return;
+      const active = layout.activeTab();
+      if (active === undefined) return;
+      const parent = active.parent;
+      if (parent?.isStack !== true) return;
 
-      const currentID = this.requestID();
-      if (currentID === null) {
-        // If no tab is active, activate the last one
-        activateTab(allTabs[allTabs.length - 1]);
-        return;
-      }
+      const tabs = parent.contentItems as ComponentItem[];
+      const currentIndex = tabs.indexOf(active);
+      if (currentIndex === -1 || tabs.length <= 1) return;
 
-      const currentIndex = allTabs.findIndex(tab => tab.id === currentID);
-      if (currentIndex === -1) return;
-
-      const prevIndex = (currentIndex - 1 + allTabs.length) % allTabs.length;
-      activateTab(allTabs[prevIndex]);
+      const prev = tabs[(currentIndex - 1 + tabs.length) % tabs.length];
+      layout.focus(prev);
+      activeComponentID = (prev.toConfig().componentState as Partial<StateRequest>).id ?? null;
     },
     moveTabRight(): void {
       const activeItem = getActiveComponentItem();
