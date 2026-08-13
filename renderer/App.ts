@@ -62,8 +62,6 @@ function rename() {
   renameCancel();
 }
 
-// TODO: fix editing request headers
-
 const command_bar_new_request_kind_visible = signal(false);
 const commandBarVisible = signal(false);
 const command_bar_open_visible = signal(false);
@@ -290,8 +288,9 @@ const panelkaFactory = (
     },
   });
 
-
+  let activeTab: Tab | undefined;
   container.on("tab", (tab: Tab): void => {
+    activeTab = tab;
     eye_unsub = show_request.sub(function*() {
       while (true) {
         const value = yield;
@@ -321,15 +320,6 @@ const panelkaFactory = (
       }
     });
 
-    // TODO: ebanij rot etogo kazino, we have to use timeout for now, since request is not yet loaded (???)
-    setTimeout(() => {
-      if (!(id in store.requests2)) {
-        tab.componentItem.close();
-        return;
-      }
-      const req = store.requests2[id];
-      tab.setTitle(req.request.path);
-    }, 1000);
   });
   const frame: Frame = createFrame(
     el,
@@ -347,7 +337,14 @@ const panelkaFactory = (
     frame.push_history_entry?.(last_history_entry(store.requests2[id])!);
   });
   const frame_unsub = () => frame.unmount();
-  get_request(id).then(r => r !== null && frame.loaded(r));
+  get_request(id).then(r => {
+    if (r === null) {
+      activeTab?.componentItem.close();
+      return;
+    }
+    activeTab?.setTitle(r.request.path);
+    frame.loaded(r);
+  });
   return {el};
 };
 

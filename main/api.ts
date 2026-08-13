@@ -107,10 +107,14 @@ export async function Duplicate(id: t.RequestID): Promise<t.RequestID> {
   if (!(id in j))
     throw new Error(`request ${id} not found`);
   const entry = j[id];
-  // TODO: find copies and increment
+
+  const existingPaths = new Set(Object.values(j).map(e => e.Path).filter(p => p.startsWith(`${entry.Path} (copy`)));
+  let newPath = `${entry.Path} (copy)`;
+  for (let n = 2; existingPaths.has(newPath); n++)
+    newPath = `${entry.Path} (copy ${n})`;
+
   // Data carries the entry's id/path/kind envelope (leaked by load/update);
   // point the duplicate's envelope at its own new identity so it matches every other entry.
-  const newPath = entry.Path + " (copy)";
   const newID = generateID();
   const data = structuredClone(entry.Data) as Record<string, unknown>;
   data["id"] = newID;
