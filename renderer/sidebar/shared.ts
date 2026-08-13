@@ -1,6 +1,21 @@
 import * as t from "@/types.ts";
 import {clamp, m, setDisplay, signal} from "../lib/utils.ts";
 
+export function badge(kind: t.Kind): [string, string] {
+  switch (kind) {
+  case t.Kind.HTTP:       return ["HTTP",       "lime"     ];
+  case t.Kind.SQL:        return ["SQL",        "lightblue"];
+  case t.Kind.GRPC:       return ["GRPC",       "cyan"     ];
+  case t.Kind.HTTPSource: return ["HTTP*",      "lime"     ];
+  case t.Kind.JQ:         return ["JQ",         "violet"   ];
+  case t.Kind.REDIS:      return ["REDIS",      "red"      ];
+  case t.Kind.MD:         return ["MD",         "blue"     ];
+  case t.Kind.SQLSource:  return ["SQL*",       "blue"     ];
+  case t.Kind.DIFF:       return ["DIFF",       "green"    ];
+  default:                return [String(kind), ""         ];
+  }
+}
+
 type Kind = typeof t.Kinds[number];
 export const newRequestKind = signal<Kind | undefined>(undefined);
 export const newRequestName = signal<string | undefined>(undefined);

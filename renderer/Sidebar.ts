@@ -8,7 +8,7 @@ import {m, setDisplay} from "./lib/utils.ts";
 import {createTreeView} from "./sidebar/tree.ts";
 import {newRequestKind, sidebarHidden} from "./sidebar/shared.ts";
 
-export {globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./sidebar/shared.ts";
+export {badge, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./sidebar/shared.ts";
 
 function fromNow(date: Date): string {
   const now = new Date();

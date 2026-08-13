@@ -36,7 +36,7 @@ function staleSourceKeys(keys: string[]): {sql: string[], http: string[]} {
   return {sql, http};
 }
 
-let onChange: (() => void) | undefined;
+let onChange: (() => void) | undefined; // TODO: replace with signal
 export function initSourceCache(cb: () => void): void {
   onChange = cb;
 }

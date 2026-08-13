@@ -1,11 +1,14 @@
 import * as t from "@/types.ts";
+import {none, Option, some} from "@/option.ts";
 import {NTag, NTree, TagType, TreeOption, treeLabelClass} from "../components/dataview.ts";
 import {NScrollbar} from "../components/layout.ts";
 import {store} from "../store.ts";
 import {DOMNode, formatSize, m, signal} from "../lib/utils.ts";
 import {useLocalStorage} from "../lib/localStorage.ts";
+import {css} from "../lib/styles.ts";
 import {endpointCache, fetchSources, initSourceCache, tableCache} from "./sourceCache.ts";
 import {showContextMenu} from "./contextMenu.ts";
+import {badge} from "./shared.ts";
 
 function basename(id: string): string {
   return id.split("/").pop() ?? "";
@@ -13,21 +16,6 @@ function basename(id: string): string {
 
 function dirname(id: string): string {
   return id.split("/").slice(0, -1).join("/");
-}
-
-export function badge(kind: t.Kind): [string, string] {
-  switch (kind) {
-  case t.Kind.HTTP:       return ["HTTP",  "lime"     ];
-  case t.Kind.SQL:        return ["SQL",   "lightblue"];
-  case t.Kind.GRPC:       return ["GRPC",  "cyan"     ];
-  case t.Kind.HTTPSource: return ["HTTP*", "lime"     ];
-  case t.Kind.JQ:         return ["JQ",    "violet"   ];
-  case t.Kind.REDIS:      return ["REDIS", "red"      ];
-  case t.Kind.MD:         return ["MD",    "blue"     ];
-  case t.Kind.SQLSource:  return ["SQL*",  "blue"     ];
-  case t.Kind.DIFF:       return ["DIFF",  "green"    ];
-  default:                       return [String(kind), ""];
-  }
 }
 
 function formatTableLabel(args: {
@@ -46,6 +34,22 @@ function formatEndpointLabel(endpoint: t.EndpointInfo): string {
   const formattedPath = path === "" ? "/" : path.startsWith("/") ? path : `/${path}`;
   const pathWithTrailingSlash = formattedPath.endsWith("/") ? formattedPath : `${formattedPath}/`;
   return pathWithTrailingSlash;
+}
+
+type VirtualKey = {
+  sourceID: string,
+  name: string,
+  kind: "table" | "endpoint" | "loading" | "empty",
+};
+
+function parseVirtualKey(key: string): Option<VirtualKey> {
+  const parts = key.split(":");
+  if (parts.length !== 4)
+    return none;
+  const [, kind, sourceID, name] = parts;
+  if (!((kind): kind is VirtualKey["kind"] => ["table", "endpoint", "loading", "empty"].includes(kind))(kind))
+    return none;
+  return some({sourceID, name, kind});
 }
 
 const expandedKeys = useLocalStorage<string[]>("expanded-keys", []);
@@ -77,46 +81,33 @@ function drag({node, dragNode, dropPosition}: {
 }
 
 type HTTPMethodProps = {
-  // colors
   bg: string,
   color: string,
   tagType: TagType,
 };
-const httpMethodColorUnknown = {bg: "#3a3a3a", color: "#c0c0c0"}; // Grey
-const httpMethodColors: Record<string, {bg: string, color: string}> = {
-  "GET":     {bg: "#1a5f3a", color: "#70e888"}, // Green
-  "POST":    {bg: "#2a3a5f", color: "#70a0e8"}, // Blue
-  "PUT":     {bg: "#5f4a1a", color: "#e8c070"}, // Orange/Yellow
-  "DELETE":  {bg: "#5f1a1a", color: "#e87070"}, // Red
-  "PATCH":   {bg: "#3a1a5f", color: "#a870e8"}, // Purple
-  "HEAD":    {bg: "#1a5f5f", color: "#70e8e8"}, // Cyan
-  "OPTIONS": {bg: "#5f5f1a", color: "#e8e870"}, // Yellow
-};
-const httpMethodTagTypeUnknown = "info";
-const httpMethodTagTypes: Record<string, TagType> = {
-  "GET":    "success",
-  "POST":   "info",
-  "PUT":    "warning",
-  "PATCH":  "warning",
-  "DELETE": "error",
+const httpMethodPropsUnknown: HTTPMethodProps = {bg: "#3a3a3a", color: "#c0c0c0", tagType: "info"}; // Grey
+const httpMethodPropsMap: Record<string, HTTPMethodProps> = {
+  "GET":     {bg: "#1a5f3a", color: "#70e888", tagType: "success"}, // Green
+  "POST":    {bg: "#2a3a5f", color: "#70a0e8", tagType: "info"},    // Blue
+  "PUT":     {bg: "#5f4a1a", color: "#e8c070", tagType: "warning"}, // Orange/Yellow
+  "DELETE":  {bg: "#5f1a1a", color: "#e87070", tagType: "error"},   // Red
+  "PATCH":   {bg: "#3a1a5f", color: "#a870e8", tagType: "warning"}, // Purple
+  "HEAD":    {bg: "#1a5f5f", color: "#70e8e8", tagType: "info"},    // Cyan
+  "OPTIONS": {bg: "#5f5f1a", color: "#e8e870", tagType: "info"},    // Yellow
 };
 function httpMethodProps(method: string): HTTPMethodProps {
   const upperMethod = method.toUpperCase();
-  const colors = upperMethod in httpMethodColors ? httpMethodColors[upperMethod] : httpMethodColorUnknown;
-  const tagType = upperMethod in httpMethodTagTypes ? httpMethodTagTypes[upperMethod] : httpMethodTagTypeUnknown;
-  return {...colors, tagType};
+  return httpMethodPropsMap[upperMethod] ?? httpMethodPropsUnknown;
 }
 
-// Add CSS animation for loading pulse
-const PULSE_STYLE_ID = "sidebar-pulse-animation";
-if (document.getElementById(PULSE_STYLE_ID) === null) {
-  document.head.appendChild(m("style", {id: PULSE_STYLE_ID}, `
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-  `));
+// pulse keyframes + class for loading state
+const pulseClass = css.raw(` {
+  animation: pulse 1.5s infinite;
 }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}`);
 
 export function createTreeView(): {el: HTMLElement} {
   const treeContainer = m("div", {style: {minHeight: "0"}});
@@ -206,25 +197,22 @@ export function createTreeView(): {el: HTMLElement} {
             // Skip disabled items like "(None)" and "loading" items
             if (v.disabled === true) return;
 
-            if (id.startsWith("virtual:")) {
-              const parts = id.split(":");
-              if (parts.length !== 4)
-                return;
-              const [, type, sourceID, identifier] = parts;
-
-              switch (type) {
+            const virtual = parseVirtualKey(id);
+            if (virtual.isSome()) {
+              const {kind, sourceID, name} = virtual.value;
+              switch (kind) {
               // Skip "loading" and "empty" virtual items
               case "loading":
               case "empty":
                 return;
               case "table":
-                if (!(sourceID in tableCache) || !(identifier in tableCache[sourceID].tables))
+                if (!(sourceID in tableCache) || !(name in tableCache[sourceID].tables))
                   return;
-                const tableInfo = tableCache[sourceID].tables[identifier];
-                store.openTableViewer(sourceID, identifier, tableInfo);
+                const tableInfo = tableCache[sourceID].tables[name];
+                store.openTableViewer(sourceID, name, tableInfo);
                 break;
               case "endpoint":
-                const endpointIndex = parseInt(identifier, 10);
+                const endpointIndex = parseInt(name, 10);
                 if (!(sourceID in endpointCache) || endpointIndex >= endpointCache[sourceID].endpoints.length)
                   return;
 
@@ -239,13 +227,11 @@ export function createTreeView(): {el: HTMLElement} {
           },
         },
         render: (option: TreeOption, _level: number, _expanded: boolean): DOMNode => {
-          const isVirtual = option.key.startsWith("virtual:");
-          if (isVirtual) {
-            const parts = option.key.split(":");
-            if (parts.length === 4) {
-              const [, type] = parts;
-              switch (type) {
-              case "empty":
+          const virtual = parseVirtualKey(option.key);
+          if (virtual.isSome()) {
+            const {kind, sourceID, name} = virtual.value;
+            switch (kind) {
+            case "empty":
                 // "(None)" item - simple text, disabled, no badge, no hover effects
                 return m("span", {
                   style: {
@@ -261,6 +247,7 @@ export function createTreeView(): {el: HTMLElement} {
               case "loading":
                 // "Loading..." item - not disabled, shows loading state
                 return m("span", {
+                  class: pulseClass,
                   style: {
                     display: "flex",
                     alignItems: "center",
@@ -270,7 +257,6 @@ export function createTreeView(): {el: HTMLElement} {
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                     overflow: "clip",
-                    animation: "pulse 1.5s infinite",
                   },
                   title: "Loading...",
                 }, "Loading...");
@@ -308,8 +294,7 @@ export function createTreeView(): {el: HTMLElement} {
                   title: option.label,
                 }, option.label));
               case "endpoint": { // Virtual endpoint item
-                const [, , sourceID, index] = parts;
-                const endpointIndex = parseInt(index, 10);
+                const endpointIndex = parseInt(name, 10);
                 if (sourceID in endpointCache && endpointIndex < endpointCache[sourceID].endpoints.length) {
                   const endpoint = endpointCache[sourceID].endpoints[endpointIndex];
                   // Determine tag color based on HTTP method
@@ -382,7 +367,6 @@ export function createTreeView(): {el: HTMLElement} {
               }
               }
             }
-          }
 
           // Handle requests (including SQLSource/HTTPSource)
           if (option.key in store.requests) {

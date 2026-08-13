@@ -41,6 +41,7 @@ apiary is a cross-platform desktop application for managing API requests (HTTP, 
 
 - **TypeScript**: Standard idioms, strict mode, double quotes, const over let, prefer functional style (e.g., `data.map(item => item.value)`), no frameworks, direct DOM APIs.
 - **TypeScript**: Strict mode, double quotes, const over let, prefer functional style (e.g., `data.map(item => item.value)`), no frameworks, direct DOM APIs.
+- **Styles**: Define styles via the `css`/`css.raw` utilities from `renderer/lib/styles.ts` instead of hardcoding them (no manual `<style>` injection, inline `style` only for dynamic values).
 - **General**: Modular code, backend/frontend separation, immutable variables, pure functions where possible.
 
 ### TypeScript Coding Conventions (from ESLint config)
