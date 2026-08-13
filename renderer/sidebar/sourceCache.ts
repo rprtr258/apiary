@@ -1,8 +1,9 @@
 import * as t from "@/types.ts";
+import type {Result} from "@/result.ts";
+import {signal} from "../lib/utils.ts";
 import {api} from "../api.ts";
 import {store} from "../store.ts";
 import notification from "../lib/notification.ts";
-import type {Result} from "@/result.ts";
 
 type E = {lastFetch: number, loading?: boolean};
 
@@ -36,10 +37,8 @@ function staleSourceKeys(keys: string[]): {sql: string[], http: string[]} {
   return {sql, http};
 }
 
-let onChange: (() => void) | undefined; // TODO: replace with signal
-export function initSourceCache(cb: () => void): void {
-  onChange = cb;
-}
+// Bumped on every cache mutation so subscribers (e.g. tree view) can re-render.
+export const sourceCacheChanged = signal(0);
 
 async function fetchCached<V>(
   cache: Record<string, E & V>,
@@ -55,12 +54,12 @@ async function fetchCached<V>(
     };
   }
   cache[key].loading = true;
-  onChange?.();
+  sourceCacheChanged.update(v => v + 1);
   const res = await fetch(key);
   if (res.kind === "err") {
     notification.error({title: errorTitle, error: res.value});
     cache[key].loading = false;
-    onChange?.();
+    sourceCacheChanged.update(v => v + 1);
     return;
   }
   cache[key] = {
@@ -68,7 +67,7 @@ async function fetchCached<V>(
     loading: false,
     ...res.value,
   };
-  onChange?.();
+  sourceCacheChanged.update(v => v + 1);
 }
 
 export const fetchTables = (sqlSourceID: string): Promise<void> =>

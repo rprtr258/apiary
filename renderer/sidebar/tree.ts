@@ -6,7 +6,7 @@ import {store} from "../store.ts";
 import {DOMNode, formatSize, m, signal} from "../lib/utils.ts";
 import {useLocalStorage} from "../lib/localStorage.ts";
 import {css} from "../lib/styles.ts";
-import {endpointCache, fetchSources, initSourceCache, tableCache} from "./sourceCache.ts";
+import {endpointCache, fetchSources, sourceCacheChanged, tableCache} from "./sourceCache.ts";
 import {showContextMenu} from "./contextMenu.ts";
 import {badge} from "./shared.ts";
 
@@ -451,7 +451,7 @@ export function createTreeView(): {el: HTMLElement} {
     }
   }
 
-  initSourceCache(updateTree);
+  sourceCacheChanged.sub(function*() {while (true) { updateTree(); yield; }}());
 
   store.requestsTree.sub(function*() {
     while (true) {
