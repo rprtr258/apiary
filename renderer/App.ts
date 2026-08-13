@@ -80,6 +80,12 @@ function getCommandPaletteItems(): Item[] {
           },
         },
         {
+          label: "Create new directory",
+          perform: () => {
+            // TODO: implement
+          },
+        },
+        {
           label: "Open",
           shortcut: ["Ctrl", "P"],
           perform: () => {
@@ -160,12 +166,6 @@ function getCommandPaletteItems(): Item[] {
         {
           label: "Command Palette",
           shortcut: ["Ctrl", "Shift", "P"],
-          perform: () => {
-            // TODO: implement
-          },
-        },
-        {
-          label: "Create new directory",
           perform: () => {
             // TODO: implement
           },

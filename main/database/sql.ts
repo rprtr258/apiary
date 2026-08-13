@@ -88,7 +88,15 @@ async function sendPostgres(request: SQLRequest): Promise<SQLResponse> {
   const client = new pg.Client({connectionString: dsn});
   await client.connect();
   try {
-    const result = await client.query(request.query);
+    if (request.readOnly ?? false)
+      await client.query("BEGIN READ ONLY");
+    let result;
+    try {
+      result = await client.query(request.query);
+    } finally {
+      if (request.readOnly ?? false)
+        await client.query("ROLLBACK");
+    }
     const fields = result.fields;
     return {
       columns: fields.map(f => f.name),
@@ -104,6 +112,8 @@ async function sendPostgres(request: SQLRequest): Promise<SQLResponse> {
 async function sendMySQL(request: SQLRequest): Promise<SQLResponse> {
   const connection = await mysql.createConnection(request.dsn);
   try {
+    if (request.readOnly ?? false)
+      await connection.execute("SET SESSION TRANSACTION READ ONLY");
     const [rows, fields] = await connection.execute(request.query) as [Record<string, unknown>[], {name: string, type?: number}[]];
     if (rows.length === 0) {
       return {columns: fields.map(f => f.name), typenames: [], types: [], rows: []}; // TODO: get column metadata
@@ -115,12 +125,14 @@ async function sendMySQL(request: SQLRequest): Promise<SQLResponse> {
       rows: rows.map(r => Object.values(r)),
     };
   } finally {
+    if (request.readOnly ?? false)
+      await connection.execute("SET SESSION TRANSACTION READ WRITE");
     await connection.end();
   }
 }
 
 function sendSQLite(request: SQLRequest): SQLResponse {
-  const db = new Database(request.dsn);
+  const db = new Database(request.dsn, {readonly: request.readOnly ?? false});
   try {
     const rows = db.prepare(request.query).all() as Record<string, unknown>[];
     if (rows.length === 0) {
@@ -146,7 +158,7 @@ async function sendClickHouse(request: SQLRequest): Promise<SQLResponse> {
   }
 
   try {
-    const resultSet = await client.query({query: request.query, format: "JSONEachRow"});
+    const resultSet = await client.query({query: request.query, format: "JSONEachRow", clickhouse_settings: request.readOnly ?? false ? {readonly: "1"} : {}});
     const rows: Record<string, unknown>[] = await resultSet.json();
     if (rows.length === 0) {
       return {columns: [], typenames: [], types: [], rows: []}; // TODO: get column metadata

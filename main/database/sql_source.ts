@@ -4,6 +4,7 @@ import {sendSQL} from "./sql.ts";
 export const EmptyRequest: SQLSourceRequest = {
   dsn: ":memory:",
   database: "sqlite",
+  readOnly: false,
 };
 
 function escapeRegExp(str: string): string {

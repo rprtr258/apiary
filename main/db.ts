@@ -183,11 +183,13 @@ export async function load(): Promise<DB> {
           Data: raw[r.kind][r.id].request,
           Responses: [],
         };
-      case t.Kind.SQLSource:
+      case t.Kind.SQLSource: {
+        const src = raw[r.kind][r.id] as unknown as {database: t.Database, dsn: string, readOnly?: boolean};
         return {
-          Data: raw[r.kind][r.id],
+          Data: {...src, readOnly: src.readOnly ?? false},
           Responses: [],
         };
+      }
       case t.Kind.HTTPSource:
         return {
           Data: raw[r.kind][r.id],

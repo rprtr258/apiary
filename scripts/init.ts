@@ -79,6 +79,7 @@ ORDER BY id`),
   "work-beekeeper": [Kind.SQLSource, {
     "dsn": "/home/rprtr258/Downloads/home/.config/beekeeper-studio/app.db",
     "database": "sqlite",
+    "readOnly": false,
   }],
 } as Record<string, [Kind, Request["Data"]]>)) {
   const id = await create(db, kind, path, data);

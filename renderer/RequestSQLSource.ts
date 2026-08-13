@@ -97,11 +97,15 @@ export default function(
           //   },
           // }, "Choose File"),
         ),
-        m("div", {style: {display: "flex", gap: "1em", color: "#666", fontSize: ".8em"}},
-          m("input", {
-            type: "checkbox",
-            disabled: true,
-          }), // TODO: implement
+        m("div", {style: {display: "flex", gap: "1em", fontSize: ".8em", alignItems: "center"}},
+          (() => {
+            const cb = m("input", {
+              type: "checkbox",
+              onchange: (e: Event) => update_request({readOnly: (e.target as HTMLInputElement).checked}),
+            });
+            cb.checked = request.readOnly === true;
+            return cb;
+          })(),
           "Read Only Mode",
         ),
         statusLabel.el,

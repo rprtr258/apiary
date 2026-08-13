@@ -48,6 +48,12 @@ export type SQLRequest = {
   dsn: string,
   database: Database,
   query: string,
+  /**
+   * When true, the driver opens the connection/transaction read-only and any
+   * write statement throws. Only set by SQLSource perform; introspection and
+   * the standalone SQL request kind leave it unset.
+   */
+  readOnly?: boolean,
 };
 
 export type SQLResponse = {
@@ -60,6 +66,7 @@ export type SQLResponse = {
 export type SQLSourceRequest = {
   database: Database,
   dsn: string,
+  readOnly: boolean,
 };
 
 export type TableInfo = {

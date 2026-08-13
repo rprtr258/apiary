@@ -234,7 +234,7 @@ export async function PerformSQLSource(id: t.RequestID, query: string): Promise<
 
   const sourceRequest = req.Data;
   const sent_at = new Date();
-  const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query};
+  const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query, readOnly: sourceRequest.readOnly};
   const result = await sendSQL(sqlRequest);
   const received_at = new Date();
   return {
@@ -250,8 +250,8 @@ export async function TestSQLSource(id: t.RequestID): Promise<void> {
   const req = await get(id);
   if (req.Kind !== t.Kind.SQLSource)
     throw new Error(`request ${id} is not SQLSource`);
-  const {dsn, database} = req.Data;
-  await testSQLSource({dsn, database});
+  const {dsn, database, readOnly} = req.Data;
+  await testSQLSource({dsn, database, readOnly});
 }
 
 export async function ListTablesSQLSource(id: t.RequestID): Promise<t.TableInfo[]> {
