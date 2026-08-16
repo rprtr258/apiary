@@ -17,6 +17,7 @@
 - Use context-based cancellation in backend code.
 - Use structured logging in backend code.
 - Maintain plugin architecture for request kinds.
+- Treat redundant work as harmful, not merely wasteful. Do not dismiss duplicate computation, double-rendering, or repeated calls as "harmless because idempotent" — idempotency limits the blast radius, it does not justify leaving the redundancy. When you find redundant work, fix it at the source (the shared path every caller routes through) rather than papering over symptoms in individual callers. Redundant init runs, duplicate subscriber body executions, and "extra" calls kept "just in case" are all defects to remove, not tolerable noise.
 
 ## Commands
 

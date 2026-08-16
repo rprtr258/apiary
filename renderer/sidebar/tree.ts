@@ -451,27 +451,20 @@ export function createTreeView(): {el: HTMLElement} {
     }
   }
 
-  sourceCacheChanged.sub(function*() {while (true) { updateTree(); yield; }}());
+  sourceCacheChanged.sub(function*() {while (true) { yield; updateTree(); }}());
 
   store.requestsTree.sub(function*() {
     while (true) {
+      yield;
       updateTree();
       // Fetch data for expanded sources when requests tree updates
       // (e.g., when store.fetch() loads requests on app startup)
       fetchSources(expandedKeysSignal.value).catch(err => {
         console.error("Failed to fetch expanded sources:", err);
       });
-      yield;
     }
   }());
-  expandedKeysSignal.sub(function*() {while (true) { updateTree(); yield; }}());
-
-  // Initial tree render
-  updateTree();
-  // Fetch data for already expanded source requests
-  fetchSources(expandedKeysSignal.value).catch(err => {
-    console.error("Failed to fetch expanded sources:", err);
-  });
+  expandedKeysSignal.sub(function*() {while (true) { yield; updateTree(); }}());
 
   return {el: treeContainer};
 }
