@@ -75,14 +75,13 @@ export const Events = {
   Emit(eventName: string, ...data: unknown[]): void {return todo(eventName, data);},
 };
 
-// *Windows only*
-export const Windows = {
-  // Sets window theme to system default (dark/light).
-  SetSystemDefaultTheme(): void {return todo();},
-  SetTheme(_theme: "light" | "dark"): void {return todo();},
-};
+type Theme = "light" | "dark";
 
 export const Window = {
+  // Sets window theme to system default.
+  get system_default_theme(): Theme {return todo();},
+  set theme(v: Theme) {todo(v);},
+
   // Forces a reload by the main application as well as connected browsers.
   Reload(): void {return todo();},
 
@@ -90,7 +89,7 @@ export const Window = {
   ReloadApp(): void {return todo();},
 
   // Sets the window AlwaysOnTop or not on top.
-  SetAlwaysOnTop(b: boolean): void {return todo(b);},
+  set always_on_top(b: boolean) {todo(b);},
 
   // Centers the window on the monitor the window is currently on.
   Center(): void {return todo();},
@@ -111,44 +110,57 @@ export const Window = {
 
   // Sets the maximum window size. Will resize the window if the window is currently larger than the given dimensions.
   // Setting a size of 0,0 will disable this constraint.
-  SetMaxSize(width: number, height: number): void {return todo(width, height);},
+  set max_size({width, height}: {width: number, height: number}) {todo(width, height);},
 
   // Sets the minimum window size. Will resize the window if the window is currently smaller than the given dimensions.
   // Setting a size of 0,0 will disable this constraint.
-  SetMinSize(width: number, height: number): void {return todo(width, height);},
+  set min_size({width, height}: {width: number, height: number}) {todo(width, height);},
 
   // window position relative to the monitor the window is currently on
   get position(): Promise<{x: number, y: number}> {return todo();},
   set position({x, y}: {x: number, y: number}) {todo(x, y);},
 
-  // Hides the window.
-  Hide(): void {return todo();},
-
-  // Shows the window, if it is currently hidden.
-  Show(): void {return todo();},
+  set display(v: boolean) {
+    if (v)
+      // Shows the window, if it is currently hidden.
+      todo();
+    else
+      // Hides the window.
+      todo();
+  },
 
   // Toggles between Maximised and UnMaximised.
-  ToggleMaximise(): void {return todo();},
+  async ToggleMaximise(): Promise<void> {
+    this.maximised = !await this.maximised;
+  },
 
   set maximised(b: boolean) {
-    if (b) todo(); // Maximises the window to fill the screen
-    else todo(); // Restores the window to the dimensions and position prior to maximising
+    if (b)
+      // Maximises the window to fill the screen
+      todo();
+    else
+      // Restores the window to the dimensions and position prior to maximising
+      todo();
   },
   // Returns the state of the window, i.e. whether the window is maximised or not
   get maximised(): Promise<boolean> {return todo();},
 
   set minimised(b: boolean) {
-    if (b) todo(); // Minimises the window
-    else todo(); // Restores the window to the dimensions and position prior to minimising
+    if (b)
+      // Minimises the window
+      todo();
+    else
+      // Restores the window to the dimensions and position prior to minimising
+      todo();
   },
   // Returns the state of the window, i.e. whether the window is minimised or not
   get minimised(): Promise<boolean> {return todo();},
 
   // Sets the background colour of the window to the given RGBA colour definition. This colour will show through for all transparent pixels.
-  SetBackgroundColor(R: number, G: number, B: number, A: number): void {return todo(R, G, B, A);},
+  set background_color({R, G, B, A}: {R: number, G: number, B: number, A: number}) {todo(R, G, B, A);},
 
   // Returns the state of the window, i.e. whether the window is normal or not.
-  IsNormal(): Promise<boolean> {return todo();},
+  get is_normal(): Promise<boolean> {return todo();},
 };
 
 export type Screen = {

@@ -234,18 +234,32 @@ export function NModal({title, text, on}: NModalProps, ...children: DOMNode[]) {
         case "positive": on.positive_click(); break;
         case "negative": on.negative_click(); break;
       }
-      modal.hide();
+      modal.display = false;
     }, show: on.show},
   });
-  return {
-    element: modal.element,
-    show(): void {
-      modal.show();
-    },
-    hide(): void {
-      modal.hide();
-    },
-  };
+  return modal;
+};
+
+const style_overlay = {
+  placeSelf: "center",
+  position: "fixed",
+  zIndex: "100",
+  height: "100vh",
+  width: "100vw",
+  left: "0",
+  top: "0",
+  alignContent: "center",
+  justifyItems: "center",
+  backdropFilter: "blur(3px)",
+};
+const style_modal = {
+  backgroundColor: "#444444",
+  width: "40%",
+  height: "20%",
+  padding: "1em",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "space-between",
 };
 
 type ModalProps = {
@@ -257,33 +271,14 @@ type ModalProps = {
     show?: () => void,
   },
 };
+
 // TODO: use https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog
 export function Modal(
   {title, children: content, buttons, on}: ModalProps,
   children: DOMNode[] = [],
 ) {
-  const overlayStyle = {
-    placeSelf: "center",
-    position: "fixed",
-    zIndex: "100",
-    height: "100vh",
-    width: "100vw",
-    left: "0",
-    top: "0",
-    alignContent: "center",
-    justifyItems: "center",
-    backdropFilter: "blur(3px)",
-  };
-  const modalStyle = {
-    backgroundColor: "#444444",
-    width: "40%",
-    height: "20%",
-    padding: "1em",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-  };
-  const el_modal = m("div", {style: modalStyle},
+  let show = false; // TODO: signal as in dropdown
+  const el_modal = m("div", {style: style_modal},
     m("h3", {}, title),
     m("div", {}, content),
     m("div",
@@ -298,7 +293,7 @@ export function Modal(
     ...children,
   );
   const element = m("div", {
-    style: overlayStyle,
+    style: style_overlay,
     onclick: e => {
       // clicking on overlay outside of modal, hides everything
       const elementAtPoint = document.elementFromPoint(e.clientX, e.clientY);
@@ -309,14 +304,21 @@ export function Modal(
   }, el_modal);
   return {
     element,
-    show() {
-      setDisplay(element, true);
-      // Defer to ensure the modal is rendered before calling on.show
-      queueMicrotask(() => on.show?.());
+    get display(): boolean {
+      return show;
     },
-    hide() {
-      on.close();
-      setDisplay(element, false);
+    set display(v: boolean) {
+      if (show === v)
+        return;
+      if (v) {
+        setDisplay(element, true);
+        // Defer to ensure the modal is rendered before calling on.show
+        queueMicrotask(() => on.show?.());
+      } else {
+        on.close();
+        setDisplay(element, false);
+      }
+      show = v;
     },
   };
 }

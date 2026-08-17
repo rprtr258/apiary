@@ -106,5 +106,5 @@ export function showContextMenu(id: string, event: MouseEvent): void {
     }, opt.icon ?? null, opt.label);
     return res;
   });
-  globalDropdown.show(event.clientX, event.clientY, options);
+  globalDropdown.show([event.clientX, event.clientY], options);
 }

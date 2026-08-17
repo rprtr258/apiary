@@ -55,8 +55,7 @@ function Dropdown() {
   return {
     el,
     show(
-      x: number,
-      y: number,
+      [x, y]: [number, number],
       options: HTMLElement[],
     ) {
       el.style.left = `${x}px`;

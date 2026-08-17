@@ -485,43 +485,31 @@ function preApp(root: HTMLElement, store: Store) {
     },
   }, inputRename);
   newRequestKind.sub(function*() {
-    let shown = true; // NOTE: to trigger first call to set it to false
     while (true) {
       const newRequestKind = yield;
       if (newRequestKind === undefined) {
-        if (shown) {
-        modalCreate.hide();
-        shown = false;
-        }
+        modalCreate.display = false;
         continue;
       }
 
-      if (!shown) {
+      if (!modalCreate.display) {
         const newName = new Date().toUTCString();
         inputCreate.value = newName;
         newRequestName.update(() => newName);
-        modalCreate.show();
-        shown = true;
+        modalCreate.display = true;
       }
     }
   }());
   renameID.sub(function*() {
-    let shown = true; // NOTE: to trigger first call to set it to false
     while (true) {
       const renameID = yield;
       if (renameID === undefined) {
-        if (shown) {
-          modalRename.hide();
-          shown = false;
-        }
+        modalRename.display = false;
         continue;
       }
 
       inputRename.value = store.requests[renameID].name;
-      if (!shown) {
-        modalRename.show();
-        shown = true;
-      }
+      modalRename.display = true;
     }
   }());
 
