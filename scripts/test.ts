@@ -1,5 +1,5 @@
 import {mock} from "bun:test";
-import {ListTablesSQLSource, TestSQLSource} from "../main/api.ts";
+import {SQLSource} from "../main/api.ts";
 import {Database} from "bun:sqlite";
 import {formatSize} from "../renderer/lib/utils.ts";
 
@@ -28,8 +28,8 @@ mock.module("better-sqlite3", () => ({
 }));
 
 const id = "RjB0YRMNVwhxUYhaTF-Rn";
-await TestSQLSource(id);
-const tables = await ListTablesSQLSource(id);
+await SQLSource.Test(id);
+const tables = await SQLSource.ListTables(id);
 for (const {name, rowCount, sizeBytes} of tables.toSorted((a, b) => b.rowCount - a.rowCount)) {
   console.log(`${name.padEnd(23)} ${rowCount === 0 ? "empty" : `(${rowCount} rows, ${formatSize(sizeBytes)})`}`);
 }

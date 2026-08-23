@@ -208,152 +208,158 @@ export async function Perform(id: t.RequestID): Promise<PerformResponse> {
   };
 }
 
-export async function GRPCMethods(id: t.RequestID): Promise<Record<string, string[]>> {
-  const req = await get(id);
-  if (req.Kind !== t.Kind.GRPC)
-    throw new Error(`query kind is ${req.Kind}, expected grpc`);
-  return await grpcMethods(req.Data.target);
-}
+export const GRPC = {
+  async Methods(id: t.RequestID): Promise<Record<string, string[]>> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.GRPC)
+      throw new Error(`query kind is ${req.Kind}, expected grpc`);
+    return await grpcMethods(req.Data.target);
+  },
 
-export async function GRPCQueryFake(target: string, method: string): Promise<string> {
-  return await grpcQueryFake(target, method);
-}
+  async QueryFake(target: string, method: string): Promise<string> {
+    return await grpcQueryFake(target, method);
+  },
 
-// NOTE: method fully qualified
-export async function GRPCQueryValidate(target: string, method: string, payload: string): Promise<void> {
-  await grpcQueryValidate(target, method, payload);
-}
+  // NOTE: method fully qualified
+  async QueryValidate(target: string, method: string, payload: string): Promise<void> {
+    await grpcQueryValidate(target, method, payload);
+  },
+};
 
-export async function PerformSQLSource(id: t.RequestID, query: string): Promise<PerformResponse> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
-  const req = j[id];
-  if (req.Kind !== t.Kind.SQLSource)
-    throw new Error(`request ${id} is not SQLSource`);
+export const SQLSource = {
+  async Perform(id: t.RequestID, query: string): Promise<PerformResponse> {
+    const j = await load();
+    if (!(id in j))
+      throw new Error(`request ${id} not found`);
+    const req = j[id];
+    if (req.Kind !== t.Kind.SQLSource)
+      throw new Error(`request ${id} is not SQLSource`);
 
-  const sourceRequest = req.Data;
-  const sent_at = new Date();
-  const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query, readOnly: sourceRequest.readOnly};
-  const result = await sendSQL(sqlRequest);
-  const received_at = new Date();
-  return {
-    RequestId:   id,
-    sent_at:     sent_at.toISOString(),
-    received_at: received_at.toISOString(),
-    request:     sqlRequest,
-    response:    result,
-  };
-}
+    const sourceRequest = req.Data;
+    const sent_at = new Date();
+    const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query, readOnly: sourceRequest.readOnly};
+    const result = await sendSQL(sqlRequest);
+    const received_at = new Date();
+    return {
+      RequestId:   id,
+      sent_at:     sent_at.toISOString(),
+      received_at: received_at.toISOString(),
+      request:     sqlRequest,
+      response:    result,
+    };
+  },
 
-export async function TestSQLSource(id: t.RequestID): Promise<void> {
-  const req = await get(id);
-  if (req.Kind !== t.Kind.SQLSource)
-    throw new Error(`request ${id} is not SQLSource`);
-  const {dsn, database, readOnly} = req.Data;
-  await testSQLSource({dsn, database, readOnly});
-}
+  async Test(id: t.RequestID): Promise<void> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.SQLSource)
+      throw new Error(`request ${id} is not SQLSource`);
+    const {dsn, database, readOnly} = req.Data;
+    await testSQLSource({dsn, database, readOnly});
+  },
 
-export async function ListTablesSQLSource(id: t.RequestID): Promise<t.TableInfo[]> {
-  const req = await get(id);
-  if (req.Kind !== t.Kind.SQLSource)
-    throw new Error(`request ${id} is not SQLSource`);
-  const {dsn, database} = req.Data;
-  return await listTables({dsn, database});
-}
+  async ListTables(id: t.RequestID): Promise<t.TableInfo[]> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.SQLSource)
+      throw new Error(`request ${id} is not SQLSource`);
+    const {dsn, database} = req.Data;
+    return await listTables({dsn, database});
+  },
 
-export async function DescribeTableSQLSource(id: t.RequestID, tableName: string): Promise<t.TableSchema> {
-  const req = await get(id);
-  if (req.Kind !== t.Kind.SQLSource)
-    throw new Error(`request ${id} is not SQLSource`);
-  const {dsn, database} = req.Data;
-  return await describeTable({dsn, database}, tableName);
-}
+  async DescribeTable(id: t.RequestID, tableName: string): Promise<t.TableSchema> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.SQLSource)
+      throw new Error(`request ${id} is not SQLSource`);
+    const {dsn, database} = req.Data;
+    return await describeTable({dsn, database}, tableName);
+  },
 
-export async function CountRowsSQLSource(id: t.RequestID, tableName: string): Promise<number> {
-  const req = await get(id);
-  if (req.Kind !== t.Kind.SQLSource)
-    throw new Error(`request ${id} is not SQLSource`);
-  const {dsn, database} = req.Data;
-  return await countRowsSQLSource({dsn, database}, tableName);
-}
+  async CountRows(id: t.RequestID, tableName: string): Promise<number> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.SQLSource)
+      throw new Error(`request ${id} is not SQLSource`);
+    const {dsn, database} = req.Data;
+    return await countRowsSQLSource({dsn, database}, tableName);
+  },
+};
 
-export async function ListEndpointsHTTPSource(id: t.RequestID): Promise<t.EndpointInfo[]> {
-  const req = await get(id);
-  if (req.Kind !== t.Kind.HTTPSource)
-    throw new Error(`request ${id} is not HTTPSource`);
-  const sourceRequest = req.Data;
-  const specData = await fetchSpec(sourceRequest);
-  return await parseSpec(specData);
-}
+export const HTTPSource = {
+  async ListEndpoints(id: t.RequestID): Promise<t.EndpointInfo[]> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.HTTPSource)
+      throw new Error(`request ${id} is not HTTPSource`);
+    const sourceRequest = req.Data;
+    const specData = await fetchSpec(sourceRequest);
+    return await parseSpec(specData);
+  },
 
-export async function GenerateExampleRequestHTTPSource(id: t.RequestID, endpointIndex: number): Promise<t.HTTPRequest> {
-  const req = await get(id);
-  if (req.Kind !== t.Kind.HTTPSource)
-    throw new Error(`request ${id} is not HTTPSource`);
+  async GenerateExampleRequest(id: t.RequestID, endpointIndex: number): Promise<t.HTTPRequest> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.HTTPSource)
+      throw new Error(`request ${id} is not HTTPSource`);
 
-  const sourceRequest = req.Data;
-  const spec = await fetchSpec(sourceRequest);
-  const endpoints = await parseSpec(spec);
-  if (endpointIndex < 0 || endpointIndex >= endpoints.length)
-    throw new Error(`invalid endpoint index ${endpointIndex}`);
+    const sourceRequest = req.Data;
+    const spec = await fetchSpec(sourceRequest);
+    const endpoints = await parseSpec(spec);
+    if (endpointIndex < 0 || endpointIndex >= endpoints.length)
+      throw new Error(`invalid endpoint index ${endpointIndex}`);
 
-  return generateExampleRequest(endpoints[endpointIndex], sourceRequest.serverUrl, sourceRequest.auth);
-}
+    return generateExampleRequest(endpoints[endpointIndex], sourceRequest.serverUrl, sourceRequest.auth);
+  },
 
-export async function PerformVirtualEndpointHTTPSource(sourceID: t.RequestID, endpointIndex: number, modifiedRequest?: Partial<t.HTTPRequest>): Promise<Record<string, unknown>> {
-  // Perform an HTTP request generated from the OpenAPI spec
-  const j = await load();
-  const req = j[sourceID];
-  if (req.Kind !== t.Kind.HTTPSource)
-    throw new Error(`request ${sourceID} is not HTTPSource`);
+  async PerformVirtualEndpoint(sourceID: t.RequestID, endpointIndex: number, modifiedRequest?: Partial<t.HTTPRequest>): Promise<Record<string, unknown>> {
+    // Perform an HTTP request generated from the OpenAPI spec
+    const j = await load();
+    const req = j[sourceID];
+    if (req.Kind !== t.Kind.HTTPSource)
+      throw new Error(`request ${sourceID} is not HTTPSource`);
 
-  const spec = await fetchSpec(req.Data);
-  const endpoints = await parseSpec(spec);
-  if (endpointIndex < 0 || endpointIndex >= endpoints.length)
-    throw new Error(`invalid endpoint index ${endpointIndex}`);
+    const spec = await fetchSpec(req.Data);
+    const endpoints = await parseSpec(spec);
+    if (endpointIndex < 0 || endpointIndex >= endpoints.length)
+      throw new Error(`invalid endpoint index ${endpointIndex}`);
 
-  const exampleRequest = generateExampleRequest(endpoints[endpointIndex], req.Data.serverUrl, req.Data.auth);
-  // Merge with modified request if provided
-  const finalRequest = exampleRequest;
-  if (modifiedRequest !== undefined) {
-    // Merge fields from modifiedRequest into exampleRequest
-    finalRequest.method = modifiedRequest.method ?? finalRequest.method;
-    finalRequest.url = modifiedRequest.url ?? finalRequest.url;
-    finalRequest.body = modifiedRequest.body ?? finalRequest.body;
-    if ((modifiedRequest.headers ?? []).length > 0) {
-      finalRequest.headers = modifiedRequest.headers!;
+    const exampleRequest = generateExampleRequest(endpoints[endpointIndex], req.Data.serverUrl, req.Data.auth);
+    // Merge with modified request if provided
+    const finalRequest = exampleRequest;
+    if (modifiedRequest !== undefined) {
+      // Merge fields from modifiedRequest into exampleRequest
+      finalRequest.method = modifiedRequest.method ?? finalRequest.method;
+      finalRequest.url = modifiedRequest.url ?? finalRequest.url;
+      finalRequest.body = modifiedRequest.body ?? finalRequest.body;
+      if ((modifiedRequest.headers ?? []).length > 0) {
+        finalRequest.headers = modifiedRequest.headers!;
+      }
     }
-  }
 
-  const sent_at = new Date();
-  const result = await sendHTTP(finalRequest);
-  const received_at = new Date();
-  return {
-    RequestId:   sourceID,
-    sent_at:     sent_at.toISOString(),
-    received_at: received_at.toISOString(),
-    request:     finalRequest,
-    response:    result,
-  };
-}
+    const sent_at = new Date();
+    const result = await sendHTTP(finalRequest);
+    const received_at = new Date();
+    return {
+      RequestId:   sourceID,
+      sent_at:     sent_at.toISOString(),
+      received_at: received_at.toISOString(),
+      request:     finalRequest,
+      response:    result,
+    };
+  },
 
-export async function TestHTTPSource(id: t.RequestID): Promise<void> {
-  const req = await get(id);
-  if (req.Kind !== t.Kind.HTTPSource)
-    throw new Error(`request ${id} is not HTTPSource`);
-  const sourceRequest = req.Data;
-  // Verify spec is parseable
-  const specData = await fetchSpec(sourceRequest);
-  await parseSpec(specData);
-}
+  async Test(id: t.RequestID): Promise<void> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.HTTPSource)
+      throw new Error(`request ${id} is not HTTPSource`);
+    const sourceRequest = req.Data;
+    // Verify spec is parseable
+    const specData = await fetchSpec(sourceRequest);
+    await parseSpec(specData);
+  },
 
-export async function FetchSpecHTTPSource(id: t.RequestID): Promise<void> {
-  const req = await get(id);
-  if (req.Kind !== t.Kind.HTTPSource)
-    throw new Error(`request ${id} is not HTTPSource`);
-  const sourceRequest = req.Data;
-  const specData = await fetchSpec(sourceRequest);
-  // TODO: use(return?) specData
-  void(specData);
-}
+  async FetchSpec(id: t.RequestID): Promise<void> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.HTTPSource)
+      throw new Error(`request ${id} is not HTTPSource`);
+    const sourceRequest = req.Data;
+    const specData = await fetchSpec(sourceRequest);
+    // TODO: use(return?) specData
+    void(specData);
+  },
+};

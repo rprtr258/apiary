@@ -80,53 +80,53 @@ export const api = {
   },
 
   async grpcMethods(target: string): Promise<Result<Record<string, string[]>>> {
-    return await wrap(() => Api.GRPCMethods(target), {target});
+    return await wrap(() => Api.GRPC.Methods(target), {target});
   },
 
   async requestPerformSQLSource(
     id: string,
     query: string,
   ): Promise<Result<t.HistoryEntry>> {
-    return await wrap(() => Api.PerformSQLSource(id, query), {reqId: id, query}) as Result<t.HistoryEntry>;
+    return await wrap(() => Api.SQLSource.Perform(id, query), {reqId: id, query}) as Result<t.HistoryEntry>;
   },
 
   async requestTestSQLSource(
     id: string,
   ): Promise<Result<void>> {
-    return await wrap(() => Api.TestSQLSource(id), {reqId: id});
+    return await wrap(() => Api.SQLSource.Test(id), {reqId: id});
   },
 
   async requestListTablesSQLSource(
     id: string,
   ): Promise<Result<t.TableInfo[]>> {
-    return await wrap(() => Api.ListTablesSQLSource(id), {reqId: id});
+    return await wrap(() => Api.SQLSource.ListTables(id), {reqId: id});
   },
 
   async requestDescribeTableSQLSource(
     id: string,
     tableName: string,
   ): Promise<Result<t.TableSchema>> {
-    return await wrap(() => Api.DescribeTableSQLSource(id, tableName), {reqId: id, tableName});
+    return await wrap(() => Api.SQLSource.DescribeTable(id, tableName), {reqId: id, tableName});
   },
 
   async requestCountRowsSQLSource(
     id: string,
     tableName: string,
   ): Promise<Result<number>> {
-    return await wrap(() => Api.CountRowsSQLSource(id, tableName), {reqId: id, tableName});
+    return await wrap(() => Api.SQLSource.CountRows(id, tableName), {reqId: id, tableName});
   },
 
   async requestListEndpointsHTTPSource(
     id: string,
   ): Promise<Result<t.EndpointInfo[]>> {
-    return await wrap(() => Api.ListEndpointsHTTPSource(id), {reqId: id});
+    return await wrap(() => Api.HTTPSource.ListEndpoints(id), {reqId: id});
   },
 
   async requestGenerateExampleRequestHTTPSource(
     id: string,
     endpointIndex: number,
   ): Promise<Result<t.HTTPRequest>> {
-    return await wrap(() => Api.GenerateExampleRequestHTTPSource(id, endpointIndex), {reqId: id, endpointIndex});
+    return await wrap(() => Api.HTTPSource.GenerateExampleRequest(id, endpointIndex), {reqId: id, endpointIndex});
   },
 
   async requestPerformVirtualEndpointHTTPSource(
@@ -136,13 +136,13 @@ export const api = {
   ): Promise<Result<t.HistoryEntry>> {
     // The Go function expects *t.HTTPRequest (pointer) which can be nil
     // The TypeScript definition doesn't reflect this, so we need to cast
-    return await wrap(() => Api.PerformVirtualEndpointHTTPSource(sourceID, endpointIndex, request),
+    return await wrap(() => Api.HTTPSource.PerformVirtualEndpoint(sourceID, endpointIndex, request),
       {sourceID, endpointIndex, request}) as Result<t.HistoryEntry>;
   },
 
   async requestTestHTTPSource(
     id: string,
   ): Promise<Result<void>> {
-    return await wrap(() => Api.TestHTTPSource(id), {reqId: id});
+    return await wrap(() => Api.HTTPSource.Test(id), {reqId: id});
   },
 };

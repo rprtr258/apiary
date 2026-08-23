@@ -39,11 +39,11 @@ function responseBadge(response: t.HTTPResponse): HTMLElement {
   }, `${code}`);
 }
 
-export interface HTTPRequestViewResult {
+export type HTTPRequestViewResult = {
   loaded(r: {request: Request, history: HistoryEntry[]}): void,
   push_history_entry(he: HistoryEntry): void,
   unmount(): void,
-}
+};
 
 export default function HTTPRequestView(
   el: HTMLElement,

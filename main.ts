@@ -3,30 +3,7 @@ import {fileURLToPath} from "url";
 import {app, BrowserWindow, ipcMain} from "electron";
 import data from "./package.json" with {type: "json"};
 import * as t from "@/types.ts";
-import {
-  CountRowsSQLSource,
-  Create,
-  Delete,
-  DescribeTableSQLSource,
-  Duplicate,
-  FetchSpecHTTPSource,
-  GenerateExampleRequestHTTPSource,
-  Get,
-  GRPCMethods,
-  GRPCQueryFake,
-  GRPCQueryValidate,
-  List,
-  ListEndpointsHTTPSource,
-  ListTablesSQLSource,
-  Perform,
-  PerformSQLSource,
-  PerformVirtualEndpointHTTPSource,
-  Read,
-  Rename,
-  TestHTTPSource,
-  TestSQLSource,
-  Update,
-} from "./main/api.ts";
+import * as api from "./main/api.ts";
 import {Request} from "./main/db.ts";
 
 const version = data.version;
@@ -68,25 +45,25 @@ app.on("window-all-closed", () => {
   }
 });
 
-ipcMain.handle("List", _ => List());
-ipcMain.handle("Get", (_, id: string) => Get(id));
-ipcMain.handle("Create", (_, path: string, kind: t.Kind) => Create(path, kind));
-ipcMain.handle("Duplicate", (_, id: string) => Duplicate(id));
-ipcMain.handle("Read", (_, id: string) => Read(id));
-ipcMain.handle("Rename", (_, id: string, newName: string) => Rename(id, newName));
-ipcMain.handle("Update", (_, id: string, data: Request["Data"]) => Update(id, data));
-ipcMain.handle("Delete", (_, id: string) => Delete(id));
-ipcMain.handle("Perform", (_, id: string) => Perform(id));
-ipcMain.handle("GRPCMethods", (_, target: string) => GRPCMethods(target));
-ipcMain.handle("GRPCQueryFake", (_, target: string, method: string) => GRPCQueryFake(target, method));
-ipcMain.handle("GRPCQueryValidate", (_, target: string, method: string, payload: string) => GRPCQueryValidate(target, method, payload));
-ipcMain.handle("PerformSQLSource", (_, id: string, query: string) => PerformSQLSource(id, query));
-ipcMain.handle("TestSQLSource", (_, id: string) => TestSQLSource(id));
-ipcMain.handle("ListTablesSQLSource", (_, id: string) => ListTablesSQLSource(id));
-ipcMain.handle("DescribeTableSQLSource", (_, id: string, tableName: string) => DescribeTableSQLSource(id, tableName));
-ipcMain.handle("CountRowsSQLSource", (_, id: string, tableName: string) => CountRowsSQLSource(id, tableName));
-ipcMain.handle("ListEndpointsHTTPSource", (_, id: string) => ListEndpointsHTTPSource(id));
-ipcMain.handle("GenerateExampleRequestHTTPSource", (_, id: string, endpointIndex: number) => GenerateExampleRequestHTTPSource(id, endpointIndex));
-ipcMain.handle("PerformVirtualEndpointHTTPSource", (_, sourceID: string, endpointIndex: number, request: t.HTTPRequest) => PerformVirtualEndpointHTTPSource(sourceID, endpointIndex, request));
-ipcMain.handle("TestHTTPSource", (_, id: string) => TestHTTPSource(id));
-ipcMain.handle("FetchSpecHTTPSource", (_, id: string) => FetchSpecHTTPSource(id));
+ipcMain.handle("List", _ => api.List());
+ipcMain.handle("Get", (_, id: string) => api.Get(id));
+ipcMain.handle("Create", (_, path: string, kind: t.Kind) => api.Create(path, kind));
+ipcMain.handle("Duplicate", (_, id: string) => api.Duplicate(id));
+ipcMain.handle("Read", (_, id: string) => api.Read(id));
+ipcMain.handle("Rename", (_, id: string, newName: string) => api.Rename(id, newName));
+ipcMain.handle("Update", (_, id: string, data: Request["Data"]) => api.Update(id, data));
+ipcMain.handle("Delete", (_, id: string) => api.Delete(id));
+ipcMain.handle("Perform", (_, id: string) => api.Perform(id));
+ipcMain.handle("GRPC.Methods", (_, target: string) => api.GRPC.Methods(target));
+ipcMain.handle("GRPC.QueryFake", (_, target: string, method: string) => api.GRPC.QueryFake(target, method));
+ipcMain.handle("GRPC.QueryValidate", (_, target: string, method: string, payload: string) => api.GRPC.QueryValidate(target, method, payload));
+ipcMain.handle("SQLSource.Perform", (_, id: string, query: string) => api.SQLSource.Perform(id, query));
+ipcMain.handle("SQLSource.Test", (_, id: string) => api.SQLSource.Test(id));
+ipcMain.handle("SQLSource.ListTables", (_, id: string) => api.SQLSource.ListTables(id));
+ipcMain.handle("SQLSource.DescribeTable", (_, id: string, tableName: string) => api.SQLSource.DescribeTable(id, tableName));
+ipcMain.handle("SQLSource.CountRows", (_, id: string, tableName: string) => api.SQLSource.CountRows(id, tableName));
+ipcMain.handle("HTTPSource.ListEndpoints", (_, id: string) => api.HTTPSource.ListEndpoints(id));
+ipcMain.handle("HTTPSource.GenerateExampleRequest", (_, id: string, endpointIndex: number) => api.HTTPSource.GenerateExampleRequest(id, endpointIndex));
+ipcMain.handle("HTTPSource.PerformVirtualEndpoint", (_, sourceID: string, endpointIndex: number, request: t.HTTPRequest) => api.HTTPSource.PerformVirtualEndpoint(sourceID, endpointIndex, request));
+ipcMain.handle("HTTPSource.Test", (_, id: string) => api.HTTPSource.Test(id));
+ipcMain.handle("HTTPSource.FetchSpec", (_, id: string) => api.HTTPSource.FetchSpec(id));

@@ -6,10 +6,10 @@ import type {JSONSchema7} from "json-schema";
 import {m, signal} from "../lib/utils.ts";
 import {NEmpty} from "./dataview.ts";
 
-export interface EndpointViewerProps {
+export type EndpointViewerProps = {
   sourceID: string,
   endpointIndex: number,
-}
+};
 
 export default function EndpointViewer(
   container: ComponentContainer,

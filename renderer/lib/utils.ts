@@ -97,7 +97,7 @@ export function m<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
-interface SVGCommon {
+type SVGCommon = {
   id: string,
   style: Partial<CSSStyleDeclaration>,
   class: string,
@@ -107,9 +107,9 @@ interface SVGCommon {
   "stroke-width": number,
   "stroke-linecap": "round",
   "stroke-linejoin": "round",
-}
+};
 
-interface SVGAttrs {
+type SVGAttrs = {
   svg: {
     xmlns: "http://www.w3.org/2000/svg",
     "xmlns:xlink": "http://www.w3.org/1999/xlink",
@@ -172,7 +172,7 @@ interface SVGAttrs {
     refY: string,
     orient: string,
   } & SVGCommon,
-}
+};
 
 export function s<K extends keyof SVGAttrs>(
   tag: K,

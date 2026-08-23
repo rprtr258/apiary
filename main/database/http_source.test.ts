@@ -1,7 +1,7 @@
 import {describe, test, expect} from "bun:test";
 import {OpenAPI} from "openapi-types";
 import {parseSpec, generateExampleRequest} from "./http_source.ts";
-import {GenerateExampleRequestHTTPSource} from "../api.ts";
+import {HTTPSource} from "../api.ts";
 import petstoreV2_ from "./petstore-openapi.v2.json" with {type: "json"};
 import petstoreV3_ from "./petstore-openapi.v3.json" with {type: "json"};
 import testapiV2_ from "./testapi-openapi.v2.json" with {type: "json"};
@@ -79,7 +79,7 @@ describe("generateExampleRequest", () => {
   });
 
   test("throws for invalid endpoint index", () => {
-    expect(() => GenerateExampleRequestHTTPSource("", 999999)).toThrow();
+    expect(() => HTTPSource.GenerateExampleRequest("", 999999)).toThrow();
   });
 });
 
