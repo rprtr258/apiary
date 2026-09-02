@@ -181,6 +181,17 @@ export function NTree(props: NTreeProps) {
   return m("div", {}, props.data.flatMap(v => renderElem(v, 0)));
 };
 
+export function StatusLabel() {
+  const el = m("div", {style: {fontSize: ".8em", whiteSpace: "pre-wrap"}});
+  return {
+    el,
+    setStatus(message: string, isSuccess: boolean) {
+      el.textContent = message;
+      el.style.color = isSuccess ? "green" : "red";
+    },
+  };
+};
+
 export function NTable(props: Record<string, unknown>, children: DOMNode[]) {
   return m("table", props, children);
 };

@@ -1,4 +1,4 @@
-import {NEmpty} from "./components/dataview.ts";
+import {NEmpty, StatusLabel} from "./components/dataview.ts";
 import {NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {get_request} from "./store.ts";
 import {api} from "./api.ts";
@@ -23,17 +23,6 @@ declare global {
   }
 }
 
-function StatusLabel() {
-  const el = m("div", {style: {fontSize: ".8em", height: "1.2em"}});
-  return {
-    el,
-    setStatus(message: string, isSuccess: boolean) {
-      el.textContent = message;
-      el.style.color = isSuccess ? "green" : "red";
-    },
-  };
-}
-
 function AuthFields(auth: t.AuthConfig, onUpdate: (patch: Partial<t.AuthConfig>) => void) {
   // Ensure auth.type is valid
   const validAuthTypes = ["none", "basic", "bearer", "apikey", "oauth"];
@@ -55,28 +44,28 @@ function AuthFields(auth: t.AuthConfig, onUpdate: (patch: Partial<t.AuthConfig>)
     on: {update: type => onUpdate({type})},
   });
 
-  const fields: HTMLElement[] = [m("label", "Auth Type"), authTypeSelect.el];
+  const fields: HTMLElement[] = [m("label", {}, "Auth Type"), authTypeSelect.el];
   switch (auth.type) {
   case "basic":
     fields.push(
-      m("label", "Username"), NInput({value: auth.username, on: {update: (v: string) => onUpdate({username: v})}}),
-      m("label", "Password"), NInput({value: auth.password, on: {update: (v: string) => onUpdate({password: v})}}),
+      m("label", {}, "Username"), NInput({value: auth.username, on: {update: (v: string) => onUpdate({username: v})}}),
+      m("label", {}, "Password"), NInput({value: auth.password, on: {update: (v: string) => onUpdate({password: v})}}),
     );
     break;
   case "bearer":
     fields.push(
-      m("label", "Token"), NInput({value: auth.token, on: {update: (v: string) => onUpdate({token: v})}}),
+      m("label", {}, "Token"), NInput({value: auth.token, on: {update: (v: string) => onUpdate({token: v})}}),
     );
     break;
   case "apikey":
     fields.push(
-      m("label", "Key Name"), NInput({value: auth.key, on: {update: (v: string) => onUpdate({key: v})}}),
-      m("label", "Key Value"), NInput({value: auth.value, on: {update: (v: string) => onUpdate({value: v})}}),
+      m("label", {}, "Key Name"), NInput({value: auth.key, on: {update: (v: string) => onUpdate({key: v})}}),
+      m("label", {}, "Key Value"), NInput({value: auth.value, on: {update: (v: string) => onUpdate({value: v})}}),
     );
     break;
   case "oauth":
     fields.push(
-      m("label", "Token"), NInput({value: auth.token, on: {update: (v: string) => onUpdate({token: v})}}), // placeholder // TODO: implement
+      m("label", {}, "Token"), NInput({value: auth.token, on: {update: (v: string) => onUpdate({token: v})}}), // placeholder // TODO: implement
     );
     break;
   }
@@ -104,10 +93,10 @@ export default function(
 
       const updateConnectionStatus = async (): Promise<void> => {
         const res = await api.requestTestHTTPSource(requestID);
-        res.map_or_else(
-          _ => statusLabel.setStatus("Spec loaded successfully!", true),
-          err => statusLabel.setStatus(`Spec load failed: ${err}`, false),
-        );
+        statusLabel.setStatus(res.map_or_else(
+          _ => "Spec loaded successfully!",
+          err => `Spec load failed: ${err}`,
+        ), res.kind === "ok");
       };
 
       const update_request = async (patch: Partial<Request>): Promise<void> => {
@@ -236,10 +225,10 @@ export default function(
           padding: "0 3em",
         },
       }, [
-        m("label", "Server URL"), serverUrlInput,
-        m("label", "Spec Source"), specSourceSelect.el,
-        m("label", "Spec Data"), specInput,
-        m("label", "Authentication"), authFieldsContainer,
+        m("label", {}, "Server URL"), serverUrlInput,
+        m("label", {}, "Spec Source"), specSourceSelect.el,
+        m("label", {}, "Spec Data"), specInput,
+        m("label", {}, "Authentication"), authFieldsContainer,
         statusLabel.el,
       ]);
 

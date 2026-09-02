@@ -61,7 +61,7 @@ type ElementProps<K extends keyof HTMLElementTagNameMap> =
 
 export function m<K extends keyof HTMLElementTagNameMap>(
   tag: K,
-  preProps?: ElementProps<K>,
+  preProps?: ElementProps<K> & object,
   ...children: DOMNode[]
 ): HTMLElementTagNameMap[K] {
   const props: ElementProps<K> = preProps ?? {};

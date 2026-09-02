@@ -2,23 +2,12 @@ import * as t from "@/types.ts";
 import {api} from "./api.ts";
 import {get_request} from "./store.ts";
 import {m} from "./lib/utils.ts";
-import {NEmpty} from "./components/dataview.ts";
+import {NEmpty, StatusLabel} from "./components/dataview.ts";
 import {NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {NTabs} from "./components/layout.ts";
 import SchemaCanvas from "./components/SchemaCanvas.ts";
 
 type Request = t.SQLSourceRequest;
-
-function StatusLabel() {
-  const el = m("div", {style: {fontSize: ".8em", height: "1.2em"}});
-  return {
-    el,
-    setStatus(message: string, isSuccess: boolean) {
-      el.textContent = message;
-      el.style.color = isSuccess ? "green" : "red";
-    },
-  };
-}
 
 export default function(
   el: HTMLElement,
@@ -40,15 +29,15 @@ export default function(
       const request = r.request as Request;
       const statusLabel = StatusLabel();
 
-      const updateConnectionStatus = async (): Promise<void> => {
+      async function updateConnectionStatus(): Promise<void> {
         const res = await api.requestTestSQLSource(requestID);
-        res.map_or_else(
-          _ => statusLabel.setStatus("Database connection successful!", true),
-          err => statusLabel.setStatus(`Database connection failed: ${err}`, false),
-        );
+        statusLabel.setStatus(res.map_or_else(
+          _ => "Database connection successful!",
+          err => `Database connection failed: ${err}`,
+        ), res.kind === "ok");
       };
 
-      const update_request = async (patch: Partial<Request>): Promise<void> => {
+      async function update_request(patch: Partial<Request>): Promise<void> {
         await on.update(patch);
         await updateConnectionStatus();
       };
