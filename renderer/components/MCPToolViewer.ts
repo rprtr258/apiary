@@ -3,8 +3,10 @@ import {api} from "../api.ts";
 import {m} from "../lib/utils.ts";
 import EditorJSON from "./EditorJSON.ts";
 import ViewJSON from "./ViewJSON.ts";
-import {NButton} from "./input.ts";
-import {NSplit} from "./layout.ts";
+import {NButton, NInputGroup} from "./input.ts";
+import {Modal, NSplit} from "./layout.ts";
+import {NIcon} from "./dataview.ts";
+import {QuestionCircleOutlined} from "./icons.ts";
 import type {StateMCPTool} from "../store.ts";
 
 export type ToolViewerProps = StateMCPTool;
@@ -59,17 +61,33 @@ export default function ToolViewer(
     on: {click: send},
   }, "Send");
 
-  const header = m("div", {style: {
-    display: "flex",
-    alignItems: "center",
-    gap: ".5em",
-    padding: "8px",
-    borderBottom: "1px solid #333",
+  const infoModal = Modal({
+    title: tool.name,
+    children: [m("div", {style: {whiteSpace: "pre-wrap", overflow: "auto", maxHeight: "60vh"}}, tool.description)],
+    buttons: [{id: "close", text: "Close"}],
+    on: {close: (id?: string) => {
+      if (id === "close") infoModal.display = false;
+    }},
+  });
+  // Override the fixed 20% height from style_modal so the modal fits its content.
+  Object.assign((infoModal.element.firstElementChild as HTMLElement).style, {
+    height: "auto",
+    maxHeight: "80vh",
+    width: "50%",
+  });
+
+  const infoButton = m("span", {
+    title: "Show description",
+    style: {cursor: "pointer", display: "inline-flex", alignItems: "center", color: "#a0a0a0"},
+    onclick: () => {infoModal.display = true;},
+  }, NIcon({component: QuestionCircleOutlined}));
+
+  const header = NInputGroup({style: {
+    display: "grid",
+    gridTemplateColumns: "1fr 10fr 1fr",
   }},
-    m("div", {style: {flexGrow: "1", minWidth: "0"}},
-      m("h3", {style: {margin: "0"}}, tool.name),
-      m("div", {style: {color: "#a0a0a0", fontSize: ".85em"}}, tool.description),
-    ),
+    infoButton,
+    m("h3", {style: {margin: "0", minWidth: "0"}}, tool.name),
     sendButton.el,
   );
 
@@ -84,6 +102,7 @@ export default function ToolViewer(
       header,
       m("div", {style: {flexGrow: "1", minHeight: "0"}}, split.element),
     ),
+    infoModal.element,
   );
 
   container.on("destroy", () => {

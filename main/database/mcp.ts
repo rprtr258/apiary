@@ -34,7 +34,19 @@ function buildTransport(req: MCPRequest): Transport {
 
 // ponytail: per-op reconnect; pool clients if latency matters
 async function withClient<T>(req: MCPRequest, fn: (client: Client) => Promise<T>): Promise<T> {
-  const client = new Client({name: "apiary", version: "1.0.0"}, {capabilities: {}});
+  const client = new Client({name: "apiary", version: "1.0.0"}, {capabilities: {
+    elicitation: {
+      form: {},
+      url: {},
+    },
+    experimental: {},
+    extensions: {},
+    roots: {
+      listChanged: true,
+    },
+    sampling: {},
+    tasks: {},
+  }});
   const transport = buildTransport(req);
   // Collect subprocess stderr so connection failures can surface a useful message.
   let stderr = "";

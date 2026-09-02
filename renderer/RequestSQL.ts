@@ -61,7 +61,6 @@ export default function(
 
       const el_input_group = NInputGroup({
         style: {
-          gridColumn: "span 2",
           display: "grid",
           gridTemplateColumns: "1fr 10fr 1fr",
         },
