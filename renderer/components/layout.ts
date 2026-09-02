@@ -302,6 +302,7 @@ export function Modal(
       on.close();
     },
   }, el_modal);
+  setDisplay(element, false); // hide initially; show flag starts false, keep DOM in sync
   return {
     element,
     get display(): boolean {
