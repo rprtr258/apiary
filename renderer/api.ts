@@ -145,4 +145,18 @@ export const api = {
   ): Promise<Result<void>> {
     return await wrap(() => Api.HTTPSource.Test(id), {reqId: id});
   },
+
+  async mcpListTools(
+    id: string,
+  ): Promise<Result<t.MCPTool[]>> {
+    return await wrap(() => Api.MCP.ListTools(id), {reqId: id});
+  },
+
+  async mcpCallTool(
+    id: string,
+    toolName: string,
+    args: unknown,
+  ): Promise<Result<unknown>> {
+    return await wrap(() => Api.MCP.CallTool(id, toolName, args), {reqId: id, toolName, args});
+  },
 };

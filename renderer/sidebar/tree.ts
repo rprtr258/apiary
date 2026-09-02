@@ -6,7 +6,7 @@ import {store} from "../store.ts";
 import {DOMNode, formatSize, m, signal} from "../lib/utils.ts";
 import {useLocalStorage} from "../lib/localStorage.ts";
 import {css} from "../lib/styles.ts";
-import {endpointCache, fetchSources, sourceCacheChanged, tableCache} from "./sourceCache.ts";
+import {endpointCache, fetchSources, sourceCacheChanged, tableCache, toolCache} from "./sourceCache.ts";
 import {showContextMenu} from "./contextMenu.ts";
 import {badge} from "./shared.ts";
 
@@ -39,7 +39,7 @@ function formatEndpointLabel(endpoint: t.EndpointInfo): string {
 type VirtualKey = {
   sourceID: string,
   name: string,
-  kind: "table" | "endpoint" | "loading" | "empty",
+  kind: "table" | "endpoint" | "tool" | "loading" | "empty",
 };
 
 function parseVirtualKey(key: string): Option<VirtualKey> {
@@ -47,7 +47,7 @@ function parseVirtualKey(key: string): Option<VirtualKey> {
   if (parts.length !== 4)
     return none;
   const [, kind, sourceID, name] = parts;
-  if (!((kind): kind is VirtualKey["kind"] => ["table", "endpoint", "loading", "empty"].includes(kind))(kind))
+  if (!((kind): kind is VirtualKey["kind"] => ["table", "endpoint", "tool", "loading", "empty"].includes(kind))(kind))
     return none;
   return some({sourceID, name, kind});
 }
@@ -160,6 +160,20 @@ export function createTreeView(): {el: HTMLElement} {
                     disabled: true,
                   }];
                 }
+              case req.kind === t.Kind.MCP:
+                if (id in toolCache && toolCache[id].tools.length > 0) {
+                  return toolCache[id].tools.map(tool => ({
+                    key: `virtual:tool:${id}:${tool.name}`,
+                    label: tool.name,
+                  }));
+                } else {
+                  const isLoading = id in toolCache && toolCache[id].loading === true;
+                  return [{
+                    key: `virtual:${isLoading ? "loading" : "empty"}:${id}:tool`,
+                    label: isLoading ? "Loading..." : "(None)",
+                    disabled: true,
+                  }];
+                }
               default:
                 return undefined;
               }
@@ -211,7 +225,7 @@ export function createTreeView(): {el: HTMLElement} {
                 const tableInfo = tableCache[sourceID].tables[name];
                 store.openTableViewer(sourceID, name, tableInfo);
                 break;
-              case "endpoint":
+              case "endpoint": {
                 const endpointIndex = parseInt(name, 10);
                 if (!(sourceID in endpointCache) || endpointIndex >= endpointCache[sourceID].endpoints.length)
                   return;
@@ -220,6 +234,16 @@ export function createTreeView(): {el: HTMLElement} {
                 const endpoint = endpointCache[sourceID].endpoints[endpointIndex];
                 store.openEndpointViewer(sourceID, endpointIndex, endpoint);
                 break;
+              }
+              case "tool": {
+                if (!(sourceID in toolCache))
+                  return;
+                const tool = toolCache[sourceID].tools.find(tl => tl.name === name);
+                if (tool === undefined)
+                  return;
+                store.openToolViewer(sourceID, tool);
+                break;
+              }
               }
             } else {
               store.selectRequest(id);
@@ -365,6 +389,39 @@ export function createTreeView(): {el: HTMLElement} {
                   title: option.label,
                 }, option.label));
               }
+              case "tool":
+                return m("span", {
+                  style: {
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    width: "100%",
+                  },
+                },
+                NTag({
+                  type: "info",
+                  style: {
+                    minWidth: "2em",
+                    justifyContent: "center",
+                    display: "flex",
+                    alignItems: "center",
+                    backgroundColor: "#000000",
+                    color: "#FFFFFF",
+                    fontWeight: "bold",
+                    padding: "2px 4px",
+                  },
+                }, "TOOL"),
+                m("span", {
+                  style: {
+                    flex: "1",
+                    minWidth: "0",
+                    color: "#e0e0e0",
+                    overflow: "clip",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  },
+                  title: option.label,
+                }, option.label));
               }
             }
 
@@ -376,7 +433,8 @@ export function createTreeView(): {el: HTMLElement} {
             // Check if this source is currently loading
             const isLoading =
               (req.kind === t.Kind.SQLSource && option.key in tableCache && tableCache[option.key].loading === true) ||
-              (req.kind === t.Kind.HTTPSource && option.key in endpointCache && endpointCache[option.key].loading === true);
+              (req.kind === t.Kind.HTTPSource && option.key in endpointCache && endpointCache[option.key].loading === true) ||
+              (req.kind === t.Kind.MCP && option.key in toolCache && toolCache[option.key].loading === true);
 
             // Determine tag type - regular requests have no background, just colored text
             const tagType = req.kind === t.Kind.HTTP ? "success" : "info";

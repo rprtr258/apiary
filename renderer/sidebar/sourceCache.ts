@@ -13,6 +13,9 @@ const tableCache: Record<string, E & {
 const endpointCache: Record<string, E & {
   endpoints: t.EndpointInfo[],
 }> = {};
+const toolCache: Record<string, E & {
+  tools: t.MCPTool[],
+}> = {};
 
 const STALE_AFTER = 1000*60*5; // 5 minutes
 
@@ -23,18 +26,21 @@ function isStale(cache: Record<string, E>, key: string): boolean {
   return Date.now() - entry.lastFetch > STALE_AFTER && entry.loading !== true;
 }
 
-function staleSourceKeys(keys: string[]): {sql: string[], http: string[]} {
+function staleSourceKeys(keys: string[]): {sql: string[], http: string[], mcp: string[]} {
   const sql: string[] = [];
   const http: string[] = [];
+  const mcp: string[] = [];
   for (const key of keys.filter(key => key in store.requests)) {
     const kind = store.requests[key].kind;
     if (kind === t.Kind.SQLSource && isStale(tableCache, key)) {
       sql.push(key);
     } else if (kind === t.Kind.HTTPSource && isStale(endpointCache, key)) {
       http.push(key);
+    } else if (kind === t.Kind.MCP && isStale(toolCache, key)) {
+      mcp.push(key);
     }
   }
-  return {sql, http};
+  return {sql, http, mcp};
 }
 
 // Bumped on every cache mutation so subscribers (e.g. tree view) can re-render.
@@ -88,12 +94,38 @@ export const fetchEndpoints = (httpSourceID: string): Promise<void> =>
     "Could not fetch endpoints",
   );
 
+export const fetchTools = (mcpID: string): Promise<void> =>
+  fetchCached(
+    toolCache,
+    mcpID,
+    () => ({tools: []}),
+    (id: string) => api.mcpListTools(id).then(r => r.map(tools => ({tools}))),
+    "Could not fetch tools",
+  );
+
+// Mark cached tools stale and show loading state so the sidebar drops stale tools
+// immediately while a refetch is in flight.
+export function invalidateTools(mcpID: string): void {
+  toolCache[mcpID] = {lastFetch: 0, loading: true, tools: []};
+  sourceCacheChanged.update(v => v + 1);
+}
+
+// Populate cached tools from an already-fetched result (avoids a second backend
+// call when the caller fetches for its own purposes, e.g. the MCP status label).
+export function setTools(mcpID: string, res: Result<t.MCPTool[]>): void {
+  toolCache[mcpID] = res.kind === "ok"
+    ? {lastFetch: Date.now(), loading: false, tools: res.value}
+    : {lastFetch: 0, loading: false, tools: []};
+  sourceCacheChanged.update(v => v + 1);
+}
+
 export async function fetchSources(keys: string[]): Promise<void> {
-  const {sql, http} = staleSourceKeys(keys);
+  const {sql, http, mcp} = staleSourceKeys(keys);
   await Promise.all([
     ...sql.map(fetchTables),
     ...http.map(fetchEndpoints),
+    ...mcp.map(fetchTools),
   ]);
 }
 
-export {tableCache, endpointCache};
+export {tableCache, endpointCache, toolCache};

@@ -38,6 +38,10 @@ const api: Api = {
     Test:                   (a1: string                               ): Promise<void>                    => ipcRenderer.invoke("HTTPSource.Test",                   a1        ),
     FetchSpec:              (a1: string                               ): Promise<void>                    => ipcRenderer.invoke("HTTPSource.FetchSpec",              a1        ),
   },
+  MCP: {
+    ListTools: (a1: string                         ): Promise<t.MCPTool[]>   => ipcRenderer.invoke("MCP.ListTools", a1        ),
+    CallTool:  (a1: string, a2: string, a3: unknown): Promise<unknown>       => ipcRenderer.invoke("MCP.CallTool",  a1, a2, a3),
+  },
 };
 contextBridge.exposeInMainWorld("api", api);
 

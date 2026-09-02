@@ -26,6 +26,9 @@ import RequestMD from "./RequestMD.ts";
 import RequestDIFF from "./RequestDIFF.ts";
 import RequestSQLSource from "./RequestSQLSource.ts";
 import RequestHTTPSource from "./RequestHTTPSource.ts";
+import RequestMCP from "./RequestMCP.ts";
+import ToolViewer from "./components/MCPToolViewer.ts";
+import type {StateMCPTool} from "./store.ts";
 
 function create() {
   const kind = newRequestKind.value!;
@@ -268,6 +271,9 @@ function createFrame(
     case t.Kind.HTTPSource:
       setDisplay(eye, false);
       return RequestHTTPSource(el, {update: on.update});
+    case t.Kind.MCP:
+      setDisplay(eye, false);
+      return RequestMCP(el, {update: on.update});
   }
 }
 
@@ -377,6 +383,8 @@ function isComponentValid(node: LayoutConfigNode, validIds: Set<string>): boolea
       return state !== undefined && validIds.has(String(state["sqlSourceID"]));
     case "EndpointViewer":
       return state !== undefined && validIds.has(String(state["sourceID"]));
+    case "ToolViewer":
+      return state !== undefined && validIds.has(String(state["sourceID"]));
     default:
       return true;
   }
@@ -440,6 +448,7 @@ function preApp(root: HTMLElement, store: Store) {
     "MyComponent": (container, state) => panelkaFactory(container, state as StateRequest),
     "TableViewer": (container, state) => RequestTableViewer(container, state as StateSQLSourceTable),
     "EndpointViewer": (container, state) => EndpointViewer(container, state as StateHTTPSourceEndpoint),
+    "ToolViewer": (container, state) => ToolViewer(container, state as StateMCPTool),
   }, () => {
     update_empty_state();
     updateLocalstorage();

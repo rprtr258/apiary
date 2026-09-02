@@ -35,6 +35,13 @@ services:
     build: ./cmd/grpc
     ports: ["50051:50051"]
 
+  mcp-server:
+    build: ./scripts/mcp
+    ports: ["3001:3001"]
+    environment:
+      MCP_TRANSPORT: http
+      MCP_PORT: "3001"
+
   # services for openapi testing
   petstore-api:
     image: swaggerapi/petstore3:latest

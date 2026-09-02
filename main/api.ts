@@ -8,6 +8,7 @@ import {sendDIFF} from "./database/diff.ts";
 import {sendGRPC, grpcMethods, grpcQueryFake, grpcQueryValidate} from "./database/grpc.ts";
 import {parseSpec, generateExampleRequest, fetchSpec} from "./database/http_source.ts";
 import {listTables, describeTable, countRowsSQLSource, testSQLSource, EmptyRequest as SQLSourceEmptyRequest} from "./database/sql_source.ts";
+import {EmptyRequest as MCPEmptyRequest, listTools as mcpListTools, callTool as mcpCallTool} from "./database/mcp.ts";
 import * as t from "@/types.ts";
 
 async function get(id: t.RequestID): Promise<Request> {
@@ -90,6 +91,8 @@ function emptyRequestForKind(kind: t.Kind): Request["Data"] {
     return SQLSourceEmptyRequest;
   case t.Kind.HTTPSource:
     return {serverUrl: "", specSource: "url", specData: "", auth: {type: "none"}};
+  case t.Kind.MCP:
+    return MCPEmptyRequest;
   default:
     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     throw new Error(`unknown kind ${kind}`);
@@ -361,5 +364,21 @@ export const HTTPSource = {
     const specData = await fetchSpec(sourceRequest);
     // TODO: use(return?) specData
     void(specData);
+  },
+};
+
+export const MCP = {
+  async ListTools(id: t.RequestID): Promise<t.MCPTool[]> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.MCP)
+      throw new Error(`request ${id} is not MCP`);
+    return await mcpListTools(req.Data);
+  },
+
+  async CallTool(id: t.RequestID, toolName: string, args: unknown): Promise<unknown> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.MCP)
+      throw new Error(`request ${id} is not MCP`);
+    return await mcpCallTool(req.Data, toolName, args);
   },
 };

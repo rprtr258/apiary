@@ -12,6 +12,7 @@ export function badge(kind: t.Kind): [string, string] {
   case t.Kind.MD:         return ["MD",         "blue"     ];
   case t.Kind.SQLSource:  return ["SQL*",       "blue"     ];
   case t.Kind.DIFF:       return ["DIFF",       "green"    ];
+  case t.Kind.MCP:        return ["MCP",        "white"    ];
   default:                return [String(kind), ""         ];
   }
 }

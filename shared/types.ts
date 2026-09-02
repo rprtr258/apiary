@@ -1,18 +1,12 @@
 export * from "./types/shared.ts";
-export * from "./types/http.ts";
-import {HTTPRequest, HTTPResponse, HTTPSourceRequest} from "./types/http.ts";
-export * from "./types/sql.ts";
-import {SQLRequest, SQLResponse, SQLSourceRequest} from "./types/sql.ts";
-export * from "./types/grpc.ts";
-import {GRPCRequest, GRPCResponse} from "./types/grpc.ts";
-export * from "./types/redis.ts";
-import {RedisRequest, RedisResponse} from "./types/redis.ts";
-export * from "./types/md.ts";
-import {MDRequest, MDResponse} from "./types/md.ts";
-export * from "./types/jq.ts";
-import {JQRequest, JQResponse} from "./types/jq.ts";
-export * from "./types/diff.ts";
-import {DIFFRequest, DIFFResponse} from "./types/diff.ts";
+import {HTTPRequest, HTTPResponse, HTTPSourceRequest} from "./types/http.ts"; export * from "./types/http.ts";
+import {SQLRequest, SQLResponse, SQLSourceRequest} from "./types/sql.ts"; export * from "./types/sql.ts";
+import {GRPCRequest, GRPCResponse} from "./types/grpc.ts"; export * from "./types/grpc.ts";
+import {RedisRequest, RedisResponse} from "./types/redis.ts"; export * from "./types/redis.ts";
+import {MDRequest, MDResponse} from "./types/md.ts"; export * from "./types/md.ts";
+import {JQRequest, JQResponse} from "./types/jq.ts"; export * from "./types/jq.ts";
+import {DIFFRequest, DIFFResponse} from "./types/diff.ts"; export * from "./types/diff.ts";
+import {MCPRequest} from "./types/mcp.ts"; export * from "./types/mcp.ts";
 
 export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: string]: JSONValue};
 
@@ -30,6 +24,7 @@ export enum Kind {
   GRPC = "grpc",
   HTTPSource = "http-source",
   DIFF = "diff",
+  MCP = "mcp",
 }
 
 export type requestPreview = {
@@ -75,6 +70,7 @@ export type RequestData =
   | {kind: Kind.DIFF      } & DIFFRequest
   | {kind: Kind.SQLSource } & SQLSourceRequest
   | {kind: Kind.HTTPSource} & HTTPSourceRequest
+  | {kind: Kind.MCP       } & MCPRequest
 ;
 
 export const Kinds = Object.values(Kind);

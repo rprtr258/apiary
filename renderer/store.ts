@@ -19,7 +19,11 @@ export type StateHTTPSourceEndpoint = {
   endpointIndex: number,
   endpointInfo: t.EndpointInfo,
 };
-export type State = StateRequest | StateSQLSourceTable | StateHTTPSourceEndpoint;
+export type StateMCPTool = {
+  sourceID: string,
+  tool: t.MCPTool,
+};
+export type State = StateRequest | StateSQLSourceTable | StateHTTPSourceEndpoint | StateMCPTool;
 
 const localStorageKey = "tabs";
 const layoutConfig: LayoutConfig = (() => {
@@ -91,6 +95,7 @@ export type Store = {
   rename(id: string, newID: string): Promise<void>,
   openTableViewer(sqlSourceID: string, tableName: string, tableInfo: t.TableInfo): void,
   openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: t.EndpointInfo): void,
+  openToolViewer(sourceID: string, tool: t.MCPTool): void,
   // Tab navigation methods
   navigateToNextTab(): void,
   navigateToPreviousTab(): void,
@@ -237,6 +242,13 @@ export const store = ((): Store => {
 
       const sourceName = sourceID in this.requests ? this.requests[sourceID].name : sourceID;
       layout.addItem("EndpointViewer", `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`, {sourceID, endpointIndex, endpointInfo});
+    },
+    openToolViewer(sourceID: string, tool: t.MCPTool): void {
+      if (findExistingTab<StateMCPTool>("ToolViewer", t => t.sourceID === sourceID && t.tool.name === tool.name) !== undefined)
+        return;
+
+      const sourceName = sourceID in this.requests ? this.requests[sourceID].name : sourceID;
+      layout.addItem("ToolViewer", `${sourceName}/${tool.name}`, {sourceID, tool});
     },
     navigateToNextTab(): void {
       const active = layout.activeTab();

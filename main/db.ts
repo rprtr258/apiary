@@ -31,6 +31,7 @@ type v1 = {
   [t.Kind.DIFF]:       Record<t.RequestID, KindEntry<t.DIFFRequest, t.DIFFResponse>>,
   [t.Kind.SQLSource]:  Record<t.RequestID, t.SQLSourceRequest>,
   [t.Kind.HTTPSource]: Record<t.RequestID, t.HTTPSourceRequest>,
+  [t.Kind.MCP]:        Record<t.RequestID, t.MCPRequest>,
 };
 
 type historyEntry<_Req, Resp> = {
@@ -88,6 +89,10 @@ export type Request = {
     Data: t.HTTPSourceRequest,
     Responses: [],
   }
+  | {Kind: t.Kind.MCP} & {
+    Data: t.MCPRequest,
+    Responses: [],
+  }
 );
 
 export type DB = Record<t.RequestID, Request>;
@@ -105,6 +110,8 @@ export function extractSubKind(
     case t.Kind.SQLSource:
       return entry.Data.database;
     // case t.Kind.HTTPSource: // TODO: swagger version
+    case t.Kind.MCP:
+      return entry.Data.transport;
     default:
       return "";
   }
@@ -195,6 +202,11 @@ export async function load(): Promise<DB> {
           Data: raw[r.kind][r.id],
           Responses: [],
         };
+      case t.Kind.MCP:
+        return {
+          Data: raw[r.kind][r.id],
+          Responses: [],
+        };
       default:
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         throw new Error(`unknown kind ${r.kind}`);
@@ -250,6 +262,9 @@ export async function save(j: DB): Promise<void> {
     ])),
     "sql-source": Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.SQLSource).map(([id, r]) => [id,
       r.Data as t.SQLSourceRequest,
+    ])),
+    mcp: Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.MCP).map(([id, r]) => [id,
+      r.Data as t.MCPRequest,
     ])),
   };
   await writeFile("db.json", JSON.stringify(raw, null, 2));

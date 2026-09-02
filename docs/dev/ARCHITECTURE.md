@@ -44,18 +44,19 @@ The plugin system defines the contract between frontend requests and backend exe
 - Each plugin implements `Perform(context, EntryData) -> (EntryData, error)`
 - Plugins are registered in `Plugins` map in `plugin.go`
 
-**Plugins** (9 total):
-| Kind | Purpose | Stores Response? |
-|------|---------|-----------------|
-| HTTP | REST API calls | Yes |
-| SQL | Database queries | Yes |
-| GRPC | gRPC calls | Yes |
-| JQ | JSON processing | Yes |
-| Redis | Redis operations | Yes |
-| MD | Markdown render | No |
-| DIFF | API diffing | No |
-| SQLSource | DB metadata source | N/A |
-| HTTPSource | OpenAPI source | N/A |
+**Plugins**:
+| Kind       | Purpose            | Stores Response? |
+|------------|--------------------|------------------|
+| HTTP       | REST API calls     | Yes              |
+| SQL        | Database queries   | Yes              |
+| GRPC       | gRPC calls         | Yes              |
+| JQ         | JSON processing    | Yes              |
+| Redis      | Redis operations   | Yes              |
+| MD         | Markdown render    | No               |
+| DIFF       | API diffing        | No               |
+| SQLSource  | DB metadata source | N/A              |
+| HTTPSource | OpenAPI source     | N/A              |
+| MCP        | MCP toolcalls      | No               |
 
 ### Frontend: Request UI Modules
 
