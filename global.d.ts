@@ -39,8 +39,8 @@ export type Api = {
 };
 
 declare global {
-  type Window = {
+  interface Window {
     versions: Versions,
     api: Api,
-  };
+  }
 }
