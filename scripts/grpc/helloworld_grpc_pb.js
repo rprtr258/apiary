@@ -2,7 +2,7 @@
 
 'use strict';
 var grpc = require('@grpc/grpc-js');
-var scripts_grpc_helloworld_pb = require('../../scripts/grpc/helloworld_pb.js');
+var scripts_grpc_helloworld_pb = require('./helloworld_pb.js');
 
 function serialize_helloworld_HelloReply(arg) {
   if (!(arg instanceof scripts_grpc_helloworld_pb.HelloReply)) {

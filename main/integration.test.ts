@@ -5,13 +5,14 @@ import {listTables, describeTable, countRowsSQLSource, testSQLSource} from "./da
 import {sendRedis} from "./database/redis.ts";
 import {grpcMethods} from "./database/grpc.ts";
 
+const IS_INTEGRATION = Boolean(process.env.INTEGRATION);
 const pgDSN = process.env.PG_DSN ?? "postgres://postgres:password@localhost:5432/postgres";
 
 function pgRequest(query?: string): SQLRequest {
   return {dsn: pgDSN, database: "postgres", query: query ?? ""};
 }
 
-describe("sendSQL (postgres)", () => {
+describe.if(IS_INTEGRATION)("sendSQL (postgres)", () => {
   test("multiple rows", async () => {
     const result = await sendSQL(pgRequest("SELECT * FROM (VALUES (1,'a'),(2,'b')) AS t(id, name)"));
     expect(result.rows).toHaveLength(2);
@@ -34,7 +35,7 @@ describe("sendSQL (postgres)", () => {
   });
 });
 
-describe("SQLSource (postgres)", () => {
+describe.if(IS_INTEGRATION)("SQLSource (postgres)", () => {
   const tableName = "test_sql_source";
 
   beforeAll(async () => {
@@ -90,7 +91,7 @@ function req(query: string): RedisRequest {
   return {dsn: redisDSN, query};
 }
 
-describe("sendRedis", () => {
+describe.if(IS_INTEGRATION)("sendRedis", () => {
   test("PING returns PONG", async () => {
     const result = await sendRedis(req("PING"));
     expect(result.response).toContain("PONG");
@@ -108,9 +109,9 @@ describe("sendRedis", () => {
   });
 });
 
-describe("grpc", () => {
+describe.if(IS_INTEGRATION)("grpc", () => {
   test("list methods", async () => {
     const methods = await grpcMethods("localhost:50051");
-    expect(methods).toEqual({"SayHello": ["helloworld.Greeter"]});
+    expect(methods).toEqual({"helloworld.Greeter": ["SayHello"]});
   });
 });
