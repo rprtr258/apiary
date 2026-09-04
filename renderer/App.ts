@@ -1,4 +1,4 @@
-import {ComponentContainer, LayoutConfig, Tab} from "golden-layout";
+import {ComponentContainer, LayoutConfig, Tab} from "./layout/types.ts";
 import * as t from "@/types.ts";
 import {Kinds, HistoryEntry, Request} from "@/types.ts";
 import {m, setDisplay, Signal, signal} from "./lib/utils.ts";
@@ -131,35 +131,68 @@ function getCommandPaletteItems(): Item[] {
           label: "Next tab",
           shortcut: ["Ctrl", "PgDown"],
           perform: () => {
-            store.navigateToNextTab();
+            store.navigateToTab("next");
           },
         },
         {
           label: "Previous tab",
           shortcut: ["Ctrl", "PgUp"],
           perform: () => {
-            store.navigateToPreviousTab();
+            store.navigateToTab("prev");
           },
         },
         {
           label: "Close tab",
           shortcut: ["Ctrl", "W"],
           perform: () => {
-            layout.closeFocused();
+            layout.instance?.closeFocused();
           },
         },
         {
           label: "Move tab right",
           shortcut: ["Ctrl", "Shift", "PgDown"],
           perform: () => {
-            store.moveTabRight();
+            store.moveTab("right");
           },
         },
         {
           label: "Move tab left",
           shortcut: ["Ctrl", "Shift", "PgUp"],
           perform: () => {
-            store.moveTabLeft();
+            store.moveTab("left");
+          },
+        },
+      ],
+    }] : []),
+    ...(currentID !== null ? [{
+      label: "Layout",
+      items: [
+        {
+          label: "Move pane to next group",
+          shortcut: ["Alt", "→"],
+          perform: () => {
+            store.movePane("right");
+          },
+        },
+        {
+          label: "Move pane to previous group",
+          shortcut: ["Alt", "←"],
+          perform: () => {
+            store.movePane("left");
+          },
+        },
+        {
+          label: "Move pane to group above",
+          shortcut: ["Alt", "↑"],
+          perform: () => {
+            store.movePane("up");
+          },
+        },
+        {
+          label: "Move pane to group below",
+          shortcut: ["Alt", "↓"],
+          perform: () => {
+            store.movePane("down");
           },
         },
       ],
@@ -365,12 +398,13 @@ type LayoutConfigNode = {
 };
 
 // Remove tabs from layout config whose underlying request/source no longer exists in the DB,
-// and clamp stack activeItemIndex so golden-layout does not crash on load with an out-of-range index.
+// and clamp stack activeItemIndex so the layout does not crash on load with an out-of-range index.
 function stripStaleTabs(config: LayoutConfig, validIds: Set<string>): void {
   const root = config.root as LayoutConfigNode | undefined;
   if (root === undefined)
     return;
-  filterNode(root, validIds);
+  if (!filterNode(root, validIds))
+    config.root = undefined;
 }
 
 // Keep a component tab only if the request/source it references still exists.
@@ -427,7 +461,7 @@ function preApp(root: HTMLElement, store: Store) {
     style: {
       color: "rgba(255, 255, 255, 0.82)",
       backgroundColor: "rgb(16, 16, 20)",
-      overflow: "hidden", // TODO: fix hiding golden-layout element
+      overflow: "hidden", // TODO: fix hiding layout element
     }}, [
       el_empty_state,
       el_layout,
@@ -454,7 +488,7 @@ function preApp(root: HTMLElement, store: Store) {
     updateLocalstorage();
   });
   const update_empty_state = () => {
-    setDisplay(el_empty_state, layout.isEmpty);
+    setDisplay(el_empty_state, layout.instance?.isEmpty ?? false);
   };
   update_empty_state();
 
@@ -624,7 +658,7 @@ function preApp(root: HTMLElement, store: Store) {
       if (anyModalIsOpen()) {
         return;
       }
-      layout.closeFocused();
+      layout.instance?.closeFocused();
     }
 
     // Check for Ctrl+PgDown - Next tab
@@ -633,7 +667,7 @@ function preApp(root: HTMLElement, store: Store) {
       if (anyModalIsOpen()) {
         return;
       }
-      store.navigateToNextTab();
+      store.navigateToTab("next");
       return;
     }
 
@@ -643,7 +677,7 @@ function preApp(root: HTMLElement, store: Store) {
       if (anyModalIsOpen()) {
         return;
       }
-      store.navigateToPreviousTab();
+      store.navigateToTab("prev");
       return;
     }
 
@@ -653,7 +687,7 @@ function preApp(root: HTMLElement, store: Store) {
       if (anyModalIsOpen()) {
         return;
       }
-      store.moveTabRight();
+      store.moveTab("right");
       return;
     }
 
@@ -663,8 +697,24 @@ function preApp(root: HTMLElement, store: Store) {
       if (anyModalIsOpen()) {
         return;
       }
-      store.moveTabLeft();
+      store.moveTab("left");
       return;
+    }
+
+    if (e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+      if (!["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown"].includes(e.key))
+        return;
+
+      e.preventDefault();
+      if (anyModalIsOpen()) 
+        return;
+
+      store.movePane(({
+        "ArrowRight": "right",
+        "ArrowLeft": "left",
+        "ArrowUp": "up",
+        "ArrowDown": "down",
+      } as Record<string, "right" | "left" | "up" | "down">)[e.key]);
     }
   };
 

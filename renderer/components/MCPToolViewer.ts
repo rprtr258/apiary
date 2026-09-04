@@ -1,10 +1,10 @@
-import {ComponentContainer} from "golden-layout";
 import {api} from "../api.ts";
 import {m} from "../lib/utils.ts";
 import EditorJSON from "./EditorJSON.ts";
 import ViewJSON from "./ViewJSON.ts";
 import {NButton, NInputGroup} from "./input.ts";
 import {Modal, NSplit} from "./layout.ts";
+import {ComponentContainer} from "../layout/types.ts";
 import {NIcon} from "./dataview.ts";
 import {QuestionCircleOutlined} from "./icons.ts";
 import type {StateMCPTool} from "../store.ts";

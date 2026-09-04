@@ -1,8 +1,10 @@
-import {ComponentItem, LayoutConfig, ResolvedLayoutConfig} from "golden-layout";
+import {z} from "zod";
 import * as t from "@/types.ts";
 import {api} from "./api.ts";
 import {signal, Signal} from "./lib/utils.ts";
 import layout from "./layout.ts";
+import {ItemConfig, LayoutConfig} from "./layout/types.ts";
+import {ComponentItem, Stack} from "./layout/manager.ts";
 import notification from "./lib/notification.ts";
 
 export type StateRequest = {
@@ -26,25 +28,56 @@ export type StateMCPTool = {
 export type State = StateRequest | StateSQLSourceTable | StateHTTPSourceEndpoint | StateMCPTool;
 
 const localStorageKey = "tabs";
-const layoutConfig: LayoutConfig = (() => {
-  const oldTabs = localStorage.getItem(localStorageKey);
-  if (oldTabs !== null) {
-    return LayoutConfig.fromResolved(JSON.parse(oldTabs) as ResolvedLayoutConfig);
-  }
+function defaultLayoutConfig(): LayoutConfig {
   return {
-    header: {
-      show: "top",
-      close: "close",
-      maximise: "maximise",
-    },
     root: {
       type: "stack",
       content: [],
     },
   };
+}
+
+// Recursive item config schema: stack holds components only, row/column hold items.
+// passthrough() keeps unvalidated keys (componentState, width, activeItemIndex, ...)
+// intact, since the parsed config is stored and re-serialized as-is.
+const componentSchema = z.object({
+  type: z.literal("component"),
+  title: z.string(),
+  componentType: z.string(),
+}).loose();
+const itemSchema = z.lazy((): z.ZodType<ItemConfig> => z.union([
+  componentSchema,
+  z.object({
+    type: z.literal("stack"),
+    content: z.array(componentSchema),
+  }).loose(),
+  z.object({
+    type: z.literal("row"),
+    content: z.array(itemSchema),
+  }).loose(),
+  z.object({
+    type: z.literal("column"),
+    content: z.array(itemSchema),
+  }).loose(),
+]));
+const layoutConfigSchema = z.object({
+  root: itemSchema.optional(),
+}).loose();
+
+const layoutConfig: LayoutConfig = (() => {
+  const oldTabs = localStorage.getItem(localStorageKey);
+  if (oldTabs === null) {
+    return defaultLayoutConfig();
+  }
+  try {
+    return layoutConfigSchema.parse(JSON.parse(oldTabs));
+  } catch {
+    // Corrupt/legacy stored layout: fall through to the pristine default.
+  }
+  return defaultLayoutConfig();
 })();
 export function updateLocalstorage() {
-  const dump = JSON.stringify(layout.instance?.saveLayout());
+  const dump = JSON.stringify(layout.instance?.layout);
   localStorage.setItem(localStorageKey, dump);
 }
 
@@ -53,7 +86,8 @@ function findExistingTab<T>(
   predicate?: (state: T) => boolean,
 ): ComponentItem | undefined {
   return layout
-    .tabs()
+    .instance
+    ?.tabs()
     .filter(t => t.componentType === componentType)
     .find(t => predicate?.(t.toConfig().componentState as T) ?? true);
 }
@@ -97,17 +131,16 @@ export type Store = {
   openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: t.EndpointInfo): void,
   openToolViewer(sourceID: string, tool: t.MCPTool): void,
   // Tab navigation methods
-  navigateToNextTab(): void,
-  navigateToPreviousTab(): void,
-  moveTabRight(): void,
-  moveTabLeft(): void,
+  navigateToTab(direction: "next" | "prev"): void,
+  moveTab(direction: "right" | "left"): void,
+  movePane(direction: "right" | "left" | "up" | "down"): void,
 };
 
 export const store = ((): Store => {
   let activeComponentID: string | null = null;
   type RequestTab = {id: string, item: ComponentItem};
   function activateTab({id, item}: RequestTab): void {
-    layout.focus(item);
+    layout.instance?.focus(item);
     activeComponentID = id;
   }
   function getActiveComponentItem(): ComponentItem | undefined {
@@ -128,7 +161,7 @@ export const store = ((): Store => {
       activeComponentID = value;
     },
     clearTabs() {
-      layout.clear();
+      layout.instance?.clear();
       activeComponentID = null;
     },
     requestID(): string | null {
@@ -146,7 +179,7 @@ export const store = ((): Store => {
         activateTab({id, item: tab});
         return;
       }
-      layout.addItem("MyComponent", id, {id});
+      layout.instance?.addItem("MyComponent", id, {id});
       this.fetch().catch(e => notification.error({title: "Failed to fetch requests", error: e}));
     },
     async fetch(): Promise<void> {
@@ -229,7 +262,7 @@ export const store = ((): Store => {
       const databaseType = sqlSourceRequest.database;
 
       const sourceName = sqlSourceID in this.requests ? this.requests[sqlSourceID].name : sqlSourceID;
-      layout.addItem("TableViewer", `${sourceName}/${tableName}`, {
+      layout.instance?.addItem("TableViewer", `${sourceName}/${tableName}`, {
         sqlSourceID,
         tableName,
         tableInfo,
@@ -241,59 +274,61 @@ export const store = ((): Store => {
         return;
 
       const sourceName = sourceID in this.requests ? this.requests[sourceID].name : sourceID;
-      layout.addItem("EndpointViewer", `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`, {sourceID, endpointIndex, endpointInfo});
+      layout.instance?.addItem("EndpointViewer", `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`, {sourceID, endpointIndex, endpointInfo});
     },
     openToolViewer(sourceID: string, tool: t.MCPTool): void {
       if (findExistingTab<StateMCPTool>("ToolViewer", t => t.sourceID === sourceID && t.tool.name === tool.name) !== undefined)
         return;
 
       const sourceName = sourceID in this.requests ? this.requests[sourceID].name : sourceID;
-      layout.addItem("ToolViewer", `${sourceName}/${tool.name}`, {sourceID, tool});
+      layout.instance?.addItem("ToolViewer", `${sourceName}/${tool.name}`, {sourceID, tool});
     },
-    navigateToNextTab(): void {
-      const active = layout.activeTab();
-      if (active === undefined) return;
-      const parent = active.parent;
-      if (parent?.isStack !== true) return;
+    navigateToTab(direction: "next" | "prev"): void {
+      const active = layout.instance?.activeTab();
+      if (active === undefined || active.isNone())
+        return;
 
-      const allTabs = parent.contentItems as ComponentItem[];
-      const currentIndex = allTabs.indexOf(active);
-      if (currentIndex === -1 || allTabs.length <= 1) return;
+      const parent = active.value.parent;
+      if (!(parent instanceof Stack))
+        return;
 
-      const nextIndex = (currentIndex + 1) % allTabs.length;
-      const next = allTabs[nextIndex];
-      layout.focus(next);
-      activeComponentID = (next.toConfig().componentState as Partial<StateRequest>).id ?? null;
+      const tabs = parent.contentItems;
+      const currentIndex = tabs.indexOf(active.value);
+      if (currentIndex === -1 || tabs.length <= 1)
+        return;
+
+      const nextTabIndex = {
+        "next": (currentIndex + 1) % tabs.length,
+        "prev": (currentIndex - 1 + tabs.length) % tabs.length,
+      }[direction];
+      const tab = tabs[nextTabIndex];
+      layout.instance?.focus(tab);
+      activeComponentID = (tab.toConfig().componentState as Partial<StateRequest>).id ?? null;
     },
-    navigateToPreviousTab(): void {
-      const active = layout.activeTab();
-      if (active === undefined) return;
-      const parent = active.parent;
-      if (parent?.isStack !== true) return;
-
-      const tabs = parent.contentItems as ComponentItem[];
-      const currentIndex = tabs.indexOf(active);
-      if (currentIndex === -1 || tabs.length <= 1) return;
-
-      const prev = tabs[(currentIndex - 1 + tabs.length) % tabs.length];
-      layout.focus(prev);
-      activeComponentID = (prev.toConfig().componentState as Partial<StateRequest>).id ?? null;
-    },
-    moveTabRight(): void {
+    moveTab(direction: "right" | "left"): void {
       const activeItem = getActiveComponentItem();
       if (activeItem === undefined)
         return;
 
-      layout.move(activeItem, i => i + 1);
+      ({
+        "right": () => layout.instance?.move(activeItem, i => i + 1),
+        "left":  () => layout.instance?.move(activeItem, i => i - 1),
+      })[direction]();
       updateLocalstorage();
     },
-    moveTabLeft(): void {
-      const activeItem = getActiveComponentItem();
-      if (activeItem === undefined)
+    movePane(direction: "right" | "left" | "up" | "down"): void {
+      const active = layout.instance?.activeTab();
+      if (active === undefined || active.isNone())
         return;
 
-      layout.move(activeItem, i => i - 1);
-      updateLocalstorage();
+      const changed = {
+        "right": () => layout.instance?.moveToNextGroup(active.value),
+        "left":  () => layout.instance?.moveToPreviousGroup(active.value),
+        "up":    () => layout.instance?.moveAbove(active.value),
+        "down":  () => layout.instance?.moveBelow(active.value),
+      }[direction]();
+      if (changed ?? false)
+        updateLocalstorage();
     },
   };
 })();
@@ -364,19 +399,16 @@ store.requestsTree.sub(function*() {
   while (true) {
     const requestTree = yield;
     const openTabIds = new Map<string, ComponentItem>();
-    for (const c of layout.tabs().filter(c => c.componentType === "MyComponent"))
+    for (const c of (layout.instance?.tabs() ?? []).filter(c => c.componentType === "MyComponent"))
       openTabIds.set((c.toConfig().componentState as StateRequest).id, c);
 
-    const treeIds = new Set<string>(); // TODO: get straight from previews map
-    function collectIds(tree: t.Tree): void {
-      for (const id of tree.IDs) {
-        treeIds.add(id);
-      }
+    function* collectIds(tree: t.Tree): Generator<string> {
+      yield* tree.IDs;
       for (const dir in tree.Dirs) {
-        collectIds(tree.Dirs[dir]);
+        yield* collectIds(tree.Dirs[dir]);
       }
     }
-    collectIds(requestTree);
+    const treeIds = new Set(collectIds(requestTree)); // TODO: get straight from previews map
 
     for (const [id, item] of openTabIds.entries()) {
       if (treeIds.has(id))
