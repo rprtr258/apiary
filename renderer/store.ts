@@ -1,8 +1,9 @@
-import {ComponentItem, LayoutConfig, ResolvedLayoutConfig} from "golden-layout";
 import * as t from "@/types.ts";
 import {api} from "./api.ts";
 import {signal, Signal} from "./lib/utils.ts";
 import layout from "./layout.ts";
+import {LayoutConfig} from "./layout/types.ts";
+import {ComponentItem} from "./layout/manager.ts";
 import notification from "./lib/notification.ts";
 
 export type StateRequest = {
@@ -29,7 +30,7 @@ const localStorageKey = "tabs";
 const layoutConfig: LayoutConfig = (() => {
   const oldTabs = localStorage.getItem(localStorageKey);
   if (oldTabs !== null) {
-    return LayoutConfig.fromResolved(JSON.parse(oldTabs) as ResolvedLayoutConfig);
+    return JSON.parse(oldTabs) as LayoutConfig;
   }
   return {
     header: {
@@ -44,7 +45,7 @@ const layoutConfig: LayoutConfig = (() => {
   };
 })();
 export function updateLocalstorage() {
-  const dump = JSON.stringify(layout.instance?.saveLayout());
+  const dump = JSON.stringify(layout.instance?.layout);
   localStorage.setItem(localStorageKey, dump);
 }
 
@@ -53,7 +54,8 @@ function findExistingTab<T>(
   predicate?: (state: T) => boolean,
 ): ComponentItem | undefined {
   return layout
-    .tabs()
+    .instance
+    ?.tabs()
     .filter(t => t.componentType === componentType)
     .find(t => predicate?.(t.toConfig().componentState as T) ?? true);
 }
@@ -101,13 +103,17 @@ export type Store = {
   navigateToPreviousTab(): void,
   moveTabRight(): void,
   moveTabLeft(): void,
+  movePaneRight(): void,
+  movePaneLeft(): void,
+  movePaneUp(): void,
+  movePaneDown(): void,
 };
 
 export const store = ((): Store => {
   let activeComponentID: string | null = null;
   type RequestTab = {id: string, item: ComponentItem};
   function activateTab({id, item}: RequestTab): void {
-    layout.focus(item);
+    layout.instance?.focus(item);
     activeComponentID = id;
   }
   function getActiveComponentItem(): ComponentItem | undefined {
@@ -128,7 +134,7 @@ export const store = ((): Store => {
       activeComponentID = value;
     },
     clearTabs() {
-      layout.clear();
+      layout.instance?.clear();
       activeComponentID = null;
     },
     requestID(): string | null {
@@ -146,7 +152,7 @@ export const store = ((): Store => {
         activateTab({id, item: tab});
         return;
       }
-      layout.addItem("MyComponent", id, {id});
+      layout.instance?.addItem("MyComponent", id, {id});
       this.fetch().catch(e => notification.error({title: "Failed to fetch requests", error: e}));
     },
     async fetch(): Promise<void> {
@@ -229,7 +235,7 @@ export const store = ((): Store => {
       const databaseType = sqlSourceRequest.database;
 
       const sourceName = sqlSourceID in this.requests ? this.requests[sqlSourceID].name : sqlSourceID;
-      layout.addItem("TableViewer", `${sourceName}/${tableName}`, {
+      layout.instance?.addItem("TableViewer", `${sourceName}/${tableName}`, {
         sqlSourceID,
         tableName,
         tableInfo,
@@ -241,42 +247,42 @@ export const store = ((): Store => {
         return;
 
       const sourceName = sourceID in this.requests ? this.requests[sourceID].name : sourceID;
-      layout.addItem("EndpointViewer", `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`, {sourceID, endpointIndex, endpointInfo});
+      layout.instance?.addItem("EndpointViewer", `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`, {sourceID, endpointIndex, endpointInfo});
     },
     openToolViewer(sourceID: string, tool: t.MCPTool): void {
       if (findExistingTab<StateMCPTool>("ToolViewer", t => t.sourceID === sourceID && t.tool.name === tool.name) !== undefined)
         return;
 
       const sourceName = sourceID in this.requests ? this.requests[sourceID].name : sourceID;
-      layout.addItem("ToolViewer", `${sourceName}/${tool.name}`, {sourceID, tool});
+      layout.instance?.addItem("ToolViewer", `${sourceName}/${tool.name}`, {sourceID, tool});
     },
     navigateToNextTab(): void {
-      const active = layout.activeTab();
+      const active = layout.instance?.activeTab();
       if (active === undefined) return;
       const parent = active.parent;
       if (parent?.isStack !== true) return;
 
-      const allTabs = parent.contentItems as ComponentItem[];
+      const allTabs = parent.contentItems;
       const currentIndex = allTabs.indexOf(active);
       if (currentIndex === -1 || allTabs.length <= 1) return;
 
       const nextIndex = (currentIndex + 1) % allTabs.length;
       const next = allTabs[nextIndex];
-      layout.focus(next);
+      layout.instance?.focus(next);
       activeComponentID = (next.toConfig().componentState as Partial<StateRequest>).id ?? null;
     },
     navigateToPreviousTab(): void {
-      const active = layout.activeTab();
+      const active = layout.instance?.activeTab();
       if (active === undefined) return;
       const parent = active.parent;
       if (parent?.isStack !== true) return;
 
-      const tabs = parent.contentItems as ComponentItem[];
+      const tabs = parent.contentItems;
       const currentIndex = tabs.indexOf(active);
       if (currentIndex === -1 || tabs.length <= 1) return;
 
       const prev = tabs[(currentIndex - 1 + tabs.length) % tabs.length];
-      layout.focus(prev);
+      layout.instance?.focus(prev);
       activeComponentID = (prev.toConfig().componentState as Partial<StateRequest>).id ?? null;
     },
     moveTabRight(): void {
@@ -284,7 +290,7 @@ export const store = ((): Store => {
       if (activeItem === undefined)
         return;
 
-      layout.move(activeItem, i => i + 1);
+      layout.instance?.move(activeItem, i => i + 1);
       updateLocalstorage();
     },
     moveTabLeft(): void {
@@ -292,8 +298,40 @@ export const store = ((): Store => {
       if (activeItem === undefined)
         return;
 
-      layout.move(activeItem, i => i - 1);
+      layout.instance?.move(activeItem, i => i - 1);
       updateLocalstorage();
+    },
+    movePaneRight(): void {
+      const active = layout.instance?.activeTab();
+      if (active === undefined)
+        return;
+
+      if (layout.instance?.moveToNextGroup(active) ?? false)
+        updateLocalstorage();
+    },
+    movePaneLeft(): void {
+      const active = layout.instance?.activeTab();
+      if (active === undefined)
+        return;
+
+      if (layout.instance?.moveToPreviousGroup(active) ?? false)
+        updateLocalstorage();
+    },
+    movePaneUp(): void {
+      const active = layout.instance?.activeTab();
+      if (active === undefined)
+        return;
+
+      if (layout.instance?.moveAbove(active) ?? false)
+        updateLocalstorage();
+    },
+    movePaneDown(): void {
+      const active = layout.instance?.activeTab();
+      if (active === undefined)
+        return;
+
+      if (layout.instance?.moveBelow(active) ?? false)
+        updateLocalstorage();
     },
   };
 })();
@@ -364,19 +402,16 @@ store.requestsTree.sub(function*() {
   while (true) {
     const requestTree = yield;
     const openTabIds = new Map<string, ComponentItem>();
-    for (const c of layout.tabs().filter(c => c.componentType === "MyComponent"))
+    for (const c of (layout.instance?.tabs() ?? []).filter(c => c.componentType === "MyComponent"))
       openTabIds.set((c.toConfig().componentState as StateRequest).id, c);
 
-    const treeIds = new Set<string>(); // TODO: get straight from previews map
-    function collectIds(tree: t.Tree): void {
-      for (const id of tree.IDs) {
-        treeIds.add(id);
-      }
+    function* collectIds(tree: t.Tree): Generator<string> {
+      yield* tree.IDs;
       for (const dir in tree.Dirs) {
-        collectIds(tree.Dirs[dir]);
+        yield* collectIds(tree.Dirs[dir]);
       }
     }
-    collectIds(requestTree);
+    const treeIds = new Set(...collectIds(requestTree)); // TODO: get straight from previews map
 
     for (const [id, item] of openTabIds.entries()) {
       if (treeIds.has(id))

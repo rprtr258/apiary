@@ -1,4 +1,3 @@
-import {ComponentContainer} from "golden-layout";
 import * as t from "@/types.ts";
 import {none, Option, some} from "@/option.ts";
 import {api} from "../api.ts";
@@ -9,6 +8,7 @@ import {NButton} from "./input.ts";
 import {NScrollbar, NTabs} from "./layout.ts";
 import {NIcon} from "./dataview.ts";
 import {CheckSquareOutlined, ClockCircleOutlined, FieldNumberOutlined, ItalicOutlined, QuestionCircleOutlined} from "./icons.ts";
+import {ComponentContainer} from "../layout/types.ts";
 
 function render(v: t.RowValue): DOMNode {
   switch (true) {
