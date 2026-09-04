@@ -85,7 +85,7 @@ function buildServer(): McpServer {
     if (user === undefined) {
       return {content: [{type: "text", text: `no user with id ${id}`}], isError: true};
     }
-    const body = detailed === true ? user : {name: user.name};
+    const body = detailed ?? false ? user : {name: user.name};
     return {content: [{type: "text", text: JSON.stringify(body)}]};
   });
 

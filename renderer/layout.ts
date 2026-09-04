@@ -60,11 +60,11 @@ export default {
       });
   },
   focus(tab: ComponentItem) {
-    const root = instance?.rootItem;
-    if (((root): root is Stack => root?.isStack === true)(root))
-      root.setActiveComponentItem(tab, true);
+    const parent = instance?.rootItem;
+    if (((parent): parent is Stack => parent?.isStack === true)(parent))
+      parent.setActiveComponentItem(tab, true);
     else
-      console.error("Cannot focus tab: root is not a Stack:", root);
+      console.error("Cannot focus tab: root is not a Stack:", parent);
   },
   activeTab(): ComponentItem | undefined {
     const inst = instance;
@@ -91,10 +91,10 @@ export default {
   clear(): void {
     instance?.clear();
   },
-  closeFocused(): boolean {
+  closeFocused(): void {
     const item = instance?.focusedComponentItem;
-    if (item === undefined) return false;
+    if (item === undefined)
+      return;
     item.remove();
-    return true;
   },
 };
