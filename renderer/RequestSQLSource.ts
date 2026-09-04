@@ -92,7 +92,7 @@ export default function(
               type: "checkbox",
               onchange: (e: Event) => update_request({readOnly: (e.target as HTMLInputElement).checked}),
             });
-            cb.checked = request.readOnly === true;
+            cb.checked = request.readOnly;
             return cb;
           })(),
           "Read Only Mode",

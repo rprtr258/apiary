@@ -11,12 +11,12 @@
     "list": true,
     "todoread": true,
     "todowrite": true,
-    "webfetch": true,
+    "webfetch": true
   },
   "permission": {
     "skill": {
-      "*": "allow",
-    },
+      "*": "allow"
+    }
   },
   "mcp": {
     // "puppeteer": {
@@ -25,11 +25,11 @@
     // },
     "serena": {
       "type": "local",
-      "command": ["uvx", "--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--enable-web-dashboard", "false"],
+      "command": ["uvx", "--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--enable-web-dashboard", "false"]
     },
     "chrome-devtools": {
       "type": "local",
-      "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
+      "command": ["npx", "-y", "chrome-devtools-mcp@latest"]
     },
     "sequentialthinking": {
       "type": "local",

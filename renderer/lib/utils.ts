@@ -237,8 +237,8 @@ export function signal<T>(value: T): Signal<T> {
   return {
     sub(g) {
       subs.add(g);
-      if (g.next(_value).done === true) { subs.delete(g); return () => {}; } // NOTE: run until first yield
-      if (g.next(_value).done === true) { subs.delete(g); return () => {}; } // NOTE: trigger first yield
+      if (g.next(_value).done ?? false) { subs.delete(g); return () => {}; } // NOTE: run until first yield
+      if (g.next(_value).done ?? false) { subs.delete(g); return () => {}; } // NOTE: trigger first yield
       return () => subs.delete(g);
     },
     update(f: (value: T) => T) {

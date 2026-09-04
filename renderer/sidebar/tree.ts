@@ -138,7 +138,7 @@ export function createTreeView(): {el: HTMLElement} {
                 } else {
                   // Show "Loading..." or "(None)" based on loading state
                   // Check if cache exists AND is loading
-                  const isLoading = id in tableCache && tableCache[id].loading === true;
+                  const isLoading = id in tableCache && (tableCache[id].loading ?? false);
                   return [{
                     key: `virtual:${isLoading ? "loading" : "empty"}:${id}:table`,
                     label: isLoading ? "Loading..." : "(None)",
@@ -153,7 +153,7 @@ export function createTreeView(): {el: HTMLElement} {
                   }));
                 } else {
                   // Show "Loading..." or "(None)" based on loading state
-                  const isLoading = id in endpointCache && endpointCache[id].loading === true;
+                  const isLoading = id in endpointCache && (endpointCache[id].loading ?? false);
                   return [{
                     key: `virtual:${isLoading ? "loading" : "empty"}:${id}:endpoint`,
                     label: isLoading ? "Loading..." : "(None)",
@@ -167,7 +167,7 @@ export function createTreeView(): {el: HTMLElement} {
                     label: tool.name,
                   }));
                 } else {
-                  const isLoading = id in toolCache && toolCache[id].loading === true;
+                  const isLoading = id in toolCache && (toolCache[id].loading ?? false);
                   return [{
                     key: `virtual:${isLoading ? "loading" : "empty"}:${id}:tool`,
                     label: isLoading ? "Loading..." : "(None)",
@@ -209,7 +209,7 @@ export function createTreeView(): {el: HTMLElement} {
             const id = v.key;
 
             // Skip disabled items like "(None)" and "loading" items
-            if (v.disabled === true) return;
+            if (v.disabled ?? false) return;
 
             const virtual = parseVirtualKey(id);
             if (virtual.isSome()) {
@@ -432,9 +432,9 @@ export function createTreeView(): {el: HTMLElement} {
 
             // Check if this source is currently loading
             const isLoading =
-              (req.kind === t.Kind.SQLSource && option.key in tableCache && tableCache[option.key].loading === true) ||
-              (req.kind === t.Kind.HTTPSource && option.key in endpointCache && endpointCache[option.key].loading === true) ||
-              (req.kind === t.Kind.MCP && option.key in toolCache && toolCache[option.key].loading === true);
+              (req.kind === t.Kind.SQLSource && option.key in tableCache && (tableCache[option.key].loading ?? false)) ||
+              (req.kind === t.Kind.HTTPSource && option.key in endpointCache && (endpointCache[option.key].loading ?? false)) ||
+              (req.kind === t.Kind.MCP && option.key in toolCache && (toolCache[option.key].loading ?? false));
 
             // Determine tag type - regular requests have no background, just colored text
             const tagType = req.kind === t.Kind.HTTP ? "success" : "info";

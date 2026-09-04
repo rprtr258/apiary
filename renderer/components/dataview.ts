@@ -203,7 +203,7 @@ export function NTooltip(
   return m("div", {
     ...props,
     style: {
-      display: props.show === true ? "block" : "none",
+      display: props.show ?? false ? "block" : "none",
       ...props.style,
     },
   }, children);

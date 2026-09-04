@@ -21,7 +21,7 @@ export function NInput(props: NInputProps) {
     disabled: props.disabled,
   });
 
-  if (props.autofocus === true) {
+  if (props.autofocus ?? false) {
     queueMicrotask(() => el.focus());
   }
 
@@ -151,7 +151,7 @@ export function NButton(props: NButtonProps, ...children: DOMNode[]) {
 
     el.classList.remove(...el.classList);
     switch (state) {
-      case "active": el.classList.toggle(btnStyles.primary, props.primary === true); break;
+      case "active": el.classList.toggle(btnStyles.primary, props.primary ?? false); break;
       case "disabled": el.classList.add(btnStyles.disabled); break;
       case "loading": el.classList.add(btnStyles.loading); break;
     }
@@ -161,7 +161,7 @@ export function NButton(props: NButtonProps, ...children: DOMNode[]) {
     setDisplay(el_clock, state === "loading");
     el.disabled = state !== "active";
   }
-  update(props.disabled === true ? "disabled" : "active"); // initial update
+  update(props.disabled ?? false ? "disabled" : "active"); // initial update
   return {
     el,
     set loading(value: boolean) {
