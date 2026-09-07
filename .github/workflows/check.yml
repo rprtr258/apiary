@@ -103,32 +103,29 @@ jobs:
           restore-keys: |
             bun-${{ runner.os }}-
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package.json') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-
-
       - name: Install deps
         run: bun install
 
-      - name: Install Playwright browsers
-        run: bunx playwright install chromium
+      - name: Install Electron system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
+            libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
+            libxrandr2 libgbm1 libasound2 libatspi2.0-0 libgtk-3-0 libnotify4 \
+            libxss1 libxtst6 libxi6
 
       - name: Build Vite (renderer + Electron main process)
         run: bun run build
 
-      # - name: Run E2E tests
-      #   env:
-      #     CI: "1"
-      #   run: bun run test:e2e
+      - name: Run E2E tests
+        env:
+          CI: "1"
+        run: xvfb-run -a bunx playwright test
 
-      # - name: Upload Playwright traces
-      #   uses: actions/upload-artifact@v4
-      #   if: always()
-      #   with:
-      #     name: playwright-traces
-      #     path: test-results/
-      #     retention-days: 1
+      - name: Upload Playwright traces
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 1
