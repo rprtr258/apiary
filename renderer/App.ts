@@ -164,6 +164,39 @@ function getCommandPaletteItems(): Item[] {
         },
       ],
     }] : []),
+    ...(currentID !== null ? [{
+      label: "Layout",
+      items: [
+        {
+          label: "Move pane to next group",
+          shortcut: ["Alt", "→"],
+          perform: () => {
+            store.movePane("right");
+          },
+        },
+        {
+          label: "Move pane to previous group",
+          shortcut: ["Alt", "←"],
+          perform: () => {
+            store.movePane("left");
+          },
+        },
+        {
+          label: "Move pane to group above",
+          shortcut: ["Alt", "↑"],
+          perform: () => {
+            store.movePane("up");
+          },
+        },
+        {
+          label: "Move pane to group below",
+          shortcut: ["Alt", "↓"],
+          perform: () => {
+            store.movePane("down");
+          },
+        },
+      ],
+    }] : []),
     {
       items: [
         {
