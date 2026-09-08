@@ -111,9 +111,9 @@ type NButtonProps = {
 
 const btnStyles = {
   primary: css(`
-    background-color: #1890ff;
+    background-color: #0b74e0;
     color: white;
-    border: 1px solid #1890ff;
+    border: 1px solid #0b74e0;
   `),
   loading: css(`
     opacity: 0.8;

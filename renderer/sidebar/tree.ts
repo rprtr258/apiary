@@ -88,9 +88,9 @@ type HTTPMethodProps = {
 const httpMethodPropsUnknown: HTTPMethodProps = {bg: "#3a3a3a", color: "#c0c0c0", tagType: "info"}; // Grey
 const httpMethodPropsMap: Record<string, HTTPMethodProps> = {
   "GET":     {bg: "#1a5f3a", color: "#70e888", tagType: "success"}, // Green
-  "POST":    {bg: "#2a3a5f", color: "#70a0e8", tagType: "info"},    // Blue
+  "POST":    {bg: "#2a3a5f", color: "#85b4ee", tagType: "info"},    // Blue
   "PUT":     {bg: "#5f4a1a", color: "#e8c070", tagType: "warning"}, // Orange/Yellow
-  "DELETE":  {bg: "#5f1a1a", color: "#e87070", tagType: "error"},   // Red
+  "DELETE":  {bg: "#5f1a1a", color: "#e98a8a", tagType: "error"},   // Red
   "PATCH":   {bg: "#3a1a5f", color: "#a870e8", tagType: "warning"}, // Purple
   "HEAD":    {bg: "#1a5f5f", color: "#70e8e8", tagType: "info"},    // Cyan
   "OPTIONS": {bg: "#5f5f1a", color: "#e8e870", tagType: "info"},    // Yellow

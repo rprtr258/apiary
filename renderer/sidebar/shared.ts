@@ -8,10 +8,10 @@ export function badge(kind: t.Kind): [string, string] {
   case t.Kind.GRPC:       return ["GRPC",       "cyan"     ];
   case t.Kind.HTTPSource: return ["HTTP*",      "lime"     ];
   case t.Kind.JQ:         return ["JQ",         "violet"   ];
-  case t.Kind.REDIS:      return ["REDIS",      "red"      ];
-  case t.Kind.MD:         return ["MD",         "blue"     ];
-  case t.Kind.SQLSource:  return ["SQL*",       "blue"     ];
-  case t.Kind.DIFF:       return ["DIFF",       "green"    ];
+  case t.Kind.REDIS:      return ["REDIS",      "#e87070"  ];
+  case t.Kind.MD:         return ["MD",         "#70a0e8"  ];
+  case t.Kind.SQLSource:  return ["SQL*",       "#70a0e8"  ];
+  case t.Kind.DIFF:       return ["DIFF",       "#70e888"  ];
   case t.Kind.MCP:        return ["MCP",        "white"    ];
   default:                return [String(kind), ""         ];
   }
