@@ -1,70 +1,28 @@
 import path from "path";
-import {defineConfig, type Plugin} from "vite";
-import electron, {ElectronOptions} from "vite-plugin-electron";
-import type {LoggingFunction, RollupLog} from "rollup";
-
-const onwarn = (warning: RollupLog, warn: LoggingFunction) => {
-  // zod ships prose comments mentioning @__PURE__ that Rollup misreads (harmless)
-  // jq-wasm's node require()s sit behind ENVIRONMENT_IS_NODE guards (dead in renderer)
-  if (
-    warning.message.includes("contains an annotation that Rollup cannot interpret") ||
-    warning.message.includes("has been externalized for browser compatibility")
-  ) {
-    return;
-  }
-  warn(warning);
-};
+import {defineConfig} from "vite";
+import electron from "vite-plugin-electron";
+import {mainProcessOptions, preloadProcessOptions, onwarn} from "./vite.electron-options.ts";
 
 export default defineConfig({
   base: "./",
   plugins: [
-    (electron as unknown as (options: ElectronOptions | ElectronOptions[]) => Plugin[])([ // TODO: fix/remove
-      {
-        entry: "main.ts",
-        vite: {
-          resolve: {
-            alias: {
-              "@": path.resolve(__dirname, "shared"),
-            },
-          },
-          assetsInclude: ["**/*.md", "**/*.proto"],
-          define: {
-            __dirname: "import.meta.dirname",
-            __filename: "import.meta.filename",
-          },
-          build: {
-            outDir: "dist-electron",
-            rollupOptions: {
-              external: ["better-sqlite3"],
-              onwarn,
-            },
-          },
-        },
-      },
-      {
-        entry: "preload.ts",
-        onstart(args: { reload: () => void }) {
-          args.reload();
-        },
-        vite: {
-          resolve: {
-            alias: {
-              "@": path.resolve(__dirname, "shared"),
-            },
-          },
-          build: {
-            outDir: "dist-electron",
-            rollupOptions: {
-              external: ["electron/renderer"],
-            },
-          },
-        },
-      },
+    // scripts/build.mjs sets APIARY_SKIP_ELECTRON=1 to build the renderer
+    // alone; the electron sub-builds then run in parallel via the plugin's
+    // exported build() under node (bun externalizes a different builtin set
+    // and changes what main.js bundles).
+    ...(process.env.APIARY_SKIP_ELECTRON === "1" ? [] : [
+      electron([
+        mainProcessOptions,
+        preloadProcessOptions,
+      ]),
     ]),
   ],
   build: {
     outDir: "dist",
-    sourcemap: true,
+    // Sourcemaps cost ~0.8s of the renderer build; off by default. The
+    // dist* tasks in package.json set APIARY_SOURCEMAP=1 to debug packaged
+    // releases' stack traces; set it manually for ad-hoc builds.
+    sourcemap: process.env.APIARY_SOURCEMAP === "1",
     // minify: false,
     chunkSizeWarningLimit: 3000,
     rollupOptions: {

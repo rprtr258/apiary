@@ -10,7 +10,7 @@
   "private": true,
   "scripts": {
     "dev": "vite --port 5174",
-    "build": "vite build",
+    "build": "bun scripts/build.ts",
     "preview": "vite preview",
     "lint": "eslint '**/*.{ts,json}'",
     "lint:fix": "eslint --fix '**/*.{ts,json}'",
@@ -18,17 +18,20 @@
     "test": "bun test --preload ./renderer/test.setup.ts --path-ignore-patterns=renderer/e2e/* ''",
     "test:integration": "INTEGRATION=1 bun test integration.test.ts",
     "test:e2e": "bun run build && playwright test",
-    "dist": "vite build && electron-builder",
-    "dist:linux": "vite build && electron-builder --linux",
-    "dist:mac": "vite build && electron-builder --mac",
-    "dist:win": "vite build && electron-builder --win",
+    "dist": "APIARY_SOURCEMAP=1 bun run build && electron-builder",
+    "dist:linux": "APIARY_SOURCEMAP=1 bun run build && electron-builder --linux",
+    "dist:mac": "APIARY_SOURCEMAP=1 bun run build && electron-builder --mac",
+    "dist:win": "APIARY_SOURCEMAP=1 bun run build && electron-builder --win",
     "typecheck": "tsc --noEmit",
-    "_start": "vite build && electron . --no-sandbox",
+    "_start": "bun run build && electron . --no-sandbox",
     "gen:grpc": "grpc_tools_node_protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./ --js_out=import_style=commonjs,binary:./ --grpc_out=grpc_js:./ ./scripts/grpc/helloworld.proto && sed -i '1i/* eslint-disable */' ./scripts/grpc/helloworld.ts && sed -i '2i// @ts-nocheck' ./scripts/grpc/helloworld.ts",
     "kal": "electron-rebuild"
   },
   "peerDependencies": {
     "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "vite": "npm:rolldown-vite@^7.3.1"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
