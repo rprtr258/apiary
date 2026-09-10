@@ -7,6 +7,7 @@ type NInputProps = {
   value?: string,
   on?: {
     update: (value: string) => void,
+    keydown?: (e: KeyboardEvent) => void,
   },
   style?: Partial<CSSStyleDeclaration>,
   disabled?: boolean,
@@ -18,6 +19,7 @@ export function NInput(props: NInputProps) {
     value: props.value,
     placeholder: props.placeholder,
     oninput: (e: Event) => props.on?.update((e.target as HTMLInputElement).value),
+    onkeydown: props.on?.keydown,
     disabled: props.disabled,
   });
 
