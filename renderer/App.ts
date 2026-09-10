@@ -459,7 +459,13 @@ function preApp(root: HTMLElement, store: Store) {
   update_empty_state();
 
   const inputCreate = NInput({
-    on: {update: (value: string) => newRequestName.update(() => value)},
+    on: {
+      update: (value: string) => newRequestName.update(() => value),
+      keydown: (e: KeyboardEvent) => {
+        if (e.key === "Enter")
+          create();
+      },
+    },
     style: {width: "100%", boxSizing: "border-box", padding: "0.5em"},
   });
   const modalCreate = NModal({

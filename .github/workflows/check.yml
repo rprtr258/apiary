@@ -114,13 +114,10 @@ jobs:
             libxrandr2 libgbm1 libasound2 libatspi2.0-0 libgtk-3-0 libnotify4 \
             libxss1 libxtst6 libxi6
 
-      - name: Build Vite (renderer + Electron main process)
-        run: bun run build
-
       - name: Run E2E tests
         env:
           CI: "1"
-        run: xvfb-run -a bunx playwright test
+        run: xvfb-run -a bun run test:e2e
 
       - name: Upload Playwright traces
         uses: actions/upload-artifact@v4
