@@ -263,7 +263,7 @@ export function CommandPalette(props: Props) {
     for (const [i, item] of items.entries()) {
       const matches = search === "" ||
         item.label.toLowerCase().includes(search) ||
-        item.group?.toLowerCase().includes(search) === true;
+        (item.group?.toLowerCase().includes(search) ?? false);
       if (matches)
         filteredIndexes.push(i);
       setDisplay(itemElements[i].el, matches);

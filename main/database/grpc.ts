@@ -88,7 +88,7 @@ async function listServicesReflection(target: string, deadlineMs: number): Promi
       throw new Error("Unexpected reflection response: missing list_services_response");
     }
 
-    const services = listResp["service"] as Array<Record<string, unknown>>;
+    const services = listResp["service"] as Record<string, unknown>[];
     return services.map(s => s["name"] as string);
   } finally {
     client.close();
@@ -196,7 +196,7 @@ function convertMessageToSchema(msgType: protobuf.Type): JSONSchema {
       }
     }
 
-    if (field.repeated === true) {
+    if (field.repeated) {
       properties[field.name] = {type: "array", items: fieldSchema};
     } else {
       properties[field.name] = fieldSchema;
@@ -384,7 +384,7 @@ export async function sendGRPC(request: GRPCRequest): Promise<GRPCResponse> {
     );
 
     call.on("metadata", (_md: grpc.Metadata) => {
-      // Response headers - currently not captured
+      // TODO: Response headers - currently not captured
     });
 
     call.on("status", (status: grpc.StatusObject) => {
