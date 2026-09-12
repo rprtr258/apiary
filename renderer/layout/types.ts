@@ -19,7 +19,7 @@ export type ItemConfig =
   | {
     type: "stack",
     content: (ItemConfig & {type: "component"})[],
-    activeItemIndex?: number,
+    activeItemIndex?: number, // TODO: mandatory
     width?: number,
     height?: number,
   }

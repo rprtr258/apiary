@@ -509,14 +509,20 @@ export class LayoutManager {
       componentState: state as JSONValue,
     };
     let targetStack: Stack;
+    const focused = this.focusedComponentItem;
     if (this.root === undefined) {
       targetStack = new Stack(this);
       this.root = targetStack;
       this.rootEl.append(targetStack.element);
+    } else if (focused.isSome() && focused.value.parent !== undefined) {
+      // Open next to the currently focused tab; fall back to the first stack
+      // when nothing is focused.
+      targetStack = focused.value.parent;
     } else if (this.root instanceof Stack) {
       targetStack = this.root;
     } else {
-      targetStack = this.firstStack(this.root).getOr(this.makeRootStack());
+      const found = this.firstStack(this.root);
+      targetStack = found.isSome() ? found.value : this.makeRootStack();
     }
     const comp = new ComponentItem(this, targetStack, config.componentType, config.title, config.componentState);
     targetStack.addChild(comp);
