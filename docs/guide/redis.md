@@ -4,7 +4,7 @@ Apiary includes a Redis client for executing commands and inspecting data.
 
 ## Creating a Redis Request
 
-1. Click **File → New Request** and select **Redis**
+1. Click **File -> New Request** and select **Redis**
 2. Configure the Redis connection
 3. Enter Redis commands
 

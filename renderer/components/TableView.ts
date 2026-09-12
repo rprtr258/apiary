@@ -135,7 +135,7 @@ function render_column_with_sort(
         title: `Sort priority: ${sortOrder}`,
       }, sortOrder.toString()) : null,
 
-      // Unified sort button (cycles: none → asc → desc → none)
+      // Unified sort button (cycles: none -> asc -> desc -> none)
       m("button", {
         style: {
           background: "none",

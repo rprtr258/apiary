@@ -1,193 +1,113 @@
-# Headless Hooks Architecture
+# State Primitives ("Hooks")
 
-## Overview
-The headless hooks architecture separates business logic from UI rendering in the apiary frontend. This approach improves testability, maintainability, and enables UI flexibility.
+Apiary's frontend has no framework; state management is built from a few small primitives. This document describes the primitives that actually exist in the codebase.
 
-## Architecture Principles
-1. **Logic Separation**: Hooks contain only business logic, no UI rendering
-2. **Reusability**: Same logic can power different UI implementations
-3. **Testability**: Pure logic hooks can be tested without UI dependencies
-4. **Composability**: Hooks can be combined to build complex features
+> Note: an earlier version of this document described a headless-hooks architecture (`useTabs`, `useRequest`, `useResponse`, `useInput`, `useSelect`, `useButton`). Those hooks were never implemented — do not look for them. The patterns below are the real equivalents.
 
-## Available Hooks
+## `signal<T>()` — reactive state
 
-### `useTabs`
-Manages tab state and navigation logic.
+**Location**: `renderer/lib/utils.ts`
 
 ```typescript
-const {activeTab, setActiveTab, nextTab, prevTab} = useTabs({
-  tabs: [
-    {id: "tab1", label: "Tab 1", disabled: false},
-    {id: "tab2", label: "Tab 2", disabled: true},
-  ],
-  initialTab: "tab1",
-  on: {tabChange: tabID => console.log("Tab changed:", tabID)},
-});
+const value = signal<T>(initial);
+value.value;                 // read
+value.value = next;          // write
+value.update(fn);            // write via function
+value.sub(fn | generator);   // subscribe to changes
 ```
 
-### `useRequest`
-Manages HTTP request state with loading and error handling.
+Rule of thumb (see `AGENTS.md`): use `signal<T>()` only when something subscribes via `sub`; otherwise a plain local variable is enough.
+
+Example — the eye toggle in `renderer/App.ts`:
 
 ```typescript
-import {useRequest} from "../hooks/useRequest.ts";
-
-const {request, loading, error, update, reset} = useRequest({
-  initialRequest: {
-    url: "https://api.example.com/data",
-    method: "GET",
-    body: "",
-    headers: [{key: "Content-Type", value: "application/json"}],
-  },
-  on: {
-    update: async (request) => {
-      console.log("Request updated:", request);
-    },
-  },
-});
-
-// Update request properties
-await update({method: "POST", body: JSON.stringify({data: "test"})});
-
-// Reset to initial state
-reset();
+const show_request = signal(true);
+eye_unsub = show_request.sub(function*() {
+  while (true) {
+    const value = yield;
+    eye.title = value ? "Hide request" : "Show request";
+  }
+}());
 ```
 
-### `useResponse`
-Manages HTTP response state with loading and error handling.
+## `useLocalStorage<T>()` — persisted state
+
+**Location**: `renderer/lib/localStorage.ts`
 
 ```typescript
-import {useResponse} from "../hooks/useResponse.ts";
+import {useLocalStorage} from "./lib/localStorage.ts";
 
-const {response, loading, error, update, clear} = useResponse({
-  initialResponse: {
-    code: 200,
-    body: "{\"message\": \"success\"}",
-    headers: [{key: "Content-Type", value: "application/json"}],
-  },
-});
-
-// Update with new response
-update({
-  code: 201,
-  body: "{\"id\": 123}",
-  headers: [{key: "Location", value: "/api/resource/123"}],
-});
-
-// Clear response
-clear();
+const expanded = useLocalStorage<Record<string, boolean>>("sidebar-expanded", {});
+expanded.value;              // read (initializes from localStorage, falls back to init)
+expanded.value = {...};      // write (persists to localStorage)
 ```
 
-### Form Hooks
+Companions in the same module:
 
-#### `useInput`
-Manages input field state with validation.
+- `isLocalStorageAvailable()` — guards private-browsing modes
+- `clearKeysWithPrefix(prefix)` — bulk clear (useful for migrations)
+
+Used by `renderer/sidebar/tree.ts` (persisting expanded tree keys) and `renderer/store.ts`.
+
+## Cache pattern — `renderer/sidebar/sourceCache.ts`
+
+Source metadata (SQL tables, OpenAPI endpoints, MCP tools) is fetched on demand and cached with a staleness window so the sidebar doesn't re-query the backend on every render:
 
 ```typescript
-const nameInput = useInput({
-  initialValue: "",
-  validate: (value) => ({
-    valid: value.length > 0,
-    errors: value.length === 0 ? ["Name is required"] : [],
-  }),
-  on: {change: (value) => console.log("Name changed:", value)},
-});
+// tableCache / endpointCache / toolCache follow the same shape:
+// - fetch once per entry, invalidate after a staleness window
+// - a version signal bumps when a cache changes, and subscribers re-render on it
 ```
 
-#### `useSelect`
-Manages select/dropdown state.
+When adding a new source kind with browsable metadata, follow this pattern rather than ad-hoc fetch-on-render.
+
+## Debounced auto-update
+
+UI modules that recompute on every keystroke (e.g. DIFF) debounce updates:
 
 ```typescript
-const countrySelect = useSelect({
-  options: [
-    {label: "USA", value: "us"},
-    {label: "Canada", value: "ca"},
-  ],
-  placeholder: "Select country",
-  on: {change: (value) => console.log("Country selected:", value)},
-});
+// renderer/RequestDIFF.ts
+if (updateTimeout !== null) window.clearTimeout(updateTimeout);
+updateTimeout = window.setTimeout(() => { /* perform + render */ }, 500); // 500ms debounce
 ```
 
-#### `useButton`
-Manages button state with loading support.
+## The UI-module contract (the "hook" of request panes)
+
+Every `renderer/Request<Kind>.ts` factory receives its inputs and returns its lifecycle — this is the component-level seam:
 
 ```typescript
-const submitButton = useButton({
-  on: {click: async () => {
-    console.log("Button clicked");
-    await submitForm();
-  }},
-  disabled: false,
-  loading: false,
-});
-```
-
-## Usage with Components
-
-### Direct Hook Usage
-
-You can also use hooks directly for custom UI implementations:
-
-```typescript
-// Custom tab component using useTabs
-function CustomTabs({tabs}) {
-  const {activeTab, setActiveTab} = useTabs({tabs});
-
-  return m("div", {},
-    tabs.map(tab => m("button", {
-      onclick: () => setActiveTab(tab.id),
-      disabled: tab.disabled,
-      style: {fontWeight: activeTab.value === tab.id ? "bold" : "normal"},
-    }, tab.label))
-  );
+export default function(
+  el: HTMLElement,
+  show_request: Signal<boolean>,
+  on: {update: (patch: Partial<Request>) => Promise<void>, send: () => Promise<void>},
+): {
+  loaded(r: get_request): void,
+  push_history_entry(he: t.HistoryEntry): void,
+  unmount(): void,
 }
 ```
 
-## Benefits
+- `loaded(r)` — initialize from the fetched request
+- `push_history_entry(he)` — render the latest history entry
+- `unmount()` — tear down editors/listeners/timers
 
-### 1. Improved Testability
+Source kinds receive only `{update}` and hide the send/eye affordances (see `createFrame` in `renderer/App.ts`).
+
+## Testing state primitives
+
+Primitives are plain functions, so they test directly with `bun:test` (`renderer/test.setup.ts` is preloaded; DOM tests use `happy-dom`):
+
 ```typescript
-// Test hook logic without UI
-test("useTabs manages tab state correctly", () => {
-  const {activeTab, setActiveTab} = useTabs({
-    tabs: [{id: "tab1", label: "Tab 1"}],
-  });
+import {describe, test, expect} from "bun:test";
+import {signal} from "../lib/utils.ts";
 
-  expect(activeTab.value).toBe("tab1");
-  setActiveTab("tab2");
-  expect(activeTab.value).toBe("tab2");
+describe("signal", () => {
+  test("sub sees updates", () => {
+    const s = signal(1);
+    const seen: number[] = [];
+    s.sub(v => seen.push(v));
+    s.value = 2;
+    expect(seen).toEqual([2]);
+  });
 });
 ```
-
-### 2. UI Flexibility
-- Same logic can power different design systems
-- Easy to swap UI implementations
-- Consistent behavior across different UIs
-
-### 3. Maintainability
-- Logic changes in one place affect all usages
-- Clear separation of concerns
-- Easier to debug and reason about
-
-## Migration Guide
-
-### For New Components
-1. Create headless hook for business logic
-2. Create UI component that uses the hook
-3. Export both hook and component
-
-### For Existing Components
-1. Extract logic into headless hook
-2. Update component to use the hook
-3. Maintain backward compatibility
-4. Add new features via hook options
-
-## Future Hooks (Planned)
-1. **`useEditor`**: CodeMirror management
-2. **`useAuthForm`**: Authentication forms
-
-## Best Practices
-1. **Keep Hooks Pure**: No side effects, no UI rendering
-2. **Type Safety**: Use TypeScript for all hooks
-3. **Composability**: Design hooks to work together
-4. **Documentation**: Document hook APIs and usage
-5. **Testing**: Write tests for hook logic

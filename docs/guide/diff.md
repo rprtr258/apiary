@@ -4,7 +4,7 @@ The Diff plugin compares two text inputs and shows the differences between them.
 
 ## Creating a Diff Request
 
-1. Click **File → New Request** and select **DIFF**
+1. Click **File -> New Request** and select **DIFF**
 2. The diff editor opens with three panes:
    - **Left editor**: Original content
    - **Right editor**: Modified content

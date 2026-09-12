@@ -4,7 +4,7 @@ Apiary supports querying various SQL databases with a unified interface, includi
 
 ## Creating a SQL Request
 
-1. Click **File → New Request** and select **SQL**
+1. Click **File -> New Request** and select **SQL**
 2. Configure the database connection
 3. Write your SQL query
 
@@ -125,7 +125,7 @@ SELECT * FROM products WHERE category = ? AND price > ?;
 
 ### Query History
 
-Apiary keeps a history of all executed queries. Access it via **View → Query History**.
+Apiary keeps a history of all executed queries. Access it via **View -> Query History**.
 
 ### Query Templates
 

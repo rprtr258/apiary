@@ -4,7 +4,7 @@ SQLSource allows you to import an entire database schema as a browsable collecti
 
 ## Creating a SQLSource
 
-1. Click **File → New Datasource** and select **SQLSource**
+1. Click **File -> New Datasource** and select **SQLSource**
 2. Configure the database connection
 3. Import the schema
 

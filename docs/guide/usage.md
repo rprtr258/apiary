@@ -51,7 +51,7 @@ The top menu provides access to:
 
 ## Creating Your First Request
 
-1. Click **File → New Request** or press `Ctrl+N`
+1. Click **File -> New Request** or press `Ctrl+N`
 2. Select a request type (HTTP, SQL, gRPC, etc.)
 3. The new request tab will open in the main workspace
 4. Configure the request (URL, query, parameters, etc.)

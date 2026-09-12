@@ -12,7 +12,7 @@
  *   - stdio: command `bun`, args `["run", "<repo>/scripts/mcp/server.ts"]`
  *   - http:  url `http://localhost:3001/mcp`
  *
- * This is a test fixture only — it binds 0.0.0.0 in http mode and does no
+ * This is a test fixture only - it binds 0.0.0.0 in http mode and does no
  * host/origin validation. Do not ship it as a real server.
  */
 import * as z from "zod/v4";
@@ -52,7 +52,7 @@ function buildServer(): McpServer {
 
   // --- Tools: varied schemas + return shapes ---
 
-  // 1. Simple string input → text output.
+  // 1. Simple string input -> text output.
   server.registerTool("echo", {
     description: "Echo back the given message as text.",
     inputSchema: z.object({message: z.string().describe("The text to echo")}),
@@ -61,7 +61,7 @@ function buildServer(): McpServer {
     text: message,
   }]}));
 
-  // 2. Numbers → text result.
+  // 2. Numbers -> text result.
   server.registerTool("add", {
     description: "Add two numbers and return the sum as text.",
     inputSchema: z.object({
@@ -73,7 +73,7 @@ function buildServer(): McpServer {
     text: String(a + b),
   }]}));
 
-  // 3. Object input with an optional field → structured JSON as text.
+  // 3. Object input with an optional field -> structured JSON as text.
   server.registerTool("user_lookup", {
     description: "Look up a user by id. Set detailed=true for the full record.",
     inputSchema: z.object({
@@ -125,7 +125,7 @@ function buildServer(): McpServer {
     text: `you chose: ${option}`,
   }]}));
 
-  // 7. No input, always errors — for testing apiary's error rendering.
+  // 7. No input, always errors - for testing apiary's error rendering.
   server.registerTool("fail", {
     description: "Always returns an error result. Used to test error handling.",
   }, async () => ({content: [{

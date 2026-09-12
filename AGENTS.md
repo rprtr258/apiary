@@ -17,7 +17,7 @@
 - Use context-based cancellation in backend code.
 - Use structured logging in backend code.
 - Maintain plugin architecture for request kinds.
-- Treat redundant work as harmful, not merely wasteful. Do not dismiss duplicate computation, double-rendering, or repeated calls as "harmless because idempotent" — idempotency limits the blast radius, it does not justify leaving the redundancy. When you find redundant work, fix it at the source (the shared path every caller routes through) rather than papering over symptoms in individual callers. Redundant init runs, duplicate subscriber body executions, and "extra" calls kept "just in case" are all defects to remove, not tolerable noise.
+- Treat redundant work as harmful, not merely wasteful. Do not dismiss duplicate computation, double-rendering, or repeated calls as "harmless because idempotent" - idempotency limits the blast radius, it does not justify leaving the redundancy. When you find redundant work, fix it at the source (the shared path every caller routes through) rather than papering over symptoms in individual callers. Redundant init runs, duplicate subscriber body executions, and "extra" calls kept "just in case" are all defects to remove, not tolerable noise.
 
 ## Commands
 
@@ -25,22 +25,22 @@
 - **Build Frontend**: `bun run build`
 - **Build Desktop App**: `bun run dist:linux` (or `dist:mac` / `dist:win`)
 - **Run Unit Tests**: `bun run test`
+- **Run Integration Tests**: `bun run test:integration`, only run when user asks explicitly
 - **Run E2E Tests**: `bun run test:e2e`
 - **Create Release Tag**: `git tag v0.0.0 && git push origin v0.0.0` (triggers GitHub Actions release)
 
 ## Project Overview
 
-apiary is a cross-platform desktop application for managing API requests (HTTP, SQL, gRPC, Redis, JQ, Markdown, SQLSource, HTTPSource) using Electron backend and vanilla TypeScript frontend.
+apiary is a cross-platform desktop application for managing various API requests using Electron backend and vanilla TypeScript frontend.
 
-- **Tech Stack**: TypeScript, Electron, Vite, GoldenLayout, CodeMirror, JSON DB.
+- **Tech Stack**: TypeScript, Electron, Vite, CodeMirror, JSON DB.
 - **Directories**:
-  - `database/`: Backend service implementations (HTTP, SQL, gRPC, Redis, etc.).
-  - `frontend/`: Vanilla TypeScript UI components and logic.
-  - `types/`: Shared TypeScript type definitions.
+  - `main/`: Electron main process - `api.ts` (API facade), `db.ts` (JSON DB), `database/`: plugin implementations (HTTP, SQL, gRPC, Redis, etc.).
+  - `renderer/`: Vanilla TypeScript UI components and logic.
+  - `shared/`: Shared types and utilities (`types.ts` with the `Kind` enum, imported as `@/types.ts`).
 
 ## Code Style
 
-- **TypeScript**: Standard idioms, strict mode, double quotes, const over let, prefer functional style (e.g., `data.map(item => item.value)`), no frameworks, direct DOM APIs.
 - **TypeScript**: Strict mode, double quotes, const over let, prefer functional style (e.g., `data.map(item => item.value)`), no frameworks, direct DOM APIs.
 - **Styles**: Define styles via the `css`/`css.raw` utilities from `renderer/lib/styles.ts` instead of hardcoding them (no manual `<style>` injection, inline `style` only for dynamic values).
 - **General**: Modular code, backend/frontend separation, immutable variables, pure functions where possible.
@@ -121,13 +121,13 @@ numbers.forEach(n => console.log(n));
 
 ## Architecture Patterns
 
-- **Backend Services**: Each request kind (HTTP, SQL, etc.) has a service module in `database/` with a `send*` function and a `*EmptyRequest` constant.
-- **Frontend Factories**: Each request kind has a `Request*.ts` factory function taking `(el, signal, handlers)` and returning `{loaded, push_history_entry, unmount}`. See `frontend` skill for detailed frontend engineering guidelines.
+- **Backend Services**: Each request kind (HTTP, SQL, etc.) has a plugin module in `main/database/` with a `send*` function and a `*EmptyRequest` constant. `main/api.ts` dispatches by kind (`emptyRequestForKind`, `Perform`).
+- **Frontend Factories**: Each request kind has a `Request*.ts` factory function in `renderer/` taking `(el, show_request, on)` and returning `{loaded, push_history_entry, unmount}`. Kind -> module dispatch lives in `panelkaFactory` in `renderer/App.ts`.
 - **Reactivity**: Use `signal<T>()` for state, but only if it is watched by using `sub`, otherwise use mutable locals. Use `m()` for DOM building, no VDOM.
 - **Components**: `N*` functions return DOM elements; `Request*` functions manage state in provided container.
-- **Store**: Central state management in `store.ts` with CRUD operations and backend coordination.
+- **Store**: Central state management in `renderer/store.ts` with CRUD operations and backend coordination.
 - **Electron IPC**: Main process in `main.ts` handles IPC from renderer via `ipcMain.handle()`. Preload script (`preload.ts`) exposes secure API via `contextBridge.exposeInMainWorld`. Renderer communicates through `window.api`.
-- **Data Flow**: User → Signal → Store → IPC (window.api) → Main Process → Store → DOM.
+- **Data Flow**: User -> Signal -> Store -> IPC (window.api) -> Main Process -> Store -> DOM.
 
 ### Architecture Documentation
 
@@ -139,13 +139,13 @@ numbers.forEach(n => console.log(n));
 ## Extensibility Rules
 
 - **New Request Kind**:
-  - Add service file in `database/` with `send*` function and `*EmptyRequest` constant.
-  - Add `Request*.ts` in `frontend/` following factory pattern.
-  - Register in `App.ts` panelkaFactory.
-  - Add types to `types/`.
+  - Add `Kind` value and `RequestData` member in `shared/types.ts`.
+  - Add plugin file in `main/database/` with `send*` function, `*EmptyRequest` constant, and unit test.
+  - Add `Request*.ts` in `renderer/` following factory pattern.
+  - Register in `renderer/App.ts` `panelkaFactory` (kind switch) and add case in `emptyRequestForKind` + `Perform` dispatch in `main/api.ts`.
   - Add IPC handler in `main.ts`.
   - Add preload bridge in `preload.ts`.
-  - Add type definition in `global.d.ts`.
+  - Extend the `Api` interface in `global.d.ts`.
 
 ## Post-Task Checks
 
@@ -158,7 +158,6 @@ numbers.forEach(n => console.log(n));
 
 ### Version Management
 - **Version System**: In `package.json` (`"version"` field) and git tags.
-- **Database Versioning**: `app_version` field stored in database JSON for migration tracking.
 - **Version Format**: Semantic versioning (e.g., `vX.Y.Z`).
 
 ### Creating a Release
@@ -171,19 +170,9 @@ numbers.forEach(n => console.log(n));
 - **File**: `.github/workflows/release.yml`
 - **Triggers**: Push to tags matching `v[0-9]+.[0-9]+.[0-9]+`, or `workflow_dispatch`
 - **Build Tool**: `electron-builder` packages the Electron app
-- **Platforms**:
-  - Linux (amd64): `apiary-linux-amd64.AppImage`
-  - macOS (amd64): `apiary-darwin-x64.dmg`
-  - macOS (arm64): `apiary-darwin-arm64.dmg`
-  - Windows (amd64): `apiary-win-x64.exe` (NSIS installer)
+- **Platforms** (templated `artifactName` per OS in `package.json` `build` config):
+  - Linux: `apiary-linux-${arch}.${ext}` (AppImage)
+  - macOS: `apiary-darwin-${arch}.${ext}` (dmg)
+  - Windows: `apiary-win-${arch}.${ext}` (NSIS installer)
 - **Artifact Names**: Defined in `package.json` under `"build"` config
-- **Database Compatibility**: New databases include `app_version` field
 
-## Frontend Development
-
-When working on frontend code, use the `frontend` skill for detailed guidance on vanilla TypeScript development patterns, component architecture, and DOM manipulation. The skill provides specific rules for:
-- Component factory functions (`Request*.ts` pattern)
-- DOM building with `m()` utility
-- Signal-based reactivity
-- Store-based state management
-- Error handling and performance optimization

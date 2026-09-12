@@ -4,7 +4,7 @@ Apiary includes a powerful JQ processor for filtering, transforming, and manipul
 
 ## Creating a JQ Request
 
-1. Click **File → New Request** and select **JQ**
+1. Click **File -> New Request** and select **JQ**
 2. Provide JSON input (or select from another request's output)
 3. Write JQ query
 4. View transformed output

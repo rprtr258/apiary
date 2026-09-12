@@ -4,7 +4,7 @@ Apiary includes a Markdown editor with live preview, perfect for documentation, 
 
 ## Creating a Markdown Request
 
-1. Click **File → New Request** and select **Markdown**
+1. Click **File -> New Request** and select **Markdown**
 2. Write Markdown content in the editor
 3. View live preview in the right panel
 

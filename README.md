@@ -4,11 +4,11 @@
    alt="apiary logo"
    src="docs/public/logo.svg">
 
-A desktop API client that speaks HTTP, SQL, gRPC, Redis, and more — all in one window. No more switching between Postman, TablePlus, RedisInsight, and a terminal for `jq`.
+A desktop API client that speaks HTTP, SQL, gRPC, Redis, and more - all in one window. No more switching between Postman, TablePlus, RedisInsight, and a terminal for `jq`.
 
-- **Seven protocols, one app.** HTTP requests, SQL queries (MySQL, PostgreSQL, SQLite, ClickHouse), gRPC calls, Redis commands, `jq` JSON filtering, Markdown preview, and DIFF comparisons — without leaving the window.
+- **Seven protocols, one app.** HTTP requests, SQL queries (MySQL, PostgreSQL, SQLite, ClickHouse), gRPC calls, Redis commands, `jq` JSON filtering, Markdown preview, and DIFF comparisons - without leaving the window.
 - **Source plugins.** Import OpenAPI specs as browsable API collections, or connect a SQL database and explore tables like endpoints.
-- **JSON database.** Your requests and responses live in a simple `db.json` file — easy to version-control, diff, and backup.
+- **JSON database.** Your requests and responses live in a simple `db.json` file - easy to version-control, diff, and backup.
 - **Vanilla TypeScript.** Built with Electron, GoldenLayout, and CodeMirror. No React, no Vue, no framework overhead.
 
 ![](docs/public/screenshot.png)
@@ -72,25 +72,25 @@ bun run ci               # lint + typecheck + tests
 
 ```
 main/                   # Electron main process
-├── api.ts              # IPC handlers
-├── db.ts               # JSON database
-├── database/           # Protocol implementations
-│   ├── http.ts         ─ sendHTTP()
-│   ├── sql.ts          ─ sendSQL()
-│   ├── grpc.ts         ─ sendGRPC()
-│   ├── redis.ts        ─ sendRedis()
-│   ├── jq.ts           ─ sendJQ()
-│   ├── md.ts           ─ sendMD()
-│   ├── diff.ts         ─ sendDIFF()
-│   ├── http_source.ts  ─ OpenAPI source plugin
-│   └── sql_source.ts   ─ SQL source plugin
+├── api.ts                  # IPC handlers
+├── db.ts                   # JSON database
+├── database/               # Protocol implementations
+│   ├── http.ts                 # sendHTTP()
+│   ├── sql.ts                  # sendSQL()
+│   ├── grpc.ts                 # sendGRPC()
+│   ├── redis.ts                # sendRedis()
+│   ├── jq.ts                   # sendJQ()
+│   ├── md.ts                   # sendMD()
+│   ├── diff.ts                 # sendDIFF()
+│   ├── http_source.ts          # OpenAPI source plugin
+│   └── sql_source.ts           # SQL source plugin
 renderer/               # Electron renderer process
-├── App.ts              ─ main application
-├── Request*.ts         ─ per-protocol request editors
-├── Sidebar.ts          ─ navigation
-└── components/         ─ shared UI components
+├── App.ts                  # main application
+├── Request*.ts             # per-protocol request editors
+├── Sidebar.ts              # navigation
+└── components/             # shared UI components
 shared/                 # Shared between main and renderer
-└── types/              ─ protocol type definitions
+└── types/                  # protocol type definitions
 ```
 
 ## Creating a release

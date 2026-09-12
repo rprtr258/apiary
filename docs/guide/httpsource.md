@@ -4,7 +4,7 @@ HTTPSource allows you to import OpenAPI specifications as collections of pre-con
 
 ## Creating an HTTPSource
 
-1. Click **File → New Datasource** and select **HTTPSource**
+1. Click **File -> New Datasource** and select **HTTPSource**
 2. Provide OpenAPI spec (URL or file)
 3. Import the API definition
 

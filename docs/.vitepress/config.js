@@ -4,14 +4,14 @@ export default {
   base: "/apiary/",
     head: [
       ["link", { rel: "icon", href: "/apiary/logo.svg", type: "image/svg+xml" }],
-      ["meta", { name: "theme-color", content: "#0f172a" }]
+      ["meta", { name: "theme-color", content: "#0f172a" }],
     ],
   themeConfig: {
     logo: "/logo.svg",
     nav: [
       { text: "Home", link: "/" },
       { text: "Guide", link: "/guide/" },
-      { text: "Download", link: "/download/" }
+      { text: "Download", link: "/download/" },
     ],
     sidebar: {
       "/guide/": [
@@ -20,8 +20,8 @@ export default {
           items: [
             { text: "Introduction", link: "/guide/" },
             { text: "Installation", link: "/guide/installation" },
-            { text: "Usage", link: "/guide/usage" }
-          ]
+            { text: "Usage", link: "/guide/usage" },
+          ],
         },
         {
           text: "Request Types",
@@ -34,21 +34,19 @@ export default {
             { text: "Markdown", link: "/guide/markdown" },
             { text: "Diff", link: "/guide/diff" },
             { text: "SQLSource", link: "/guide/sqlsource" },
-            { text: "HTTPSource", link: "/guide/httpsource" }
-          ]
-        }
-      ]
+            { text: "HTTPSource", link: "/guide/httpsource" },
+          ],
+        },
+      ],
     },
     socialLinks: [
-      { icon: "github", link: "https://github.com/rprtr258/apiary" }
+      { icon: "github", link: "https://github.com/rprtr258/apiary" },
     ],
     footer: {
       message: "Released under the MIT License.",
-      copyright: "Copyright © 2025-present rprtr258"
     },
     search: {
-      provider: "local"
-    }
-  }
-}
-
+      provider: "local",
+    },
+  },
+};

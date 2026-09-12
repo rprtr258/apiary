@@ -42,7 +42,7 @@ const db_seed = {
 describe("Duplicate", () => {
   beforeEach(() => {
     // Seed a v1 DB with one sql-source request whose Data carries the envelope
-    // (id/path/kind) matching its own identity — the shape load()/update() produce.
+    // (id/path/kind) matching its own identity - the shape load()/update() produce.
     files["db.json"] = Buffer.from(JSON.stringify(db_seed));
   });
 

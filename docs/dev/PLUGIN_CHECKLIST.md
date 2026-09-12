@@ -1,113 +1,78 @@
 # Plugin Implementation Checklist
 
-## Backend (Go)
+## Shared Types (`shared/types.ts`)
 
-### 1. Create Plugin File (`internal/database/plugin_*.go`)
-- [ ] Define `Kind<NAME> = "<name>"` constant
-- [ ] Create `<NAME>Request` struct with `json` tags
-- [ ] Create `<NAME>Response` struct with `json` tags
-- [ ] Implement `Kind()` methods for both structs
-- [ ] Create `plugin<NAME>` with `EmptyRequest`, `enum`, `Perform`, `create`, `update`, `createResponse`
-- [ ] Define `send<NAME>` function (perform logic)
-- [ ] Create `EmptyRequest` default values
+- [ ] Add `Kind<NAME> = "<name>"` to the `Kind` enum
+- [ ] Add `<NAME>Request` and `<NAME>Response` types
+- [ ] Add member to `RequestData` union: `| {kind: Kind.<NAME>} & <NAME>Request`
+- [ ] If performable: add to `ResponseData` and `HistoryEntry` unions
 
-### 2. Register Plugin (`internal/database/plugin.go`)
-- [ ] Add `Kind<NAME>: plugin<NAME>` to `Plugins` map
+## Backend (`main/database/`)
 
-### 3. Update Database Migration (`internal/database/v2.go`)
-- [ ] Add to decoder arguments: `<name> map[RequestID]pluginv1[<NAME>Request, <NAME>Response]`
-- [ ] Add to switch statement: `case Kind<NAME>: reqe, responses = mapRequestDataV1(reqv1.ID, <name>)`
-- [ ] Add to decoder list: `decoderv1plugin[<NAME>Request, <NAME>Response]()`
-- [ ] **If 12th+ plugin**: Create `MapN` function and update `decoderV1`
+- [ ] Create `<name>.ts` with `EmptyRequest: <NAME>Request` constant and `send<NAME>(data: <NAME>Request): Promise<<NAME>Response>` (sync is fine for compute-only kinds)
+- [ ] No Electron imports in the plugin module (keeps it unit-testable)
+- [ ] Create `<name>.test.ts` with `bun:test`, mocking external dependencies via `mock.module`
+- [ ] Exact equality assertions, not substring contains
 
-### 4. Update Database Encoder (`internal/database/database.go`)
-- [ ] Add to encoder: `"<name>": encod[<NAME>Request, <NAME>Response](v)`
+## Dispatch (`main/api.ts`)
 
-### 5. Update Application Handlers (`internal/app/handlers.go`)
-- [ ] Add to `parseRequestt` map: `database.Kind<NAME>: parse[database.<NAME>Request]`
+- [ ] Add case to `emptyRequestForKind(kind)` returning the empty request
+- [ ] Performable kind: add case to `Perform(id)` calling `send<NAME>` (response history is persisted automatically via `createResponse`)
+- [ ] Source kind: add a sub-API namespace instead (pattern: `export const GRPC` / `SQLSource` / `HTTPSource` / `MCP`)
 
-### 6. Export Types (`main.go`)
-- [ ] Add to `ExportTypes` parameters: `database.<NAME>Request, database.<NAME>Response`
+## IPC Surface
 
-### 7. Create Tests (`internal/database/plugin_*_test.go`)
-- [ ] Unit tests for plugin functions
-- [ ] Integration tests for `Perform` function
-- [ ] Exact equality checks (not substring contains)
+- [ ] `main.ts`: one `ipcMain.handle("<Channel>", ...)` per new channel
+- [ ] `preload.ts`: matching `ipcRenderer.invoke("<Channel>", ...)` entry in the `api: Api` object
+- [ ] `global.d.ts`: matching entry in the `Api` interface
 
-## Frontend (TypeScript)
+## Frontend (`renderer/`)
 
-### 1. Create Component (`frontend/src/Request<NAME>.ts`)
-- [ ] Factory function `Request<NAME>(el, signal, handlers)`
-- [ ] State management with `signal<T>()`
-- [ ] UI rendering with `m()`
-- [ ] Real-time updates with 500ms debounce
-- [ ] Error handling above main content
-- [ ] Cleanup on unmount
+- [ ] Create `Request<NAME>.ts` — default export factory `(el, show_request, on: {update, send})` returning `{loaded, push_history_entry, unmount}`
+- [ ] DOM with `m()` (`renderer/lib/utils.ts`), styles with `css`/`css.raw` (`renderer/lib/styles.ts`)
+- [ ] `signal<T>()` only for watched state
+- [ ] Errors rendered above main content
+- [ ] Debounce rapid updates (500ms) if the kind auto-computes
+- [ ] Clean up listeners/editors in `unmount()`
+- [ ] Create `Request<NAME>.test.ts` (`bun:test` + `happy-dom`)
 
-### 2. Update App Integration (`frontend/src/App.ts`)
-- [ ] Add to `createFrame` switch: `case "<name>": return Request<NAME>(el, signal, handlers)`
+## Registration (`renderer/App.ts`)
 
-### 3. Update Type Definitions (`frontend/src/types.ts`)
-- [ ] Add to `RequestData` union: `| { kind: "<name>"; ... }`
-- [ ] Add to `ResponseData` union: `| { kind: "<name>"; ... }`
+- [ ] Import the module (default export)
+- [ ] Add case to `createFrame`:
+  - Performable: `case t.Kind.<NAME>: return Request<NAME>(el, show_request, on);`
+  - Source: `setDisplay(eye, false); return Request<NAME>(el, {update: on.update});`
+- [ ] Source panes with fetched data: register a viewer component (pattern: `TableViewer` / `EndpointViewer` / `ToolViewer`)
 
-### 4. Create Component Tests (`frontend/src/Request<NAME>.test.ts`)
-- [ ] Component structure tests
-- [ ] State management tests
-- [ ] Integration tests
+## Database (`main/db.ts`)
+
+- [ ] No changes needed — the v1 migration switch only covers kinds that existed in v1 databases
 
 ## Post-Implementation
 
-### 1. Run Tests
 ```bash
-go test ./internal/database/... -v
-go test ./internal/... -v
-cd frontend && bun run ci
-cd frontend && bun run build
+bun run test             # unit + component tests
+bun run test:integration # INTEGRATION=1
+bun run ci               # lint + typecheck
+bun run build
+bun run test:e2e         # Playwright (renderer/e2e/)
+bun run dist             # package the app
 ```
 
-### 2. Build Application
-```bash
-bun run dist
-```
-
-### 3. Test End-to-End
-- [ ] Create new request
-- [ ] Perform operation
-- [ ] Close/restart application
-- [ ] Verify persistence
-
-## Common Issues & Solutions
-
-### Plugin Not Persisting
-- ✅ Check encoder has `"<name>": encod[...](v)` in `database.go`
-- ✅ Verify decoder includes plugin in `v2.go`
-- ✅ Check `parseRequestt` map in `handlers.go`
-
-### Type Errors
-- ✅ Verify types exported in `main.go`
-- ✅ Check TypeScript type definitions
-- ✅ Run `bun run ci` for frontend type checking
-
-### 12th+ Plugin Issue
-- ✅ Create `MapN` function in `v2.go`
-- ✅ Update `decoderV1` to use `MapN`
-- ✅ Add all decoders to the list
+- [ ] Create a new request of the new kind
+- [ ] Perform it; response appears and lands in history
+- [ ] Restart the app; request and history persist (`db.json`)
 
 ## Quick Reference
 
 ### Plugin Types
-- **Simple plugin**: `createResponse: true` (stores history)
-- **Compute-only**: `createResponse: false` (no history, like MD, DIFF)
-- **Source plugin**: No `Perform` function (like SQLSource, HTTPSource)
+- **Performable kind**: dispatched in `Perform`, response persisted via `createResponse` (all current kinds: HTTP, SQL, GRPC, JQ, Redis, MD, DIFF)
+- **Source kind**: no `Perform`; dedicated IPC sub-API queried on demand (SQLSource, HTTPSource, MCP); `RequestData` member only
 
 ### Key Decisions
-1. **Response storage**: Should responses be saved to history?
-2. **Real-time updates**: Use 500ms debounce
-3. **Error display**: Show errors above main content
-4. **Default values**: Provide sensible `EmptyRequest`
+1. **Performable or source?** Has a one-shot execute action → `Perform`. Exposes browsing/querying of an external system → sub-API namespace.
+2. **Defaults**: provide sensible `EmptyRequest` — it's what users see on create
+3. **Error display**: above main content
 
-### Testing Requirements
-- Backend: Exact equality checks (not substring)
-- Frontend: Component structure and integration
-- End-to-end: Persistence across restarts
+### Full Guide
+See `docs/dev/ADDING_NEW_PLUGINS.md` for a step-by-step walkthrough with code examples.

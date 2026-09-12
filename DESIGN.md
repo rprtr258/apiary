@@ -215,7 +215,7 @@ components:
     textColor: "{colors.kind-mcp}"
 ---
 
-# apiary — Design System
+# apiary - Design System
 
 ## Overview
 
@@ -223,7 +223,7 @@ apiary is a cross-platform desktop tool for authoring and running API requests
 (HTTP, SQL, gRPC, Redis, JQ, Markdown, and source/table explorers) in dockable
 tabs. Visually it is a **dense, near-black developer workbench**: an almost
 pitch-black field with quiet panes, native dark form controls, and color used
-almost exclusively as *data markers* — never as decoration.
+almost exclusively as *data markers* - never as decoration.
 
 Three concrete rules give the app its identity:
 
@@ -233,7 +233,7 @@ Three concrete rules give the app its identity:
 2. **Color means protocol.** Every request kind, HTTP method, and response
    status has a fixed hue. `HTTP`/`GET` is green, `POST` blue, `DELETE` red,
    `REDIS` red, `JQ` violet, `GRPC` cyan, and so on. If you see saturated color
-   in apiary, it is identifying a protocol entity or a status — never a button
+   in apiary, it is identifying a protocol entity or a status - never a button
    or background.
 3. **The canvas is only ever one of two depths: chrome or chip.** Chrome
    surfaces are grayscale; the only colored blocks are small "chips" (kind
@@ -304,7 +304,7 @@ sort-priority badge uses `rgba(0, 100, 255, 0.3)` over the zebra rows.
 
 Two strata of saturated color exist; do not conflate them.
 
-**1. Kind badges (request rows in the tree).** Bold uppercase 2–4 letter
+**1. Kind badges (request rows in the tree).** Bold uppercase 2-4 letter
 labels (`HTTP`, `SQL`, `GRPC`, `JQ`, `MD`, `REDIS`, `DIFF`, `MCP`, plus `HTTP*`
 and `SQL*` for source requests) rendered on `surface-selected #202020`, colored
 per kind: `kind-http #00ff00`, `kind-sql #add8e6`, `kind-grpc #00ffff`,
@@ -313,7 +313,7 @@ per kind: `kind-http #00ff00`, `kind-sql #add8e6`, `kind-grpc #00ffff`,
 #00ff00`.
 
 **2. Tinted chips (dim background, bright text).** Discovered endpoints,
-tables, and tools render as a bright label on a *dim, hue-matched* background —
+tables, and tools render as a bright label on a *dim, hue-matched* background -
 e.g. a `GET` endpoint chip is `method-get-fg #70e888` on `method-get-bg
 #1a5f3a`. The full HTTP method set is fixed:
 
@@ -331,190 +331,92 @@ Discovered tables use `marker-table-bg #1a3a5f` / `marker-table-fg #70c0e8`
 ("TBL"); discovered MCP tools use a black chip (`canvas`) with white text
 ("TOOL"). Fallback "EP" endpoints reuse the GET green pair.
 
-**3. Sparse status tags.** Small one-to-three character markers (HTTP status
-codes, tree method tags, `StatusLabel`) may use the pure keyword hues exactly
-as defined by `NTag`: `tag-success #00ff00` (lime), `tag-info #0000ff` (blue),
-`tag-warning #ffff00` (yellow), `tag-error #ff0000` (red). These are
-full-saturation by design and reserved for isolated text markers — never as
-backgrounds or fills. Response codes map `2xx → success`, `3xx–4xx →
-warning`, `5xx → error`, with the code spelled in the tooltip.
+**3. Sparse status tags.** Small one-to-three character markers (HTTP status codes, tree method tags, `StatusLabel`) may use the pure keyword hues exactly as defined by `NTag`: `tag-success #00ff00` (lime), `tag-info #0000ff` (blue), `tag-warning #ffff00` (yellow), `tag-error #ff0000` (red). These are full-saturation by design and reserved for isolated text markers - never as backgrounds or fills. Response codes map `2xx -> success`, `3x-x4xx -> warning`, `5xx -> error`, with the code spelled in the tooltip.
 
-Error affordances that are not protocol-related stay muted: destructive-row
-icons use a softened `#ff4444` and hover states of `.highlight-red` resolve to
-`#ff0000`.
+Error affordances that are not protocol-related stay muted: destructive-row icons use a softened `#ff4444` and hover states of `.highlight-red` resolve to `#ff0000`.
 
 ## Typography
 
-The typeface is **Avenir**, falling back to Helvetica/Arial, for all UI text;
-monospace is used only where data or code is displayed (editors, JSON views,
-identifiers, table blobs).
+The typeface is **Avenir**, falling back to Helvetica/Arial, for all UI text; monospace is used only where data or code is displayed (editors, JSON views, identifiers, table blobs).
 
-The default body size is the platform default (`body-md 16px`); dense
-secondary text is sized in `em` relative to it — `0.875em ≈ 14px` (`body-sm`)
-for request headers, `0.8em ≈ 13px` for labels, `0.7em ≈ 11px` (`caption`) for
-table cells and metadata. Keep this em-relative practice so text scales with
-the base.
+The default body size is the platform default (`body-md 16px`); dense secondary text is sized in `em` relative to it - `0.875em ≈ 14px` (`body-sm`) for request headers, `0.8em ≈ 13px` for labels, `0.7em ≈ 11px` (`caption`) for table cells and metadata. Keep this em-relative practice so text scales with the base.
 
-- **`display-lg`** (2em, bold) — large status/result codes (e.g. `NResult`
-  headings).
-- **`label-sm`** (12px, bold) — kind badges, method chips, and all protocol
-  labels. Protocol labels are always uppercase text set in `label-sm`; the
-  casing is part of the identity and must not be lowered.
-- **`code`** (monospace, 13px) — code and JSON. All editor surfaces
-  (CodeMirror) use the GitHub-Dark palette; plain `Json`/`pre` views keep the
-  same mono discipline.
+- **`display-lg`** (2em, bold) - large status/result codes (e.g. `NResult` headings).
+- **`label-sm`** (12px, bold) - kind badges, method chips, and all protocol labels. Protocol labels are always uppercase text set in `label-sm`; the casing is part of the identity and must not be lowered.
+- **`code`** (monospace, 13px) - code and JSON. All editor surfaces (CodeMirror) use the GitHub-Dark palette; plain `Json`/`pre` views keep the same mono discipline.
 - Plain prose in results/docs renders through github-markdown-css in dark mode.
 
 ## Layout
 
-apiary is a docking workbench: a **fixed `sidebar 300px`** request tree on the
-left and a GoldenLayout dock canvas on the right, joined by a `5px` splitter
-(`NSplit`). The sidebar can collapse to a `sidebar-collapsed 3em` rail showing
-only the expand chevron. Everything else — request tabs, result panes, viewer
-panels — is a user-dockable GoldenLayout component; never build a fixed
-sidebar into a component that is meant to be docked.
+apiary is a docking workbench: a **fixed `sidebar 300px`** request tree on the left and a GoldenLayout dock canvas on the right, joined by a `5px` splitter (`NSplit`). The sidebar can collapse to a `sidebar-collapsed 3em` rail showing only the expand chevron. Everything else - request tabs, result panes, viewer panels - is a user-dockable GoldenLayout component; never build a fixed sidebar into a component that is meant to be docked.
 
 Inside panels, layout is dense and em-relative:
 
-- Tree rows are flex rows with `sm 8px` gaps between the kind badge and the
-  label; labels truncate with ellipsis; nesting indents progressively.
-- Virtual children (tables/endpoints/tools) render inside their source with
-  narrow chips (`min-width 2em`) above the label.
-- Groups of controls inside a request use `md 0.5em` gaps; `ParamsList` and
-  key/value rows use `sm 8px`; chip padding is `2px 4px` (`xxs/xs`).
-- Modals are centered dialogs of `width 40%` / `height 20%` with `lg 1em`
-  padding; `NTabs` present a plain row of text buttons with `0.5em` spacing.
+- Tree rows are flex rows with `sm 8px` gaps between the kind badge and the label; labels truncate with ellipsis; nesting indents progressively.
+- Virtual children (tables/endpoints/tools) render inside their source with narrow chips (`min-width 2em`) above the label.
+- Groups of controls inside a request use `md 0.5em` gaps; `ParamsList` and key/value rows use `sm 8px`; chip padding is `2px 4px` (`xxs/xs`).
+- Modals are centered dialogs of `width 40%` / `height 20%` with `lg 1em` padding; `NTabs` present a plain row of text buttons with `0.5em` spacing.
 - All scrollable regions use the thin `NScrollbar` container.
 
 ## Elevation & Depth
 
-Depth comes from **luminance, not shadows**. Hierarchy is expressed by raising
-a surface's value (`#020202` zebra → `#202020` hover → `#404040` selected) and
-by borders, so the app stays flat and quiet. The only shadowed, elevated
-surfaces are overlays that must visually detach from the canvas:
+Depth comes from **luminance, not shadows**. Hierarchy is expressed by raising a surface's value (`#020202` zebra -> `#202020` hover -> `#404040` selected) and by borders, so the app stays flat and quiet. The only shadowed, elevated surfaces are overlays that must visually detach from the canvas:
 
-- **Dropdown/context menus** (`z-index: 1000`): `surface-raised #2a2a2a` with a
-  `1px border`, `4px` radius, and `0 2px 8px rgba(0, 0, 0, 0.5)`.
-- **Command palette**: `surface-raised` with a violet `#7068ab` outline ring and
-  `0 10px 30px rgba(0, 0, 0, 0.3)` over a `rgba(0, 0, 0, 0.5)` scrim.
-- **Modal** (`z-index: 100`): full-viewport overlay with `backdrop-filter:
-  blur(3px)` over the dimmed canvas; the dialog body is `modal-surface #444444`
-  — the brightest neutral in the app — signaling it sits above everything.
-- GoldenLayout raises the focused tab header to `#222222` with a `focus
-  #354be3` underline glow; the drag proxy is `#444444`.
+- **Dropdown/context menus** (`z-index: 1000`): `surface-raised #2a2a2a` with a `1px border`, `4px` radius, and `0 2px 8px rgba(0, 0, 0, 0.5)`.
+- **Command palette**: `surface-raised` with a violet `#7068ab` outline ring and `0 10px 30px rgba(0, 0, 0, 0.3)` over a `rgba(0, 0, 0, 0.5)` scrim.
+- **Modal** (`z-index: 100`): full-viewport overlay with `backdrop-filter: blur(3px)` over the dimmed canvas; the dialog body is `modal-surface #444444` - the brightest neutral in the app - signaling it sits above everything.
+- GoldenLayout raises the focused tab header to `#222222` with a `focus #354be3` underline glow; the drag proxy is `#444444`.
 
-Do not add box shadows to in-canvas chrome or data tables; use a border or a
-`surface-*` step instead.
+Do not add box shadows to in-canvas chrome or data tables; use a border or a `surface-*` step instead.
 
 ## Shapes
 
 Corner radii are minimal because the content is dense and data-dense:
 
-- **`rounded.sm` = 4px** — menus, dropdowns, and palette only.
-- **`rounded.circle`** (a `9999px` radius, i.e. fully round) — numeric sort-priority badges and type dots in
-  table headers/cells.
-- **Chips (kind badges, method markers) are square** — `2px 4px` padding, no
-  radius. They read as tightly set type, not as pills.
-- **Native controls keep their platform shape.** Inputs, selects, buttons, and
-  scrollbars are deliberately unstyled and themed by `color-scheme: dark`;
-  never round or re-skin them with custom CSS.
+- **`rounded.sm` = 4px** - menus, dropdowns, and palette only.
+- **`rounded.circle`** (a `9999px` radius, i.e. fully round) - numeric sort-priority badges and type dots in table headers/cells.
+- **Chips (kind badges, method markers) are square** - `2px 4px` padding, no radius. They read as tightly set type, not as pills.
+- **Native controls keep their platform shape.** Inputs, selects, buttons, and scrollbars are deliberately unstyled and themed by `color-scheme: dark`; never round or re-skin them with custom CSS.
 
 ## Components
 
-The component kit (`renderer/components/`, prefixed `N`) is small and direct.
-All values below reference the frontmatter tokens.
+The component kit (`renderer/components/`, prefixed `N`) is small and direct.  All values below reference the frontmatter tokens.
 
-**Buttons (`NButton`)** — `button-primary` is the filled action button:
-`#0b74e0` background, white text. Non-primary buttons are left unstyled so they
-fall back to native dark controls. Button states are opacity-only: loading
-drops to `0.8` with a spinner glyph (`⏳`) and a `wait` cursor; disabled drops
-to `0.6` with `not-allowed`. Primary blue never appears on non-interactive
-elements.
+**Buttons (`NButton`)** - `button-primary` is the filled action button: `#0b74e0` background, white text. Non-primary buttons are left unstyled so they fall back to native dark controls. Button states are opacity-only: loading drops to `0.8` with a spinner glyph (`⏳`) and a `wait` cursor; disabled drops to `0.6` with `not-allowed`. Primary blue never appears on non-interactive elements.
 
-**Tags (`NTag`)** — colored text markers. The four semantic types map exactly
-to `tag-success #00ff00` / `tag-info #0000ff` / `tag-warning #ffff00` /
-`tag-error #ff0000`. Callers override with the kind or method foreground when
-rendering protocol labels (request rows), or pass an explicit style for tinted
-chips (endpoint rows, `chip-method-*`, `chip-table`, `chip-tool`).
+**Tags (`NTag`)** - colored text markers. The four semantic types map exactly to `tag-success #00ff00` / `tag-info #0000ff` / `tag-warning #ffff00` / `tag-error #ff0000`. Callers override with the kind or method foreground when rendering protocol labels (request rows), or pass an explicit style for tinted chips (endpoint rows, `chip-method-*`, `chip-table`, `chip-tool`).
 
-**Request tree rows** — flex rows of `kind-badge` + `request-label`. The badge
-is `surface-selected #202020` with bold, colored, uppercase kind text per the
-`kind-*` tokens; the label is `text-emphasis #e0e0e0`. Loading sources pulse
-(`1.5s` opacity keyframes); empty children show the `empty-label` "(None)" in
-italic `text-hint`.
+**Request tree rows** - flex rows of `kind-badge` + `request-label`. The badge is `surface-selected #202020` with bold, colored, uppercase kind text per the `kind-*` tokens; the label is `text-emphasis #e0e0e0`. Loading sources pulse (`1.5s` opacity keyframes); empty children show the `empty-label` "(None)" in italic `text-hint`.
 
-**Data tables (`DataTable`, `NTable`)** — fixed-layout tables with zebra rows
-(`table-row-even` / `table-row-odd`), hover/header highlight at
-`surface-selected`, type icons in grey at 15px, and a blue sort language: the
-active column's sort arrow is `primary-strong #007bff`, inactive is
-`text-disabled #666666`, and multi-column sort order shows as a circular badge
-with `rgba(0, 100, 255, 0.3)` fill and white text. Cells keep `caption` sizing
-for density.
+**Data tables (`DataTable`, `NTable`)** - fixed-layout tables with zebra rows (`table-row-even` / `table-row-odd`), hover/header highlight at `surface-selected`, type icons in grey at 15px, and a blue sort language: the active column's sort arrow is `primary-strong #007bff`, inactive is `text-disabled #666666`, and multi-column sort order shows as a circular badge with `rgba(0, 100, 255, 0.3)` fill and white text. Cells keep `caption` sizing for density.
 
-**Dropdowns/menus** — `globalDropdown` renders fixed-position menus with the
-`dropdown-menu` tokens (`surface-raised` on `#404040` border, `4px` radius,
-`0 2px 8px rgba(0,0,0,0.5)`, `min-width 120px`, `z-index 1000`), clamped to the
-viewport.
+**Dropdowns/menus** - `globalDropdown` renders fixed-position menus with the `dropdown-menu` tokens (`surface-raised` on `#404040` border, `4px` radius, `0 2px 8px rgba(0,0,0,0.5)`, `min-width 120px`, `z-index 1000`), clamped to the viewport.
 
-**Command palette** — the ⌘K overlay: `palette-dialog` (`surface-raised` body,
-violet `#7068ab` outline ring, deep shadow), `palette-input` (`#1a1a1a` field,
-white text), option rows that raise `surface-active #353535` on hover and
-`surface-hover #404040` when selected, hints in `text-faint`, and a
-`surface-footer` hint bar. Row text is `text-muted`.
+**Command palette** - the ⌘K overlay: `palette-dialog` (`surface-raised` body, violet `#7068ab` outline ring, deep shadow), `palette-input` (`#1a1a1a` field, white text), option rows that raise `surface-active #353535` on hover and `surface-hover #404040` when selected, hints in `text-faint`, and a `surface-footer` hint bar. Row text is `text-muted`.
 
-**Modal (`Modal`, `NModal`)** — centered confirm dialogs per `modal-dialog`;
-overlay is the blurred full-screen scrim described under Elevation. Title is an
-`h3` in `display-lg`-adjacent weight; the action row (`NButton`s padded
-`0.5em 1em`) sits `space-around` at the bottom; clicking outside closes.
+**Modal (`Modal`, `NModal`)** - centered confirm dialogs per `modal-dialog`; overlay is the blurred full-screen scrim described under Elevation. Title is an `h3` in `display-lg`-adjacent weight; the action row (`NButton`s padded `0.5em 1em`) sits `space-around` at the bottom; clicking outside closes.
 
-**Tabs (`NTabs`)** — the in-panel switcher: plain text buttons with `0.5em`
-gaps and no chrome; the active tab is the clicked state of a native button.
-Real document tabs live in GoldenLayout and are not restyled per component.
+**Tabs (`NTabs`)** - the in-panel switcher: plain text buttons with `0.5em` gaps and no chrome; the active tab is the clicked state of a native button.  Real document tabs live in GoldenLayout and are not restyled per component.
 
-**Icons (`NIcon`)** — inline SVG glyphs (Ant-style outline set) at 1em, colored
-via `currentColor`; grey is the default tone for metadata/type icons
-(`text-hint`), and protocol/status colors apply only when an icon represents a
-protocol entity or result state.
+**Icons (`NIcon`)** - inline SVG glyphs (Ant-style outline set) at 1em, colored via `currentColor`; grey is the default tone for metadata/type icons (`text-hint`), and protocol/status colors apply only when an icon represents a protocol entity or result state.
 
-**Editors & code surfaces** — CodeMirror with the GitHub-Dark theme for SQL,
-JSON, Markdown and other code; plain `pre`/`Json` views (2-space pretty JSON)
-inherit the `code` token. Never apply the Avenir stack or protocol hues inside
-an editor.
+**Editors & code surfaces** - CodeMirror with the GitHub-Dark theme for SQL, JSON, Markdown and other code; plain `pre`/`Json` views (2-space pretty JSON) inherit the `code` token. Never apply the Avenir stack or protocol hues inside an editor.
 
 ## Do's and Don'ts
 
 **Do**
-- Do use the grayscale ramp for all UI chrome: canvases, panels, text, borders,
-  hovers. If a color is not identifying a protocol entity or a status, it
-  should be a neutral.
-- Do keep the hue system fixed and centralized in `badge()` /
-  `httpMethodPropsMap`. A `GET` must always be green `#70e888`-on-`#1a5f3a`-style
-  tinted or `#202020`-based, `DELETE` always red, `REDIS` always red — everywhere,
-  including newly added request kinds.
-- Do render protocol labels as bold, uppercase text in `label-sm` inside a chip;
-  kind badges sit on `surface-selected #202020`, tinted method markers use the
-  dim-bg/bright-text pairs.
-- Do preserve density: em-relative type (0.7–0.875em), `2–8px` padding and gap
-  scale, zebra data tables, truncated single-line labels.
-- Do reach for native dark controls (inputs, selects, scrollbars) and the
-  global themes (GoldenLayout dark, CodeMirror GitHub-Dark); extend them in one
-  place instead of styling per component.
-- Do add new colors to the token frontmatter (and to the maps in code) when
-  adding a protocol kind; never hardcode a one-off hex in a component.
+- Do use the grayscale ramp for all UI chrome: canvases, panels, text, borders, hovers. If a color is not identifying a protocol entity or a status, it should be a neutral.
+- Do keep the hue system fixed and centralized in `badge()` / `httpMethodPropsMap`. A `GET` must always be green `#70e888`-on-`#1a5f3a`-style tinted or `#202020`-based, `DELETE` always red, `REDIS` always red - everywhere, including newly added request kinds.
+- Do render protocol labels as bold, uppercase text in `label-sm` inside a chip; kind badges sit on `surface-selected #202020`, tinted method markers use the dim-bg/bright-text pairs.
+- Do preserve density: em-relative type (0.7-0.875em), `2-8px` padding and gap scale, zebra data tables, truncated single-line labels.
+- Do reach for native dark controls (inputs, selects, scrollbars) and the global themes (GoldenLayout dark, CodeMirror GitHub-Dark); extend them in one place instead of styling per component.
+- Do add new colors to the token frontmatter (and to the maps in code) when adding a protocol kind; never hardcode a one-off hex in a component.
 
 **Don't**
-- Don't use protocol hues (lime, blue, yellow, red, cyan, violet…) on buttons,
-  backgrounds, body text, or any non-data element. `primary #0b74e0` is the
-  only colored control surface.
-- Don't apply the pure keyword hues (`tag-*`) as fills or to large areas — they
-  are sparse status markers by design.
-- Don't add box shadows to in-canvas content; only overlays (menus, palette,
-  modal) may carry shadow + blur.
-- Don't re-skin GoldenLayout per-pane or override CodeMirror's theme locally;
-  change those themes once, globally, if they need to evolve.
-- Don't mix typefaces into the Avenir stack for UI text, and don't set UI text
-  in monospace — mono is reserved for code/data surfaces.
-- Don't invent new radius styles for chips (keep them square) or round native
-  form controls.
-- Don't restyle or decorate existing `N*` components inline when a token or
-  component entry already expresses the intent.
+- Don't use protocol hues (lime, blue, yellow, red, cyan, violet...) on buttons, backgrounds, body text, or any non-data element. `primary #0b74e0` is the only colored control surface.
+- Don't apply the pure keyword hues (`tag-*`) as fills or to large areas - they are sparse status markers by design.
+- Don't add box shadows to in-canvas content; only overlays (menus, palette, modal) may carry shadow + blur.
+- Don't re-skin GoldenLayout per-pane or override CodeMirror's theme locally; change those themes once, globally, if they need to evolve.
+- Don't mix typefaces into the Avenir stack for UI text, and don't set UI text in monospace - mono is reserved for code/data surfaces.
+- Don't invent new radius styles for chips (keep them square) or round native form controls.
+- Don't restyle or decorate existing `N*` components inline when a token or component entry already expresses the intent.

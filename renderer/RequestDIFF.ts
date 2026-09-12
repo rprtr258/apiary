@@ -43,7 +43,7 @@ function diffHighlighting(view: EditorView) {
       const lineEnd = lineStart + line.length;
 
       // Check for diff markers
-      builder.add(lineStart, lineStart, (() => {
+      builder.add(lineStart, lineStart, (() => { // TODO: structural diff
         if (line.startsWith("+") && !line.startsWith("+++")) { // Added line (green)
           return diffAddedLine;
         } else if (line.startsWith("-") && !line.startsWith("---")) { // Removed line (red)
