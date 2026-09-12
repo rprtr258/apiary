@@ -652,6 +652,16 @@ function preApp(root: HTMLElement, store: Store) {
       activeFrameSend?.();
     }
 
+    // Check for Ctrl+<N> - Focus Nth pane's active tab
+    if (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && e.key >= "1" && e.key <= "9") {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      store.selectPaneByIndex(Number(e.key) - 1);
+      return;
+    }
+
     // Check for Ctrl+W - Close tab
     if (e.key === "w" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
       e.preventDefault();
@@ -702,6 +712,16 @@ function preApp(root: HTMLElement, store: Store) {
     }
 
     if (e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
+      // Check for Alt+<N> - Select Nth tab in current stack
+      if (e.key >= "1" && e.key <= "9") {
+        e.preventDefault();
+        if (anyModalIsOpen()) {
+          return;
+        }
+        store.selectTabByIndex(Number(e.key) - 1);
+        return;
+      }
+
       if (!["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown"].includes(e.key))
         return;
 

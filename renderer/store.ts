@@ -132,6 +132,8 @@ export type Store = {
   openToolViewer(sourceID: string, tool: t.MCPTool): void,
   // Tab navigation methods
   navigateToTab(direction: "next" | "prev"): void,
+  selectTabByIndex(index: number): void,
+  selectPaneByIndex(index: number): void,
   moveTab(direction: "right" | "left"): void,
   movePane(direction: "right" | "left" | "up" | "down"): void,
 };
@@ -304,6 +306,35 @@ export const store = ((): Store => {
       const tab = tabs[nextTabIndex];
       layout.instance?.focus(tab);
       activeComponentID = (tab.toConfig().componentState as Partial<StateRequest>).id ?? null;
+    },
+    selectTabByIndex(index: number): void {
+      const active = layout.instance?.activeTab();
+      if (active === undefined || active.isNone())
+        return;
+
+      const parent = active.value.parent;
+      if (!(parent instanceof Stack))
+        return;
+
+      const tabs = parent.contentItems;
+      if (index < 0 || index >= tabs.length)
+        return;
+
+      const tab = tabs[index];
+      layout.instance?.focus(tab);
+      activeComponentID = (tab.toConfig().componentState as Partial<StateRequest>).id ?? null;
+    },
+    selectPaneByIndex(index: number): void {
+      const stacks = [...(layout.instance?.stacks() ?? [])];
+      if (index < 0 || index >= stacks.length)
+        return;
+
+      const active = stacks[index].activeComponentItem;
+      if (active.isNone())
+        return;
+
+      layout.instance?.focus(active.value);
+      activeComponentID = (active.value.toConfig().componentState as Partial<StateRequest>).id ?? null;
     },
     moveTab(direction: "right" | "left"): void {
       const activeItem = getActiveComponentItem();

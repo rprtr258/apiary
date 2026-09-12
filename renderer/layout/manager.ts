@@ -1093,6 +1093,25 @@ export class LayoutManager {
 
     yield* dfs_node(rootItem);
   }
+  *stacks(): Generator<Stack> {
+    const rootItem = this.rootItem;
+    if (rootItem === undefined) {
+      return;
+    }
+
+    function* dfs_node(c: ContentItem): Generator<Stack> {
+      if (c instanceof Stack) {
+        yield c;
+        return;
+      }
+
+      for (const child of c.contentItems) {
+        yield* dfs_node(child);
+      }
+    }
+
+    yield* dfs_node(rootItem);
+  }
   get isEmpty(): boolean {
     return this.rootItem === undefined;
   }
