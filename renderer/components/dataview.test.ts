@@ -1,46 +1,38 @@
 import {describe, test, expect} from "bun:test";
-import {NTag, NResult, NEmpty, NList, NListItem, Json} from "./dataview.ts";
 import {m} from "../lib/utils.ts";
+import {NTag, NResult, NEmpty, NList, NListItem, Json, TagType} from "./dataview.ts";
 
 describe("Json component", () => {
-  test("renders JSON data as formatted string", () => {
-    const data = {name: "test", value: 42, nested: {foo: "bar"}};
-    const component = Json({data});
-
+  test.each([
+    ["renders JSON data as formatted string", {name: "test", value: 42, nested: {foo: "bar"}}, `{
+  "name": "test",
+  "value": 42,
+  "nested": {
+    "foo": "bar"
+  }
+}`],
+    ["handles string value", "test string", `"test string"`],
+    ["handles number value", 123, `123`],
+    ["handles boolean value", true, `true`],
+    ["handles null value", null, `null`],
+  ])("%s", (_name, data, output) => {
+    const component = Json(data);
     expect(component.tagName).toBe("PRE");
-    expect(component.textContent).toBe(JSON.stringify(data, null, 2));
-  });
-
-  test("handles primitive values", () => {
-    const stringComponent = Json({data: "test string"});
-    expect(stringComponent.textContent).toBe(JSON.stringify("test string", null, 2));
-
-    const numberComponent = Json({data: 123});
-    expect(numberComponent.textContent).toBe(JSON.stringify(123, null, 2));
-
-    const booleanComponent = Json({data: true});
-    expect(booleanComponent.textContent).toBe(JSON.stringify(true, null, 2));
-
-    const nullComponent = Json({data: null});
-    expect(nullComponent.textContent).toBe(JSON.stringify(null, null, 2));
+    expect(component.textContent).toBe(output);
   });
 });
 
 describe("NTag component", () => {
-  test("renders tag with correct type color", () => {
-    const successTag = NTag({type: "success"}, "Success");
-    expect(successTag.tagName).toBe("SPAN");
-    expect(successTag.textContent).toBe("Success");
-    expect(successTag.style.color).toBe("lime");
-
-    const errorTag = NTag({type: "error"}, "Error");
-    expect(errorTag.style.color).toBe("red");
-
-    const warningTag = NTag({type: "warning"}, "Warning");
-    expect(warningTag.style.color).toBe("yellow");
-
-    const infoTag = NTag({type: "info"}, "Info");
-    expect(infoTag.style.color).toBe("blue");
+  test.each([
+    ["success", "Success", "lime"],
+    ["error", "Error", "red"],
+    ["warning", "Warning", "yellow"],
+    ["info", "Info", "blue"],
+  ] as [TagType, string, string][])("%s", (type, label, color) => {
+    const component = NTag({type}, label);
+    expect(component.tagName).toBe("SPAN");
+    expect(component.textContent).toBe(label);
+    expect(component.style.color).toBe(color);
   });
 
   test("applies custom styles", () => {
@@ -141,22 +133,17 @@ describe("NList and NListItem components", () => {
       NListItem({class: "item2"}, ["Item 2"]),
       NListItem({class: "item3"}, ["Item 3"]),
     );
-
     expect(list.tagName).toBe("UL");
-    expect(list.children.length).toBe(3);
 
-    const items = Array.from(list.children);
-    expect(items[0].tagName).toBe("LI");
-    expect(items[0].className).toBe("item1");
-    expect(items[0].textContent).toBe("Item 1");
-
-    expect(items[1].tagName).toBe("LI");
-    expect(items[1].className).toBe("item2");
-    expect(items[1].textContent).toBe("Item 2");
-
-    expect(items[2].tagName).toBe("LI");
-    expect(items[2].className).toBe("item3");
-    expect(items[2].textContent).toBe("Item 3");
+    const items = Array.from(list.children).map(({tagName, className, textContent}) => {
+      expect(tagName).toBe("LI");
+      return {className, textContent};
+    });
+    expect(items).toEqual([
+      {className: "item1", textContent: "Item 1"},
+      {className: "item2", textContent: "Item 2"},
+      {className: "item3", textContent: "Item 3"},
+    ]);
   });
 
   test("creates empty list", () => {

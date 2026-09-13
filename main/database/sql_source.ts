@@ -286,28 +286,4 @@ export async function countRowsSQLSource(request: Omit<SQLRequest, "query">, tab
 
 export async function testSQLSource(request: Omit<SQLRequest, "query">): Promise<void> {
   await sendSQL({...request, query: "SELECT 1"});
-  // switch req.Database {
-  // case database.DBClickhouse:
-  //   opts, err := clickhouse.ParseDSN(req.DSN)
-  //   if err != nil {
-  //     return errors.Wrap(err, "parse DSN")
-  //   }
-
-  //   db := clickhouse.OpenDB(opts)
-  //   defer db.Close()
-
-  //   db.SetMaxIdleConns(5)
-  //   db.SetMaxOpenConns(10)
-  //   db.SetConnMaxLifetime(time.Hour)
-
-  //   return errors.Wrap(db.PingContext(a.ctx), "ping database")
-  // default:
-  //   db, err := sql.Open(string(req.Database), req.DSN)
-  //   if err != nil {
-  //     return errors.Wrap(err, "connect to database")
-  //   }
-  //   defer db.Close()
-
-  //   return errors.Wrap(db.PingContext(a.ctx), "ping database")
-  // }
 }

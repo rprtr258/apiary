@@ -9,7 +9,7 @@ export function detectType(s: string): "json" | "text" {
 
 export function sendDIFF(request: DIFFRequest): DIFFResponse {
   const leftType = detectType(request.left);
-  const rightType = detectType(request.left);
+  const rightType = detectType(request.right);
 
   const diffs: string[] = [];
   const stats = {added: 0, removed: 0, changed: 0};

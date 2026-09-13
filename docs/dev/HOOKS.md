@@ -42,11 +42,6 @@ expanded.value;              // read (initializes from localStorage, falls back 
 expanded.value = {...};      // write (persists to localStorage)
 ```
 
-Companions in the same module:
-
-- `isLocalStorageAvailable()` — guards private-browsing modes
-- `clearKeysWithPrefix(prefix)` — bulk clear (useful for migrations)
-
 Used by `renderer/sidebar/tree.ts` (persisting expanded tree keys) and `renderer/store.ts`.
 
 ## Cache pattern — `renderer/sidebar/sourceCache.ts`

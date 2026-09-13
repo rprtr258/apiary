@@ -14,7 +14,6 @@ const api: Api = {
   Get:       (a1: string                     ): Promise<t.GetResponse>           => ipcRenderer.invoke("Get",       a1    ),
   Create:    (a1: string, a2: t.Kind         ): Promise<t.RequestID>             => ipcRenderer.invoke("Create",    a1, a2),
   Duplicate: (a1: string                     ): Promise<t.RequestID>             => ipcRenderer.invoke("Duplicate", a1    ),
-  Read:      (a1: string                     ): Promise<t.Request>               => ipcRenderer.invoke("Read",      a1    ),
   Rename:    (a1: string, a2: string         ): Promise<void>                    => ipcRenderer.invoke("Rename",    a1, a2),
   Update:    (a1: string, a2: Request["Data"]): Promise<void>                    => ipcRenderer.invoke("Update",    a1, a2),
   Delete:    (a1: string                     ): Promise<void>                    => ipcRenderer.invoke("Delete",    a1    ),
@@ -36,7 +35,6 @@ const api: Api = {
     GenerateExampleRequest: (a1: string, a2: number                   ): Promise<t.HTTPRequest>           => ipcRenderer.invoke("HTTPSource.GenerateExampleRequest", a1, a2    ),
     PerformVirtualEndpoint: (a1: string, a2: number, a3: t.HTTPRequest): Promise<Record<string, unknown>> => ipcRenderer.invoke("HTTPSource.PerformVirtualEndpoint", a1, a2, a3),
     Test:                   (a1: string                               ): Promise<void>                    => ipcRenderer.invoke("HTTPSource.Test",                   a1        ),
-    FetchSpec:              (a1: string                               ): Promise<void>                    => ipcRenderer.invoke("HTTPSource.FetchSpec",              a1        ),
   },
   MCP: {
     ListTools: (a1: string                         ): Promise<t.MCPTool[]>   => ipcRenderer.invoke("MCP.ListTools", a1        ),

@@ -51,14 +51,15 @@ export async function List(): Promise<t.ListResponse> {
 
 export async function Get(id: t.RequestID): Promise<t.GetResponse> {
   const entry = await get(id);
-  const history: t.HistoryEntry[] = entry.Responses.map(h => ({
-    sent_at: h.SentAt,
-    received_at: h.ReceivedAt,
-    kind: entry.Kind,
-    request: entry.Data,
-    response: h.Response,
-  } as t.HistoryEntry));
-  history.sort((a, b) => a.sent_at.getTime() - b.sent_at.getTime());
+  const history = entry.Responses
+    .map(h => ({
+      sent_at: h.SentAt,
+      received_at: h.ReceivedAt,
+      kind: entry.Kind,
+      request: entry.Data,
+      response: h.Response,
+    } as t.HistoryEntry))
+    .toSorted((a, b) => a.sent_at.getTime() - b.sent_at.getTime());
   return {
     Request: {
       ID: id,
@@ -66,7 +67,7 @@ export async function Get(id: t.RequestID): Promise<t.GetResponse> {
       Data: entry.Data,
       Responses: entry.Responses as t.Response[],
     },
-    History: history as unknown as t.Response[], // TODO: remove
+    History: history as unknown as t.Response[], // TODO: remove type casts
   };
 }
 
@@ -109,8 +110,8 @@ export async function Duplicate(id: t.RequestID): Promise<t.RequestID> {
   const j = await load();
   if (!(id in j))
     throw new Error(`request ${id} not found`);
-  const entry = j[id];
 
+  const entry = j[id];
   const existingPaths = new Set(Object.values(j).map(e => e.Path).filter(p => p.startsWith(`${entry.Path} (copy`)));
   let newPath = `${entry.Path} (copy)`;
   for (let n = 2; existingPaths.has(newPath); n++)
@@ -131,19 +132,6 @@ export async function Duplicate(id: t.RequestID): Promise<t.RequestID> {
 export async function Delete(id: t.RequestID): Promise<void> {
   const j = await load();
   await remove(j, id);
-}
-
-export async function Read(id: t.RequestID): Promise<t.Request2> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
-  const req = j[id];
-  return {
-    ID: id,
-    Path: req.Path,
-    Data: req.Data,
-    Responses: req.Responses as unknown as t.Response[],
-  };
 }
 
 export async function Rename(id: t.RequestID, newName: string): Promise<void> {
@@ -231,10 +219,7 @@ export const GRPC = {
 
 export const SQLSource = {
   async Perform(id: t.RequestID, query: string): Promise<PerformResponse> {
-    const j = await load();
-    if (!(id in j))
-      throw new Error(`request ${id} not found`);
-    const req = j[id];
+    const req = await get(id);
     if (req.Kind !== t.Kind.SQLSource)
       throw new Error(`request ${id} is not SQLSource`);
 
@@ -311,8 +296,7 @@ export const HTTPSource = {
 
   async PerformVirtualEndpoint(sourceID: t.RequestID, endpointIndex: number, modifiedRequest?: Partial<t.HTTPRequest>): Promise<Record<string, unknown>> {
     // Perform an HTTP request generated from the OpenAPI spec
-    const j = await load();
-    const req = j[sourceID];
+    const req = await get(sourceID);
     if (req.Kind !== t.Kind.HTTPSource)
       throw new Error(`request ${sourceID} is not HTTPSource`);
 
@@ -353,17 +337,7 @@ export const HTTPSource = {
     const sourceRequest = req.Data;
     // Verify spec is parseable
     const specData = await fetchSpec(sourceRequest);
-    await parseSpec(specData);
-  },
-
-  async FetchSpec(id: t.RequestID): Promise<void> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.HTTPSource)
-      throw new Error(`request ${id} is not HTTPSource`);
-    const sourceRequest = req.Data;
-    const specData = await fetchSpec(sourceRequest);
-    // TODO: use(return?) specData
-    void(specData);
+    void(await parseSpec(specData)); // TODO: use/return?
   },
 };
 

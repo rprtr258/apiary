@@ -12,7 +12,6 @@ export type Api = {
   Get:       (_1: string                     ) => Promise<t.GetResponse>,
   Create:    (_1: string, _2: t.Kind         ) => Promise<t.ResponseNewRequest>,
   Duplicate: (_1: string                     ) => Promise<t.ResponseNewRequest>,
-  Read:      (_1: string                     ) => Promise<t.Request>,
   Rename:    (_1: string, _2: string         ) => Promise<void>,
   Update:    (_1: string, _2: Request["Data"]) => Promise<void>,
   Delete:    (_1: string                     ) => Promise<void>,
@@ -34,7 +33,6 @@ export type Api = {
     GenerateExampleRequest: (_1: string, _2: number                   ) => Promise<t.HTTPRequest>,
     PerformVirtualEndpoint: (_1: string, _2: number, _3: t.HTTPRequest) => Promise<Record<string, unknown>>,
     Test:                   (_1: string                               ) => Promise<void>,
-    FetchSpec:              (_1: string                               ) => Promise<void>,
   },
   MCP: {
     ListTools: (_1: string                         ) => Promise<t.MCPTool[]>,

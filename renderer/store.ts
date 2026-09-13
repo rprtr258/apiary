@@ -25,7 +25,6 @@ export type StateMCPTool = {
   sourceID: string,
   tool: t.MCPTool,
 };
-export type State = StateRequest | StateSQLSourceTable | StateHTTPSourceEndpoint | StateMCPTool;
 
 const localStorageKey = "tabs";
 function defaultLayoutConfig(): LayoutConfig {
@@ -92,18 +91,6 @@ function findExistingTab<T>(
     .find(t => predicate?.(t.toConfig().componentState as T) ?? true);
 }
 
-export function handleCloseTab(id: string) {
-  // Find the component with the given ID
-  const tab = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
-  if (tab === undefined) {
-    notification.error({title: "Component not found", id});
-    return;
-  }
-
-  tab.remove();
-  updateLocalstorage();
-}
-
 export type get_request = {
   request: t.Request,
   history: t.HistoryEntry[],
@@ -119,7 +106,6 @@ export type Store = {
   layoutConfig: LayoutConfig,
   get activeComponentID(): string | null,
   set activeComponentID(value: string | null),
-  clearTabs(): void,
   requestID(): string | null,
   selectRequest(id: string): void,
   fetch(): Promise<void>,
@@ -161,10 +147,6 @@ export const store = ((): Store => {
     },
     set activeComponentID(value: string | null) {
       activeComponentID = value;
-    },
-    clearTabs() {
-      layout.instance?.clear();
-      activeComponentID = null;
     },
     requestID(): string | null {
       // Return the tracked active component ID if available
@@ -303,9 +285,7 @@ export const store = ((): Store => {
         "next": (currentIndex + 1) % tabs.length,
         "prev": (currentIndex - 1 + tabs.length) % tabs.length,
       }[direction];
-      const tab = tabs[nextTabIndex];
-      layout.instance?.focus(tab);
-      activeComponentID = (tab.toConfig().componentState as Partial<StateRequest>).id ?? null;
+      this.selectTabByIndex(nextTabIndex);
     },
     selectTabByIndex(index: number): void {
       const active = layout.instance?.activeTab();

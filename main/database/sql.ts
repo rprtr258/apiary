@@ -139,10 +139,11 @@ function sendSQLite(request: SQLRequest): SQLResponse {
       return {columns: [], typenames: [], types: [], rows: []}; // TODO: get column metadata
     }
     const columns = Object.keys(rows[0]);
+    const typenames = convertTypes(columns.length, rows.map(Object.values));
     return {
       columns,
-      typenames: convertTypes(columns.length, rows.map(Object.values)),
-      types: convertTypes(columns.length, rows.map(Object.values)),
+      typenames: typenames,
+      types: typenames,
       rows: rows.map(r => Object.values(r)),
     };
   } finally {
@@ -164,10 +165,11 @@ async function sendClickHouse(request: SQLRequest): Promise<SQLResponse> {
       return {columns: [], typenames: [], types: [], rows: []}; // TODO: get column metadata
     }
     const columns = Object.keys(rows[0]);
+    const typenames = convertTypes(columns.length, rows.map(Object.values));
     return {
       columns,
-      typenames: convertTypes(columns.length, rows.map(Object.values)),
-      types: convertTypes(columns.length, rows.map(Object.values)),
+      typenames: typenames,
+      types: typenames,
       rows: rows.map(r => Object.values(r)),
     };
   } finally {

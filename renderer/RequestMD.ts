@@ -155,7 +155,8 @@ export default function(
       el.replaceChildren(split.element);
     },
     push_history_entry(_he) {
-      if (id === undefined) return; // Guard: id not set yet
+      if (id === undefined)
+        return; // Guard: id not set yet
       update_response();
     },
     unmount() {

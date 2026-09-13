@@ -360,7 +360,7 @@ const panelkaFactory = (
     });
 
   });
-  const frame: Frame = createFrame(
+  const frame = createFrame(
     el,
     store.requests[id].kind,
     show_request,
@@ -372,16 +372,13 @@ const panelkaFactory = (
     },
     eye,
   );
-  frame.send = () => send(id).then(_ => {
-    frame.push_history_entry?.(last_history_entry(store.requests2[id])!);
-  });
   const frame_unsub = () => frame.unmount();
   get_request(id).then(r => {
     if (r === null) {
       activeTab?.componentItem.close();
       return;
     }
-    activeTab?.setTitle(r.request.path);
+    activeTab?.setTitle(r.request.path); // TODO: remove, create with ready title straightaway
     frame.loaded(r);
   });
   return {el};

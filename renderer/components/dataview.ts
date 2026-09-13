@@ -2,8 +2,8 @@ import {css} from "../lib/styles.ts";
 import {clone, m, DOMNode} from "../lib/utils.ts";
 import {ResultInfo, FolderOpenOutlined, FolderOutlined} from "./icons.ts";
 
-export function Json<T>(props: {data: T}) {
-  return m("pre", {}, JSON.stringify(props.data, null, 2));
+export function Json<T>(data: T) {
+  return m("pre", {}, JSON.stringify(data, null, 2));
 };
 
 export type TagType = "success" | "info" | "warning" | "error";

@@ -635,17 +635,7 @@ export class LayoutManager {
   }
 
   private collectStacks(node: ContentItem | undefined): Stack[] {
-    if (node === undefined) {
-      return [];
-    }
-    if (node instanceof Stack) {
-      return [node];
-    }
-    const out: Stack[] = [];
-    for (const child of node.contentItems) {
-      out.push(...this.collectStacks(child));
-    }
-    return out;
+    return [...this.stacks(node)];
   }
 
   private lastStack(item: ContentItem): Option<Stack> {
@@ -1099,9 +1089,8 @@ export class LayoutManager {
 
     yield* dfs_node(rootItem);
   }
-  *stacks(): Generator<Stack> {
-    const rootItem = this.rootItem;
-    if (rootItem === undefined) {
+  *stacks(root: ContentItem | undefined = this.rootItem): Generator<Stack> {
+    if (root === undefined) {
       return;
     }
 
@@ -1116,7 +1105,7 @@ export class LayoutManager {
       }
     }
 
-    yield* dfs_node(rootItem);
+    yield* dfs_node(root);
   }
   get isEmpty(): boolean {
     return this.rootItem === undefined;

@@ -97,7 +97,6 @@ The deletion test: these are pass-throughs but that's OK - they're UI adapters, 
 Handles:
 - Request state (`requests`, `requests2`)
 - Layout state (`layoutConfig` (zod-validated, persisted), `activeComponentID`, tab navigation)
-- Exports `updateLocalstorage()`, `handleCloseTab(id)`, `last_history_entry(request)`
 
 All backend access goes through `renderer/api.ts` -> `window.api`.
 

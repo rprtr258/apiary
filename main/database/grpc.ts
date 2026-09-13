@@ -341,10 +341,9 @@ export async function sendGRPC(request: GRPCRequest): Promise<GRPCResponse> {
     let statusCode = grpc.status.OK;
     let responseTrailers: KV[] = [];
 
-    const call = client.makeUnaryRequest(
+    client.makeUnaryRequest(
       methodPath,
-      (req: Record<string, unknown>): Buffer =>
-        Buffer.from(inputType.encode(req).finish()),
+      (req: Record<string, unknown>): Buffer => Buffer.from(inputType.encode(req).finish()),
       (data: Buffer): Record<string, unknown> => {
         const decoded = outputType.decode(data);
         return outputType.toObject(decoded, {
@@ -365,15 +364,10 @@ export async function sendGRPC(request: GRPCRequest): Promise<GRPCResponse> {
           resolve({
             response: error.details !== "" ? error.details : error.message,
             code: error.code,
-            metadata:
-              responseTrailers.length > 0 ?
-              responseTrailers :
-              metadataToKV(error.metadata),
+            metadata: responseTrailers.length > 0 ? responseTrailers : metadataToKV(error.metadata),
           });
         } else {
-          const responseStr = response !== undefined
-            ? JSON.stringify(response)
-            : "";
+          const responseStr = response !== undefined ? JSON.stringify(response) : "";
           resolve({
             response: responseStr,
             code: statusCode,
@@ -381,13 +375,9 @@ export async function sendGRPC(request: GRPCRequest): Promise<GRPCResponse> {
           });
         }
       },
-    );
-
-    call.on("metadata", (_md: grpc.Metadata) => {
+    ).on("metadata", (_md: grpc.Metadata) => {
       // TODO: Response headers - currently not captured
-    });
-
-    call.on("status", (status: grpc.StatusObject) => {
+    }).on("status", (status: grpc.StatusObject) => {
       statusCode = status.code;
       responseTrailers = metadataToKV(status.metadata);
     });
@@ -399,6 +389,8 @@ export async function sendGRPC(request: GRPCRequest): Promise<GRPCResponse> {
  * Uses raw Buffer serialization when the reflection service is unavailable.
  */
 async function sendGRPCFallback(request: GRPCRequest): Promise<GRPCResponse> {
+  const deadlineMs = 10000;
+
   const client = new grpc.Client(request.target, grpc.credentials.createInsecure());
 
   const grpcMetadata = new grpc.Metadata();
@@ -406,45 +398,30 @@ async function sendGRPCFallback(request: GRPCRequest): Promise<GRPCResponse> {
     grpcMetadata.add(kv.key, kv.value);
   }
 
-  const methodPath = request.method.startsWith("/")
-    ? request.method
-    : `/${request.method}`;
+  const methodPath = `/${request.method}`;
+  const deadline = Date.now() + deadlineMs;
 
   return new Promise<GRPCResponse>((resolve, _reject) => {
-    const timeout = setTimeout(() => {
-      client.close();
-      resolve({
-        response: "deadline exceeded",
-        code: grpc.status.DEADLINE_EXCEEDED,
-        metadata: [],
-      });
-    }, 10000);
-
     let statusCode = grpc.status.OK;
     let responseTrailers: KV[] = [];
 
-    const call = client.makeUnaryRequest(
+    client.makeUnaryRequest(
       methodPath,
       (val: Buffer) => val,
       (val: Buffer) => val,
       Buffer.from(request.payload, "utf-8"),
       grpcMetadata,
+      {deadline},
       (error, response) => {
-        clearTimeout(timeout);
         client.close();
         if (error !== null) {
           resolve({
             response: error.details !== "" ? error.details : error.message,
             code: error.code,
-            metadata:
-              responseTrailers.length > 0 ?
-              responseTrailers :
-              metadataToKV(error.metadata),
+            metadata: responseTrailers.length > 0 ? responseTrailers : metadataToKV(error.metadata),
           });
         } else {
-          const responseStr = response instanceof Buffer
-            ? response.toString("utf-8")
-            : JSON.stringify(response);
+          const responseStr = response instanceof Buffer ? response.toString("utf-8") : JSON.stringify(response);
           resolve({
             response: responseStr,
             code: statusCode,
@@ -452,13 +429,9 @@ async function sendGRPCFallback(request: GRPCRequest): Promise<GRPCResponse> {
           });
         }
       },
-    );
-
-    call.on("metadata", (_md: grpc.Metadata) => {
-      // Response headers - currently not captured
-    });
-
-    call.on("status", (status: grpc.StatusObject) => {
+    ).on("metadata", (_md: grpc.Metadata) => {
+      // TODO: Response headers - currently not captured
+    }).on("status", (status: grpc.StatusObject) => {
       statusCode = status.code;
       responseTrailers = metadataToKV(status.metadata);
     });
