@@ -45,23 +45,9 @@ if (document.getElementById("schema-canvas-defs") === null) {
     }, s("polygon", {
         points: "0 0, 10 3.5, 0 7",
         fill: "#888888",
-      })),
-    s("pattern", {
-        id: "pattern-hero",
-        x: "7",
-        y: "-5",
-        width: "40",
-        height: "40",
-        patternUnits: "userSpaceOnUse",
-        patternTransform: "translate(-11,-11)",
-      },
-        s("circle", {
-          cx: "20",
-          cy: "20",
-          r: "2",
-          fill: "#343434",
-        })))));
+      })))));
 }
+
 
 const PADDING = 5;
 const ROW_HEIGHT = 20;
@@ -132,20 +118,15 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
   const edgesGroup: SVGGElement = s("g", {id: "edges"});
   const mainGroup: SVGGElement = s("g", {id: "main"}, nodesGroup, edgesGroup);
 
-  const bg = s("rect", {
-    x: "0",
-    y: "0",
-    width: "100%",
-    height: "100%",
-    fill: "url(#pattern-hero)",
-    style: {pointerEvents: "none"},
-  });
-
+  // Dot grid: 40px tile, 2px dot. Offset -4px/-16px matches the old SVG
+  // pattern's rendering; panned on drag in applyUpdate.
   const svg = s("svg", {
     width: "100%",
     height: "100%",
-    style: {background: "#2a2a2a"},
-  }, bg, mainGroup);
+    style: {
+      background: "#2a2a2a radial-gradient(#343434 2px, transparent 2.5px) -4px -16px / 40px 40px",
+    },
+  }, mainGroup);
 
   function updateTransform() {
     mainGroup.setAttribute("transform", `translate(${translateX},${translateY}) scale(${scale})`);
@@ -235,6 +216,9 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
         lastX = move.clientX;
         lastY = move.clientY;
         updateTransform();
+        // Same coordinate space as the pan, so the dot grid moves by
+        // exactly the drag delta.
+        svg.style.backgroundPosition = `${translateX - 4}px ${translateY - 16}px`;
       }
       if (draggedNode !== null) {
         if (selectionDisabled === false) {
