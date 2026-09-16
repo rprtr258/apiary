@@ -45,7 +45,7 @@ export function showContextMenu(id: string, event: MouseEvent): void {
         click: () => {
           api.get(id).then(r => {
             if (r.kind === "err") {
-              notification.error({title: "Error", content: `Failed to load request: ${r.value}`});
+              notification("error", "Error", {content: `Failed to load request: ${r.value}`});
               return;
             }
 

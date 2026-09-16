@@ -73,7 +73,7 @@ export default function HTTPRequestView(
       try {
         await onSend(currentRequest);
       } catch (e) {
-        notification.error({title: "Send failed", error: e});
+        notification("error", "Send failed", {error: e});
       }
     }},
   }, "Send");

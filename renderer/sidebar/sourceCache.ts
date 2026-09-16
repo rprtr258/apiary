@@ -63,7 +63,7 @@ async function fetchCached<V>(
   sourceCacheChanged.update(v => v + 1);
   const res = await fetch(key);
   if (res.kind === "err") {
-    notification.error({title: errorTitle, error: res.value});
+    notification("error", errorTitle, {error: res.value});
     cache[key].loading = false;
     sourceCacheChanged.update(v => v + 1);
     return;

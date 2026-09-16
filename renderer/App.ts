@@ -51,13 +51,13 @@ function rename() {
   const newName = renameValue.value;
   switch (true) {
     case fromID === undefined && newName === undefined:
-      notification.error({title: "Invalid request", content: "No request to rename"});
+      notification("error", "Invalid request", {content: "No request to rename"});
       return;
     case newName === undefined:
-      notification.error({title: "Invalid request", content: "No new name"});
+      notification("error", "Invalid request", {content: "No new name"});
       return;
     case fromID === undefined:
-      notification.error({title: "Invalid request", content: `No request to rename to ${newName}`});
+      notification("error", "Invalid request", {content: `No request to rename to ${newName}`});
       return;
   }
 
@@ -723,7 +723,7 @@ function preApp(root: HTMLElement, store: Store) {
         return;
 
       e.preventDefault();
-      if (anyModalIsOpen()) 
+      if (anyModalIsOpen())
         return;
 
       store.movePane(({

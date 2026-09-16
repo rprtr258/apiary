@@ -164,12 +164,12 @@ export const store = ((): Store => {
         return;
       }
       layout.instance?.addItem("MyComponent", id, {id});
-      this.fetch().catch(e => notification.error({title: "Failed to fetch requests", error: e}));
+      this.fetch().catch(e => notification("error", "Failed to fetch requests", {error: e}));
     },
     async fetch(): Promise<void> {
       const json = await api.collectionRequests();
       if (json.kind === "err") {
-        notification.error({title: "Could not fetch requests", error: json.value});
+        notification("error", "Could not fetch requests", {error: json.value});
         return;
       }
 
@@ -189,7 +189,7 @@ export const store = ((): Store => {
     async createRequest(id: string, kind: t.RequestData["kind"]): Promise<void> {
       const res = await api.requestCreate(id, kind);
       if (res.kind === "err") {
-        notification.error({title: "Could not create request", error: res.value});
+        notification("error", "Could not create request", {error: res.value});
         return;
       }
 
@@ -198,7 +198,7 @@ export const store = ((): Store => {
     async duplicate(id: string): Promise<void> {
       const res = await api.requestDuplicate(id);
       if (res.kind === "err") {
-        notification.error({title: "Could not duplicate", error: res.value});
+        notification("error", "Could not duplicate", {error: res.value});
         return;
       }
 
@@ -207,7 +207,7 @@ export const store = ((): Store => {
     async deleteRequest(id: string): Promise<void> {
       const res = await api.requestDelete(id);
       if (res.kind === "err") {
-        notification.error({title: "Could not delete request", error: res.value});
+        notification("error", "Could not delete request", {error: res.value});
         return;
       }
       if (id in this.requests) {
@@ -221,7 +221,7 @@ export const store = ((): Store => {
     async rename(id: string, newName: string): Promise<void> {
       const res = await api.rename(id, newName);
       if (res.kind === "err") {
-        notification.error({title: "Could not rename request", error: res.value});
+        notification("error", "Could not rename request", {error: res.value});
         return;
       }
 
@@ -238,7 +238,7 @@ export const store = ((): Store => {
       const sourceRequest = this.requests2[sqlSourceID];
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (sourceRequest === undefined) {
-        notification.error({title: "Could not open table viewer", content: `SQL source request ${sqlSourceID} not found`});
+        notification("error", "Could not open table viewer", {content: `SQL source request ${sqlSourceID} not found`});
         return;
       }
 
@@ -347,7 +347,7 @@ export const store = ((): Store => {
 export async function send(id: string): Promise<void> {
   const res = await api.requestPerform(id);
   if (res.kind === "err") {
-    notification.error({title: "Could not perform request", id, error: res.value});
+    notification("error", "Could not perform request", {id, error: res.value});
     return;
   }
 
@@ -361,7 +361,7 @@ export async function update_request(id: string, patch: Partial<t.Request>): Pro
   const res = await api.request_update(id, new_request.kind, new_request);
   if (res.kind === "err") {
     store.requests2[id].request = old_request; // NOTE: undo change
-    notification.error({title: "Could not save current request", error: res.value});
+    notification("error", "Could not save current request", {error: res.value});
     return;
   }
 }
@@ -373,7 +373,7 @@ export async function get_request(request_id: string): Promise<get_request | nul
 
   const res = await api.get(request_id);
   if (res.kind === "err") {
-    notification.error({title: "load request", id: request_id, error: res.value});
+    notification("error", "load request", {id: request_id, error: res.value});
     return null;
   }
 

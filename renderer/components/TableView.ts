@@ -25,7 +25,7 @@ function render(v: t.RowValue): DOMNode {
   case typeof v === "object":
     return JSON.stringify(v);
   default:
-    notification.error({title: "unknown row value type", "typestr": String(v), "type": typeof v, "json": JSON.stringify(v)});
+    notification("error", "unknown row value type", {typestr: String(v), type: typeof v, json: JSON.stringify(v)});
     return String(v);
   }
 }
@@ -488,7 +488,7 @@ export default function(
 
     let data: t.SQLResponse | undefined = undefined;
     if (res.kind !== "ok") {
-      notification.error({title: "Could not load data", error: res.value});
+      notification("error", "Could not load data", {error: res.value});
     } else {
       data = res.value.response as t.SQLResponse;
     }
@@ -513,7 +513,7 @@ export default function(
   async function loadSchema() {
     const res = await api.requestDescribeTableSQLSource(sqlSourceID, tableName);
     if (res.kind === "err") {
-      notification.error({title: "Could not describe table", error: res.value});
+      notification("error", "Could not describe table", {error: res.value});
       return;
     }
 
