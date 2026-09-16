@@ -319,6 +319,19 @@ export class RowCol {
 
 export type ContentItem = Stack | RowCol | ComponentItem;
 
+function edgeOf(
+  r: DOMRect,
+  [x, y]: [number, number],
+): "left" | "right" | "top" | "bottom" | "center" {
+  const dx = (x - r.left) / r.width;
+  const dy = (y - r.top) / r.height;
+  return dx < 0.33 ? "left" :
+         dx > 0.67 ? "right" :
+         dy < 0.33 ? "top" :
+         dy > 0.67 ? "bottom" :
+                     "center";
+}
+
 export class LayoutManager {
   private readonly host: HTMLElement;
   private readonly rootEl: HTMLElement;
@@ -341,6 +354,8 @@ export class LayoutManager {
     total: number,
   } | undefined;
   private cursor: [number, number] = [0, 0];
+  private dragFrame = 0;
+  private dragRootRect: DOMRect | undefined;
 
   constructor(
     host: HTMLElement,
@@ -774,6 +789,7 @@ export class LayoutManager {
     proxy.textContent = p.item.title;
     document.body.append(proxy);
     this.drag = {item: p.item, proxy};
+    this.dragRootRect = this.rootEl.getBoundingClientRect();
     const move = (ev: MouseEvent) => this.onDragMove(ev);
     const up = (ev: MouseEvent) => {
       this.onDragUp(ev);
@@ -785,19 +801,35 @@ export class LayoutManager {
     this.onDragMove(e);
   }
 
+  // mousemove can fire several times per frame; every layout read after the
+  // proxy/overlay writes forces a synchronous reflow. Coalesce to one pass
+  // per frame and cache the drag-invariant root rect.
   private onDragMove(e: MouseEvent): void {
     this.cursor = [e.clientX, e.clientY];
-    const d = this.drag;
-    if (d === undefined) {
+    if (this.drag === undefined || this.dragFrame !== 0) {
       return;
     }
-    d.proxy.style.left = `${e.clientX + 8}px`;
-    d.proxy.style.top = `${e.clientY + 8}px`;
-    this.renderDropHint(this.hitTest(e.clientX, e.clientY));
+    this.dragFrame = requestAnimationFrame(() => {
+      this.dragFrame = 0;
+      const d = this.drag;
+      if (d === undefined) {
+        return;
+      }
+      const [x, y] = this.cursor;
+      // Reads first (elementFromPoint, hint rects), writes last: any layout
+      // read after a write forces a synchronous reflow. The browser flushes
+      // layout after this callback returns, so the next frame reads clean.
+      this.renderDropHint(this.hitTest(x, y));
+      d.proxy.style.left = `${x + 8}px`;
+      d.proxy.style.top = `${y + 8}px`;
+    });
   }
 
   private onDragUp(e: MouseEvent): void {
     this.cursor = [e.clientX, e.clientY];
+    cancelAnimationFrame(this.dragFrame);
+    this.dragFrame = 0;
+    this.dragRootRect = undefined;
     const d = this.drag;
     this.overlay.style.display = "none";
     if (d !== undefined) {
@@ -808,14 +840,9 @@ export class LayoutManager {
   }
 
   private hitTest(x: number, y: number): Option<Hit> {
-    const d = this.drag;
-    if (d !== undefined) {
-      d.proxy.style.display = "none";
-    }
+    // cls.proxy is pointer-events:none, so the drag ghost never occludes the
+    // hit test; no display toggling — a write here would force a reflow.
     let el = document.elementFromPoint(x, y) as HTMLElement | null;
-    if (d !== undefined) {
-      d.proxy.style.display = "";
-    }
     while (el !== null && el !== this.host) {
       const hit = this.hits.get(el);
       if (hit !== undefined) {
@@ -840,7 +867,7 @@ export class LayoutManager {
       this.overlay.style.display = "none";
       return;
     }
-    const rootRect = this.rootEl.getBoundingClientRect();
+    const rootRect = this.dragRootRect ?? this.rootEl.getBoundingClientRect();
     switch (hit.value.kind) {
     case "tab": {
       const headerRect = hit.value.stack.header.getBoundingClientRect();
@@ -888,7 +915,7 @@ export class LayoutManager {
 
   private highlightEdge(stack: Stack, rootRect: DOMRect): void {
     const r = stack.itemsEl.getBoundingClientRect();
-    const edge = this.edgeOf(stack);
+    const edge = edgeOf(r, this.cursor);
     let {left, top, width, height} = r;
     switch (edge) {
     case "left":
@@ -912,18 +939,6 @@ export class LayoutManager {
     this.overlay.style.top = `${top - rootRect.top}px`;
     this.overlay.style.width = `${width}px`;
     this.overlay.style.height = `${height}px`;
-  }
-
-  private edgeOf(stack: Stack): "left" | "right" | "top" | "bottom" | "center" {
-    const r = stack.itemsEl.getBoundingClientRect();
-    const [x, y] = this.cursor;
-    const dx = (x - r.left) / r.width;
-    const dy = (y - r.top) / r.height;
-    return dx < 0.33 ? "left" :
-           dx > 0.67 ? "right" :
-           dy < 0.33 ? "top" :
-           dy > 0.67 ? "bottom" :
-                       "center";
   }
 
   private performDrop(dragged: ComponentItem, hit: Option<Hit>): void {
@@ -963,7 +978,7 @@ export class LayoutManager {
       this.notifyChanged();
       return;
     }
-    const edge = this.edgeOf(targetStack);
+    const edge = edgeOf(targetStack.itemsEl.getBoundingClientRect(), this.cursor);
     if (edge === "center") {
       if (targetStack === oldStack) {
         this.notifyChanged();
