@@ -11,9 +11,11 @@ type NTagProps = {
   type: TagType, // TODO: replace with color, use?
   style?: Partial<CSSStyleDeclaration>,
   tooltip?: string,
+  class?: string,
 };
 export function NTag(props: NTagProps, label: string) {
   return m("span", {
+    class: props.class,
     style: {
       color: {
         success: "lime",

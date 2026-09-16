@@ -115,6 +115,18 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
   let tablePositions: Record<string, {x: number, y: number, width: number, height: number}> = {};
   let tableIdMap: Record<string, string> = {};
   let currentData: SchemaData | null = null;
+  // Pointer-driven work is coalesced to one frame: listeners only record
+  // intent (pure math), the rAF callback reads layout once, then writes.
+  const pending: {
+    frame: boolean,
+    zoom: number,
+    wheel?: WheelEvent,
+    move?: MouseEvent,
+    dragSvgRect?: DOMRect,
+  } = {
+    frame: false,
+    zoom: 1,
+  };
 
   const nodesGroup: SVGGElement = s("g", {id: "nodes"});
   const edgesGroup: SVGGElement = s("g", {id: "edges"});
@@ -139,20 +151,22 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
     mainGroup.setAttribute("transform", `translate(${translateX},${translateY}) scale(${scale})`);
   }
 
+  // Edge paths keyed by (source, target, columns) so node drags update the
+  // existing path `d` in place instead of rebuilding every edge per frame.
+  const edgePaths = new Map<string, SVGPathElement>();
+
   function drawArrows(tables: SchemaData) {
-    edgesGroup.replaceChildren(...tables.flatMap(table =>
-      table.schema.foreign_keys.map(fk => {
-        const sourceTable = table;
+    const seen = new Set<string>();
+    for (const table of tables) {
+      for (const fk of table.schema.foreign_keys) {
         const targetTable = tables.find(t => t.name === fk.table);
-        if (targetTable === undefined) return undefined;
-        const sourceColIndex = sourceTable.schema.columns.findIndex(c => c.name === fk.column);
+        if (targetTable === undefined) continue;
+        const sourceColIndex = table.schema.columns.findIndex(c => c.name === fk.column);
         const targetColIndex = targetTable.schema.columns.findIndex(c => c.name === fk.to);
-        if (sourceColIndex === -1 || targetColIndex === -1) return undefined;
-        if (!(sourceTable.name in tableIdMap) || !(targetTable.name in tableIdMap)) return undefined;
-        const sourceId = tableIdMap[sourceTable.name];
-        const targetId = tableIdMap[targetTable.name];
-        const sourcePos = tablePositions[sourceId];
-        const targetPos = tablePositions[targetId];
+        if (sourceColIndex === -1 || targetColIndex === -1) continue;
+        if (!(table.name in tableIdMap) || !(fk.table in tableIdMap)) continue;
+        const sourcePos = tablePositions[tableIdMap[table.name]];
+        const targetPos = tablePositions[tableIdMap[fk.table]];
         const [sx, sy, cx, cy, ex, ey] = getBoxToBoxArrow(
           sourcePos.x + PADDING, sourcePos.y + (sourceColIndex + 1) * ROW_HEIGHT + PADDING,
           sourcePos.width - 2 * PADDING, ROW_HEIGHT,
@@ -160,32 +174,96 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
           targetPos.width - 2 * PADDING, ROW_HEIGHT,
           {padEnd: ARROW_PAD_END, bow: ARROW_BOW},
         );
-        const line = s("path", {
-          d: `M${sx},${sy} Q${cx},${cy} ${ex},${ey}`,
-          stroke: "#888888",
-          fill: "none",
-          "stroke-width": 2,
-          "marker-end": "url(#arrowhead)",
-        });
-        return line;
-      }).filter(n => n !== undefined),
-    ));
+        const key = `${table.name}->${fk.table}->${fk.column}->${fk.to}`;
+        seen.add(key);
+        const d = `M${sx},${sy} Q${cx},${cy} ${ex},${ey}`;
+        const line = edgePaths.get(key);
+        if (line !== undefined) {
+          line.setAttribute("d", d);
+        } else {
+          const path = s("path", {
+            d,
+            stroke: "#888888",
+            fill: "none",
+            "stroke-width": 2,
+            "marker-end": "url(#arrowhead)",
+          });
+          edgePaths.set(key, path);
+          edgesGroup.append(path);
+        }
+      }
+    }
+    for (const [key, path] of [...edgePaths]) {
+      if (!seen.has(key)) {
+        path.remove();
+        edgePaths.delete(key);
+      }
+    }
+  }
+
+  function scheduleUpdate() {
+    if (pending.frame) return;
+    pending.frame = true;
+    requestAnimationFrame(() => {
+      pending.frame = false;
+      applyUpdate();
+    });
+  }
+
+  function applyUpdate() {
+    const wheel = pending.wheel;
+    const move = pending.move;
+    pending.wheel = undefined;
+    pending.move = undefined;
+    if (wheel !== undefined) {
+      // Single layout read per frame, before any writes.
+      const rect = svg.getBoundingClientRect();
+      const pointX = wheel.clientX - rect.left;
+      const pointY = wheel.clientY - rect.top;
+      const transformedX = (pointX - translateX) / scale;
+      const transformedY = (pointY - translateY) / scale;
+      scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * pending.zoom));
+      pending.zoom = 1;
+      translateX = pointX - transformedX * scale;
+      translateY = pointY - transformedY * scale;
+      updateTransform();
+    }
+    if (move !== undefined) {
+      if (isDragging) {
+        translateX += move.clientX - lastX;
+        translateY += move.clientY - lastY;
+        lastX = move.clientX;
+        lastY = move.clientY;
+        updateTransform();
+      }
+      if (draggedNode !== null) {
+        if (selectionDisabled === false) {
+          const texts = draggedNode.querySelectorAll("text");
+          for (const text of texts)
+            text.style.userSelect = "none";
+          selectionDisabled = true;
+        }
+        // mainGroup's transform is exactly translate(...) scale(...), so the
+        // client->user-space conversion has a closed form; dragSvgRect is
+        // cached at drag start (the svg itself does not move during a drag).
+        const rect = pending.dragSvgRect!;
+        const x = (move.clientX - rect.left - translateX) / scale - dragOffsetX;
+        const y = (move.clientY - rect.top - translateY) / scale - dragOffsetY;
+        draggedNode.setAttribute("transform", `translate(${x},${y})`);
+        // Update position for edge recalculation
+        const tableId = draggedNode.getAttribute("data-id")!;
+        tablePositions[tableId].x = x;
+        tablePositions[tableId].y = y;
+        if (currentData !== null) drawArrows(currentData);
+      }
+    }
   }
 
   svg.addEventListener("wheel", e => {
     e.preventDefault();
-    const rect = svg.getBoundingClientRect();
-    const point = svg.createSVGPoint();
-    point.x = e.clientX - rect.left;
-    point.y = e.clientY - rect.top;
-    const transformedX = (point.x - translateX) / scale;
-    const transformedY = (point.y - translateY) / scale;
-    const delta = e.deltaY > 0 ? ZOOM_FACTOR_IN : ZOOM_FACTOR_OUT;
-    scale *= delta;
-    scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
-    translateX = point.x - transformedX * scale;
-    translateY = point.y - transformedY * scale;
-    updateTransform();
+    pending.zoom *= e.deltaY > 0 ? ZOOM_FACTOR_IN : ZOOM_FACTOR_OUT;
+    pending.wheel = e;
+    scheduleUpdate();
   });
   svg.addEventListener("mousedown", e => {
     if (e.target === svg || e.target === mainGroup) {
@@ -195,35 +273,8 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
     }
   });
   svg.addEventListener("mousemove", e => {
-    if (isDragging) {
-      translateX += e.clientX - lastX;
-      translateY += e.clientY - lastY;
-      lastX = e.clientX;
-      lastY = e.clientY;
-      updateTransform();
-    }
-    if (draggedNode !== null) {
-      if (!selectionDisabled) {
-        const texts = draggedNode.querySelectorAll("text");
-        for (const text of texts)
-          text.style.userSelect = "none";
-        selectionDisabled = true;
-      }
-      const rect = svg.getBoundingClientRect();
-      let pt = svg.createSVGPoint();
-      pt.x = e.clientX - rect.left;
-      pt.y = e.clientY - rect.top;
-      const ctm = mainGroup.getCTM()!;
-      pt = pt.matrixTransform(ctm.inverse());
-      const x = pt.x - dragOffsetX;
-      const y = pt.y - dragOffsetY;
-      draggedNode.setAttribute("transform", `translate(${x},${y})`);
-        // Update position for edge recalculation
-        const tableId = draggedNode.getAttribute("data-id")!;
-        tablePositions[tableId].x = x;
-        tablePositions[tableId].y = y;
-        if (currentData !== null) drawArrows(currentData);
-    }
+    pending.move = e;
+    scheduleUpdate();
   });
   svg.addEventListener("mouseup", _e => {
     isDragging = false;
@@ -234,6 +285,7 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
       selectionDisabled = false;
     }
     draggedNode = null;
+    pending.dragSvgRect = undefined;
   });
 
   nodesGroup.addEventListener("mousedown", e => {
@@ -245,12 +297,9 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
 
     draggedNode = node;
     selectionDisabled = false;
-    const rect = svg.getBoundingClientRect();
-    let pt = svg.createSVGPoint();
-    pt.x = e.clientX - rect.left;
-    pt.y = e.clientY - rect.top;
-    const ctm = mainGroup.getCTM()!;
-    pt = pt.matrixTransform(ctm.inverse());
+    pending.dragSvgRect = svg.getBoundingClientRect();
+    const ptX = (e.clientX - pending.dragSvgRect.left - translateX) / scale;
+    const ptY = (e.clientY - pending.dragSvgRect.top - translateY) / scale;
     const transformList = node.transform.baseVal;
     let currentX = 0;
     let currentY = 0;
@@ -259,8 +308,8 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
       currentX = translateTransform.matrix.e;
       currentY = translateTransform.matrix.f;
     }
-    dragOffsetX = pt.x - currentX;
-    dragOffsetY = pt.y - currentY;
+    dragOffsetX = ptX - currentX;
+    dragOffsetY = ptY - currentY;
     e.stopPropagation();
   });
 

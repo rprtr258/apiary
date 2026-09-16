@@ -103,6 +103,9 @@ function httpMethodProps(method: string): HTTPMethodProps {
 // pulse keyframes + class for loading state
 const pulseClass = css.raw(` {
   animation: pulse 1.5s infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -445,6 +448,7 @@ export function createTreeView(): {el: HTMLElement} {
             return [
               NTag({
                 type: tagType,
+                class: isLoading ? pulseClass : undefined,
                 style: {
                   minWidth: "4em",
                   justifyContent: "center",
@@ -454,9 +458,6 @@ export function createTreeView(): {el: HTMLElement} {
                   fontWeight: "bold",
                   padding: "2px 4px",
                   backgroundColor: "#202020",
-                  ...(isLoading ? {
-                    animation: "pulse 1.5s infinite",
-                  } : {}),
                 },
               }, method),
               m("span", {

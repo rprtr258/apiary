@@ -270,15 +270,24 @@ export class RowCol {
 
   render(): void {
     this.element.replaceChildren();
-    const sum = this.weights.reduce((a, b) => a + b, 0);
-    const total = sum === 0 ? 1 : sum;
     for (let i = 0; i < this.children.length; i++) {
       const child = this.children[i] as {element: HTMLElement};
-      child.element.style.flex = `${this.weights[i] / total} 1 0`;
       this.element.append(child.element);
       if (i < this.children.length - 1) {
         this.element.append(this.makeSplitter(i));
       }
+    }
+    this.applyFlex();
+  }
+
+  // Update children flex sizes without rebuilding the DOM. Used in the
+  // splitter drag hot path, where a rebuild would discard the dragged
+  // splitter element (losing its active class) and recreate all children.
+  applyFlex(): void {
+    const sum = this.weights.reduce((a, b) => a + b, 0);
+    const total = sum === 0 ? 1 : sum;
+    for (let i = 0; i < this.children.length; i++) {
+      this.children[i].element.style.flex = `${this.weights[i] / total} 1 0`;
     }
   }
 
@@ -757,7 +766,7 @@ export class LayoutManager {
     if (n2 < min) {n1 -= min - n2; n2 = min;}
     d.rc.weights[d.index] = n1;
     d.rc.weights[d.index + 1] = n2;
-    d.rc.render();
+    d.rc.applyFlex();
   }
 
   onTabMouseDown(e: MouseEvent, item: ComponentItem): void {

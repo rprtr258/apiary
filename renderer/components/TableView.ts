@@ -214,6 +214,7 @@ export function DataTable() {
   let startX = 0;
   let startWidth = 0;
   let resizeHandles: HTMLElement[] = [];
+  let resizeFrame = 0;
 
   function setHighlight(handle: HTMLElement, on: boolean): void {
     handle.classList.toggle(split_styles.default, !on);
@@ -226,7 +227,13 @@ export function DataTable() {
     const delta = e.clientX - startX;
     columnWidths[resizingColumnIndex.value] = Math.max(50, startWidth + delta);
 
-    updateColumnWidths();
+    // Coalesce the layout write to one frame.
+    if (resizeFrame === 0) {
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = 0;
+        updateColumnWidths();
+      });
+    }
   }
 
   function handleMouseUp() {
