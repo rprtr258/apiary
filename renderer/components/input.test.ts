@@ -1,4 +1,5 @@
 import {describe, test, expect, mock} from "bun:test";
+import {MouseEvent, KeyboardEvent} from "happy-dom";
 import {NInput, NSelect, NButton, NInputGroup, NSelectInput} from "./input.ts";
 
 describe("NInput", () => {
@@ -284,22 +285,33 @@ describe("NInputGroup", () => {
 });
 
 describe("NSelectInput", () => {
-  const options = [
+  const options = () => [
     {label: "prod/mydb", value: "id1"},
     {label: "prod/other", value: "id2"},
   ];
 
-  test("renders input with datalist of option labels", () => {
+  const popup = (el: HTMLDivElement): HTMLDivElement =>
+    el.querySelector("div[role='listbox']") as HTMLDivElement;
+  const keydown = (key: string): Event =>
+    new KeyboardEvent("keydown", {bubbles: true, key: key}) as unknown as Event;
+  const mousedown = (): Event =>
+    new MouseEvent("mousedown", {bubbles: true, cancelable: true}) as unknown as Event;
+
+  test("renders input with options in popup after focus", () => {
     const el = NSelectInput({placeholder: "DSN", options});
 
     expect(el.tagName).toBe("DIV");
     const input = el.querySelector("input") as HTMLInputElement;
-    const datalist = el.querySelector("datalist") as HTMLDataListElement;
+    const el_popup = popup(el);
     expect(input.getAttribute("placeholder")).toBe("DSN");
-    expect(input.getAttribute("list")).toBe(datalist.getAttribute("id"));
-    expect(datalist.children.length).toBe(2);
-    expect(datalist.children[0].getAttribute("value")).toBe("prod/mydb");
-    expect(datalist.children[1].getAttribute("value")).toBe("prod/other");
+    expect(el_popup.style.display).toBe("none"); // closed
+
+    input.dispatchEvent(new Event("focus"));
+    expect(el_popup.children.length).toBe(2);
+    const [first, second] = [...el_popup.children] as HTMLDivElement[];
+    expect(first.getAttribute("role")).toBe("option");
+    expect(first.textContent).toBe("prod/mydb");
+    expect(second.textContent).toBe("prod/other");
   });
 
   test("shows option label for known value", () => {
@@ -330,5 +342,95 @@ describe("NSelectInput", () => {
     input.value = "localhost:5432/db";
     input.dispatchEvent(new Event("input"));
     expect(updateMock).toHaveBeenCalledWith("localhost:5432/db");
+  });
+
+  test("re-evaluates options getter on focus", () => {
+    let current = options();
+    const el = NSelectInput({options: () => current});
+    const el_popup = popup(el);
+    const input = el.querySelector("input") as HTMLInputElement;
+
+    input.dispatchEvent(new Event("focus"));
+    expect(el_popup.children.length).toBe(2);
+
+    current = [{label: "dev/newdb", value: "id3"}];
+    input.dispatchEvent(new Event("focus"));
+    expect(el_popup.children.length).toBe(1);
+    expect(el_popup.children[0].textContent).toBe("dev/newdb");
+  });
+
+  test("closes popup on blur", () => {
+    const el = NSelectInput({options});
+    const el_popup = popup(el);
+    const input = el.querySelector("input") as HTMLInputElement;
+
+    input.dispatchEvent(new Event("focus"));
+    expect(el_popup.children.length).toBe(2);
+    input.dispatchEvent(new Event("blur"));
+    expect(el_popup.style.display).toBe("none");
+  });
+
+  test("none option is disabled and non-choosable when no options exist", () => {
+    const updateMock = mock((s: string) => void s);
+    const el = NSelectInput({options: () => [], on: {update: updateMock}});
+    const el_popup = popup(el);
+    const input = el.querySelector("input") as HTMLInputElement;
+
+    input.dispatchEvent(new Event("focus"));
+    expect(el_popup.children.length).toBe(1);
+    const noneOpt = el_popup.children[0] as HTMLDivElement;
+    expect(noneOpt.textContent).toBe("none");
+    expect(noneOpt.getAttribute("aria-disabled")).toBe("true");
+
+    noneOpt.dispatchEvent(mousedown());
+    expect(input.value).toBe("");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  test("none placeholder appears disabled only when filter matches no options", () => {
+    const updateMock = mock((s: string) => void s);
+    const el = NSelectInput({options, on: {update: updateMock}});
+    const el_popup = popup(el);
+    const input = el.querySelector("input") as HTMLInputElement;
+
+    input.dispatchEvent(new Event("focus"));
+    expect(el_popup.children.length).toBe(2); // no none while options match
+
+    input.value = "no-match";
+    input.dispatchEvent(new Event("input"));
+    expect(el_popup.children.length).toBe(1);
+    const noneOpt = el_popup.children[0] as HTMLDivElement;
+    expect(noneOpt.textContent).toBe("none");
+    expect(noneOpt.getAttribute("aria-disabled")).toBe("true");
+
+    noneOpt.dispatchEvent(mousedown());
+    expect(input.value).toBe("no-match"); // untouched, still reported as raw text
+    expect(updateMock).toHaveBeenCalledWith("no-match");
+  });
+
+  test("keyboard navigation cannot pick disabled none", () => {
+    const updateMock = mock((s: string) => void s);
+    const el = NSelectInput({options: () => [], on: {update: updateMock}});
+    const input = el.querySelector("input") as HTMLInputElement;
+
+    input.dispatchEvent(new Event("focus"));
+    const down = () => input.dispatchEvent(keydown("ArrowDown"));
+    const enter = () => input.dispatchEvent(keydown("Enter"));
+
+    down(); // highlight would land on disabled "none"
+    enter();
+    expect(input.value).toBe("");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  test("keyboard navigation picks an option with Enter", () => {
+    const updateMock = mock((s: string) => void s);
+    const el = NSelectInput({options, on: {update: updateMock}});
+    const input = el.querySelector("input") as HTMLInputElement;
+
+    input.dispatchEvent(new Event("focus"));
+    input.dispatchEvent(keydown("Enter")); // first option is pre-highlighted
+    expect(input.value).toBe("prod/mydb");
+    expect(updateMock).toHaveBeenCalledWith("id1");
   });
 });

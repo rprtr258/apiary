@@ -72,7 +72,8 @@ export default function(
           on: {update: (database: string) => {
             // DSN options list only sources of the chosen database, so a chosen source cannot be kept.
             const patch: Partial<Request> = {database: database as t.Database};
-            if (request.dsn in store.requests && store.requests[request.dsn].kind === t.Kind.SQLSource && store.requests[request.dsn].subKind !== database) {
+            const current = r.request as Request; // live request, the captured `request` is stale after updates
+            if (current.dsn in store.requests && store.requests[current.dsn].kind === t.Kind.SQLSource && store.requests[current.dsn].subKind !== database) {
               patch.dsn = "";
             }
             update_request(patch);
@@ -80,8 +81,8 @@ export default function(
         }).el,
         NSelectInput({
           placeholder: "DSN",
-          options: Object.entries(store.requests)
-            .filter(([, source]) => source.kind === t.Kind.SQLSource && source.subKind === request.database)
+          options: () => Object.entries(store.requests)
+            .filter(([, source]) => source.kind === t.Kind.SQLSource && source.subKind === (r.request as Request).database)
             .map(([id, source]) => ({label: source.path, value: id})),
           value: request.dsn,
           on: {update: (dsn: string) => update_request({dsn})},

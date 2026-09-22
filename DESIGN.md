@@ -146,6 +146,14 @@ components:
     backgroundColor: "{colors.surface-raised}"
     textColor: "{colors.text-primary}"
     rounded: "{rounded.sm}"
+  combobox-popup:
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.text-primary}"
+    rounded: "{rounded.sm}"
+  combobox-option-highlighted:
+    backgroundColor: "{colors.surface-hover}"
+  combobox-option-disabled:
+    textColor: "{colors.text-disabled}"
   modal-dialog:
     backgroundColor: "{colors.modal-surface}"
     width: "40%"
@@ -391,6 +399,8 @@ The component kit (`renderer/components/`, prefixed `N`) is small and direct.  A
 **Data tables (`DataTable`, `NTable`)** - fixed-layout tables with zebra rows (`table-row-even` / `table-row-odd`), hover/header highlight at `surface-selected`, type icons in grey at 15px, and a blue sort language: the active column's sort arrow is `primary-strong #007bff`, inactive is `text-disabled #666666`, and multi-column sort order shows as a circular badge with `rgba(0, 100, 255, 0.3)` fill and white text. Cells keep `caption` sizing for density.
 
 **Dropdowns/menus** - `globalDropdown` renders fixed-position menus with the `dropdown-menu` tokens (`surface-raised` on `#404040` border, `4px` radius, `0 2px 8px rgba(0,0,0,0.5)`, `min-width 120px`, `z-index 1000`), clamped to the viewport.
+
+**Select input (`NSelectInput`)** - a text input paired with an owned dropdown list (a datalist replacement, since native datalist options cannot be disabled in Chromium). The popup reuses the `combobox-popup` tokens (`surface-raised` body on a `#404040` hairline, `4px` radius, `0 2px 8px rgba(0,0,0,0.5)` shadow, `z-index 1000`). A disabled `"none"` placeholder (`text-disabled`, unpickable) appears only when the filtered list is empty - no options exist or the typed filter matches nothing; otherwise the list shows options only. The highlighted option (hover and keyboard share one state) raises `surface-hover`, mirroring the palette's selected row; option text is `text-primary`.
 
 **Command palette** - the ⌘K overlay: `palette-dialog` (`surface-raised` body, violet `#7068ab` outline ring, deep shadow), `palette-input` (`#1a1a1a` field, white text), option rows that raise `surface-active #353535` on hover and `surface-hover #404040` when selected, hints in `text-faint`, and a `surface-footer` hint bar. Row text is `text-muted`.
 
