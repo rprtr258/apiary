@@ -101,7 +101,7 @@ async function sendPostgres(request: SQLRequest): Promise<SQLResponse> {
     return {
       columns: fields.map(f => f.name),
       typenames: fields.map((f): TypeId => f.dataTypeID).map(f => pg_typenames[f] ?? `${f}`), // TODO: fix number shit casting // TODO: use lib enum
-      types: fields.map((f): TypeId => f.dataTypeID).map(f => pg_types[f] ?? ColumnType.UNKNOWN + ` ${f}` as ColumnType), // TODO: fix number shit casting
+      types: fields.map((f): TypeId => f.dataTypeID).map(f => pg_types[f] ?? ColumnType.UNKNOWN), // "unknown ${f}" string breaks frontend icon lookup; TODO: use lib enum
       rows: result.rows.map(r => Object.values(r as Record<string, unknown>)),
     };
   } finally {

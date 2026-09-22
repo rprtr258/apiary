@@ -58,7 +58,7 @@ function render_column(c: string, typ: string) {
   );
 }
 
-const column_type_icons: Record<t.ColumnType, SVGSVGElement> = {
+const column_type_icons: Partial<Record<t.ColumnType, SVGSVGElement>> = {
   [t.ColumnType.NUMBER]: FieldNumberOutlined,
   [t.ColumnType.STRING]: ItalicOutlined,
   [t.ColumnType.BOOLEAN]: CheckSquareOutlined,
@@ -107,7 +107,7 @@ function render_column_with_sort(
       m("div", {}, NIcon({
         size: 15,
         color: "grey",
-        component: column_type_icons[typ],
+        component: column_type_icons[typ] ?? QuestionCircleOutlined,
       })),
     ),
     m("div", {
