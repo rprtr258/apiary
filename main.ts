@@ -1,6 +1,6 @@
 import path from "path";
 import {fileURLToPath} from "url";
-import {app, BrowserWindow, ipcMain} from "electron";
+import {app, BrowserWindow, ipcMain, Menu} from "electron";
 import data from "./package.json" with {type: "json"};
 import * as t from "@/types.ts";
 import * as api from "./main/api.ts";
@@ -19,6 +19,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 app.on("ready", async () => {
+  // Mirror Electron's default menu but drop Window -> Close (Ctrl+W): it closes the
+  // window whenever the renderer does not consume the key (e.g. DevTools focused).
+  if (process.platform !== "darwin") {
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      {role: "fileMenu"},
+      {role: "editMenu"},
+      {role: "viewMenu"},
+      {
+        label: "Window",
+        submenu: [
+          {role: "minimize"},
+          {role: "zoom"},
+        ],
+      },
+    ]));
+  }
+
   const win = new BrowserWindow({
     width: 800,
     height: 600,
