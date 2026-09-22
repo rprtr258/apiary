@@ -250,7 +250,7 @@ const getOpenRequestItems = (): Item[] => Object
   .entries(store.requests)
   .map(([id, preview]) => [id, preview, badge(preview.kind)] as const)
   .map(([id, preview, [method, color]]) => ({
-    label: t.pathToName(store.requests[id].path), // TODO: show full path, preload store.requests2, fix ebanij rot kazino
+    label: preview.path, // TODO: preload store.requests2, fix ebanij rot kazino
     group: preview.kind,
     prefix: NTag({
       type: preview.kind === t.Kind.HTTP ? "success" : "info",
