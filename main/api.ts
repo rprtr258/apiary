@@ -22,7 +22,7 @@ export async function List(): Promise<t.ListResponse> {
   const j = await load();
 
   const previews: Record<t.RequestID, t.requestPreview> = Object.fromEntries(Object.entries(j).map(([id, req]) => [id, {
-    name: req.Path.split("/").slice(-1)[0],
+    path: req.Path,
     kind: req.Kind,
     subKind: extractSubKind(j, id),
   }]));

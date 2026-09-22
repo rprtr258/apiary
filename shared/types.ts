@@ -28,10 +28,14 @@ export enum Kind {
 }
 
 export type requestPreview = {
-  name: string,
+  path: string,
   kind: Kind,
   subKind: string,
 };
+
+export function pathToName(path: string): string {
+  return path.split("/").slice(-1)[0];
+}
 
 export type Tree = {
   IDs: RequestID[],

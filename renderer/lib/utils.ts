@@ -227,7 +227,7 @@ export function deepEquals<T>(a: T, b: T): boolean {
 
 type Sub<T> = Generator<undefined, never, T>;
 export type Signal<T> = {
-  update(f: (value: T) => T): void,
+  update(f: (value: T) => T, force?: boolean): void,
   sub(sub: Sub<T>): () => void,
   get value(): T, // TODO: remove?
 };
@@ -241,9 +241,9 @@ export function signal<T>(value: T): Signal<T> {
       if (g.next(_value).done ?? false) { subs.delete(g); return () => {}; } // NOTE: trigger first yield
       return () => subs.delete(g);
     },
-    update(f: (value: T) => T) {
+    update(f: (value: T) => T, force = false) {
       const value = f(_value);
-      if (deepEquals(value, _value))
+      if (force === false && deepEquals(value, _value))
         return;
       _value = value;
       for (const sub of subs)

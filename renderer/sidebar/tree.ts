@@ -184,7 +184,7 @@ export function createTreeView(): {el: HTMLElement} {
 
             return {
               key: id,
-              label: store.requests[id].name,
+              label: t.pathToName(store.requests[id].path),
               ...(children !== undefined ? {children} : {}), // Only set children for SQLSource/HTTPSource
             };
         }),

@@ -184,7 +184,9 @@ export const store = ((): Store => {
         }
       }
 
-      this.requestsTree.update(() => res.Tree);
+      // paths in this.requests may change without the Tree structure changing (in-place rename),
+      // so tree subscribers must be notified on every fetch
+      this.requestsTree.update(() => res.Tree, true);
     },
     async createRequest(id: string, kind: t.RequestData["kind"]): Promise<void> {
       const res = await api.requestCreate(id, kind);
@@ -245,7 +247,7 @@ export const store = ((): Store => {
       const sqlSourceRequest = sourceRequest.request as t.SQLSourceRequest;
       const databaseType = sqlSourceRequest.database;
 
-      const sourceName = sqlSourceID in this.requests ? this.requests[sqlSourceID].name : sqlSourceID;
+      const sourceName = sqlSourceID in this.requests ? t.pathToName(this.requests[sqlSourceID].path) : sqlSourceID;
       layout.instance?.addItem("TableViewer", `${sourceName}/${tableName}`, {
         sqlSourceID,
         tableName,
@@ -257,14 +259,14 @@ export const store = ((): Store => {
       if (findExistingTab<StateHTTPSourceEndpoint>("EndpointViewer", t => t.sourceID === sourceID && t.endpointIndex === endpointIndex) !== undefined)
         return;
 
-      const sourceName = sourceID in this.requests ? this.requests[sourceID].name : sourceID;
+      const sourceName = sourceID in this.requests ? t.pathToName(this.requests[sourceID].path) : sourceID;
       layout.instance?.addItem("EndpointViewer", `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`, {sourceID, endpointIndex, endpointInfo});
     },
     openToolViewer(sourceID: string, tool: t.MCPTool): void {
       if (findExistingTab<StateMCPTool>("ToolViewer", t => t.sourceID === sourceID && t.tool.name === tool.name) !== undefined)
         return;
 
-      const sourceName = sourceID in this.requests ? this.requests[sourceID].name : sourceID;
+      const sourceName = sourceID in this.requests ? t.pathToName(this.requests[sourceID].path) : sourceID;
       layout.instance?.addItem("ToolViewer", `${sourceName}/${tool.name}`, {sourceID, tool});
     },
     navigateToTab(direction: "next" | "prev"): void {

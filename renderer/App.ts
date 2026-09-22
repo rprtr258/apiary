@@ -95,33 +95,36 @@ function getCommandPaletteItems(): Item[] {
             command_bar_open_visible.update(() => true);
           },
         },
-        ...(currentID !== null ? [
-        {
-          label: "Run",
-          shortcut: ["Ctrl", "Enter"],
-          perform: () => {
-            activeFrameSend?.();
-          },
-        },
-        {
-          label: `Rename current (${store.requests[currentID].name})`,
-          shortcut: ["Ctrl", "R"],
-          perform: () => {
-            renameInit(currentID);
-          },
-        },
-        {
-          label: `Duplicate current (${store.requests[currentID].name})`,
-          perform: () => {
-            store.duplicate(currentID);
-          },
-        },
-        {
-          label: `Delete current (${store.requests[currentID].name})`,
-          perform: () => {
-            store.deleteRequest(currentID);
-          },
-        }] : []),
+        ...(currentID !== null ? (() => {
+          const name = t.pathToName(store.requests[currentID].path);
+          return [
+            {
+              label: "Run",
+              shortcut: ["Ctrl", "Enter"],
+              perform: () => {
+                activeFrameSend?.();
+              },
+            },
+            {
+              label: `Rename current (${name})`,
+              shortcut: ["Ctrl", "R"],
+              perform: () => {
+                renameInit(currentID);
+              },
+            },
+            {
+              label: `Duplicate current (${name})`,
+              perform: () => {
+                store.duplicate(currentID);
+              },
+            },
+            {
+              label: `Delete current (${name})`,
+              perform: () => {
+                store.deleteRequest(currentID);
+              },
+            }];
+          })() : []),
       ],
     },
     ...(currentID !== null ? [{
@@ -247,7 +250,7 @@ const getOpenRequestItems = (): Item[] => Object
   .entries(store.requests)
   .map(([id, preview]) => [id, preview, badge(preview.kind)] as const)
   .map(([id, preview, [method, color]]) => ({
-    label: store.requests[id].name, // TODO: show full path, preload store.requests2, fix ebanij rot kazino
+    label: t.pathToName(store.requests[id].path), // TODO: show full path, preload store.requests2, fix ebanij rot kazino
     group: preview.kind,
     prefix: NTag({
       type: preview.kind === t.Kind.HTTP ? "success" : "info",
@@ -524,7 +527,7 @@ function preApp(root: HTMLElement, store: Store) {
       positive_click: rename,
       negative_click: renameCancel,
       show: () => {
-        inputRename.value = store.requests[renameID.value!].name;
+        inputRename.value = store.requests[renameID.value!].path;
         // Focus the input when modal is shown
         inputRename.focus();
       },
@@ -554,7 +557,7 @@ function preApp(root: HTMLElement, store: Store) {
         continue;
       }
 
-      inputRename.value = store.requests[renameID].name;
+      inputRename.value = store.requests[renameID].path;
       modalRename.display = true;
     }
   }());
