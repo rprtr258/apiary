@@ -880,21 +880,13 @@ export class LayoutManager {
     switch (hit.value.kind) {
     case "tab": {
       const headerRect = hit.value.stack.header.getBoundingClientRect();
-      // Dropping on the empty header area (tabEl === undefined): highlight the
-      // full header line so it's clear the tab will be appended here.
-      if (hit.value.tabEl === undefined) {
-        this.overlay.style.display = "";
-        this.overlay.style.left = `${headerRect.left - rootRect.left}px`;
-        this.overlay.style.top = `${headerRect.top - rootRect.top}px`;
-        this.overlay.style.width = `${headerRect.width}px`;
-        this.overlay.style.height = `${headerRect.height}px`;
-        return;
-      }
-      const idx = this.tabIndex(hit.value.stack, hit.value.tabEl);
       const tabs = [...hit.value.stack.header.children] as HTMLElement[];
+      // tabEl === undefined: the cursor is on the empty tail of the header,
+      // i.e. dropping after the last tab — show the line at that edge.
+      const idx = this.tabIndex(hit.value.stack, hit.value.tabEl);
       let insertX: number;
       if (idx >= tabs.length) {
-        insertX = headerRect.right;
+        insertX = tabs.length > 0 ? tabs[tabs.length - 1].getBoundingClientRect().right : headerRect.left;
       } else {
         insertX = tabs[idx].getBoundingClientRect().left;
       }
@@ -961,9 +953,19 @@ export class LayoutManager {
     if (hit.value.kind === "tab") {
       const target = hit.value.stack;
       if (target === oldStack) {
+        // detach() destroys a stack emptied by the removal, so reordering the
+        // sole tab must not run through detach/reinsert (it would revive the
+        // tab into a detached stack and the tab would disappear).
+        if (oldStack.children.length <= 1) {
+          this.notifyChanged();
+          return;
+        }
         const oldIndex = oldStack.children.indexOf(dragged);
-        this.detach(dragged);
+        // tabIndex must be read before detach(): it inspects header children,
+        // and after the tab is removed a drop on the dragged tab itself or on
+        // the empty tail of the header would resolve to the wrong index.
         const targetIndex = this.tabIndex(target, hit.value.tabEl);
+        this.detach(dragged);
         const insertAt = oldIndex < targetIndex ? targetIndex - 1 : targetIndex;
         this.reinsert(oldStack, dragged, insertAt);
         oldStack.activeComponentItem = dragged;

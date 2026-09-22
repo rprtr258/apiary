@@ -1,4 +1,5 @@
 import {describe, expect, test, afterEach} from "bun:test";
+import {MouseEvent} from "happy-dom";
 import {ComponentItem, LayoutManager, RowCol} from "./manager.ts";
 import {Stack} from "./manager.ts";
 import {cls} from "./styles.ts";
@@ -22,6 +23,27 @@ const tabTitles = (stack: Stack) =>
   [...stack.header.children]
   .filter(el => el.classList.contains("lm_tab"))
   .map(el => el.firstChild!.textContent!);
+
+// Simulates a full drag of `item`'s tab that ends with the cursor over `over`
+// (a tab element to drop on, or a stack header to drop past the last tab).
+function dragTab(item: ComponentItem, over: HTMLElement): void {
+  (globalThis as unknown as {requestAnimationFrame: (cb: FrameRequestCallback) => number}).requestAnimationFrame
+    = cb => {cb(0); return 0;};
+  (globalThis as unknown as {cancelAnimationFrame: (id: number) => void}).cancelAnimationFrame = () => {};
+
+  const originalFromPoint = document.elementFromPoint.bind(document);
+  document.elementFromPoint = () => over;
+  const drag = (type: string, x: number, y: number, target: EventTarget) =>
+    target.dispatchEvent(new MouseEvent(type, {bubbles: true, cancelable: true, clientX: x, clientY: y}) as unknown as Event);
+
+  try {
+    drag("mousedown", 20, 20, item.tab.element);
+    drag("mousemove", 60, 20, window); // > 4px away → drag starts
+    drag("mouseup", 60, 20, window);
+  } finally {
+    document.elementFromPoint = originalFromPoint;
+  }
+}
 
 type Shape =
   | string
@@ -47,6 +69,47 @@ const shape = (cfg: ItemConfig): Shape => {
 describe("LayoutManager", () => {
   afterEach(() => {
     document.body.replaceChildren();
+  });
+
+  test("dragging the sole tab onto its own tab line keeps it open", () => {
+    const manager = makeManager();
+
+    manager.addItem(OPEN, "req-1", {id: "req-1"});
+    const stack = stacksOf(manager)[0];
+    const tab = stack.children[0].tab.element;
+
+    dragTab(stack.children[0], tab); // release over the same tab line
+
+    // The stack must survive: detach() destroys an emptied stack, and the
+    // drop used to reinsert the tab into that destroyed stack.
+    expect(stacksOf(manager)).toHaveLength(1);
+    expect(manager.rootItem).toBe(stack);
+    expect(stack.element.isConnected).toBe(true);
+    expect(tabTitles(stack)).toEqual(["req-1"]);
+  });
+
+  test("dragging a tab onto the empty tab line moves it after the last tab", () => {
+    const manager = makeManager();
+    manager.addItem(OPEN, "req-1", {id: "req-1"});
+    manager.addItem(OPEN, "req-2", {id: "req-2"});
+    const stack = stacksOf(manager)[0];
+
+    dragTab(stack.children[0], stack.header); // drop past the last tab
+
+    expect(tabTitles(stack)).toEqual(["req-2", "req-1"]);
+    expect(stack.children.map(c => c.title)).toEqual(["req-2", "req-1"]);
+  });
+
+  test("dropping a tab onto itself keeps its position", () => {
+    const manager = makeManager();
+    manager.addItem(OPEN, "req-1", {id: "req-1"});
+    manager.addItem(OPEN, "req-2", {id: "req-2"});
+    manager.addItem(OPEN, "req-3", {id: "req-3"});
+    const stack = stacksOf(manager)[0];
+
+    dragTab(stack.children[0], stack.children[0].tab.element);
+
+    expect(stack.children.map(c => c.title)).toEqual(["req-1", "req-2", "req-3"]);
   });
 
   test("extra group bug", () => {
