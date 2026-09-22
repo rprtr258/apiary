@@ -86,7 +86,13 @@ async function sendPostgres(request: SQLRequest): Promise<SQLResponse> {
 
   // TODO: parse dsn like host=localhost user=postgres password=password port=5432 dbname=postgres sslmode=disable
   const client = new pg.Client({connectionString: dsn});
-  await client.connect();
+  try {
+    await client.connect();
+  } catch (err) {
+    await client.end().catch(() => undefined); // release socket even if connection never established
+    const e = err as Error & {code?: string};
+    throw new Error(`postgres connection failed${e.code === undefined ? "" : ` (${e.code})`}: ${e.message}`);
+  }
   try {
     if (request.readOnly ?? false)
       await client.query("BEGIN READ ONLY");
