@@ -117,14 +117,9 @@ export async function Duplicate(id: t.RequestID): Promise<t.RequestID> {
   for (let n = 2; existingPaths.has(newPath); n++)
     newPath = `${entry.Path} (copy ${n})`;
 
-  // Data carries the entry's id/path/kind envelope (leaked by load/update);
-  // point the duplicate's envelope at its own new identity so it matches every other entry.
   const newID = generateID();
-  const data = structuredClone(entry.Data) as Record<string, unknown>;
-  data["id"] = newID;
-  data["path"] = newPath;
-  data["kind"] = entry.Kind;
-  j[newID] = {ID: newID, Path: newPath, Kind: entry.Kind, Data: data as Request["Data"], Responses: []} as Request;
+  const data = structuredClone(entry.Data);
+  j[newID] = {ID: newID, Path: newPath, Kind: entry.Kind, Data: data, Responses: []} as Request;
   await save(j);
   return newID;
 }

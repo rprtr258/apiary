@@ -55,9 +55,9 @@ export const api = {
   async request_update(
     id: string,
     kind: t.Kind,
-    req: Omit<t.RequestData, "kind">,
+    req: Request["Data"],
   ): Promise<Result<void>> {
-    return await wrap(() => Api.Update(id, req as Request["Data"]), {reqId: id, kind, req});
+    return await wrap(() => Api.Update(id, req), {reqId: id, kind, req});
   },
 
   async rename(

@@ -358,7 +358,8 @@ export async function send(id: string): Promise<void> {
 
 export async function update_request(id: string, patch: Partial<t.Request>): Promise<void> {
   const old_request = store.requests2[id].request;
-  const new_request = {...old_request, ...patch} as t.Request;
+  const {id: _id, path: _path, kind: _kind, ...old_data} = old_request;
+  const new_request = {...old_data, ...patch} as t.Request;
   store.requests2[id].request = new_request; // NOTE: optimistic update
   const res = await api.request_update(id, new_request.kind, new_request);
   if (res.kind === "err") {
