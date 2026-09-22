@@ -152,6 +152,15 @@ type PerformResponse = {
   response:    unknown,
 };
 
+// SQL request's dsn can store a SQLSource request id (selected via SelectInput in the UI);
+// resolve it to the source's dsn, otherwise use the value as-is.
+export function resolveSQLRequest(j: Record<t.RequestID, Request>, data: t.SQLRequest): string {
+  const source = data.dsn in j ? j[data.dsn] : undefined;
+  if (source === undefined || source.Kind !== t.Kind.SQLSource || source.Data.database !== data.database)
+    return data.dsn;
+  return source.Data.dsn;
+}
+
 // Perform create a handler that performs call and save result to history
 export async function Perform(id: t.RequestID): Promise<PerformResponse> {
   const j = await load();
@@ -173,7 +182,7 @@ export async function Perform(id: t.RequestID): Promise<PerformResponse> {
     response = await sendMD(req.Data);
     break;
   case t.Kind.SQL:
-    response = await sendSQL(req.Data);
+    response = await sendSQL({...req.Data, dsn: resolveSQLRequest(j, req.Data)});
     break;
   case t.Kind.REDIS:
     response = await sendRedis(req.Data);

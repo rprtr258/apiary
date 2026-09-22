@@ -1,8 +1,8 @@
 import * as t from "@/types.ts";
 import {m, setDisplay, Signal} from "./lib/utils.ts";
-import {get_request, last_history_entry} from "./store.ts";
+import {get_request, last_history_entry, store} from "./store.ts";
 import {NEmpty} from "./components/dataview.ts";
-import {NButton, NInput, NInputGroup, NSelect} from "./components/input.ts";
+import {NButton, NInputGroup, NSelect, NSelectInput} from "./components/input.ts";
 import {NScrollbar, NSplit} from "./components/layout.ts";
 import {DataTable} from "./components/TableView.ts";
 import EditorSQL from "./EditorSQL.ts";
@@ -69,12 +69,22 @@ export default function(
           style: {minWidth: "0"},
           label: t.Database[request.database],
           options: Object.keys(t.Database).map(db => ({label: t.Database[db as keyof typeof t.Database], value: db})),
-          on: {update: (database: string) => update_request({database: database as t.Database})},
+          on: {update: (database: string) => {
+            // DSN options list only sources of the chosen database, so a chosen source cannot be kept.
+            const patch: Partial<Request> = {database: database as t.Database};
+            if (request.dsn in store.requests && store.requests[request.dsn].kind === t.Kind.SQLSource && store.requests[request.dsn].subKind !== database) {
+              patch.dsn = "";
+            }
+            update_request(patch);
+          }},
         }).el,
-        NInput({
+        NSelectInput({
           placeholder: "DSN",
+          options: Object.entries(store.requests)
+            .filter(([, source]) => source.kind === t.Kind.SQLSource && source.subKind === request.database)
+            .map(([id, source]) => ({label: source.path, value: id})),
           value: request.dsn,
-          on: {update: (newValue: string) => update_request({dsn: newValue})},
+          on: {update: (dsn: string) => update_request({dsn})},
         }),
         el_run.el,
       );

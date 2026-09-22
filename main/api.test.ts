@@ -1,6 +1,6 @@
 import {describe, test, expect, mock, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {Duplicate} from "./api.ts";
+import {Duplicate, resolveSQLRequest} from "./api.ts";
 import {load} from "./db.ts";
 
 // In-memory filesystem so load()/save() round-trip without touching disk.
@@ -82,5 +82,23 @@ describe("Duplicate", () => {
 
   test("throws when duplicating a non-existent request", async () => {
     expect(Duplicate("nope")).rejects.toThrow("nope");
+  });
+});
+
+describe("resolveSQLRequest", () => {
+  beforeEach(() => {
+    files["db.json"] = Buffer.from(JSON.stringify(db_seed));
+  });
+
+  test("resolves a dsn holding a SQLSource id to the source's dsn", async () => {
+    const j = await load();
+    const data: t.SQLRequest = {dsn: "orig", database: "clickhouse", query: "SELECT 1"};
+    expect(resolveSQLRequest(j, data)).toEqual("clickhouse://localhost:8123/itc_slon");
+  });
+
+  test("uses a custom dsn as-is", async () => {
+    const j = await load();
+    const data: t.SQLRequest = {dsn: "postgres://localhost:5432/db", database: "postgres", query: "SELECT 1"};
+    expect(resolveSQLRequest(j, data)).toEqual(data.dsn);
   });
 });

@@ -1,5 +1,5 @@
 import {describe, test, expect, mock} from "bun:test";
-import {NInput, NSelect, NButton, NInputGroup} from "./input.ts";
+import {NInput, NSelect, NButton, NInputGroup, NSelectInput} from "./input.ts";
 
 describe("NInput", () => {
   test("renders with given props", () => {
@@ -280,5 +280,55 @@ describe("NInputGroup", () => {
     const group = NInputGroup({style: {}});
     expect(group.tagName).toBe("DIV");
     expect(group.children.length).toBe(0);
+  });
+});
+
+describe("NSelectInput", () => {
+  const options = [
+    {label: "prod/mydb", value: "id1"},
+    {label: "prod/other", value: "id2"},
+  ];
+
+  test("renders input with datalist of option labels", () => {
+    const el = NSelectInput({placeholder: "DSN", options});
+
+    expect(el.tagName).toBe("DIV");
+    const input = el.querySelector("input") as HTMLInputElement;
+    const datalist = el.querySelector("datalist") as HTMLDataListElement;
+    expect(input.getAttribute("placeholder")).toBe("DSN");
+    expect(input.getAttribute("list")).toBe(datalist.getAttribute("id"));
+    expect(datalist.children.length).toBe(2);
+    expect(datalist.children[0].getAttribute("value")).toBe("prod/mydb");
+    expect(datalist.children[1].getAttribute("value")).toBe("prod/other");
+  });
+
+  test("shows option label for known value", () => {
+    const el = NSelectInput({options, value: "id1"});
+    const input = el.querySelector("input") as HTMLInputElement;
+    expect(input.getAttribute("value")).toBe("prod/mydb");
+  });
+
+  test("shows raw custom value", () => {
+    const el = NSelectInput({options, value: "localhost:5432/db"});
+    const input = el.querySelector("input") as HTMLInputElement;
+    expect(input.getAttribute("value")).toBe("localhost:5432/db");
+  });
+
+  test("reports option value when entered text matches a label", () => {
+    const updateMock = mock((s: string) => void s);
+    const el = NSelectInput({options, on: {update: updateMock}});
+    const input = el.querySelector("input") as HTMLInputElement;
+    input.value = "prod/other";
+    input.dispatchEvent(new Event("input"));
+    expect(updateMock).toHaveBeenCalledWith("id2");
+  });
+
+  test("reports raw text for custom input", () => {
+    const updateMock = mock((s: string) => void s);
+    const el = NSelectInput({options, on: {update: updateMock}});
+    const input = el.querySelector("input") as HTMLInputElement;
+    input.value = "localhost:5432/db";
+    input.dispatchEvent(new Event("input"));
+    expect(updateMock).toHaveBeenCalledWith("localhost:5432/db");
   });
 });

@@ -103,6 +103,40 @@ export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () 
   };
 }
 
+type NSelectInputProps = {
+  placeholder?: string,
+  options: SelectOption<string>[], // label is shown to the user and used as input text, value is reported on update
+  value?: string,
+  style?: Partial<CSSStyleDeclaration>,
+  disabled?: boolean,
+  on?: {update: (value: string) => void},
+};
+let selectInputCounter = 0;
+export function NSelectInput(props: NSelectInputProps): HTMLDivElement {
+  const byLabel = new Map(props.options.map(option => [option.label, option]));
+  const byValue = new Map(props.options.map(option => [option.value, option]));
+  const listID = `nselect-input-options-${selectInputCounter++}`;
+
+  const el_input = m("input", {
+    style: props.style,
+    value: props.value === undefined ? undefined : (byValue.get(props.value)?.label ?? props.value),
+    placeholder: props.placeholder,
+    disabled: props.disabled,
+    oninput: (e: Event) => {
+      const label = (e.target as HTMLInputElement).value;
+      props.on?.update(byLabel.get(label)?.value ?? label);
+    },
+  });
+  el_input.setAttribute("list", listID); // TODO: `list` is typed as an element, but m() sets it as an attribute
+  const el_datalist = m("datalist", {id: listID},
+    ...props.options.map(option => m("option", {value: option.label})),
+  );
+
+  // NOTE: datalist must be a sibling of input, and a boxed wrapper would break
+  // NInputGroup grid layout, so the wrapper generates no box at all.
+  return m("div", {style: {display: "contents"}}, el_input, el_datalist);
+}
+
 type NButtonProps = {
   primary?: boolean,
   disabled?: boolean,
