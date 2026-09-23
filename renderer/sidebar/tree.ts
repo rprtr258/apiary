@@ -27,6 +27,8 @@ function formatTableLabel(args: {
   return `${name} (${rows.toLocaleString()} rows, ${formatSize(bytes)})`;
 }
 
+const byLabel = (a: TreeOption, b: TreeOption): number => a.label.localeCompare(b.label);
+
 function formatEndpointLabel(endpoint: t.EndpointInfo): string {
   const {path} = endpoint;
   // Format: /route/
@@ -137,7 +139,7 @@ export function createTreeView(): {el: HTMLElement} {
                   return Object.values(tableCache[id].tables).map(table => ({
                     key: `virtual:table:${id}:${table.name}`,
                     label: formatTableLabel(table),
-                  }));
+                  })).sort(byLabel);
                 } else {
                   // Show "Loading..." or "(None)" based on loading state
                   // Check if cache exists AND is loading
@@ -153,7 +155,7 @@ export function createTreeView(): {el: HTMLElement} {
                   return endpointCache[id].endpoints.map((endpoint, index) => ({
                     key: `virtual:endpoint:${id}:${index}`,
                     label: formatEndpointLabel(endpoint),
-                  }));
+                  })).sort(byLabel);
                 } else {
                   // Show "Loading..." or "(None)" based on loading state
                   const isLoading = id in endpointCache && (endpointCache[id].loading ?? false);
@@ -168,7 +170,7 @@ export function createTreeView(): {el: HTMLElement} {
                   return toolCache[id].tools.map(tool => ({
                     key: `virtual:tool:${id}:${tool.name}`,
                     label: tool.name,
-                  }));
+                  })).sort(byLabel);
                 } else {
                   const isLoading = id in toolCache && (toolCache[id].loading ?? false);
                   return [{
@@ -188,7 +190,7 @@ export function createTreeView(): {el: HTMLElement} {
               ...(children !== undefined ? {children} : {}), // Only set children for SQLSource/HTTPSource
             };
         }),
-      ];
+      ].sort(byLabel);
       return mapper(requestsTree);
     })();
 
