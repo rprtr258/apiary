@@ -29,6 +29,8 @@ const api: Api = {
     ListTables:    (a1: string            ): Promise<t.TableInfo[]>           => ipcRenderer.invoke("SQLSource.ListTables",    a1    ),
     DescribeTable: (a1: string, a2: string): Promise<t.TableSchema>           => ipcRenderer.invoke("SQLSource.DescribeTable", a1, a2),
     CountRows:     (a1: string, a2: string): Promise<number>                  => ipcRenderer.invoke("SQLSource.CountRows",     a1, a2),
+    UpdateTableRows: (a1: string, a2: string, a3: string[], a4: t.CellUpdate[]): Promise<t.SQLResponse> => ipcRenderer.invoke("SQLSource.UpdateTableRows", a1, a2, a3, a4),
+    BuildTableUpdate: (a1: string, a2: string, a3: string[], a4: t.CellUpdate[]): Promise<string> => ipcRenderer.invoke("SQLSource.BuildTableUpdate", a1, a2, a3, a4),
   },
   HTTPSource: {
     ListEndpoints:          (a1: string                               ): Promise<t.EndpointInfo[]>        => ipcRenderer.invoke("HTTPSource.ListEndpoints",          a1        ),

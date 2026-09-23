@@ -61,6 +61,9 @@ export type SQLResponse = {
   types: ColumnType[],
   typenames: string[],
   rows: unknown[][],
+  // Per-statement affected-row counts for batch execution, when the driver
+  // reports them (absent for e.g. clickhouse, whose exec has no counts).
+  affectedRows?: number[],
 };
 
 export type SQLSourceRequest = {
@@ -80,4 +83,14 @@ export type TableSchema = {
   constraints: ConstraintInfo[],
   foreign_keys: ForeignKey[],
   indexes: IndexInfo[],
+};
+
+/** One changed cell. Rows are identified by their primary key values (in
+ * pkColumns order, provided alongside the update list); value may be null
+ * (explicit "Set NULL"). The main process turns these into UPDATE statements —
+ * no SQL crosses the IPC boundary. */
+export type CellUpdate = {
+  pkValues: RowValue[],
+  column: string,
+  value: RowValue,
 };

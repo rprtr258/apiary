@@ -1,5 +1,5 @@
-import {TableInfo, TableSchema, ColumnInfo, ConstraintInfo, IndexInfo, ForeignKey, SQLRequest, SQLSourceRequest, ColumnType} from "@/types.ts";
-import {sendSQL} from "./sql.ts";
+import {TableInfo, TableSchema, ColumnInfo, ConstraintInfo, IndexInfo, ForeignKey, SQLRequest, SQLSourceRequest, ColumnType, RowValue, CellUpdate, SQLResponse} from "@/types.ts";
+import {sendSQL, sendSQLBatch} from "./sql.ts";
 
 export const EmptyRequest: SQLSourceRequest = {
   dsn: ":memory:",
@@ -9,6 +9,90 @@ export const EmptyRequest: SQLSourceRequest = {
 
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Identifier quoting rules per database (mirrors the renderer's buildQuery).
+const quoteIdent = {
+  "postgres":   (s: string) => `"${s}"`,
+  "mysql":      (s: string) => "`" + s + "`",
+  "sqlite":     (s: string) => "`" + s + "`",
+  "clickhouse": (s: string) => "`" + s.replaceAll("`", "\\`") + "`",
+};
+
+// SQL literal for a cell value. null → NULL, booleans → TRUE/FALSE, strings
+// and dates quoted with '' escaping.
+export function sqlLiteral(v: RowValue): string {
+  if (v === null)
+    return "NULL";
+  if (typeof v === "number")
+    return String(v);
+  if (typeof v === "boolean")
+    return v ? "TRUE" : "FALSE";
+  const s = v instanceof Date ? v.toISOString() : String(v);
+  return `'${s.replaceAll("'", "''")}'`;
+}
+
+// One UPDATE per edited row, only its changed columns. Edits with identical
+// pkValues are merged. pkValues must be in pkColumns order and use the
+// ORIGINAL (loaded) values — the WHERE clause identifies rows by them.
+export function buildTableUpdateStatements(
+  request: Omit<SQLRequest, "query">,
+  tableName: string,
+  pkColumns: string[],
+  updates: CellUpdate[],
+): string[] {
+  if (pkColumns.length === 0)
+    throw new Error("table has no primary key");
+  if (updates.length === 0)
+    throw new Error("no updates");
+  const uu = updates.find(u => u.pkValues.length !== pkColumns.length);
+  if (uu !== undefined)
+    throw new Error(`pk values count mismatch for column ${uu.column}`);
+
+  const byRow = new Map<string, Map<string, RowValue>>();
+  const pkByKey = new Map<string, RowValue[]>();
+  for (const u of updates) {
+    const key = JSON.stringify(u.pkValues);
+    if (!byRow.has(key)) {
+      byRow.set(key, new Map());
+      pkByKey.set(key, u.pkValues);
+    }
+    byRow.get(key)!.set(u.column, u.value);
+  }
+
+  const q = quoteIdent[request.database];
+  return [...byRow.entries()].map(([key, changes]) => {
+    const set = [...changes.entries()]
+      .map(([col, value]) => `${q(col)} = ${sqlLiteral(value)}`)
+      .join(", ");
+    const where = pkByKey.get(key)!
+      // `= NULL` never matches any row: sqlite permits NULL pk values, so use IS NULL.
+      .map((v, i) => v === null
+        ? `${q(pkColumns[i])} IS NULL`
+        : `${q(pkColumns[i])} = ${sqlLiteral(v)}`)
+      .join(" AND ");
+    return `UPDATE ${q(tableName)} SET ${set} WHERE ${where}`;
+  });
+}
+
+// Copy-friendly script: exactly what updateTableRows runs, as text.
+export function buildTableUpdateScript(request: Omit<SQLRequest, "query">, tableName: string, pkColumns: string[], updates: CellUpdate[]): string {
+  return buildTableUpdateStatements(request, tableName, pkColumns, updates)
+    .map(s => `${s};`)
+    .join("\n");
+}
+
+export async function updateTableRows(request: Omit<SQLRequest, "query">, tableName: string, pkColumns: string[], updates: CellUpdate[]): Promise<SQLResponse> {
+  const statements = buildTableUpdateStatements(request, tableName, pkColumns, updates);
+  const res = await sendSQLBatch(request, statements);
+  if (res.affectedRows === undefined)
+    return res; // driver does not report affected rows (clickhouse)
+  // Each statement targets exactly one row; a mismatch means the row is gone
+  // or its pk changed — report failure instead of silently dropping the edit.
+  const bad = res.affectedRows.findIndex(n => n !== 1);
+  if (bad !== -1)
+    throw new Error(`update matched ${res.affectedRows[bad]} rows instead of 1 (row deleted or pk changed): ${statements[bad]}`);
+  return res;
 }
 
 // Parse which columns a constraint references. For PRIMARY KEY / UNIQUE /

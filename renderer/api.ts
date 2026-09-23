@@ -116,6 +116,24 @@ export const api = {
     return await wrap(() => Api.SQLSource.CountRows(id, tableName), {reqId: id, tableName});
   },
 
+  async requestUpdateTableRowsSQLSource(
+    id: string,
+    tableName: string,
+    pkColumns: string[],
+    updates: t.CellUpdate[],
+  ): Promise<Result<t.SQLResponse>> {
+    return await wrap(() => Api.SQLSource.UpdateTableRows(id, tableName, pkColumns, updates), {reqId: id, tableName});
+  },
+
+  async requestBuildTableUpdateSQLSource(
+    id: string,
+    tableName: string,
+    pkColumns: string[],
+    updates: t.CellUpdate[],
+  ): Promise<Result<string>> {
+    return await wrap(() => Api.SQLSource.BuildTableUpdate(id, tableName, pkColumns, updates), {reqId: id, tableName});
+  },
+
   async requestListEndpointsHTTPSource(
     id: string,
   ): Promise<Result<t.EndpointInfo[]>> {

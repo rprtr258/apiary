@@ -1,10 +1,10 @@
 import {mkdtemp} from "fs/promises";
 import {tmpdir} from "os";
 import {join} from "path";
-import {mock, describe, test, expect} from "bun:test";
+import {mock, describe, test, expect, beforeAll} from "bun:test";
 import {SQLRequest} from "@/types.ts";
 import {sendSQL} from "./sql.ts";
-import {listTables, testSQLSource} from "./sql_source.ts";
+import {listTables, testSQLSource, updateTableRows} from "./sql_source.ts";
 import {BetterLikeDB} from "./sql.test.ts";
 
 mock.module("better-sqlite3", () => ({
@@ -39,5 +39,37 @@ describe("testSQLSource", () => {
     const dir = await mkdtemp(join(tmpdir(), "sqlite-list-tables"));
     const TEST_DB = dir + "/apiary-sql-test.db";
     await testSQLSource(req({dsn: TEST_DB}));
+  });
+});
+
+describe("updateTableRows (sqlite)", () => {
+  let dir = "";
+  let dsn = "";
+
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), "sqlite-update-rows"));
+    dsn = join(dir, "apiary-sql-update.db");
+    await sendSQL(req({dsn, query: "CREATE TABLE t (id INT PRIMARY KEY, v TEXT)"}));
+    // sqlite permits NULL values in (non-INTEGER) PRIMARY KEY columns
+    await sendSQL(req({dsn, query: "INSERT INTO t (v) VALUES ('x')"}));
+    await sendSQL(req({dsn, query: "INSERT INTO t (id, v) VALUES (1, 'y')"}));
+  });
+
+  test("null pk updates via IS NULL", async () => {
+    await updateTableRows({dsn, database: "sqlite", readOnly: false}, "t", ["id"],
+      [{pkValues: [null], column: "v", value: "z"}]);
+    const res = await sendSQL(req({dsn, query: "SELECT v FROM t WHERE id IS NULL"}));
+    expect(res.rows).toEqual([["z"]]);
+  });
+
+  test("update matching no rows throws", async () => {
+    let failed = false;
+    try {
+      await updateTableRows({dsn, database: "sqlite", readOnly: false}, "t", ["id"],
+        [{pkValues: [7], column: "v", value: "nope"}]);
+    } catch {
+      failed = true;
+    }
+    expect(failed).toBe(true);
   });
 });

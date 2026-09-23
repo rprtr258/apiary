@@ -7,7 +7,7 @@ import {EmptyRequest as RedisEmptyRequest, sendRedis} from "./database/redis.ts"
 import {sendDIFF} from "./database/diff.ts";
 import {sendGRPC, grpcMethods, grpcQueryFake, grpcQueryValidate} from "./database/grpc.ts";
 import {parseSpec, generateExampleRequest, fetchSpec} from "./database/http_source.ts";
-import {listTables, describeTable, countRowsSQLSource, testSQLSource, EmptyRequest as SQLSourceEmptyRequest} from "./database/sql_source.ts";
+import {listTables, describeTable, countRowsSQLSource, testSQLSource, buildTableUpdateScript, updateTableRows, EmptyRequest as SQLSourceEmptyRequest} from "./database/sql_source.ts";
 import {EmptyRequest as MCPEmptyRequest, listTools as mcpListTools, callTool as mcpCallTool} from "./database/mcp.ts";
 import * as t from "@/types.ts";
 
@@ -271,6 +271,22 @@ export const SQLSource = {
       throw new Error(`request ${id} is not SQLSource`);
     const {dsn, database} = req.Data;
     return await countRowsSQLSource({dsn, database}, tableName);
+  },
+
+  async UpdateTableRows(id: t.RequestID, tableName: string, pkColumns: string[], updates: t.CellUpdate[]): Promise<t.SQLResponse> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.SQLSource)
+      throw new Error(`request ${id} is not SQLSource`);
+    const {dsn, database, readOnly} = req.Data;
+    return await updateTableRows({dsn, database, readOnly}, tableName, pkColumns, updates);
+  },
+
+  async BuildTableUpdate(id: t.RequestID, tableName: string, pkColumns: string[], updates: t.CellUpdate[]): Promise<string> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.SQLSource)
+      throw new Error(`request ${id} is not SQLSource`);
+    const {dsn, database, readOnly} = req.Data;
+    return buildTableUpdateScript({dsn, database, readOnly}, tableName, pkColumns, updates);
   },
 };
 

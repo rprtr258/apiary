@@ -18,7 +18,11 @@ export class BetterLikeDB {
     const stmt = this.#db.query(sql);
     return {
       all: () => stmt.all() as Record<string, unknown>[],
+      run: () => stmt.run() as {changes: number | bigint, lastInsertRowid: number | bigint},
     };
+  }
+  transaction<T>(fn: () => T): () => T {
+    return fn; // bun:sqlite autocommits; matches better-sqlite3 semantics closely enough for tests
   }
   close() {
     this.#db.close();

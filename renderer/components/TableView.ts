@@ -1,7 +1,7 @@
 import * as t from "@/types.ts";
 import {none, Option, some} from "@/option.ts";
 import {api} from "../api.ts";
-import {clamp, DOMNode, m, Signal, signal} from "../lib/utils.ts";
+import {clamp, deepEquals, DOMNode, m, setDisplay, Signal, signal} from "../lib/utils.ts";
 import {css} from "../lib/styles.ts";
 import notification from "../lib/notification.ts";
 import {NButton} from "./input.ts";
@@ -195,6 +195,53 @@ const split_styles = {
   `),
 };
 
+type EditableConfig = {
+  pkColumns: string[],
+  nullable: boolean[],
+  onEditsChange: (edits: t.CellUpdate[]) => void,
+};
+
+const edited_cell_style = css(`
+  outline: 2px solid #f5a623;
+  outline-offset: -2px;
+`);
+const invalid_cell_style = css(`
+  outline: 2px solid #e0533d;
+  outline-offset: -2px;
+`);
+const cell_menu_style = css(`
+  position: fixed;
+  z-index: 1000;
+  background: #26282e;
+  border: 1px solid #4a5568;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  min-width: 120px;
+`);
+const cell_menu_item_style = css(`
+  padding: 4px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+`);
+const cell_menu_item_hover_style = css.raw(`:hover {
+  background: rgba(255, 255, 255, 0.1);
+}`);
+
+// Columns of the table's primary key, in schema column order. MySQL and
+// SQLite report one constraint entry per PK column (same name) — entries are
+// merged. TODO: ClickHouse — describeTable returns no constraints, so PK
+// detection (and table editing) is unavailable for ClickHouse tables.
+export function primaryKeyColumns(schema: t.TableSchema): string[] {
+  const pkColumns = new Set<string>();
+  for (const c of schema.constraints) {
+    if (c.type !== "PRIMARY KEY")
+      continue;
+    for (const col of c.columns)
+      pkColumns.add(col);
+  }
+  return schema.columns.map(c => c.name).filter(name => pkColumns.has(name));
+}
+
 export function DataTable() {
   const el_table = m("div", {
     style: {
@@ -215,6 +262,13 @@ export function DataTable() {
   let startWidth = 0;
   let resizeHandles: HTMLElement[] = [];
   let resizeFrame = 0;
+
+  // Editing state (keyed by PK values so it survives pagination/sorting reloads)
+  let lastProps: DataTableProps | undefined;
+  let editable: EditableConfig | undefined;
+  const edits = new Map<string, {pkValues: t.RowValue[], changes: Map<string, t.RowValue>}>();
+  const invalid = new Map<string, string>(); // cellKey -> raw input kept for fixing
+  let openMenu: HTMLElement | undefined = undefined;
 
   function setHighlight(handle: HTMLElement, on: boolean): void {
     handle.classList.toggle(split_styles.default, !on);
@@ -250,9 +304,220 @@ export function DataTable() {
     el_table.style.gridTemplateColumns = columnWidths.flatMap(w => [w, 5]).map(w => `${w}px`).join(" ");
   }
 
-  return {
-    el,
-    update({columns, rows, typenames, types, sortColumns = [], on: {sortAdd: onSortAdd, sortRemove: onSortRemove, sortToggle: onSortToggle}}: DataTableProps) {
+  function rowKeyOf(j: number): string {
+    if (editable === undefined || lastProps === undefined)
+      return String(j);
+    const r = lastProps.rows[j];
+    const cols = lastProps.columns;
+    return JSON.stringify(editable.pkColumns.map(c => r[cols.indexOf(c)] ?? null));
+  }
+
+  function cellKeyOf(j: number, column: string): string {
+    return `${rowKeyOf(j)}:${column}`;
+  }
+
+  function emitEdits(): void {
+    if (editable === undefined)
+      return;
+    const list: t.CellUpdate[] = [...edits.values()].flatMap(({pkValues, changes}) => [...changes.entries()].map(([column, value]) => ({pkValues, column, value})));
+    editable.onEditsChange(list);
+  }
+
+  // Records (or clears, when the value matches the original) a cell edit and
+  // re-renders the table.
+  function applyEdit(j: number, column: string, value: t.RowValue): void {
+    if (editable === undefined || lastProps === undefined)
+      return;
+    const r = lastProps.rows[j];
+    const cols = lastProps.columns;
+    const originalIndex = cols.indexOf(column);
+    const original = originalIndex >= 0 ? r[originalIndex] ?? null : null;
+    const key = rowKeyOf(j);
+    if (deepEquals(value, original)) {
+      const row = edits.get(key);
+      row?.changes.delete(column);
+      if (row !== undefined && row.changes.size === 0)
+        edits.delete(key);
+    } else {
+      const row = edits.get(key) ?? {pkValues: editable.pkColumns.map(c => r[cols.indexOf(c)] ?? null), changes: new Map()};
+      row.changes.set(column, value);
+      edits.set(key, row);
+    }
+    invalid.delete(cellKeyOf(j, column));
+    renderTable();
+    emitEdits();
+  }
+
+  // Empty input is an empty string, not null — NULL is only set explicitly
+  // via the context menu. Numbers must parse.
+  function parseInput(original: t.RowValue, raw: string): {kind: "ok", value: t.RowValue} | {kind: "invalid"} {
+    if (typeof original === "number") {
+      const trimmed = raw.trim();
+      if (trimmed === "" || Number.isNaN(Number(trimmed)))
+        return {kind: "invalid"};
+      return {kind: "ok", value: Number(trimmed)};
+    }
+    return {kind: "ok", value: raw};
+  }
+
+  function closeMenu(): void {
+    openMenu?.remove();
+    openMenu = undefined;
+    document.removeEventListener("click", closeMenu);
+  }
+
+  function openCellMenu(e: MouseEvent, j: number, i: number): void {
+    if (editable === undefined || lastProps === undefined || openMenu !== undefined)
+      return;
+    if (editable.nullable[i] === false)
+      return;
+    e.preventDefault();
+    const column = lastProps.columns[i];
+    const menu = m("div", {class: cell_menu_style, style: {left: `${e.clientX}px`, top: `${e.clientY}px`}},
+      m("div", {
+        class: [cell_menu_item_style, cell_menu_item_hover_style].join(" "),
+        "data-testid": "set-null",
+        onclick: () => {
+          closeMenu();
+          applyEdit(j, column, null);
+        },
+      }, "Set NULL"),
+    );
+    openMenu = menu;
+    document.body.append(menu);
+    document.addEventListener("click", closeMenu);
+  }
+
+  // Swaps the cell content for an editor. Boolean columns get a true/false
+  // dropdown, everything else a text input.
+  function buildEditor(td: HTMLTableCellElement, j: number, i: number, initialRaw: string | undefined, isInvalid: boolean): void {
+    if (lastProps === undefined)
+      return;
+    const column = lastProps.columns[i];
+    const original = lastProps.rows[j][i] ?? null;
+    const finish = (): void => {
+      renderTable();
+    };
+    const commit = (raw: string): void => {
+      const parsed = parseInput(original, raw);
+      if (parsed.kind === "invalid") {
+        // Abort the commit, keep the typed value: the cell re-renders as a
+        // red-outlined input with the same text.
+        invalid.set(cellKeyOf(j, column), raw);
+        renderTable();
+        notification("error", `Invalid value for column "${column}"`, {value: raw});
+        return;
+      }
+      applyEdit(j, column, parsed.value);
+    };
+
+    if (lastProps.types[i] === t.ColumnType.BOOLEAN) {
+      const select = m("select", {"data-testid": "cell-select", style: {
+        width: "100%",
+        boxSizing: "border-box",
+        fontSize: "12pt",
+      }});
+      for (const v of [true, false])
+        select.append(m("option", {value: String(v)}, String(v)));
+      select.value = String(original === true);
+      let changed = false;
+      select.addEventListener("change", () => {
+        changed = true;
+        if (select.value !== String(original === true))
+          applyEdit(j, column, select.value === "true");
+        else
+          finish();
+      });
+      select.addEventListener("blur", () => {
+        if (changed === false)
+          finish();
+      });
+      td.replaceChildren(select);
+      select.focus();
+      return;
+    }
+
+    const input = m("input", {"data-testid": "cell-input", type: "text", style: {
+      width: "100%",
+      boxSizing: "border-box",
+      fontSize: "12pt",
+      border: isInvalid ? "1px solid #e0533d" : "1px solid #4a90d9",
+      padding: "0 3px",
+    }});
+    input.value = initialRaw !== undefined ? initialRaw :
+      original === null ? "" :
+      original instanceof Date ? original.toISOString() : String(original);
+    let closed = false;
+    input.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (closed === false) {
+          closed = true;
+          commit(input.value);
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        if (closed === false) {
+          closed = true;
+          invalid.delete(cellKeyOf(j, column));
+          finish(); // discard the in-progress edit
+        }
+      }
+    });
+    input.addEventListener("blur", () => {
+      if (closed === false) {
+        closed = true;
+        commit(input.value); // any outer click commits
+      }
+    });
+    td.replaceChildren(input);
+    input.focus();
+    input.select();
+  }
+
+  function startEdit(td: HTMLTableCellElement, j: number, i: number): void {
+    if (editable === undefined || td.querySelector("input,select") !== null)
+      return;
+    buildEditor(td, j, i, undefined, false);
+  }
+
+  function renderBodyCell(r: t.RowValue[], j: number, i: number): HTMLTableCellElement {
+    const column = lastProps!.columns[i];
+    const key = rowKeyOf(j);
+    const cellKey = `${key}:${column}`;
+    const edited = editable !== undefined && edits.get(key)?.changes.has(column) === true;
+    const td = m("td", {
+      style: {
+        cursor: editable === undefined ? "default" : "cell",
+        fontSize: "12pt",
+        padding: "3px 5px",
+        overflow: "clip",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        backgroundColor: j % 2 === 0 ? "var(--row-even)" : "",
+      },
+      "data-testid": "data-cell",
+    }, render(edited === true ? edits.get(key)!.changes.get(column)! : r[i] ?? null));
+    if (edited === true)
+      td.classList.add(edited_cell_style);
+    if (invalid.has(cellKey) === true) {
+      // Failed commit: keep the typed value in a red-outlined input.
+      td.classList.add(invalid_cell_style);
+      buildEditor(td, j, i, invalid.get(cellKey), true);
+      return td;
+    }
+    if (editable !== undefined) {
+      td.addEventListener("dblclick", () => startEdit(td, j, i));
+      td.addEventListener("contextmenu", (e) => openCellMenu(e, j, i));
+    }
+    return td;
+  }
+
+  function renderTable(): void {
+    if (lastProps === undefined)
+      return;
+    const {columns, rows, typenames, types, sortColumns = [], on: {sortAdd: onSortAdd, sortRemove: onSortRemove, sortToggle: onSortToggle}} = lastProps;
+
       if (columnWidths.length !== columns.length) {
         columnWidths = columns.map((c, i) => clamp(
           Math.max(
@@ -298,9 +563,7 @@ export function DataTable() {
       for (const handle of resizeHandles)
         handle.style.gridRowStart = `span ${rows.length+1}`;
 
-      // Create a map of sort columns for quick lookup
       const sortColumnMap = new Map(sortColumns.map(sc => [sc.column, sc]));
-
       el_table.replaceChildren(
         ...columns.flatMap((c, i) => [
           onSortAdd !== undefined || onSortRemove !== undefined || onSortToggle !== undefined
@@ -316,21 +579,32 @@ export function DataTable() {
             : render_column(c, types[i]),
           resizeHandles[i],
         ]),
-        ...rows.flatMap((r, j) => columns.map((_, i) =>
-          m("td", {
-            style: {
-              cursor: "default",
-              fontSize: "12pt",
-              padding: "3px 5px",
-              overflow: "clip",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              backgroundColor: j % 2 === 0 ? "var(--row-even)" : "",
-            },
-          }, render(r[i])))),
+        ...rows.flatMap((r, j) => columns.map((_, i) => renderBodyCell(r, j, i))),
       );
 
       updateColumnWidths();
+  }
+
+  return {
+    el,
+    update(props: DataTableProps): void {
+      lastProps = props;
+      renderTable();
+    },
+    setEditable(next: EditableConfig | undefined): void {
+      editable = next;
+      if (next === undefined) {
+        edits.clear();
+        invalid.clear();
+      }
+      renderTable();
+      emitEdits();
+    },
+    clearEdits(): void {
+      edits.clear();
+      invalid.clear();
+      renderTable();
+      emitEdits();
     },
   };
 }
@@ -480,6 +754,86 @@ export default function(
   }, "Next");
   const infoSpan = m("span", {}, showingRows());
 
+  // --- cell editing state ---
+  const pkColumns = signal<string[]>([]);
+  const schemaColumns = signal<t.ColumnInfo[]>([]);
+  const readOnly = signal(false);
+  const edits = signal<t.CellUpdate[]>([]);
+
+  async function onApply(): Promise<void> {
+    const res = await api.requestUpdateTableRowsSQLSource(sqlSourceID, tableName, pkColumns.value, edits.value);
+    if (res.kind === "err") {
+      notification("error", "Failed to apply edits", {error: res.value});
+      return;
+    }
+    dataTable.clearEdits(); // emits [] -> hides the edit bar
+    loadData(currentPage.value);
+  }
+
+  async function onCopy(): Promise<void> {
+    const res = await api.requestBuildTableUpdateSQLSource(sqlSourceID, tableName, pkColumns.value, edits.value);
+    if (res.kind === "err") {
+      notification("error", "Could not build update script", {error: res.value});
+      return;
+    }
+    await navigator.clipboard.writeText(res.value);
+    notification("info", "Update script copied to clipboard", {});
+  }
+
+  const editCountSpan = m("span", {style: {fontSize: ".85em", color: "grey"}});
+  const applyButton = NButton({primary: true, on: {click: () => onApply()}}, "Apply");
+  const copyButton = NButton({on: {click: () => onCopy()}}, "Copy");
+  const cancelButton = NButton({on: {click: () => dataTable.clearEdits()}}, "Cancel");
+  const el_edits = m("div", {style: {display: "flex", gap: "0.5em", alignItems: "center"}},
+    editCountSpan,
+    applyButton.el,
+    copyButton.el,
+    cancelButton.el,
+  );
+  const bannerSpan = m("span", {style: {fontSize: ".85em", color: "#f5a623"}});
+  setDisplay(el_edits, false);
+  setDisplay(bannerSpan, false);
+
+  edits.sub(function*() {
+    while (true) {
+      yield;
+      const count = edits.value.length;
+      setDisplay(el_edits, count > 0);
+      editCountSpan.textContent = `${count} unsaved edit${count === 1 ? "" : "s"}`;
+    }
+  }());
+
+  // Sync DataTable editability (and the banner) with PK info and readOnly.
+  function syncEditing(): void {
+    if (pkColumns.value.length === 0 || readOnly.value === true) {
+      dataTable.setEditable(undefined);
+      edits.update(() => []);
+      if (pkColumns.value.length === 0) {
+        bannerSpan.textContent = "No primary key — editing disabled";
+        setDisplay(bannerSpan, true);
+      } else {
+        bannerSpan.textContent = "Read-only source — editing disabled";
+        setDisplay(bannerSpan, true);
+      }
+      return;
+    }
+    dataTable.setEditable({
+      pkColumns: pkColumns.value,
+      nullable: schemaColumns.value.map(c => c.nullable),
+      onEditsChange: list => edits.update(() => list),
+    });
+    setDisplay(bannerSpan, false);
+  }
+
+  // The read-only flag lives on the source request data.
+  (async () => {
+    const res = await api.get(sqlSourceID);
+    if (res.kind === "err")
+      return;
+    readOnly.update(() => (res.value.Request.Data as t.SQLSourceRequest).readOnly);
+    syncEditing();
+  })();
+
   async function loadData(page: number) {
     loading.update(() => true);
     const query = buildQuery(page, sortColumns, dbType, tableName);
@@ -542,6 +896,10 @@ export default function(
       rows: constraints.map(con => [con.name, con.type, con.definition]),
       on: {},
     });
+
+    schemaColumns.update(() => columns);
+    pkColumns.update(() => primaryKeyColumns(res.value));
+    syncEditing();
   }
 
   // Initial load
@@ -553,6 +911,8 @@ export default function(
       prevButton.el,
       infoSpan,
       nextButton.el,
+      bannerSpan,
+      el_edits,
     ),
     NScrollbar(dataTable.el),
   );
