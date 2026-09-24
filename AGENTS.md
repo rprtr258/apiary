@@ -12,7 +12,7 @@
 - Never use `overflow: hidden`.
 - Never disable linter checks unless explicitly requested.
 - Never touch git (no commits, pushes, branches, etc.) unless explicitly requested by the user.
-- Run `bun run ci` and `bun run build` after any code changes to ensure linting, typechecking, and build succeed.
+- Run `bun run ci` after any code changes to ensure linting, typechecking, and build succeed.
 - Include updates to `AGENTS.md` for structural or architectural changes.
 - Use context-based cancellation in backend code.
 - Use structured logging in backend code.

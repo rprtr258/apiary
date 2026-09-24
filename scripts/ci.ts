@@ -58,6 +58,7 @@ async function main() {
     runCommand(["bun", "run", "typecheck"]),
     runCommand(["bun", "run", "lint"]),
     runCommand(["bun", "run", "test"]),
+    runCommand(["bun", "run", "build"]),
     runDesignLint(),
   ]);
   console.log(styleText("greenBright", "CI checks completed successfully!"));
