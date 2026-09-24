@@ -863,10 +863,10 @@ export default function(
     });
     // Constraints
     constraintsTable.update({
-      columns: ["Name", "Type", "Definition"],
-      typenames: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING],
-      types: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING],
-      rows: constraints.map(con => [con.name, con.type, con.definition]),
+      columns: ["Name", "Type", "Columns", "Definition"],
+      typenames: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING],
+      types: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING],
+      rows: constraints.map(con => [con.name, con.type, con.columns.join(", "), con.definition]),
       on: {},
     });
 

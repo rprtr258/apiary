@@ -111,5 +111,7 @@ describe("describeTable (sqlite)", () => {
     expect(pks.length).toBe(1);
     // key order (b, a), not table column order (a, b)
     expect(pks[0].columns).toEqual(["b", "a"]);
+    // column list lives in `columns`, not in the definition
+    expect(pks[0].definition).toBe("PRIMARY KEY");
   });
 });

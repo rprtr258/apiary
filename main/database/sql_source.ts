@@ -110,6 +110,16 @@ function parseConstraintColumns(definition: string, type: string, columnNames: s
   return match[1].split(",").map(part => part.trim());
 }
 
+// Constraint definitions carry the column list in the columns field, so the
+// definition drops it. For PRIMARY KEY / UNIQUE / FOREIGN KEY the leading
+// (...) right after the keyword is that column list; CHECK keeps its full
+// expression, which is the definition itself.
+function stripLeadingColumns(definition: string, type: string): string {
+  if (type === "PRIMARY KEY" || type === "UNIQUE" || type === "FOREIGN KEY")
+    return definition.replace(/^(\s*(?:PRIMARY KEY|UNIQUE|FOREIGN KEY))\s*\([^)]*\)/, "$1");
+  return definition;
+}
+
 // Primary key columns of a table in key order, taken from the table schema.
 // Used to pin the table viewer's pagination order. Empty for ClickHouse
 // (describeTable returns no constraints, so no PK info is available).
@@ -246,7 +256,7 @@ WHERE rel.relname = '${tableName}' AND nsp.nspname NOT IN ('pg_catalog', 'inform
   const constraints: ConstraintInfo[] = conResult.rows.map(([name, typ, def]) => ({
     name: name as string,
     type: typ as string,
-    definition: def as string,
+    definition: stripLeadingColumns(def as string, typ as string),
     columns: parseConstraintColumns(def as string, typ as string, columns.map(c => c.name)),
   }));
 
@@ -265,7 +275,9 @@ WHERE idx.tablename = '${tableName}' AND idx.schemaname NOT IN ('pg_catalog', 'i
     .filter(con => con.definition.split("REFERENCES").length === 2)
     .flatMap(con => {
       const parts = con.definition.split("REFERENCES");
-      const column = parts[0].replace("FOREIGN KEY", "").replace(/[()]/g, "").trim();
+      // Local columns come from the parsed columns field (definition no
+      // longer carries them).
+      const column = con.columns.join(", ");
       const refPart = parts[1].trim();
       const refParts = refPart.split("(");
       if (refParts.length !== 2) {
@@ -310,7 +322,7 @@ WHERE table_name = '${tableName}' AND table_schema = DATABASE() AND constraint_n
 ORDER BY ordinal_position`}); // TODO: pass tableName as arg
     const pkColumns = conResult.rows.map(r => String(r[0]));
     if (pkColumns.length > 0)
-      constraints.push({name: "PRIMARY KEY", type: "PRIMARY KEY", definition: `PRIMARY KEY (${pkColumns.join(", ")})`, columns: pkColumns});
+      constraints.push({name: "PRIMARY KEY", type: "PRIMARY KEY", definition: "PRIMARY KEY", columns: pkColumns});
   } catch (_e) {
     // Constraints query is best-effort
   }
@@ -339,7 +351,7 @@ async function describeSQLite(request: Omit<SQLRequest, "query">, tableName: str
   }
   if (pkRows.length > 0) {
     const pkColumns = pkRows.sort((a, b) => a.pos - b.pos).map(r => r.name);
-    constraints.push({name: "PRIMARY KEY", type: "PRIMARY KEY", definition: `PRIMARY KEY (${pkColumns.join(", ")})`, columns: pkColumns});
+    constraints.push({name: "PRIMARY KEY", type: "PRIMARY KEY", definition: "PRIMARY KEY", columns: pkColumns});
   }
 
   // Get indexes
