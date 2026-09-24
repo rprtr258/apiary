@@ -74,29 +74,16 @@ export async function Get(id: t.RequestID): Promise<t.GetResponse> {
 // Empty request templates for each kind
 function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   switch (kind) {
-  case t.Kind.HTTP:
-    return HTTPEmptyRequest;
-  case t.Kind.SQL:
-    return SQLEmptyRequest;
-  case t.Kind.JQ:
-    return JQEmptyRequest;
-  case t.Kind.MD:
-    return DefaultMarkdown;
-  case t.Kind.REDIS:
-    return RedisEmptyRequest;
-  case t.Kind.GRPC:
-    return {target: "", method: "", payload: "", metadata: []};
-  case t.Kind.DIFF:
-    return {left: "", right: ""};
-  case t.Kind.SQLSource:
-    return SQLSourceEmptyRequest;
-  case t.Kind.HTTPSource:
-    return {serverUrl: "", specSource: "url", specData: "", auth: {type: "none"}};
-  case t.Kind.MCP:
-    return MCPEmptyRequest;
-  default:
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-    throw new Error(`unknown kind ${kind}`);
+  case t.Kind.HTTP: return HTTPEmptyRequest;
+  case t.Kind.SQL: return SQLEmptyRequest;
+  case t.Kind.JQ: return JQEmptyRequest;
+  case t.Kind.MD: return DefaultMarkdown;
+  case t.Kind.REDIS: return RedisEmptyRequest;
+  case t.Kind.GRPC: return {target: "", method: "", payload: "", metadata: []};
+  case t.Kind.DIFF: return {left: "", right: ""};
+  case t.Kind.SQLSource: return SQLSourceEmptyRequest;
+  case t.Kind.HTTPSource: return {serverUrl: "", specSource: "url", specData: "", auth: {type: "none"}};
+  case t.Kind.MCP: return MCPEmptyRequest;
   }
 }
 

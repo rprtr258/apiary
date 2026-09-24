@@ -113,7 +113,7 @@ export type Store = {
   duplicate(id: string): Promise<void>,
   deleteRequest(id: string): Promise<void>,
   rename(id: string, newID: string): Promise<void>,
-  openTableViewer(sqlSourceID: string, tableName: string, tableInfo: t.TableInfo): void,
+  openTableViewer(sqlSourceID: string, tableName: string, tableInfo: t.TableInfo): Promise<void>,
   openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: t.EndpointInfo): void,
   openToolViewer(sourceID: string, tool: t.MCPTool): void,
   // Tab navigation methods
@@ -232,16 +232,22 @@ export const store = ((): Store => {
       component?.tab.setTitle(newName);
       await this.fetch();
     },
-    openTableViewer(sqlSourceID: string, tableName: string, tableInfo: t.TableInfo): void {
+    async openTableViewer(sqlSourceID: string, tableName: string, tableInfo: t.TableInfo): Promise<void> {
       if (findExistingTab<StateSQLSourceTable>("TableViewer", t => t.sqlSourceID === sqlSourceID && t.tableName === tableName) !== undefined)
         return;
 
-      // Get database type from SQL source request
-      const sourceRequest = this.requests2[sqlSourceID];
+      // Get database type from SQL source request. It may not be in the lazy
+      // requests2 cache yet (e.g. source created before app launch and never
+      // opened) — fetch it on demand; get_request already notifies about the
+      // failure and returns null.
+      let sourceRequest = this.requests2[sqlSourceID];
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (sourceRequest === undefined) {
-        notification("error", "Could not open table viewer", {content: `SQL source request ${sqlSourceID} not found`});
-        return;
+        const fetched = await get_request(sqlSourceID);
+        if (fetched === null) {
+          return;
+        }
+        sourceRequest = fetched;
       }
 
       const sqlSourceRequest = sourceRequest.request as t.SQLSourceRequest;
