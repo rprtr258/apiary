@@ -22,7 +22,7 @@ export type Api = {
     QueryValidate: (_1: string, _2: string, _3: string) => Promise<void>,
   },
   SQLSource: {
-    Perform:       (_1: string, _2: string) => Promise<Record<string, unknown>>,
+    Perform:       (_1: string, _2: t.TableRead) => Promise<Record<string, unknown>>,
     Test:          (_1: string            ) => Promise<void>,
     ListTables:    (_1: string            ) => Promise<t.TableInfo[]>,
     DescribeTable: (_1: string, _2: string) => Promise<t.TableSchema>,

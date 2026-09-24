@@ -72,6 +72,13 @@ export type SQLSourceRequest = {
   readOnly: boolean,
 };
 
+export type TableRead = {
+  table: string,
+  orderBy: {column: string, direction: "asc" | "desc"}[],
+  limit: number,
+  offset: number,
+};
+
 export type TableInfo = {
   name: string,
   rowCount: number,

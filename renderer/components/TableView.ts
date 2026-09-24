@@ -1,7 +1,7 @@
 import * as t from "@/types.ts";
 import {none, Option, some} from "@/option.ts";
 import {api} from "../api.ts";
-import {clamp, deepEquals, DOMNode, m, setDisplay, Signal, signal} from "../lib/utils.ts";
+import {clamp, deepEquals, DOMNode, m, setDisplay, signal} from "../lib/utils.ts";
 import {css} from "../lib/styles.ts";
 import notification from "../lib/notification.ts";
 import {NButton} from "./input.ts";
@@ -624,41 +624,9 @@ type SortColumn = {
   order: number, // 1-based index for display
 };
 
-function buildQuery(
-  page: number,
-  sortColumns: Signal<SortColumn[]>,
-  dbType: t.Database,
-  tableName: string,
-): string {
-  const offset = page * pageSize;
-
-  // Build ORDER BY clause if there are sort columns
-  let orderByClause = "";
-  if (sortColumns.value.length > 0) {
-    const orderByParts = sortColumns.value.map(sc => {
-      // Quote column name based on database type
-      let quotedColumn = sc.column;
-      switch (dbType) {
-        case "mysql":
-        case "sqlite":
-          quotedColumn = `\`${sc.column}\``;
-          break;
-        case "postgres":
-          quotedColumn = `"${sc.column}"`;
-          break;
-        // ClickHouse and others don't need quoting for standard identifiers
-      }
-      return `${quotedColumn} ${sc.direction.toUpperCase()}`;
-    });
-    orderByClause = `ORDER BY ${orderByParts.join(", ")}`;
-  }
-
-  return `SELECT * FROM ${tableName} ${orderByClause} LIMIT ${pageSize} OFFSET ${offset}`;
-}
-
 export default function(
   container: ComponentContainer,
-  {sqlSourceID, tableName, tableInfo, database: dbType}: Props,
+  {sqlSourceID, tableName, tableInfo}: Props,
 ) {
   const el: HTMLElement = container.element;
   el.replaceChildren(m("div", {class: "h100"}, "Loading table viewer..."));
@@ -836,8 +804,13 @@ export default function(
 
   async function loadData(page: number) {
     loading.update(() => true);
-    const query = buildQuery(page, sortColumns, dbType, tableName);
-    const res = await api.requestPerformSQLSource(sqlSourceID, query);
+    const read: t.TableRead = {
+      table: tableName,
+      orderBy: sortColumns.value.map(({column, direction}) => ({column, direction})),
+      limit: pageSize,
+      offset: page * pageSize,
+    };
+    const res = await api.requestPerformSQLSource(sqlSourceID, read);
     loading.update(() => false);
 
     let data: t.SQLResponse | undefined = undefined;

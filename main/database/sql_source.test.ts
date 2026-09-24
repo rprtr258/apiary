@@ -4,7 +4,7 @@ import {join} from "path";
 import {mock, describe, test, expect, beforeAll} from "bun:test";
 import {SQLRequest} from "@/types.ts";
 import {sendSQL} from "./sql.ts";
-import {listTables, testSQLSource, updateTableRows} from "./sql_source.ts";
+import {buildReadTableQuery, describeTable, listTables, testSQLSource, updateTableRows} from "./sql_source.ts";
 import {BetterLikeDB} from "./sql.test.ts";
 
 mock.module("better-sqlite3", () => ({
@@ -71,5 +71,45 @@ describe("updateTableRows (sqlite)", () => {
       failed = true;
     }
     expect(failed).toBe(true);
+  });
+});
+
+describe("buildReadTableQuery (sqlite)", () => {
+  let dir = "";
+  let dsn = "";
+
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), "sqlite-read-table"));
+    dsn = join(dir, "apiary-sql-read-table.db");
+    await sendSQL(req({dsn, query: "CREATE TABLE t (a TEXT, b INT, v TEXT, PRIMARY KEY (b, a))"}));
+    await sendSQL(req({dsn, query: "INSERT INTO t (a, b, v) VALUES ('x', 1, '1x'), ('y', 1, '1y'), ('x', 0, '0x')"}));
+  });
+
+  test("builds pk-ordered pagination query", async () => {
+    const query = await buildReadTableQuery(req({dsn}), {table: "t", orderBy: [], limit: 2, offset: 0});
+    expect(query).toBe("SELECT * FROM `t` ORDER BY `b` ASC, `a` ASC LIMIT 2 OFFSET 0");
+    const res = await sendSQL(req({dsn, query}));
+    expect(res.rows.map(r => r[2])).toEqual(["0x", "1x"]); // (b, a) key order
+  });
+
+  test("appends pk as tiebreaker after user sort", async () => {
+    const query = await buildReadTableQuery(req({dsn}), {table: "t", orderBy: [{column: "a", direction: "desc"}], limit: 2, offset: 0});
+    expect(query).toBe("SELECT * FROM `t` ORDER BY `a` DESC, `b` ASC, `a` ASC LIMIT 2 OFFSET 0");
+    const res = await sendSQL(req({dsn, query}));
+    // a DESC puts 'y' first; the two rows tied on a='x' are broken by b ASC
+    expect(res.rows.map(r => r[2])).toEqual(["1y", "0x"]);
+  });
+});
+
+describe("describeTable (sqlite)", () => {
+  test("composite primary key returned as a single ordered entry", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sqlite-describe-pk"));
+    const dsn = join(dir, "apiary-sql-describe.db");
+    await sendSQL(req({dsn, query: "CREATE TABLE t (a TEXT, b INT, v TEXT, PRIMARY KEY (b, a))"}));
+    const schema = await describeTable({dsn, database: "sqlite"}, "t");
+    const pks = schema.constraints.filter(c => c.type === "PRIMARY KEY");
+    expect(pks.length).toBe(1);
+    // key order (b, a), not table column order (a, b)
+    expect(pks[0].columns).toEqual(["b", "a"]);
   });
 });

@@ -1,4 +1,4 @@
-import {TableInfo, TableSchema, ColumnInfo, ConstraintInfo, IndexInfo, ForeignKey, SQLRequest, SQLSourceRequest, ColumnType, RowValue, CellUpdate, SQLResponse} from "@/types.ts";
+import {TableInfo, TableSchema, ColumnInfo, ConstraintInfo, IndexInfo, ForeignKey, SQLRequest, SQLSourceRequest, TableRead, ColumnType, RowValue, CellUpdate, SQLResponse} from "@/types.ts";
 import {sendSQL, sendSQLBatch} from "./sql.ts";
 
 export const EmptyRequest: SQLSourceRequest = {
@@ -108,6 +108,32 @@ function parseConstraintColumns(definition: string, type: string, columnNames: s
   if (match === null)
     return [];
   return match[1].split(",").map(part => part.trim());
+}
+
+// Primary key columns of a table in key order, taken from the table schema.
+// Used to pin the table viewer's pagination order. Empty for ClickHouse
+// (describeTable returns no constraints, so no PK info is available).
+async function tablePrimaryKeyColumns(request: Omit<SQLRequest, "query">, tableName: string): Promise<string[]> {
+  const schema = await describeTable(request, tableName);
+  return schema.constraints.find(c => c.type === "PRIMARY KEY")?.columns ?? [];
+}
+
+// Build a paginated read of a table for the table viewer. The primary key is
+// appended to the user's sort as a deterministic tiebreaker, so LIMIT/OFFSET
+// pages are stable instead of letting rows tied on the sort keys (or the whole
+// result set when unsorted) duplicate or vanish between pages. Introspection is
+// best-effort: on failure the table is paginated in engine order. No PK info is
+// available for ClickHouse, so it stays in engine order too.
+export async function buildReadTableQuery(request: Omit<SQLRequest, "query">, read: TableRead): Promise<string> {
+  const q = quoteIdent[request.database];
+  const orderTerms = read.orderBy.map(sc => `${q(sc.column)} ${sc.direction.toUpperCase()}`);
+  try {
+    orderTerms.push(...(await tablePrimaryKeyColumns(request, read.table)).map(c => `${q(c)} ASC`));
+  } catch (_e) {
+    // best-effort: order as well as we can
+  }
+  const orderBy = orderTerms.length > 0 ? ` ORDER BY ${orderTerms.join(", ")}` : "";
+  return `SELECT * FROM ${q(read.table)}${orderBy} LIMIT ${read.limit} OFFSET ${read.offset}`;
 }
 
 export async function listTables(request: Omit<SQLRequest, "query">): Promise<TableInfo[]> {
@@ -272,20 +298,19 @@ ORDER BY ordinal_position`});
     defaultValue: JSON.stringify(defaultVal ?? ""),
   }));
 
-  // Get constraints (simplified - PRIMARY KEY only)
-  let constraints: ConstraintInfo[] = [];
+  // Get constraints (simplified - PRIMARY KEY only). key_column_usage has one
+  // row per PK column; ordinal_position restores composite key order, so the
+  // whole key is returned as a single ordered entry.
+  const constraints: ConstraintInfo[] = [];
   try {
     const conResult = await sendSQL({...request, query: `SELECT
-  constraint_name,
   column_name
 FROM information_schema.key_column_usage
-WHERE table_name = '${tableName}' AND table_schema = DATABASE() AND constraint_name = 'PRIMARY'`}); // TODO: pass tableName as arg
-    constraints = conResult.rows.map(r => ({
-      name: String(r[0]),
-      type: "PRIMARY KEY",
-      definition: `PRIMARY KEY (${r[1] as string})`,
-      columns: [String(r[1])],
-    }));
+WHERE table_name = '${tableName}' AND table_schema = DATABASE() AND constraint_name = 'PRIMARY'
+ORDER BY ordinal_position`}); // TODO: pass tableName as arg
+    const pkColumns = conResult.rows.map(r => String(r[0]));
+    if (pkColumns.length > 0)
+      constraints.push({name: "PRIMARY KEY", type: "PRIMARY KEY", definition: `PRIMARY KEY (${pkColumns.join(", ")})`, columns: pkColumns});
   } catch (_e) {
     // Constraints query is best-effort
   }
@@ -300,22 +325,21 @@ async function describeSQLite(request: Omit<SQLRequest, "query">, tableName: str
 
   // Get columns via PRAGMA table_info (returns: cid, name, type, notnull, dflt, pk)
   const colResult = await sendSQL({...request, query: `PRAGMA table_info('${tableName}')`});
+  const pkRows: {name: string, pos: number}[] = [];
   for (const r of colResult.rows) {
     const name = String(r[1]);
     const typ = String(r[2]);
     const notnull = [1 as unknown, true, "1"].includes(r[3]);
     const defaultVal = JSON.stringify(r[4] ?? "");
-    const pk = r[5] as boolean;
+    const pk = Number(r[5]); // 1-based position within a composite key
 
     columns.push({name, typename: typ, type: typ as ColumnType, nullable: !notnull, defaultValue: defaultVal});
-    if (pk) {
-      constraints.push({
-        name: "PRIMARY KEY",
-        type: "PRIMARY KEY",
-        definition: `PRIMARY KEY (${name})`,
-        columns: [name],
-      });
-    }
+    if (pk > 0)
+      pkRows.push({name, pos: pk});
+  }
+  if (pkRows.length > 0) {
+    const pkColumns = pkRows.sort((a, b) => a.pos - b.pos).map(r => r.name);
+    constraints.push({name: "PRIMARY KEY", type: "PRIMARY KEY", definition: `PRIMARY KEY (${pkColumns.join(", ")})`, columns: pkColumns});
   }
 
   // Get indexes

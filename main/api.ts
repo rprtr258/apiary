@@ -7,7 +7,7 @@ import {EmptyRequest as RedisEmptyRequest, sendRedis} from "./database/redis.ts"
 import {sendDIFF} from "./database/diff.ts";
 import {sendGRPC, grpcMethods, grpcQueryFake, grpcQueryValidate} from "./database/grpc.ts";
 import {parseSpec, generateExampleRequest, fetchSpec} from "./database/http_source.ts";
-import {listTables, describeTable, countRowsSQLSource, testSQLSource, buildTableUpdateScript, updateTableRows, EmptyRequest as SQLSourceEmptyRequest} from "./database/sql_source.ts";
+import {listTables, describeTable, countRowsSQLSource, testSQLSource, buildTableUpdateScript, buildReadTableQuery, updateTableRows, EmptyRequest as SQLSourceEmptyRequest} from "./database/sql_source.ts";
 import {EmptyRequest as MCPEmptyRequest, listTools as mcpListTools, callTool as mcpCallTool} from "./database/mcp.ts";
 import * as t from "@/types.ts";
 
@@ -222,14 +222,19 @@ export const GRPC = {
 };
 
 export const SQLSource = {
-  async Perform(id: t.RequestID, query: string): Promise<PerformResponse> {
+  async Perform(id: t.RequestID, read: t.TableRead): Promise<PerformResponse> {
     const req = await get(id);
     if (req.Kind !== t.Kind.SQLSource)
       throw new Error(`request ${id} is not SQLSource`);
 
     const sourceRequest = req.Data;
     const sent_at = new Date();
-    const sqlRequest: t.SQLRequest = {dsn: sourceRequest.dsn, database: sourceRequest.database, query, readOnly: sourceRequest.readOnly};
+    const sqlRequest: t.SQLRequest = {
+      dsn: sourceRequest.dsn,
+      database: sourceRequest.database,
+      query: await buildReadTableQuery(sourceRequest, read),
+      readOnly: sourceRequest.readOnly,
+    };
     const result = await sendSQL(sqlRequest);
     const received_at = new Date();
     return {

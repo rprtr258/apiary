@@ -85,9 +85,9 @@ export const api = {
 
   async requestPerformSQLSource(
     id: string,
-    query: string,
+    read: t.TableRead,
   ): Promise<Result<t.HistoryEntry>> {
-    return await wrap(() => Api.SQLSource.Perform(id, query), {reqId: id, query}) as Result<t.HistoryEntry>;
+    return await wrap(() => Api.SQLSource.Perform(id, read), {reqId: id, table: read.table}) as Result<t.HistoryEntry>;
   },
 
   async requestTestSQLSource(
