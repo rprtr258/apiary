@@ -1,4 +1,4 @@
-package redissql
+package engine
 
 import (
 	"io"
@@ -134,14 +134,19 @@ func (t *rlistTable) PartitionRows(ctx *sql.Context, _ sql.Partition) (sql.RowIt
 		thecursor = cursor
 	}
 
-	lens := make([]int64, len(allKeys))
-	for i, key := range allKeys {
+	keys := []string{}
+	lens := []int64{}
+	for _, key := range allKeys {
 		len, err := t.rdb.LLen(ctx, key)
 		if err != nil {
 			return nil, err
 		}
-		lens[i] = len
+		if len == 0 {
+			continue // key deleted between SCAN and LLEN
+		}
+		keys = append(keys, key)
+		lens = append(lens, len)
 	}
 
-	return &rlistRowIter{t.rdb, allKeys, lens, 0, 0}, nil
+	return &rlistRowIter{t.rdb, keys, lens, 0, 0}, nil
 }

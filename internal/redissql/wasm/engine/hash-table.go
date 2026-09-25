@@ -1,4 +1,4 @@
-package redissql
+package engine
 
 import (
 	"io"
@@ -147,7 +147,9 @@ func (t *rhashTable) PartitionRows(ctx *sql.Context, _ sql.Partition) (sql.RowIt
 		for key, val := range elems {
 			kvs = append(kvs, [2]string{key, val})
 		}
-
+		if len(kvs) == 0 {
+			continue // key deleted between SCAN and HGETALL
+		}
 		rows = append(rows, rhashRow{key, kvs})
 	}
 

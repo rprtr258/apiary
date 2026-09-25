@@ -37,7 +37,7 @@ jobs:
       - name: Setup Go for wasm engine
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: internal/redissql/wasm/go.mod
           cache-dependency-path: internal/redissql/wasm/go.sum
 
       - name: Setup Bun
@@ -99,7 +99,7 @@ jobs:
       - name: Setup Go for wasm engine
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: internal/redissql/wasm/go.mod
           cache-dependency-path: internal/redissql/wasm/go.sum
 
       - name: Setup Bun
@@ -161,7 +161,7 @@ jobs:
       - name: Setup Go for wasm engine
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: internal/redissql/wasm/go.mod
           cache-dependency-path: internal/redissql/wasm/go.sum
 
       - name: Setup Bun

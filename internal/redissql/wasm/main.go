@@ -13,7 +13,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 	"syscall/js"
@@ -22,7 +24,7 @@ import (
 	sqle "github.com/dolthub/go-mysql-server"
 	"github.com/dolthub/go-mysql-server/sql"
 
-	"github.com/rprtr258/apiary/internal/redissql"
+	"github.com/rprtr258/apiary/internal/redissql/wasm/engine"
 )
 
 // ---- bridge: goroutine blocks on a channel until the js promise settles ----
@@ -53,20 +55,25 @@ func jsCall(dsn, op string, args ...any) (json.RawMessage, error) {
 	}
 
 	promise := js.Global().Get("redisCall").Invoke(js.ValueOf(dsn), js.ValueOf(op), js.ValueOf(string(argsJSON)))
-	success := js.FuncOf(func(this js.Value, pargs []js.Value) any {
+	var success, failure js.Func
+	success = js.FuncOf(func(this js.Value, pargs []js.Value) any {
 		pendingMu.Lock()
 		ch := pending[id]
 		delete(pending, id)
 		pendingMu.Unlock()
 		ch <- bridgeReply{val: json.RawMessage(pargs[0].String())}
+		success.Release()
+		failure.Release()
 		return js.Undefined()
 	})
-	failure := js.FuncOf(func(this js.Value, pargs []js.Value) any {
+	failure = js.FuncOf(func(this js.Value, pargs []js.Value) any {
 		pendingMu.Lock()
 		ch := pending[id]
 		delete(pending, id)
 		pendingMu.Unlock()
 		ch <- bridgeReply{err: pargs[0].String()}
+		success.Release()
+		failure.Release()
 		return js.Undefined()
 	})
 	promise.Call("then", success, failure)
@@ -78,7 +85,7 @@ func jsCall(dsn, op string, args ...any) (json.RawMessage, error) {
 	return reply.val, nil
 }
 
-// ---- redissql.Client over the bridge ----
+// ---- engine.Client over the bridge ----
 
 type jsClient struct {
 	dsn     string
@@ -89,15 +96,6 @@ func (c *jsClient) DBIndex() int { return c.dbIndex }
 
 func (c *jsClient) call(op string, args ...any) (json.RawMessage, error) {
 	return jsCall(c.dsn, op, args...)
-}
-
-func (c *jsClient) Keys(ctx context.Context, pattern string) ([]string, error) {
-	raw, err := c.call("keys", pattern)
-	if err != nil {
-		return nil, err
-	}
-	var keys []string
-	return keys, json.Unmarshal(raw, &keys)
 }
 
 func (c *jsClient) Type(ctx context.Context, key string) (string, error) {
@@ -118,7 +116,8 @@ func (c *jsClient) ExpireTime(ctx context.Context, key string) (time.Duration, e
 	if err := json.Unmarshal(raw, &seconds); err != nil {
 		return 0, err
 	}
-	// mirror go-redis DurationCmd: negative values (-1, -2) are kept as-is
+	// mirror go-redis DurationCmd: negative values (-1) are kept as-is; the host
+	// already converted PTTL ms to seconds and mapped missing-key -2 onto -1
 	if seconds < 0 {
 		return time.Duration(seconds), nil
 	}
@@ -191,20 +190,21 @@ func (c *jsClient) HGetAll(ctx context.Context, key string) (map[string]string, 
 	return fields, json.Unmarshal(raw, &fields)
 }
 
-func (c *jsClient) ZRangeWithScores(ctx context.Context, key string, start, stop int64) ([]redissql.Z, error) {
+func (c *jsClient) ZRangeWithScores(ctx context.Context, key string, start, stop int64) ([]engine.Z, error) {
 	raw, err := c.call("zRangeWithScores", key, start, stop)
 	if err != nil {
 		return nil, err
 	}
-	var elems []redissql.Z
+	var elems []engine.Z
 	return elems, json.Unmarshal(raw, &elems)
 }
 
 // ---- entry ----
 
 type queryResult struct {
-	Columns []string            `json:"columns"`
-	Rows    [][]json.RawMessage `json:"rows"`
+	Columns   []string            `json:"columns"`
+	Typenames []string            `json:"typenames"`
+	Rows      [][]json.RawMessage `json:"rows"`
 }
 
 func main() {
@@ -230,28 +230,34 @@ func redissqlQuery(this js.Value, args []js.Value) any {
 			}()
 
 			client := &jsClient{dsn: dsn, dbIndex: dbIndex}
-			engine := sqle.NewDefault(redissql.NewProvider(client))
+			db := sqle.NewDefault(engine.NewProvider(client))
 
 			session := sql.NewBaseSession()
 			session.SetCurrentDatabase(fmt.Sprintf("db%d", dbIndex))
 			ctx := sql.NewContext(context.Background(), sql.WithSession(session))
 
-			schema, iter, _, err := engine.Query(ctx, query)
+			schema, iter, _, err := db.Query(ctx, query)
 			if err != nil {
 				reject.Invoke(js.ValueOf(err.Error()))
 				return
 			}
 
 			columns := make([]string, len(schema))
+			typenames := make([]string, len(schema))
 			for i, col := range schema {
 				columns[i] = col.Name
+				typenames[i] = col.Type.String()
 			}
 
-			result := queryResult{Columns: columns, Rows: [][]json.RawMessage{}}
+			result := queryResult{Columns: columns, Typenames: typenames, Rows: [][]json.RawMessage{}}
 			for {
 				row, err := iter.Next(ctx)
-				if err != nil {
+				if errors.Is(err, io.EOF) {
 					break
+				}
+				if err != nil {
+					reject.Invoke(js.ValueOf(err.Error()))
+					return
 				}
 				cells := make([]json.RawMessage, len(row))
 				for i, cell := range row {
@@ -274,5 +280,7 @@ func redissqlQuery(this js.Value, args []js.Value) any {
 		}()
 		return js.Undefined()
 	})
-	return js.Global().Get("Promise").New(handler)
+	promise := js.Global().Get("Promise").New(handler)
+	handler.Release() // executor ran synchronously inside Promise.New
+	return promise
 }

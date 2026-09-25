@@ -1,4 +1,4 @@
-package redissql
+package engine
 
 import (
 	"io"
@@ -128,13 +128,16 @@ func (t *rsetTable) PartitionRows(ctx *sql.Context, _ sql.Partition) (sql.RowIte
 		thecursor = cursor
 	}
 
-	sets := make([]rsetRow, len(allKeys))
-	for i, key := range allKeys {
+	sets := []rsetRow{}
+	for _, key := range allKeys {
 		elems, err := t.rdb.SMembers(ctx, key)
 		if err != nil {
 			return nil, err
 		}
-		sets[i] = rsetRow{key, elems}
+		if len(elems) == 0 {
+			continue // key deleted between SCAN and SMEMBERS
+		}
+		sets = append(sets, rsetRow{key, elems})
 	}
 
 	return &rsetRowIter{t.rdb, sets, 0, 0}, nil

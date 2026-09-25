@@ -1,4 +1,4 @@
-package redissql
+package engine
 
 import (
 	"io"
@@ -35,9 +35,10 @@ func (i *rkeyPartitionIter) Next(*sql.Context) (sql.Partition, error) {
 var _ sql.RowIter = (*rkeyRowIter)(nil)
 
 type rkeyRowIter struct {
-	rdb   Client
-	keys  []string
-	index int
+	rdb    Client
+	keys   []string
+	index  int
+	cursor uint64
 }
 
 func (*rkeyRowIter) Close(*sql.Context) error {
@@ -45,9 +46,21 @@ func (*rkeyRowIter) Close(*sql.Context) error {
 }
 
 func (i *rkeyRowIter) Next(ctx *sql.Context) (sql.Row, error) {
-	if i.index == len(i.keys) {
+	if i.cursor == 0 && i.index == len(i.keys) {
 		return nil, io.EOF
 	}
+
+	if i.index == len(i.keys) {
+		keys, cursor, err := i.rdb.ScanType(ctx, i.cursor, "*", 0, "")
+		if err != nil {
+			return nil, err
+		}
+
+		i.keys = keys
+		i.cursor = cursor
+		i.index = 0
+	}
+
 	key := i.keys[i.index]
 	i.index++
 
@@ -122,9 +135,9 @@ func (t *rkeyTable) Partitions(*sql.Context) (sql.PartitionIter, error) {
 	return &rkeyPartitionIter{}, nil
 }
 func (t *rkeyTable) PartitionRows(ctx *sql.Context, _ sql.Partition) (sql.RowIter, error) {
-	keys, err := t.rdb.Keys(ctx, "*")
+	keys, cursor, err := t.rdb.ScanType(ctx, 0, "*", 0, "")
 	if err != nil {
 		return nil, err
 	}
-	return &rkeyRowIter{t.rdb, keys, 0}, nil
+	return &rkeyRowIter{t.rdb, keys, 0, cursor}, nil
 }

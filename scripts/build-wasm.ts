@@ -14,8 +14,9 @@
 // Requires the go toolchain (skipped with a warning when absent, e.g. in CI
 // without Go; the runtime loader fails with a clear message instead).
 import {spawnSync} from "node:child_process";
-import {chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync} from "node:fs";
+import {chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync} from "node:fs";
 import path from "node:path";
+import {tmpdir} from "node:os";
 
 const root = path.resolve(import.meta.dirname, "..");
 const wasmModuleDir = path.join(root, "internal", "redissql", "wasm");
@@ -53,12 +54,21 @@ function main() {
   }
 
   // 1. shimmed vitess copy for the wasm build (read-only module cache -> writable build dir)
-  // go mod download first: on a cold cache `go list -m -f {{.Dir}}` reports
-  // an empty dir instead of fetching the module (graph pruning)
-  run("go", ["mod", "download", "github.com/dolthub/vitess"], {cwd: root});
-  const vitessDir = run("go", ["list", "-m", "-f", "{{.Dir}}", "github.com/dolthub/vitess"], {cwd: root}).trim();
+  // resolved in a throwaway module because the wasm module replaces vitess with
+  // build/vitess-js, which does not exist until after this copy. go mod edit
+  // -json is a pure file parse, safe to run against the wasm module directly.
+  const modJson = JSON.parse(run("go", ["mod", "edit", "-json"], {cwd: wasmModuleDir})) as {Require?: Array<{Path: string, Version: string}>};
+  const vitessVersion = modJson.Require?.find((r) => r.Path === "github.com/dolthub/vitess")?.Version;
+  if (vitessVersion === undefined) {
+    throw new Error("dolthub/vitess not in the require list of internal/redissql/wasm/go.mod");
+  }
+  const resolveDir = mkdtempSync(path.join(tmpdir(), "vitess-resolve-"));
+  writeFileSync(path.join(resolveDir, "go.mod"), "module vitessresolve\n\ngo 1.25\n");
+  const resolved = run("go", ["mod", "download", "-json", `github.com/dolthub/vitess@${vitessVersion}`], {cwd: resolveDir});
+  rmSync(resolveDir, {recursive: true, force: true});
+  const vitessDir = (JSON.parse(resolved) as {Dir?: string}).Dir ?? "";
   if (vitessDir === "") {
-    throw new Error("could not resolve dolthub/vitess module dir; is it in the root go.mod graph?");
+    throw new Error(`could not resolve dolthub/vitess@${vitessVersion} module dir`);
   }
   rmSync(vitessShimDir, {recursive: true, force: true});
   cpSync(vitessDir, vitessShimDir, {recursive: true, verbatimSymlinks: false});
@@ -80,7 +90,7 @@ function main() {
   // 3. wasm_exec glue from the same toolchain that built the module
   const goroot = run("go", ["env", "GOROOT"]).trim();
   const wasmExec = path.join(goroot, "lib", "wasm", "wasm_exec.js");
-  if (existsSync(wasmExec) === false) {
+  if (!existsSync(wasmExec)) {
     throw new Error(`wasm_exec.js not found at ${wasmExec}`);
   }
   copyFileSync(wasmExec, path.join(outDir, "redissql-wasm-exec.js"));

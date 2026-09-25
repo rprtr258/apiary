@@ -23,9 +23,8 @@ describe("commandFor", () => {
   test("maps bridge ops to redis commands", () => {
     expect(commandFor("scanType", [5, "*", 0, "hash"])).toEqual(["SCAN", "5", "MATCH", "*", "COUNT", "0", "TYPE", "hash"]);
     expect(commandFor("get", ["foo"])).toEqual(["GET", "foo"]);
-    expect(commandFor("keys", ["*"])).toEqual(["KEYS", "*"]);
     expect(commandFor("type", ["foo"])).toEqual(["TYPE", "foo"]);
-    expect(commandFor("expireTime", ["foo"])).toEqual(["EXPIRETIME", "foo"]);
+    expect(commandFor("expireTime", ["foo"])).toEqual(["PTTL", "foo"]);
     expect(commandFor("lLen", ["foo"])).toEqual(["LLEN", "foo"]);
     expect(commandFor("lIndex", ["foo", 3])).toEqual(["LINDEX", "foo", "3"]);
     expect(commandFor("sMembers", ["foo"])).toEqual(["SMEMBERS", "foo"]);
@@ -41,6 +40,15 @@ describe("commandFor", () => {
 describe("normalizeReply", () => {
   test("scanType splits cursor from keys", () => {
     expect(normalizeReply("scanType", ["7", ["a", "b"]])).toEqual({keys: ["a", "b"], cursor: 7});
+  });
+
+  test("expireTime converts PTTL ms to seconds", () => {
+    expect(normalizeReply("expireTime", 65000)).toBe(65);
+  });
+
+  test("expireTime maps negative replies to -1", () => {
+    expect(normalizeReply("expireTime", -1)).toBe(-1); // no expire
+    expect(normalizeReply("expireTime", -2)).toBe(-1); // missing key
   });
 
   test("hGetAll chunks flat RESP2 reply", () => {
@@ -95,7 +103,7 @@ describe("querySqlOverRedis end-to-end", async () => {
   const {querySqlOverRedis} = await import("./redissql.ts");
 
   test("runs SQL against redis data", async () => {
-    if (existsSync(wasmPath) === false || existsSync(wasmExecPath) === false) {
+    if (!existsSync(wasmPath) || !existsSync(wasmExecPath)) {
       console.warn("skipping redissql e2e: artifact missing, run bun run build:wasm");
       return;
     }
@@ -107,7 +115,7 @@ describe("querySqlOverRedis end-to-end", async () => {
   });
 
   test("rejects on SQL syntax errors", async () => {
-    if (existsSync(wasmPath) === false || existsSync(wasmExecPath) === false) {
+    if (!existsSync(wasmPath) || !existsSync(wasmExecPath)) {
       return;
     }
 
@@ -115,12 +123,51 @@ describe("querySqlOverRedis end-to-end", async () => {
   });
 
   test("pools clients per dsn", async () => {
-    if (existsSync(wasmPath) === false) {
+    if (!existsSync(wasmPath)) {
       return;
     }
 
     const {querySqlOverRedis: query} = await import("./redissql.ts");
     await query("localhost:6379", "SELECT * FROM rstring");
     await query("localhost:6379", "SELECT * FROM rstring"); // same client reused
+  });
+
+  test("lists redis tables via information_schema", async () => {
+    if (!existsSync(wasmPath)) {
+      return;
+    }
+
+    const result = await querySqlOverRedis("localhost:6379", "SELECT table_name FROM information_schema.TABLES WHERE table_schema = DATABASE()");
+    const names = result.rows.map(r => r[0]);
+    for (const table of ["rkey", "rstring", "rlist", "rset", "rhash", "rzset"]) {
+      expect(names).toContain(table);
+    }
+  });
+
+  test("counts rows", async () => {
+    if (!existsSync(wasmPath)) {
+      return;
+    }
+
+    const result = await querySqlOverRedis("localhost:6379", "SELECT COUNT(*) FROM rstring");
+    expect(result.rows).toEqual([[2]]);
+  });
+
+  test("runs SELECT 1 for connection test", async () => {
+    if (!existsSync(wasmPath)) {
+      return;
+    }
+
+    const result = await querySqlOverRedis("localhost:6379", "SELECT 1");
+    expect(result.rows).toEqual([[1]]);
+  });
+
+  test("rejects write statements at the engine", async () => {
+    if (!existsSync(wasmPath)) {
+      return;
+    }
+
+    expect(querySqlOverRedis("localhost:6379", "UPDATE rstring SET value = 'x' WHERE `key` = 'foo'"))
+      .rejects.toThrow("table doesn't support UPDATE");
   });
 });

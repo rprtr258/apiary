@@ -10,6 +10,7 @@ import {createClient} from "redis";
 
 export type RedissqlResult = {
   columns: string[],
+  typenames: string[],
   rows: unknown[][],
 };
 
@@ -32,11 +33,11 @@ function globals(): RedissqlGlobals {
 
 /** Normalize a dsn to a redis:// url and extract the logical db number. */
 export function parseRedisDsn(dsn: string): {url: string, db: number} {
-  const normalized = dsn.startsWith("redis://") === true ? dsn : `redis://${dsn}`;
+  const normalized = dsn.startsWith("redis://") ? dsn : `redis://${dsn}`;
   const url = new URL(normalized);
   const rawDb = url.pathname.replace("/", "");
   const parsed = rawDb === "" ? 0 : Number.parseInt(rawDb, 10);
-  return {url: normalized, db: Number.isNaN(parsed) === true ? 0 : parsed};
+  return {url: normalized, db: Number.isNaN(parsed) ? 0 : parsed};
 }
 
 /** Map a bridge op to the raw redis command argv. */
@@ -45,14 +46,17 @@ export function commandFor(op: string, args: unknown[]): string[] {
   switch (op) {
     case "scanType": {
       const [cursor, pattern, count, keyType] = args as [number, string, number, string];
-      return ["SCAN", String(cursor), "MATCH", pattern, "COUNT", String(count), "TYPE", keyType];
+      const argv = ["SCAN", String(cursor), "MATCH", pattern, "COUNT", String(count)];
+      if (keyType === "") {
+        return argv;
+      }
+      return [...argv, "TYPE", keyType];
     }
-    case "keys":
-      return ["KEYS", key];
     case "type":
       return ["TYPE", key];
     case "expireTime":
-      return ["EXPIRETIME", key];
+      // PTTL instead of EXPIRETIME (added in Redis 7.4); PTTL works since 2.6.
+      return ["PTTL", key];
     case "get":
       return ["GET", key];
     case "lLen":
@@ -77,6 +81,16 @@ export function normalizeReply(op: string, reply: unknown): unknown {
       const [cursor, keys] = reply as [number | string, string[]];
       return {keys, cursor: Number(cursor)};
     }
+    case "expireTime": {
+      // PTTL: ms until expiry, -1 no expire, -2 missing key; the wasm engine
+      // wants seconds with -1 meaning "no expire", so missing keys map to -1
+      // too (rkey must not emit a pre-epoch timestamp for them).
+      const ms = Number(reply);
+      if (ms < 0) {
+        return -1;
+      }
+      return Math.floor(ms / 1000);
+    }
     case "hGetAll": {
       // RESP2: flat [field, value, ...]; RESP3/node-redis: Map or object
       if (reply instanceof Map) {
@@ -92,7 +106,7 @@ export function normalizeReply(op: string, reply: unknown): unknown {
       return reply;
     }
     case "zRangeWithScores": {
-      if (Array.isArray(reply) === false) {
+      if (!Array.isArray(reply)) {
         throw new Error(`unexpected ZRANGE reply: ${JSON.stringify(reply)}`);
       }
       if (reply.length === 0 || Array.isArray(reply[0])) {
@@ -146,7 +160,7 @@ function load(): Promise<RedissqlGlobals> {
   loadPromise = (async () => {
     try {
       const wasmExec = artifactPath("redissql-wasm-exec.js");
-      if (existsSync(wasmExec) === false || existsSync(artifactPath("redissql.wasm")) === false) {
+      if (!existsSync(wasmExec) || !existsSync(artifactPath("redissql.wasm"))) {
         throw new Error("redissql.wasm is not built; run: bun run build:wasm");
       }
 
