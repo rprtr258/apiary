@@ -1,9 +1,4 @@
-declare module "*.md" {
-  const content: string;
-  export default content;
-}
-
-declare module "*.proto" {
+declare module "*?raw" {
   const content: string;
   export default content;
 }
