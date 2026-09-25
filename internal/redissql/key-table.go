@@ -1,4 +1,4 @@
-package main
+package redissql
 
 import (
 	"io"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/dolthub/go-mysql-server/sql/types"
-	redis "github.com/redis/go-redis/v9"
 )
 
 var _ sql.Partition = (*rkeyPartition)(nil)
@@ -36,7 +35,7 @@ func (i *rkeyPartitionIter) Next(*sql.Context) (sql.Partition, error) {
 var _ sql.RowIter = (*rkeyRowIter)(nil)
 
 type rkeyRowIter struct {
-	rdb   *redis.Client
+	rdb   Client
 	keys  []string
 	index int
 }
@@ -52,12 +51,12 @@ func (i *rkeyRowIter) Next(ctx *sql.Context) (sql.Row, error) {
 	key := i.keys[i.index]
 	i.index++
 
-	typ, err := i.rdb.Type(ctx, key).Result()
+	typ, err := i.rdb.Type(ctx, key)
 	if err != nil {
 		return nil, err
 	}
 
-	expUnix, err := i.rdb.ExpireTime(ctx, key).Result()
+	expUnix, err := i.rdb.ExpireTime(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +78,7 @@ func (i *rkeyRowIter) Next(ctx *sql.Context) (sql.Row, error) {
 var _ sql.Table = (*rkeyTable)(nil)
 
 type rkeyTable struct {
-	rdb *redis.Client
+	rdb Client
 }
 
 func (*rkeyTable) Name() string               { return "rkey" }
@@ -123,7 +122,7 @@ func (t *rkeyTable) Partitions(*sql.Context) (sql.PartitionIter, error) {
 	return &rkeyPartitionIter{}, nil
 }
 func (t *rkeyTable) PartitionRows(ctx *sql.Context, _ sql.Partition) (sql.RowIter, error) {
-	keys, err := t.rdb.Keys(ctx, "*").Result()
+	keys, err := t.rdb.Keys(ctx, "*")
 	if err != nil {
 		return nil, err
 	}

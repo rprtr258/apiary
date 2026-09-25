@@ -1,4 +1,4 @@
-package main
+package redissql
 
 import (
 	"io"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/dolthub/go-mysql-server/sql/types"
-	redis "github.com/redis/go-redis/v9"
 )
 
 var _ sql.Partition = (*rzsetPartition)(nil)
@@ -37,11 +36,11 @@ var _ sql.RowIter = (*rzsetRowIter)(nil)
 
 type rzsetRow struct {
 	key   string
-	elems []redis.Z
+	elems []Z
 }
 
 type rzsetRowIter struct {
-	rdb       *redis.Client
+	rdb       Client
 	rows      []rzsetRow
 	indexKey  int
 	indexRank int
@@ -61,7 +60,7 @@ func (i *rzsetRowIter) Next(ctx *sql.Context) (sql.Row, error) {
 
 	key := set.key
 	row := set.elems[i.indexRank]
-	value := row.Member.(string)
+	value := row.Member
 	score := row.Score
 
 	str := any(nil)
@@ -88,7 +87,7 @@ func (i *rzsetRowIter) Next(ctx *sql.Context) (sql.Row, error) {
 var _ sql.Table = (*rzsetTable)(nil)
 
 type rzsetTable struct {
-	rdb *redis.Client
+	rdb Client
 }
 
 func (*rzsetTable) Name() string               { return "rzset" }
@@ -134,7 +133,7 @@ func (t *rzsetTable) Partitions(*sql.Context) (sql.PartitionIter, error) {
 func (t *rzsetTable) PartitionRows(ctx *sql.Context, _ sql.Partition) (sql.RowIter, error) {
 	allKeys := []string{}
 	for thecursor := uint64(0); ; {
-		keys, cursor, err := t.rdb.ScanType(ctx, thecursor, "*", 0, "zset").Result()
+		keys, cursor, err := t.rdb.ScanType(ctx, thecursor, "*", 0, "zset")
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +146,7 @@ func (t *rzsetTable) PartitionRows(ctx *sql.Context, _ sql.Partition) (sql.RowIt
 
 	rows := []rzsetRow{}
 	for _, key := range allKeys {
-		elems, err := t.rdb.ZRangeWithScores(ctx, key, 0, -1).Result()
+		elems, err := t.rdb.ZRangeWithScores(ctx, key, 0, -1)
 		if err != nil {
 			return nil, err
 		}

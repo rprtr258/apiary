@@ -23,6 +23,7 @@
 
 - **Lint and Typecheck**: `bun run ci`
 - **Build Frontend**: `bun run build`
+- **Build Wasm Engine**: `bun run build:wasm` (requires the go toolchain; runs automatically as part of `bun run build` when go is present; outputs to `dist-electron/redissql.wasm` + `redissql-wasm-exec.js`)
 - **Build Desktop App**: `bun run dist:linux` (or `dist:mac` / `dist:win`)
 - **Run Unit Tests**: `bun run test`
 - **Run Integration Tests**: `bun run test:integration`, only run when user asks explicitly
@@ -35,9 +36,12 @@ apiary is a cross-platform desktop application for managing various API requests
 
 - **Tech Stack**: TypeScript, Electron, Vite, CodeMirror, JSON DB.
 - **Directories**:
-  - `main/`: Electron main process - `api.ts` (API facade), `db.ts` (JSON DB), `database/`: plugin implementations (HTTP, SQL, gRPC, Redis, etc.).
+  - `main/`: Electron main process - `api.ts` (API facade), `db.ts` (JSON DB), `database/`: plugin implementations (HTTP, SQL, gRPC, Redis, etc.), `redissql.ts`: SQL-over-redis engine loader.
   - `renderer/`: Vanilla TypeScript UI components and logic.
   - `shared/`: Shared types and utilities (`types.ts` with the `Kind` enum, imported as `@/types.ts`).
+  - `internal/redissql/`: Go SQL-over-redis engine (tables rkey/rstring/rlist/rset/rhash/rzset backed by a redis `Client` interface).
+  - `internal/redissql/wasm/`: separate Go module building the engine for `GOOS=js GOARCH=wasm`; exposes `redissqlQuery(dsn, dbIndex, query)` and calls back into the host via `redisCall`.
+  - `build/vitess-js/`: generated at wasm-build time - a shimmed copy of dolthub/vitess (`syscall.SIGHUP` -> `syscall.Signal(1)`, identical value; the auth-server code using it is dead in wasm). See the rationale comment in `internal/redissql/wasm/go.mod`.
 
 ## Code Style
 
