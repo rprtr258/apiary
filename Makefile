@@ -11,6 +11,10 @@ db_drop:
 build:
   bun run build
 
+.PHONY: wasm
+wasm:
+  bun run build:wasm
+
 .PHONY: dev
 dev:
   bun run dev

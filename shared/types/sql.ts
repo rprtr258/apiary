@@ -3,6 +3,7 @@ export const Database = {
   ["mysql"]:      "MySQL",
   ["sqlite"]:     "SQLite",
   ["clickhouse"]: "ClickHouse",
+  ["redis"]:      "Redis",
 } as const;
 
 export type Database = keyof typeof Database;

@@ -3,6 +3,7 @@ import * as pg from "./sql.postgres.ts";
 import * as mysql from "./sql.mysql.ts";
 import * as sqlite from "./sql.sqlite.ts";
 import * as ch from "./sql.ch.ts";
+import * as redis from "./sql.redis.ts";
 
 export const EmptyRequest: SQLRequest = {
   dsn: ":memory:", // TODO: insert last dsn used
@@ -16,6 +17,7 @@ export async function sendSQL(request: SQLRequest): Promise<SQLResponse> {
     "mysql":      mysql.send,
     "sqlite":     sqlite.send,
     "clickhouse": ch.send,
+    "redis":      redis.send,
   }[request.database](request);
 }
 
@@ -27,5 +29,6 @@ export async function sendSQLBatch(request: Omit<SQLRequest, "query">, statement
     "mysql":      mysql.sendBatch,
     "sqlite":     sqlite.sendBatch,
     "clickhouse": ch.sendBatch,
+    "redis":      redis.sendBatch,
   }[request.database](request, statements);
 }

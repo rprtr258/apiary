@@ -1,4 +1,4 @@
-import {spawn} from "node:child_process";
+import {spawn, spawnSync} from "node:child_process";
 import {fileURLToPath} from "node:url";
 import {build as electronBuild} from "vite-plugin-electron";
 import {mainProcessOptions, preloadProcessOptions} from "../vite.electron-options.ts";
@@ -19,6 +19,16 @@ const [rendererExitCode, electronError] = await Promise.all([
   (async () => {
     await electronBuild(mainProcessOptions);
     await electronBuild(preloadProcessOptions);
+    // the wasm engine build needs the go toolchain; skip with a warning when
+    // absent (e.g. CI without go) instead of failing the whole build
+    if (spawnSync("go", ["version"]).error === undefined) {
+      await new Promise((resolve, reject) => {
+        const wasm = spawn("bun", ["scripts/build-wasm.ts"], {stdio: "inherit"});
+        wasm.on("close", code => code === 0 ? resolve(null) : reject(new Error(`build-wasm exited ${code}`)));
+      });
+    } else {
+      console.warn("go not found, skipping redissql.wasm build (bun run build:wasm)");
+    }
   })().then(
     () => null,
     (err: unknown) => err,

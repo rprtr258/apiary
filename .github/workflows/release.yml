@@ -34,6 +34,12 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
+      - name: Setup Go for wasm engine
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: internal/redissql/wasm/go.sum
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -90,6 +96,12 @@ jobs:
             echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Setup Go for wasm engine
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: internal/redissql/wasm/go.sum
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -145,6 +157,12 @@ jobs:
             $version = $tag -replace 'refs/tags/v', ''
             echo "version=$version" >> $env:GITHUB_OUTPUT
           }
+
+      - name: Setup Go for wasm engine
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: internal/redissql/wasm/go.sum
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
