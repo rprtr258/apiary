@@ -3,6 +3,7 @@ import * as pg from "./sql.postgres.ts";
 import * as mysql from "./sql.mysql.ts";
 import * as sqlite from "./sql.sqlite.ts";
 import * as ch from "./sql.ch.ts";
+import * as redis from "./sql.redis.ts";
 
 export const EmptyRequest: SQLRequest = {
   dsn: ":memory:", // TODO: insert last dsn used
@@ -16,6 +17,7 @@ export async function send(request: SQLRequest): Promise<SQLResponse> {
     mysql:      mysql.send,
     sqlite:     sqlite.send,
     clickhouse: ch.send,
+    redis:      redis.send,
   }[request.database](request);
 }
 
@@ -27,6 +29,7 @@ export async function sendBatch(request: Omit<SQLRequest, "query">, statements: 
     mysql:      mysql.sendBatch,
     sqlite:     sqlite.sendBatch,
     clickhouse: ch.sendBatch,
+    redis:      redis.sendBatch,
   }[request.database](request, statements);
 }
 
@@ -36,6 +39,7 @@ export const quoteIdent: Record<Database, (s: string) => string> = {
   mysql:      (s: string) => "`" + s + "`",
   sqlite:     (s: string) => "`" + s + "`",
   clickhouse: (s: string) => "`" + s.replaceAll("`", "\\`") + "`",
+  redis:      (s: string) => "`" + s.replaceAll("`", "``") + "`",
 };
 
 export async function describeTable(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
@@ -44,6 +48,7 @@ export async function describeTable(request: Omit<SQLRequest, "query">, tableNam
     mysql:      mysql.describe,
     sqlite:     sqlite.describe,
     clickhouse: ch.describe,
+    redis:      redis.describe,
   }[request.database](request, tableName);
 }
 
@@ -53,6 +58,7 @@ export async function listTables(request: Omit<SQLRequest, "query">): Promise<Ta
     mysql: mysql.listTables,
     sqlite: sqlite.listTables,
     clickhouse: ch.listTables,
+    redis: redis.listTables,
   }[request.database](request);
   return tables.toSorted((a, b) => a.name.localeCompare(b.name));
 }

@@ -1,4 +1,4 @@
-package redissql
+package engine
 
 import (
 	"io"
@@ -8,36 +8,13 @@ import (
 	"github.com/dolthub/go-mysql-server/sql/types"
 )
 
-var _ sql.Partition = (*rkeyPartition)(nil)
-
-type rkeyPartition struct{}
-
-func (*rkeyPartition) Key() []byte { return nil }
-
-var _ sql.PartitionIter = (*rkeyPartitionIter)(nil)
-
-type rkeyPartitionIter struct {
-	end bool
-}
-
-func (*rkeyPartitionIter) Close(*sql.Context) error {
-	return nil
-}
-
-func (i *rkeyPartitionIter) Next(*sql.Context) (sql.Partition, error) {
-	if i.end {
-		return nil, io.EOF
-	}
-	i.end = true
-	return &rkeyPartition{}, nil
-}
-
 var _ sql.RowIter = (*rkeyRowIter)(nil)
 
 type rkeyRowIter struct {
-	rdb   Client
-	keys  []string
-	index int
+	rdb    Client
+	keys   []string
+	index  int
+	cursor uint64
 }
 
 func (*rkeyRowIter) Close(*sql.Context) error {
@@ -45,34 +22,49 @@ func (*rkeyRowIter) Close(*sql.Context) error {
 }
 
 func (i *rkeyRowIter) Next(ctx *sql.Context) (sql.Row, error) {
-	if i.index == len(i.keys) {
-		return nil, io.EOF
-	}
-	key := i.keys[i.index]
-	i.index++
+	for {
+		if i.cursor == 0 && i.index == len(i.keys) {
+			return nil, io.EOF
+		}
 
-	typ, err := i.rdb.Type(ctx, key)
-	if err != nil {
-		return nil, err
-	}
+		if i.index == len(i.keys) {
+			keys, cursor, err := i.rdb.ScanType(ctx, i.cursor, "*", 0, "")
+			if err != nil {
+				return nil, err
+			}
 
-	expUnix, err := i.rdb.ExpireTime(ctx, key)
-	if err != nil {
-		return nil, err
-	}
-	exp := any(nil)
-	if expUnix != -1 {
-		exp = time.Unix(0, 0).Add(expUnix)
-	}
+			i.keys = keys
+			i.cursor = cursor
+			i.index = 0
+			continue // exhausted page: re-check for end-of-scan before indexing
+		}
 
-	return sql.Row{
-		key,
-		typ,
-		exp,
-		// 0,   // TODO: fill?
-		// 0,   // TODO: fill?
-		// nil, // TODO: fill?
-	}, nil
+		key := i.keys[i.index]
+		i.index++
+
+		typ, err := i.rdb.Type(ctx, key)
+		if err != nil {
+			return nil, err
+		}
+
+		expMs, err := i.rdb.ExpireTime(ctx, key)
+		if err != nil {
+			return nil, err
+		}
+		exp := any(nil)
+		if expMs != -1 {
+			exp = time.Unix(0, 0).Add(expMs)
+		}
+
+		return sql.Row{
+			key,
+			typ,
+			exp,
+			// 0,   // TODO: fill?
+			// 0,   // TODO: fill?
+			// nil, // TODO: fill?
+		}, nil
+	}
 }
 
 var _ sql.Table = (*rkeyTable)(nil)
@@ -119,12 +111,12 @@ func (t *rkeyTable) Schema() sql.Schema {
 
 // TODO: partitions by types ?
 func (t *rkeyTable) Partitions(*sql.Context) (sql.PartitionIter, error) {
-	return &rkeyPartitionIter{}, nil
+	return &partitionIter{}, nil
 }
 func (t *rkeyTable) PartitionRows(ctx *sql.Context, _ sql.Partition) (sql.RowIter, error) {
-	keys, err := t.rdb.Keys(ctx, "*")
+	keys, cursor, err := t.rdb.ScanType(ctx, 0, "*", 0, "")
 	if err != nil {
 		return nil, err
 	}
-	return &rkeyRowIter{t.rdb, keys, 0}, nil
+	return &rkeyRowIter{t.rdb, keys, 0, cursor}, nil
 }
