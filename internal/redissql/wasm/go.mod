@@ -2,10 +2,7 @@ module github.com/rprtr258/apiary/internal/redissql/wasm
 
 go 1.25
 
-require (
-	github.com/dolthub/go-mysql-server v0.20.0
-	github.com/rprtr258/apiary v0.0.0
-)
+require github.com/dolthub/go-mysql-server v0.20.0
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -40,8 +37,6 @@ require (
 // the auth-server code using it is dead in a wasm build with no wire server).
 // scripts/build-wasm.ts generates a shimmed copy under build/vitess-js
 // (syscall.SIGHUP -> syscall.Signal(1), identical value) and the replace makes
-// the wasm build use it. Only this module is affected; native builds use
-// upstream vitess untouched.
+// the wasm build use it. Only this module is affected; the shim is the
+// authoritative vitess copy.
 replace github.com/dolthub/vitess => ../../../build/vitess-js
-
-replace github.com/rprtr258/apiary => ../../..

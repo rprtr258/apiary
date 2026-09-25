@@ -1,4 +1,6 @@
 import {describe, test, expect, beforeAll, afterAll} from "bun:test";
+import {existsSync} from "node:fs";
+import path from "node:path";
 import {SQLRequest, RedisRequest, ColumnType} from "@/types.ts";
 import * as sql from "./database/sql.ts";
 import * as sql_source from "./database/sql_source.ts";
@@ -87,6 +89,11 @@ describe.if(IS_INTEGRATION)("SQLSource (postgres)", () => {
 
 const redisDSN = process.env.REDIS_DSN ?? "redis://localhost:6379";
 
+// redissql wasm artifact (built by bun run build:wasm); sql-over-redis tests
+// skip when missing, mirroring main/redissql.test.ts
+const wasmPath = path.resolve(import.meta.dirname, "..", "dist-electron", "redissql.wasm");
+const wasmExecPath = path.resolve(import.meta.dirname, "..", "dist-electron", "redissql-wasm-exec.js");
+
 function req(query: string): RedisRequest {
   return {dsn: redisDSN, query};
 }
@@ -106,6 +113,27 @@ describe.if(IS_INTEGRATION)("redis.send", () => {
   test("KEYS returns array", async () => {
     const result = await redis.send(req("KEYS *"));
     expect(typeof result.response).toBe("string");
+  });
+});
+
+describe.if(IS_INTEGRATION)("sql.send (redis)", () => {
+  function sqlReq(query: string): SQLRequest {
+    return {dsn: redisDSN, database: "redis", query, readOnly: true};
+  }
+
+  test("zset scores of ±inf round-trip as strings", async () => {
+    if (!existsSync(wasmPath) || !existsSync(wasmExecPath)) {
+      console.warn("skipping sql-over-redis integration: artifact missing, run bun run build:wasm");
+      return;
+    }
+    await redis.send(req("ZADD test:zinf +inf first -inf second"));
+    try {
+      const result = await sql.send(sqlReq("SELECT `rank`, score, value FROM rzset WHERE `key` = 'test:zinf' ORDER BY value"));
+      // json has no infinity: scores cross the bridge as the redis score strings
+      expect(result.rows).toEqual([[1, "+inf", "first"], [0, "-inf", "second"]]);
+    } finally {
+      await redis.send(req("DEL test:zinf"));
+    }
   });
 });
 

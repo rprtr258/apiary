@@ -66,8 +66,10 @@ async function main() {
   };
   for (const [label, env] of Object.entries(testEnvs)) {
     console.log(styleText("cyanBright", `Running unit tests [${label}]...`));
-    await runCommand(["bun", "run", "test"], env);
+    await runCommand(["bun", "run", "test:unit"], env);
   }
+  console.log(styleText("cyanBright", "Running Go tests..."));
+  await runCommand(["bun", "run", "test:go"]);
   console.log(styleText("greenBright", "CI checks completed successfully!"));
 }
 

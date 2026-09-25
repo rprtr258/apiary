@@ -157,6 +157,7 @@ User -> renderer state (store/signals) -> `window.api` (IPC invoke) -> `main.ts`
 
 - **Backend**: Unit tests per plugin (`main/database/*_test.ts`), plus `main/api.test.ts` and `main/db.test.ts` (`bun run test`)
 - **Frontend**: Component tests (`renderer/plugins/*/viewer.test.ts`, `renderer/plugins/cache.test.ts`, `renderer/components/*`, `renderer/lib/*`) (`bun run test`)
+- **Go wasm engine**: Go tests of `internal/redissql/wasm` via `bun run test:go`, part of `bun run test` (runs under `GOOS=js GOARCH=wasm` via go's wasm exec wrapper; skipped when go is absent)
 - **Integration**: `main/integration.test.ts` via `bun run test:integration` (`INTEGRATION=1`)
 - **E2E**: Playwright (`renderer/e2e/`) via `bun run test:e2e` (builds first)
 

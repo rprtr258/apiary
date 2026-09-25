@@ -6,10 +6,12 @@ import {existsSync} from "node:fs";
 import {readFile} from "node:fs/promises";
 import {createRequire} from "node:module";
 import path from "node:path";
+import {createClientPool} from "./database/connection_pool.ts";
 import {createClient} from "redis";
 
 export type RedissqlResult = {
   columns: string[],
+  typenames: string[],
   rows: unknown[][],
 };
 
@@ -45,20 +47,25 @@ export function commandFor(op: string, args: unknown[]): string[] {
   switch (op) {
     case "scanType": {
       const [cursor, pattern, count, keyType] = args as [number, string, number, string];
-      return ["SCAN", String(cursor), "MATCH", pattern, "COUNT", String(count), "TYPE", keyType];
+      // count <= 0 means "no hint": redis requires COUNT >= 1 and rejects
+      // COUNT 0 with a syntax error, so the clause is omitted entirely.
+      const argv = count > 0
+        ? ["SCAN", String(cursor), "MATCH", pattern, "COUNT", String(count)]
+        : ["SCAN", String(cursor), "MATCH", pattern];
+      if (keyType === "") {
+        return argv;
+      }
+      return [...argv, "TYPE", keyType];
     }
-    case "keys":
-      return ["KEYS", key];
     case "type":
       return ["TYPE", key];
     case "expireTime":
-      return ["EXPIRETIME", key];
-    case "get":
-      return ["GET", key];
-    case "lLen":
-      return ["LLEN", key];
-    case "lIndex":
-      return ["LINDEX", key, String(args[1])];
+      // PTTL instead of EXPIRETIME (added in Redis 7.4); PTTL works since 2.6.
+      return ["PTTL", key];
+    case "mGet":
+      return ["MGET", ...(args[0] as string[])];
+    case "lRange":
+      return ["LRANGE", key, String(args[1]), String(args[2])];
     case "sMembers":
       return ["SMEMBERS", key];
     case "hGetAll":
@@ -70,12 +77,28 @@ export function commandFor(op: string, args: unknown[]): string[] {
   }
 }
 
+/** One ZRANGE WITHSCORES pair in the shape the wasm engine expects. Finite
+ * scores cross as json numbers; json has no infinity, so non-finite ones keep
+ * the raw redis score string ("+inf"/"-inf") for strconv.ParseFloat on the
+ * Go side. */
+function zRangeElem([member, score]: [string, unknown]): {member: string, score: number | string} {
+  const num = Number(score);
+  return {member, score: Number.isFinite(num) ? num : String(score)};
+}
+
 /** Map a raw redis reply to the json shape the wasm engine expects. */
 export function normalizeReply(op: string, reply: unknown): unknown {
   switch (op) {
     case "scanType": {
       const [cursor, keys] = reply as [number | string, string[]];
       return {keys, cursor: Number(cursor)};
+    }
+    case "expireTime": {
+      // PTTL: ms until expiry, -1 no expire, -2 missing key; the wasm engine
+      // wants ms with -1 meaning "no expire", so missing keys map to -1 too
+      // (rkey must not emit a pre-epoch timestamp for them).
+      const ms = Number(reply);
+      return ms < 0 ? -1 : ms;
     }
     case "hGetAll": {
       // RESP2: flat [field, value, ...]; RESP3/node-redis: Map or object
@@ -92,15 +115,24 @@ export function normalizeReply(op: string, reply: unknown): unknown {
       return reply;
     }
     case "zRangeWithScores": {
+      // RESP2: flat [member, score, ...]; RESP3/node-redis: Map. Every shape
+      // normalizes to {member, score} objects (zRangeElem), so raw pairs
+      // would fail on the Go side.
+      if (reply === null || (Array.isArray(reply) && reply.length === 0)) {
+        return [];
+      }
+      if (reply instanceof Map) {
+        return [...reply].map(zRangeElem);
+      }
       if (!Array.isArray(reply)) {
         throw new Error(`unexpected ZRANGE reply: ${JSON.stringify(reply)}`);
       }
-      if (reply.length === 0 || Array.isArray(reply[0])) {
-        return reply; // already [[member, score], ...] pairs
+      if (Array.isArray(reply[0])) {
+        return reply.map(zRangeElem);
       }
-      const elems: {member: string, score: number}[] = [];
+      const elems: {member: string, score: number | string}[] = [];
       for (let i = 0; i < reply.length; i += 2) {
-        elems.push({member: reply[i] as string, score: Number(reply[i + 1])});
+        elems.push(zRangeElem([reply[i] as string, reply[i + 1]]));
       }
       return elems;
     }
@@ -109,22 +141,22 @@ export function normalizeReply(op: string, reply: unknown): unknown {
   }
 }
 
-const clients = new Map<string, Promise<RedisClient>>();
-
-function clientFor(dsn: string): Promise<RedisClient> {
-  const {url} = parseRedisDsn(dsn);
-  const existing = clients.get(url);
-  if (existing !== undefined) {
-    return existing;
-  }
-  const client = createClient({url});
-  const connected = client.connect().then(() => client);
-  clients.set(url, connected);
-  connected.catch(() => {
-    clients.delete(url); // allow a retry on the next query
-  });
-  return connected;
-}
+// Clients are pooled per redis:// url (so dsns differing only in a database
+// path get separate clients) - connect dedup, idle close and self-healing on
+// errors are the generic pool's job.
+const pool = createClientPool<RedisClient, string>({
+  keyOf: (url) => url,
+  connect: async (url) => {
+    // reconnectStrategy: false — a lost server must surface as an operation
+    // error (which evicts the client) instead of parking commands in the
+    // offline queue while the client retries forever in the background.
+    const client = createClient({url, socket: {reconnectStrategy: false}});
+    client.on("error", () => pool.evict(url, client)); // dropped connection: drop the client, next request reconnects
+    await client.connect();
+    return client;
+  },
+  close: async (client) => client.destroy(),
+});
 
 // Artifacts sit next to the bundled main.js in production; fall back to the
 // repo dist-electron/ when running from source (tests, unbundled scripts).
@@ -159,8 +191,8 @@ function load(): Promise<RedissqlGlobals> {
 
       g.redisCall = async (dsn, op, argsJson) => {
         const args = JSON.parse(argsJson) as unknown[];
-        const client = await clientFor(dsn);
-        const reply = await client.sendCommand(commandFor(op, args));
+        const {url} = parseRedisDsn(dsn);
+        const reply = await pool.run(url, (client) => client.sendCommand(commandFor(op, args)));
         return JSON.stringify(normalizeReply(op, reply));
       };
 
