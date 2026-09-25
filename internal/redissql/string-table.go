@@ -1,4 +1,4 @@
-package main
+package redissql
 
 import (
 	"io"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/dolthub/go-mysql-server/sql/types"
-	redis "github.com/redis/go-redis/v9"
 )
 
 var _ sql.Partition = (*rstringPartition)(nil)
@@ -36,7 +35,7 @@ func (i *rstringPartitionIter) Next(*sql.Context) (sql.Partition, error) {
 var _ sql.RowIter = (*rstringRowIter)(nil)
 
 type rstringRowIter struct {
-	rdb    *redis.Client
+	rdb    Client
 	keys   []string
 	index  int
 	cursor uint64
@@ -52,7 +51,7 @@ func (i *rstringRowIter) Next(ctx *sql.Context) (sql.Row, error) {
 	}
 
 	if i.index == len(i.keys) {
-		keys, cursor, err := i.rdb.ScanType(ctx, i.cursor, "*", 0, "string").Result()
+		keys, cursor, err := i.rdb.ScanType(ctx, i.cursor, "*", 0, "string")
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +64,7 @@ func (i *rstringRowIter) Next(ctx *sql.Context) (sql.Row, error) {
 	key := i.keys[i.index]
 	i.index++
 
-	value, err := i.rdb.Get(ctx, key).Result()
+	value, err := i.rdb.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +84,7 @@ func (i *rstringRowIter) Next(ctx *sql.Context) (sql.Row, error) {
 var _ sql.Table = (*rstringTable)(nil)
 
 type rstringTable struct {
-	rdb *redis.Client
+	rdb Client
 }
 
 func (*rstringTable) Name() string               { return "rstring" }
@@ -119,7 +118,7 @@ func (t *rstringTable) Partitions(*sql.Context) (sql.PartitionIter, error) {
 	return &rstringPartitionIter{}, nil
 }
 func (t *rstringTable) PartitionRows(ctx *sql.Context, _ sql.Partition) (sql.RowIter, error) {
-	keys, cursor, err := t.rdb.ScanType(ctx, 0, "*", 0, "string").Result()
+	keys, cursor, err := t.rdb.ScanType(ctx, 0, "*", 0, "string")
 	if err != nil {
 		return nil, err
 	}
