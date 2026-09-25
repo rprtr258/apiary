@@ -391,6 +391,33 @@ describe("TableViewer toolbar", () => {
     await waitFor(() => expect(buildCalls).toEqual([["s1", "users", ["id"], [{pkValues: [1], column: "name", value: "x"}]]]));
   });
 
+  test("foreign keys render in the Relations tab and are excluded from Constraints", async () => {
+    state.schema = {
+      columns: [col("id", t.ColumnType.NUMBER), col("user_id", t.ColumnType.NUMBER)],
+      constraints: [
+        {name: "PRIMARY", type: "PRIMARY KEY", definition: "PRIMARY KEY (id)", columns: ["id"]},
+        {name: "fk_user", type: "FOREIGN KEY", definition: "FOREIGN KEY (user_id) REFERENCES users (id)", columns: ["user_id"]},
+      ],
+      foreign_keys: [{name: "fk_user", column: "user_id", schema: "public", table: "users", to: "id", onUpdate: "CASCADE", onDelete: "SET NULL"}],
+      indexes: [],
+    };
+    const el = makeViewer();
+    // NTabs keeps every tab's content in the DOM (inactive tabs are hidden):
+    // children are [header, data, schema, indexes, constraints, relations]
+    const contents = el.children[0].children;
+    const relations = contents[5] as HTMLElement;
+    const constraintsTab = contents[4] as HTMLElement;
+    await waitFor(() => expect(relations.textContent).toContain("fk_user"));
+    expect(relations.textContent).toContain("user_id");
+    expect(relations.textContent).toContain("public");
+    expect(relations.textContent).toContain("CASCADE");
+    expect(relations.textContent).toContain("SET NULL");
+    // foreign keys no longer appear in the constraints tab
+    expect(constraintsTab.textContent).not.toContain("fk_user");
+    expect(constraintsTab.textContent).not.toContain("FOREIGN KEY");
+    expect(constraintsTab.textContent).toContain("PRIMARY");
+  });
+
   test("cancel clears edits", async () => {
     const el = makeViewer();
     const container = el.querySelector("[data-testid=\"data-container\"]")!;

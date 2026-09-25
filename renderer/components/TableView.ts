@@ -635,6 +635,7 @@ export default function(
   const schemaTable = DataTable();
   const indexesTable = DataTable();
   const constraintsTable = DataTable();
+  const relationsTable = DataTable();
   const loading = signal(false);
   const currentPage = signal(0);
   const totalRows = signal(tableInfo.rowCount);
@@ -844,7 +845,7 @@ export default function(
       return;
     }
 
-    const {columns, indexes, constraints} = res.value;
+    const {columns, indexes, constraints, foreign_keys} = res.value;
     // Schema (columns)
     schemaTable.update({
       columns: ["Name", "Type", "Nullable", "Default"],
@@ -861,12 +862,20 @@ export default function(
       rows: indexes.map(idx => [idx.name, idx.definition]),
       on: {},
     });
-    // Constraints
+    // Constraints (foreign keys live in the Relations tab)
     constraintsTable.update({
       columns: ["Name", "Type", "Columns", "Definition"],
       typenames: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING],
       types: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING],
-      rows: constraints.map(con => [con.name, con.type, con.columns.join(", "), con.definition]),
+      rows: constraints.filter(con => con.type !== "FOREIGN KEY").map(con => [con.name, con.type, con.columns.join(", "), con.definition]),
+      on: {},
+    });
+    // Relations (foreign keys)
+    relationsTable.update({
+      columns: ["Name", "Column", "FK Schema", "FK Table", "FK Column", "On Update", "On Delete"],
+      typenames: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING],
+      types: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING],
+      rows: foreign_keys.map(fk => [fk.name, fk.column, fk.schema, fk.table, fk.to, fk.onUpdate, fk.onDelete]),
       on: {},
     });
 
@@ -893,6 +902,7 @@ export default function(
   const schemaTab = NScrollbar(schemaTable.el);
   const indexesTab = NScrollbar(indexesTable.el);
   const constraintsTab = NScrollbar(constraintsTable.el);
+  const relationsTab = NScrollbar(relationsTable.el);
 
   const tabs = NTabs({
     tabs: [
@@ -900,6 +910,7 @@ export default function(
       {name: "Schema", elem: schemaTab},
       {name: "Indexes", elem: indexesTab},
       {name: "Constraints", elem: constraintsTab},
+      {name: "Relations", elem: relationsTab},
     ],
   });
 

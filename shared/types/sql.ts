@@ -34,9 +34,13 @@ export type ConstraintInfo = {
 };
 
 export type ForeignKey = {
+  name: string,
   column: string,
+  schema: string,
   table: string,
   to: string,
+  onUpdate: string,
+  onDelete: string,
 };
 
 export type IndexInfo = {

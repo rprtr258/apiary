@@ -114,4 +114,15 @@ describe("describeTable (sqlite)", () => {
     // column list lives in `columns`, not in the definition
     expect(pks[0].definition).toBe("PRIMARY KEY");
   });
+
+  test("foreign keys carry referenced table, columns, and actions", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sqlite-describe-fk"));
+    const dsn = join(dir, "apiary-sql-describe-fk.db");
+    await sendSQL(req({dsn, query: "CREATE TABLE users (id INTEGER PRIMARY KEY)"}));
+    await sendSQL(req({dsn, query: "CREATE TABLE posts (id INTEGER PRIMARY KEY, user_id INTEGER REFERENCES users (id) ON DELETE CASCADE ON UPDATE SET NULL)"}));
+    const schema = await describeTable({dsn, database: "sqlite"}, "posts");
+    expect(schema.foreign_keys).toEqual([
+      {name: "", column: "user_id", schema: "", table: "users", to: "id", onUpdate: "SET NULL", onDelete: "CASCADE"},
+    ]);
+  });
 });

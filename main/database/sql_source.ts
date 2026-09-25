@@ -269,25 +269,35 @@ WHERE idx.tablename = '${tableName}' AND idx.schemaname NOT IN ('pg_catalog', 'i
     definition: def as string,
   }));
 
-  // Parse foreign keys from constraints
-  const foreignKeys: ForeignKey[] = constraints
-    .filter(con => con.type === "FOREIGN KEY")
-    .filter(con => con.definition.split("REFERENCES").length === 2)
-    .flatMap(con => {
-      const parts = con.definition.split("REFERENCES");
-      // Local columns come from the parsed columns field (definition no
-      // longer carries them).
-      const column = con.columns.join(", ");
-      const refPart = parts[1].trim();
-      const refParts = refPart.split("(");
-      if (refParts.length !== 2) {
-        return [];
-      }
-
-      const table = refParts[0].trim();
-      const to = refParts[1].replace(")", "").trim();
-      return [{column, table, to}];
-    });
+  // Get foreign keys. Referenced table/schema and update/delete rules come
+  // straight from pg_constraint; the column lists are parsed from the raw
+  // definition (FOREIGN KEY (...) REFERENCES ref (...)).
+  const fkActions: Record<string, string> = {a: "NO ACTION", r: "RESTRICT", c: "CASCADE", n: "SET NULL", d: "SET DEFAULT"};
+  const fkResult = await sendSQL({...request, query: `SELECT
+  con.conname,
+  con.confupdtype,
+  con.confdeltype,
+  ref_ns.nspname,
+  ref.relname,
+  pg_get_constraintdef(con.oid)
+FROM pg_constraint con
+JOIN pg_class rel ON rel.oid = con.conrelid
+JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+JOIN pg_class ref ON ref.oid = con.confrelid
+JOIN pg_namespace ref_ns ON ref_ns.oid = ref.relnamespace
+WHERE con.contype = 'f' AND rel.relname = '${tableName}' AND nsp.nspname NOT IN ('pg_catalog', 'information_schema')`}); // TODO: pass tableName as arg
+  const foreignKeys: ForeignKey[] = fkResult.rows.map(([name, upd, del, schema, table, def]) => {
+    const refPart = String(def).split("REFERENCES")[1] ?? "";
+    return {
+      name: String(name),
+      column: parseConstraintColumns(String(def), "FOREIGN KEY", columns.map(c => c.name)).join(", "),
+      schema: String(schema),
+      table: String(table),
+      to: refPart.slice(refPart.indexOf("(") + 1, refPart.indexOf(")")).trim(),
+      onUpdate: fkActions[String(upd)] ?? "NO ACTION",
+      onDelete: fkActions[String(del)] ?? "NO ACTION",
+    };
+  });
 
   return {columns, constraints, foreign_keys: foreignKeys, indexes};
 }
@@ -327,8 +337,41 @@ ORDER BY ordinal_position`}); // TODO: pass tableName as arg
     // Constraints query is best-effort
   }
 
-  // TODO: Get foreign keys and indexes
-  return {columns, constraints, foreign_keys: [], indexes: []};
+  // Get foreign keys (one row per column pair; ordinal_position keeps
+  // composite keys ordered). rc carries the update/delete rules, kcu the
+  // referenced table/schema/columns.
+  const foreign_keys: ForeignKey[] = [];
+  try {
+    const fkResult = await sendSQL({...request, query: `SELECT
+  kcu.constraint_name,
+  kcu.column_name,
+  kcu.referenced_table_schema,
+  kcu.referenced_table_name,
+  kcu.referenced_column_name,
+  rc.update_rule,
+  rc.delete_rule
+FROM information_schema.key_column_usage kcu
+JOIN information_schema.referential_constraints rc
+  ON rc.constraint_schema = kcu.constraint_schema AND rc.constraint_name = kcu.constraint_name
+WHERE kcu.table_name = '${tableName}' AND kcu.table_schema = DATABASE() AND kcu.referenced_table_name IS NOT NULL
+ORDER BY kcu.constraint_name, kcu.ordinal_position`}); // TODO: pass tableName as arg
+    for (const r of fkResult.rows) {
+      foreign_keys.push({
+        name: String(r[0]),
+        column: String(r[1]),
+        schema: String(r[2]),
+        table: String(r[3]),
+        to: String(r[4]),
+        onUpdate: String(r[5]),
+        onDelete: String(r[6]),
+      });
+    }
+  } catch (_e) {
+    // Foreign keys query is best-effort
+  }
+
+  // TODO: Get indexes
+  return {columns, constraints, foreign_keys, indexes: []};
 }
 
 async function describeSQLite(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
@@ -364,11 +407,13 @@ ORDER BY name`}); // TODO: pass tableName as arg
     definition: JSON.stringify(r[1] ?? ""),
   }));
 
-  // Get foreign keys via PRAGMA foreign_key_list (returns: id, seq, table, from, to, on_update, on_delete, match)
+  // Get foreign keys via PRAGMA foreign_key_list (returns: id, seq, table, from, to, on_update, on_delete, match).
+  // SQLite FKs are anonymous and resolve within the same database, so name
+  // and schema are empty; `to` is null for implicit-PK references.
   let foreign_keys: ForeignKey[] = [];
   try {
     const fkResult = await sendSQL({...request, query: `PRAGMA foreign_key_list('${tableName}')`});
-    foreign_keys = fkResult.rows.map(r => ({column: String(r[3]), table: String(r[2]), to: String(r[4])}));
+    foreign_keys = fkResult.rows.map(r => ({name: "", column: String(r[3]), schema: "", table: String(r[2]), to: String((r[4] as string | null) ?? ""), onUpdate: String(r[5]), onDelete: String(r[6])}));
   } catch (_e) {
     // Foreign keys query is best-effort
   }
