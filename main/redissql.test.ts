@@ -123,4 +123,43 @@ describe("querySqlOverRedis end-to-end", async () => {
     await query("localhost:6379", "SELECT * FROM rstring");
     await query("localhost:6379", "SELECT * FROM rstring"); // same client reused
   });
+
+  test("lists redis tables via information_schema", async () => {
+    if (existsSync(wasmPath) === false) {
+      return;
+    }
+
+    const result = await querySqlOverRedis("localhost:6379", "SELECT table_name FROM information_schema.TABLES WHERE table_schema = DATABASE()");
+    const names = result.rows.map(r => r[0]);
+    for (const table of ["rkey", "rstring", "rlist", "rset", "rhash", "rzset"]) {
+      expect(names).toContain(table);
+    }
+  });
+
+  test("counts rows", async () => {
+    if (existsSync(wasmPath) === false) {
+      return;
+    }
+
+    const result = await querySqlOverRedis("localhost:6379", "SELECT COUNT(*) FROM rstring");
+    expect(result.rows).toEqual([[2]]);
+  });
+
+  test("runs SELECT 1 for connection test", async () => {
+    if (existsSync(wasmPath) === false) {
+      return;
+    }
+
+    const result = await querySqlOverRedis("localhost:6379", "SELECT 1");
+    expect(result.rows).toEqual([[1]]);
+  });
+
+  test("rejects write statements at the engine", async () => {
+    if (existsSync(wasmPath) === false) {
+      return;
+    }
+
+    expect(querySqlOverRedis("localhost:6379", "UPDATE rstring SET value = 'x' WHERE `key` = 'foo'"))
+      .rejects.toThrow("table doesn't support UPDATE");
+  });
 });

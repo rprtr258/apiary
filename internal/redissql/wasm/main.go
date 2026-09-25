@@ -13,7 +13,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 	"syscall/js"
@@ -203,8 +205,9 @@ func (c *jsClient) ZRangeWithScores(ctx context.Context, key string, start, stop
 // ---- entry ----
 
 type queryResult struct {
-	Columns []string            `json:"columns"`
-	Rows    [][]json.RawMessage `json:"rows"`
+	Columns   []string            `json:"columns"`
+	Typenames []string            `json:"typenames"`
+	Rows      [][]json.RawMessage `json:"rows"`
 }
 
 func main() {
@@ -243,15 +246,21 @@ func redissqlQuery(this js.Value, args []js.Value) any {
 			}
 
 			columns := make([]string, len(schema))
+			typenames := make([]string, len(schema))
 			for i, col := range schema {
 				columns[i] = col.Name
+				typenames[i] = col.Type.String()
 			}
 
-			result := queryResult{Columns: columns, Rows: [][]json.RawMessage{}}
+			result := queryResult{Columns: columns, Typenames: typenames, Rows: [][]json.RawMessage{}}
 			for {
 				row, err := iter.Next(ctx)
-				if err != nil {
+				if errors.Is(err, io.EOF) {
 					break
+				}
+				if err != nil {
+					reject.Invoke(js.ValueOf(err.Error()))
+					return
 				}
 				cells := make([]json.RawMessage, len(row))
 				for i, cell := range row {

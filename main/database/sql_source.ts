@@ -1,5 +1,6 @@
 import {TableInfo, TableSchema, ColumnInfo, ConstraintInfo, IndexInfo, ForeignKey, SQLRequest, SQLSourceRequest, TableRead, ColumnType, RowValue, CellUpdate, SQLResponse} from "@/types.ts";
 import {sendSQL, sendSQLBatch} from "./sql.ts";
+import {mapColumnType} from "./sql.redis.ts";
 
 export const EmptyRequest: SQLSourceRequest = {
   dsn: ":memory:",
@@ -17,6 +18,7 @@ const quoteIdent = {
   "mysql":      (s: string) => "`" + s + "`",
   "sqlite":     (s: string) => "`" + s + "`",
   "clickhouse": (s: string) => "`" + s.replaceAll("`", "\\`") + "`",
+  "redis":      (s: string) => "`" + s.replaceAll("`", "``") + "`",
 };
 
 // SQL literal for a cell value. null → NULL, booleans → TRUE/FALSE, strings
@@ -198,6 +200,22 @@ WHERE table_schema = '${dbName}'`}); // TODO: pass dbname as arg
 FROM system.tables
 WHERE database = currentDatabase()`})).rows.map(([name, rowCount, sizeBytes]): TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
   }
+  case "redis": {
+    // The engine's information_schema reports no row statistics for redis
+    // tables, so counts are collected with one COUNT(*) per table; redis has
+    // no per-table storage size.
+    const tableNames = (await sendSQL({...request, query: `SELECT
+  table_name
+FROM information_schema.TABLES
+WHERE table_schema = DATABASE()`})).rows.map(r => String(r[0]));
+    const tables: TableInfo[] = [];
+    const q = quoteIdent.redis;
+    for (const table of tableNames) {
+      const rows = (await sendSQL({...request, query: `SELECT COUNT(*) FROM ${q(table)}`})).rows;
+      tables.push({name: table, rowCount: Number(rows[0]?.[0] ?? 0), sizeBytes: 0});
+    }
+    return tables;
+  }
   default:
     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     throw new Error(`unsupported database type: ${request.database}`);
@@ -213,6 +231,7 @@ export async function describeTable(request: Omit<SQLRequest, "query">, tableNam
   case "mysql":      return describeMySQL(request, tableName);
   case "sqlite":     return describeSQLite(request, tableName);
   case "clickhouse": return describeClickHouse(request, tableName);
+  case "redis":      return describeRedis(request, tableName);
   default:
     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     throw new Error(`unsupported database type: ${request.database}`);
@@ -442,9 +461,32 @@ WHERE database = currentDatabase() AND table = '${tableName}'`});
   return {columns, constraints: [], foreign_keys: [], indexes: []};
 }
 
+async function describeRedis(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
+  // Redis tables are read-only projections of live redis data. Columns come
+  // from the engine's information_schema; constraints and indexes are not
+  // reported — a primary key would make the table viewer offer cell editing,
+  // which the engine rejects ("table doesn't support UPDATE").
+  const colResult = await sendSQL({...request, query: `SELECT
+  column_name,
+  column_type,
+  is_nullable = 'YES',
+  column_default
+FROM information_schema.COLUMNS
+WHERE table_name = '${tableName}' AND table_schema = DATABASE()
+ORDER BY ordinal_position`});
+  const columns: ColumnInfo[] = colResult.rows.map(([name, typ, nullable, defaultVal]): ColumnInfo => ({
+    name: name as string,
+    typename: typ as string,
+    type: mapColumnType(typ as string),
+    nullable: nullable === true,
+    defaultValue: JSON.stringify(defaultVal ?? ""),
+  }));
+  return {columns, constraints: [], foreign_keys: [], indexes: []};
+}
+
 export async function countRowsSQLSource(request: Omit<SQLRequest, "query">, tableName: string): Promise<number> {
   // Quote each part of schema-qualified names separately
-  const quoted = tableName.split(".").map(p => `"${p}"`).join(".");
+  const quoted = tableName.split(".").map(p => quoteIdent[request.database](p)).join(".");
   const result = await sendSQL({...request, query: `SELECT COUNT(*) FROM ${quoted}`});
   return Number(result.rows[0]?.[0] ?? 0);
 }
