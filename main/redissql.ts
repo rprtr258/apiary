@@ -10,6 +10,7 @@ import {createClient} from "redis";
 
 export type RedissqlResult = {
   columns: string[],
+  typenames: string[],
   rows: unknown[][],
 };
 

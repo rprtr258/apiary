@@ -44,7 +44,7 @@ apiary is a cross-platform desktop application for managing various API requests
   - `renderer/`: Vanilla TypeScript UI components and logic
     - `plugins/`: frontend plugin registry (`index.ts` registry, `cache.ts` source-cache engine + `Plugin` contract types, one `<kind>/` directory per kind: `index.ts` registration + `viewer.ts` frame UI for kind badges/pane factories/menu entries/source listings).
   - `shared/`: Shared types and utilities (`types.ts` with the `Kind` enum, imported as `@/types.ts`).
-  - `internal/redissql/`: Go SQL-over-redis engine (tables rkey/rstring/rlist/rset/rhash/rzset backed by a redis `Client` interface).
+  - `internal/redissql/`: Go SQL-over-redis engine (tables rkey/rstring/rlist/rset/rhash/rzset backed by a redis `Client` interface). Exposed as the "redis" database in the SQL source/SQL request kinds via `main/database/sql.redis.ts`, which runs queries through the wasm engine (`main/redissql.ts`); redis tables are read-only projections (no constraints reported, writes rejected).
   - `internal/redissql/wasm/`: separate Go module building the engine for `GOOS=js GOARCH=wasm`; exposes `redissqlQuery(dsn, dbIndex, query)` and calls back into the host via `redisCall`.
   - `build/vitess-js/`: generated at wasm-build time - a shimmed copy of dolthub/vitess (`syscall.SIGHUP` -> `syscall.Signal(1)`, identical value; the auth-server code using it is dead in wasm). See the rationale comment in `internal/redissql/wasm/go.mod`.
 
