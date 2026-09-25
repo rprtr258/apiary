@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "vite --port 5174",
     "build": "bun scripts/build.ts",
+    "build:wasm": "bun scripts/build-wasm.ts",
     "preview": "vite preview",
     "lint": "eslint '**/*.{ts,json}'",
     "lint:fix": "eslint --fix '**/*.{ts,json}'",

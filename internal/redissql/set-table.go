@@ -1,4 +1,4 @@
-package main
+package redissql
 
 import (
 	"io"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/dolthub/go-mysql-server/sql/types"
-	redis "github.com/redis/go-redis/v9"
 )
 
 type rsetRow struct {
@@ -41,7 +40,7 @@ func (i *rsetPartitionIter) Next(*sql.Context) (sql.Partition, error) {
 var _ sql.RowIter = (*rsetRowIter)(nil)
 
 type rsetRowIter struct {
-	rdb                 *redis.Client
+	rdb                 Client
 	sets                []rsetRow
 	indexKey, indexList int
 }
@@ -82,7 +81,7 @@ func (i *rsetRowIter) Next(ctx *sql.Context) (sql.Row, error) {
 var _ sql.Table = (*rsetTable)(nil)
 
 type rsetTable struct {
-	rdb *redis.Client
+	rdb Client
 }
 
 func (*rsetTable) Name() string               { return "rset" }
@@ -118,7 +117,7 @@ func (t *rsetTable) Partitions(*sql.Context) (sql.PartitionIter, error) {
 func (t *rsetTable) PartitionRows(ctx *sql.Context, _ sql.Partition) (sql.RowIter, error) {
 	allKeys := []string{}
 	for thecursor := uint64(0); ; {
-		keys, cursor, err := t.rdb.ScanType(ctx, thecursor, "*", 0, "set").Result()
+		keys, cursor, err := t.rdb.ScanType(ctx, thecursor, "*", 0, "set")
 		if err != nil {
 			return nil, err
 		}
@@ -131,7 +130,7 @@ func (t *rsetTable) PartitionRows(ctx *sql.Context, _ sql.Partition) (sql.RowIte
 
 	sets := make([]rsetRow, len(allKeys))
 	for i, key := range allKeys {
-		elems, err := t.rdb.SMembers(ctx, key).Result()
+		elems, err := t.rdb.SMembers(ctx, key)
 		if err != nil {
 			return nil, err
 		}
