@@ -1,7 +1,7 @@
 import {describe, test, expect, beforeAll} from "bun:test";
 import {SQLRequest, RedisRequest, ColumnType} from "@/types.ts";
-import {sendSQL} from "./database/sql.ts";
-import {listTables, describeTable, countRowsSQLSource, testSQLSource, buildTableUpdateStatements, updateTableRows} from "./database/sql_source.ts";
+import {describeTable, sendSQL, listTables} from "./database/sql.ts";
+import {countRowsSQLSource, testSQLSource, buildTableUpdateStatements, updateTableRows} from "./database/sql_source.ts";
 import {sendRedis} from "./database/redis.ts";
 import {grpcMethods} from "./database/grpc.ts";
 

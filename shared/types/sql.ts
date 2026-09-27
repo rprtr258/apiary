@@ -1,8 +1,8 @@
 export const Database = {
-  ["postgres"]:   "PostgreSQL",
-  ["mysql"]:      "MySQL",
-  ["sqlite"]:     "SQLite",
-  ["clickhouse"]: "ClickHouse",
+  postgres:   "PostgreSQL",
+  mysql:      "MySQL",
+  sqlite:     "SQLite",
+  clickhouse: "ClickHouse",
 } as const;
 
 export type Database = keyof typeof Database;

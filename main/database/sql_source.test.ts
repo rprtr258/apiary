@@ -3,8 +3,8 @@ import {tmpdir} from "os";
 import {join} from "path";
 import {mock, describe, test, expect, beforeAll} from "bun:test";
 import {SQLRequest} from "@/types.ts";
-import {sendSQL} from "./sql.ts";
-import {buildReadTableQuery, describeTable, listTables, testSQLSource, updateTableRows} from "./sql_source.ts";
+import {describeTable, sendSQL, listTables} from "./sql.ts";
+import {buildReadTableQuery, testSQLSource, updateTableRows} from "./sql_source.ts";
 import {BetterLikeDB} from "./sql.test.ts";
 
 mock.module("better-sqlite3", () => ({
