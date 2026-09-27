@@ -612,10 +612,9 @@ export function DataTable() {
 const pageSize = 100;
 
 type Props = {
-  sqlSourceID: string,
+  sourceID: string,
   tableName: string,
   tableInfo: t.TableInfo,
-  database: t.Database,
 };
 
 type SortColumn = {
@@ -626,7 +625,7 @@ type SortColumn = {
 
 export default function(
   container: ComponentContainer,
-  {sqlSourceID, tableName, tableInfo}: Props,
+  {sourceID, tableName, tableInfo}: Props,
 ) {
   const el: HTMLElement = container.element;
   el.replaceChildren(m("div", {class: "h100"}, "Loading table viewer..."));
@@ -730,7 +729,7 @@ export default function(
   const edits = signal<t.CellUpdate[]>([]);
 
   async function onApply(): Promise<void> {
-    const res = await api.requestUpdateTableRowsSQLSource(sqlSourceID, tableName, pkColumns.value, edits.value);
+    const res = await api.requestUpdateTableRowsSQLSource(sourceID, tableName, pkColumns.value, edits.value);
     if (res.kind === "err") {
       notification("error", "Failed to apply edits", {error: res.value});
       return;
@@ -740,7 +739,7 @@ export default function(
   }
 
   async function onCopy(): Promise<void> {
-    const res = await api.requestBuildTableUpdateSQLSource(sqlSourceID, tableName, pkColumns.value, edits.value);
+    const res = await api.requestBuildTableUpdateSQLSource(sourceID, tableName, pkColumns.value, edits.value);
     if (res.kind === "err") {
       notification("error", "Could not build update script", {error: res.value});
       return;
@@ -796,7 +795,7 @@ export default function(
 
   // The read-only flag lives on the source request data.
   (async () => {
-    const res = await api.get(sqlSourceID);
+    const res = await api.get(sourceID);
     if (res.kind === "err")
       return;
     readOnly.update(() => (res.value.Request.Data as t.SQLSourceRequest).readOnly);
@@ -811,7 +810,7 @@ export default function(
       limit: pageSize,
       offset: page * pageSize,
     };
-    const res = await api.requestPerformSQLSource(sqlSourceID, read);
+    const res = await api.requestPerformSQLSource(sourceID, read);
     loading.update(() => false);
 
     let data: t.SQLResponse | undefined = undefined;
@@ -839,7 +838,7 @@ export default function(
   }
 
   async function loadSchema() {
-    const res = await api.requestDescribeTableSQLSource(sqlSourceID, tableName);
+    const res = await api.requestDescribeTableSQLSource(sourceID, tableName);
     if (res.kind === "err") {
       notification("error", "Could not describe table", {error: res.value});
       return;

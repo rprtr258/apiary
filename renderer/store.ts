@@ -10,20 +10,12 @@ import notification from "./lib/notification.ts";
 export type StateRequest = {
   id: string,
 };
-export type StateSQLSourceTable = {
-  sqlSourceID: string,
-  tableName: string,
-  tableInfo: t.TableInfo,
-  database: t.Database,
-};
-export type StateHTTPSourceEndpoint = {
+
+// Identity part of persisted source-item viewer states ({sourceID, itemKey},
+// see dedup in openViewer); plugin files extend it with component data.
+export type ViewerState = {
   sourceID: string,
-  endpointIndex: number,
-  endpointInfo: t.EndpointInfo,
-};
-export type StateMCPTool = {
-  sourceID: string,
-  tool: t.MCPTool,
+  itemKey: string,
 };
 
 const localStorageKey = "tabs";
@@ -113,9 +105,7 @@ export type Store = {
   duplicate(id: string): Promise<void>,
   deleteRequest(id: string): Promise<void>,
   rename(id: string, newID: string): Promise<void>,
-  openTableViewer(sqlSourceID: string, tableName: string, tableInfo: t.TableInfo): Promise<void>,
-  openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: t.EndpointInfo): void,
-  openToolViewer(sourceID: string, tool: t.MCPTool): void,
+  openViewer<S extends ViewerState>(componentType: string, titlePart: string, state: S): void,
   // Tab navigation methods
   navigateToTab(direction: "next" | "prev"): void,
   selectTabByIndex(index: number): void,
@@ -232,51 +222,12 @@ export const store = ((): Store => {
       component?.tab.setTitle(newName);
       await this.fetch();
     },
-    async openTableViewer(sqlSourceID: string, tableName: string, tableInfo: t.TableInfo): Promise<void> {
-      const componentType = "TableViewer";
-      if (findExistingTab<StateSQLSourceTable>(componentType, t => t.sqlSourceID === sqlSourceID && t.tableName === tableName) !== undefined)
+    openViewer<S extends ViewerState>(componentType: string, titlePart: string, state: S): void {
+      if (findExistingTab<S>(componentType, t => t.sourceID === state.sourceID && t.itemKey === state.itemKey) !== undefined)
         return;
-
-      // Get database type from SQL source request. It may not be in the lazy
-      // requests2 cache yet (e.g. source created before app launch and never
-      // opened) — fetch it on demand; get_request already notifies about the
-      // failure and returns null.
-      let sourceRequest = this.requests2[sqlSourceID];
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (sourceRequest === undefined) {
-        const fetched = await get_request(sqlSourceID);
-        if (fetched === null) {
-          return;
-        }
-        sourceRequest = fetched;
-      }
-
-      const sqlSourceRequest = sourceRequest.request as t.SQLSourceRequest;
-      const databaseType = sqlSourceRequest.database;
-
-      const sourceName = sqlSourceID in this.requests ? t.pathToName(this.requests[sqlSourceID].path) : sqlSourceID;
-      layout.instance?.addItem(componentType, `${sourceName}/${tableName}`, {
-        sqlSourceID,
-        tableName,
-        tableInfo,
-        database: databaseType,
-      });
-    },
-    openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: t.EndpointInfo): void {
-      const componentType = "EndpointViewer";
-      if (findExistingTab<StateHTTPSourceEndpoint>(componentType, t => t.sourceID === sourceID && t.endpointIndex === endpointIndex) !== undefined)
-        return;
-
-      const sourceName = sourceID in this.requests ? t.pathToName(this.requests[sourceID].path) : sourceID;
-      layout.instance?.addItem(componentType, `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`, {sourceID, endpointIndex, endpointInfo});
-    },
-    openToolViewer(sourceID: string, tool: t.MCPTool): void {
-      const componentType = "ToolViewer";
-      if (findExistingTab<StateMCPTool>(componentType, t => t.sourceID === sourceID && t.tool.name === tool.name) !== undefined)
-        return;
-
-      const sourceName = sourceID in this.requests ? t.pathToName(this.requests[sourceID].path) : sourceID;
-      layout.instance?.addItem(componentType, `${sourceName}/${tool.name}`, {sourceID, tool});
+      const sourceName = state.sourceID in this.requests
+        ? t.pathToName(this.requests[state.sourceID].path) : state.sourceID;
+      layout.instance?.addItem(componentType, `${sourceName}/${titlePart}`, state);
     },
     navigateToTab(direction: "next" | "prev"): void {
       const active = layout.instance?.activeTab();
@@ -368,9 +319,9 @@ export async function send(id: string): Promise<void> {
 export async function update_request(id: string, patch: Partial<t.Request>): Promise<void> {
   const old_request = store.requests2[id].request;
   const {id: _id, path: _path, kind: _kind, ...old_data} = old_request;
-  const new_request = {...old_data, ...patch} as t.Request;
-  store.requests2[id].request = new_request; // NOTE: optimistic update
-  const res = await api.request_update(id, new_request.kind, new_request);
+  const new_data = {...old_data, ...patch} as t.Request; // Data-only, sent to backend
+  store.requests2[id].request = {...old_request, ...patch} as t.Request; // NOTE: optimistic update, keep id/path/kind
+  const res = await api.request_update(id, old_request.kind, new_data);
   if (res.kind === "err") {
     store.requests2[id].request = old_request; // NOTE: undo change
     notification("error", "Could not save current request", {error: res.value});

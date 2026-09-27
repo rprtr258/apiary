@@ -302,10 +302,9 @@ function makeViewer(): HTMLElement {
   const el = document.createElement("div");
   document.body.append(el);
   RequestTableViewer({element: el, on: () => {}}, {
-    sqlSourceID: "s1",
+    sourceID: "s1",
     tableName: "users",
     tableInfo: {name: "users", rowCount: 2, sizeBytes: 10},
-    database: "postgres",
   });
   return el;
 }

@@ -3,6 +3,15 @@ import {api} from "../api.ts";
 import {formatSize} from "../lib/utils.ts";
 import {createSourceCache, type Plugin} from "./cache.ts";
 import {store} from "../store.ts";
+import RequestTableViewer from "../components/TableView.ts";
+
+const componentType = "TableViewer";
+type StateSQLSourceTable = {
+  sourceID: string,
+  itemKey: string,
+  tableName: string,
+  tableInfo: t.TableInfo,
+};
 
 function formatTableLabel(table: t.TableInfo): string {
   return `${table.name} (${table.rowCount.toLocaleString()} rows, ${formatSize(table.sizeBytes)})`;
@@ -17,11 +26,15 @@ export const sqlSourcePlugin: Plugin<t.TableInfo> = {
   }),
   itemKey: (table: t.TableInfo) => table.name,
   label: formatTableLabel,
-  tag: () => ({
+  tag: _ => ({
     text: "TBL",
     type: "info",
     style: {backgroundColor: "#1a3a5f", color: "#70c0e8"},
   }),
+  viewer: {
+    componentType,
+    factory: (container, state) => RequestTableViewer(container, state as StateSQLSourceTable),
+  },
   onOpen: (id: string, table: t.TableInfo, itemKey: string) =>
-    store.openTableViewer(id, itemKey, table),
+    store.openViewer(componentType, itemKey, {sourceID: id, itemKey, tableName: itemKey, tableInfo: table}),
 };

@@ -42,12 +42,12 @@
 - [ ] Add case to `createFrame`:
   - Performable: `case t.Kind.<NAME>: return Request<NAME>(el, show_request, on);`
   - Source: `setDisplay(eye, false); return Request<NAME>(el, {update: on.update});`
-- [ ] Source panes with fetched data: register a viewer component (pattern: `TableViewer` / `EndpointViewer` / `ToolViewer`)
+- [ ] Source panes with fetched data: ship the viewer component in `renderer/components/` and expose it via the plugin's `viewer` hook (no `App.ts` edit — factories come from the registry)
 
 ## Plugin (`renderer/plugins/`, every kind)
 
 - [ ] Create `plugins/<name>.ts` exporting a `Plugin`: `kind` + `kindTag` for every kind; optional `menuEntries` for per-kind context-menu entries
-- [ ] Source kinds: add `cache` (via `createSourceCache({fetcher, errorTitle})`), `itemKey`, `label`, `tag`, optional `onOpen` (called as `(id, item, itemKey)`) and `childrenOf` (`(item) => Promise<Item[]>` for group items)
+- [ ] Source kinds: add `cache` (via `createSourceCache({fetcher, errorTitle})`), `itemKey`, `label`, `tag`, optional `onOpen` (called as `(id, item, itemKey)`, opens the pane via `store.openViewer`) and `childrenOf` (`(item) => Promise<Item[]>` for group items); add `viewer` (`{componentType, factory}`) when items have a viewer pane
 - [ ] `itemKey`/`label`/`tag` are sync mappings over cached data — async work belongs to the fetcher
 - [ ] Add one line to `plugins` in `renderer/plugins/index.ts`
 - [ ] No edits in `renderer/sidebar/` — tree children, click handling, tags, the Refresh entry, and staleness are registry-driven

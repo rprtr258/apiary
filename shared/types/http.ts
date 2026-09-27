@@ -161,3 +161,9 @@ export type EndpointInfo = {
   requestBody?: RequestBodyInfo,
   responses: Record<string, ResponseInfo>,
 };
+
+// Stable coordinates identifying an endpoint inside a schema (method + path).
+export type EndpointKey = {
+  method: string,
+  path: string,
+};
