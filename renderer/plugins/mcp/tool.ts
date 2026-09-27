@@ -1,13 +1,13 @@
-import {api} from "../api.ts";
-import {m} from "../lib/utils.ts";
-import EditorJSON from "./EditorJSON.ts";
-import ViewJSON from "./ViewJSON.ts";
-import {NButton, NInputGroup} from "./input.ts";
-import {Modal, NSplit} from "./layout.ts";
-import {ComponentContainer} from "../layout/types.ts";
-import {NIcon} from "./dataview.ts";
-import {QuestionCircleOutlined} from "./icons.ts";
-import type {StateMCPTool} from "../plugins/mcp.ts";
+import {api} from "../../api.ts";
+import {m} from "../../lib/utils.ts";
+import EditorJSON from "../../components/EditorJSON.ts";
+import ViewJSON from "../../components/ViewJSON.ts";
+import {NButton, NInputGroup} from "../../components/input.ts";
+import {Modal, NSplit} from "../../components/layout.ts";
+import {ComponentContainer} from "../../layout/types.ts";
+import {NIcon} from "../../components/dataview.ts";
+import {QuestionCircleOutlined} from "../../components/icons.ts";
+import type {StateMCPTool} from "./index.ts";
 
 export type ToolViewerProps = StateMCPTool;
 

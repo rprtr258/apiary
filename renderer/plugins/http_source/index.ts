@@ -1,11 +1,11 @@
 import * as t from "@/types.ts";
-import {api} from "../api.ts";
-import {setDisplay} from "../lib/utils.ts";
-import type {TagType} from "../components/dataview.ts";
-import {createSourceCache, type Plugin} from "./cache.ts";
-import {store} from "../store.ts";
-import EndpointViewer from "../components/EndpointViewer.ts";
-import RequestHTTPSource from "../RequestHTTPSource.ts";
+import {api} from "../../api.ts";
+import {setDisplay} from "../../lib/utils.ts";
+import {createSourceCache, type Plugin} from "../cache.ts";
+import {store} from "../../store.ts";
+import type {TagType} from "../../components/dataview.ts";
+import EndpointViewer from "../../components/EndpointViewer.ts";
+import RequestHTTPSource from "./viewer.ts";
 
 const componentType = "EndpointViewer";
 type StateHTTPSourceEndpoint = {

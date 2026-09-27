@@ -1,6 +1,6 @@
 import * as t from "@/types.ts";
-import type {Plugin} from "./cache.ts";
-import RequestDIFF from "../RequestDIFF.ts";
+import type {Plugin} from "../cache.ts";
+import RequestDIFF from "./viewer.ts";
 
 export const diffPlugin: Plugin = {
   kind: t.Kind.DIFF,

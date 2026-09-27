@@ -2,13 +2,13 @@ import {EditorState, RangeSetBuilder} from "@codemirror/state";
 import {EditorView, ViewPlugin, ViewUpdate, Decoration} from "@codemirror/view";
 import {json} from "@codemirror/lang-json";
 import * as t from "@/types.ts";
-import {NEmpty} from "./components/dataview.ts";
-import {NSplit} from "./components/layout.ts";
-import {defaultEditorExtensions, defaultExtensions} from "./components/editor.ts";
-import {get_request} from "./store.ts";
-import {api} from "./api.ts";
-import {m, Signal} from "./lib/utils.ts";
-import {css} from "./lib/styles.ts";
+import {NEmpty} from "../../components/dataview.ts";
+import {NSplit} from "../../components/layout.ts";
+import {defaultEditorExtensions, defaultExtensions} from "../../components/editor.ts";
+import {get_request} from "../../store.ts";
+import {api} from "../../api.ts";
+import {m, Signal} from "../../lib/utils.ts";
+import {css} from "../../lib/styles.ts";
 
 // Add diff highlighting CSS styles
 const diffAddedLineCl = css(`

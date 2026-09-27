@@ -1,9 +1,9 @@
-import {NEmpty, StatusLabel} from "./components/dataview.ts";
-import {NInput, NInputGroup, NSelect} from "./components/input.ts";
-import {get_request} from "./store.ts";
-import {api} from "./api.ts";
 import * as t from "@/types.ts";
-import {m} from "./lib/utils.ts";
+import {m} from "../../lib/utils.ts";
+import {api} from "../../api.ts";
+import {get_request} from "../../store.ts";
+import {NEmpty, StatusLabel} from "../../components/dataview.ts";
+import {NInput, NInputGroup, NSelect} from "../../components/input.ts";
 
 type Request = t.HTTPSourceRequest;
 

@@ -1,6 +1,6 @@
 import * as t from "@/types.ts";
-import type {Plugin} from "./cache.ts";
-import RequestJQ from "../RequestJQ.ts";
+import type {Plugin} from "../cache.ts";
+import RequestJQ from "./viewer.ts";
 
 export const jqPlugin: Plugin = {
   kind: t.Kind.JQ,

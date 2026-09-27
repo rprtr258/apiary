@@ -1,6 +1,6 @@
 import * as t from "@/types.ts";
-import type {Plugin} from "./cache.ts";
-import RequestGRPC from "../RequestGRPC.ts";
+import type {Plugin} from "../cache.ts";
+import RequestGRPC from "./viewer.ts";
 
 export const grpcPlugin: Plugin = {
   kind: t.Kind.GRPC,

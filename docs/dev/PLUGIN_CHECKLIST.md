@@ -28,24 +28,24 @@
 
 ## Frontend (`renderer/`)
 
-- [ ] Create `Request<NAME>.ts` — default export factory `(el, show_request, on: {update, send})` returning `{loaded, push_history_entry, unmount}`
+- [ ] Create `plugins/<name>/viewer.ts` — default export factory `(el, show_request, on: {update, send})` returning `{loaded, push_history_entry, unmount}`
 - [ ] DOM with `m()` (`renderer/lib/utils.ts`), styles with `css`/`css.raw` (`renderer/lib/styles.ts`)
 - [ ] `signal<T>()` only for watched state
 - [ ] Errors rendered above main content
 - [ ] Debounce rapid updates (500ms) if the kind auto-computes
 - [ ] Clean up listeners/editors in `unmount()`
-- [ ] Create `Request<NAME>.test.ts` (`bun:test` + `happy-dom`)
+- [ ] Create `plugins/<name>/viewer.test.ts` (`bun:test` + `happy-dom`)
 
-## Registration (`renderer/plugins/`)
+## Registration (`renderer/plugins/<name>/`)
 
 - [ ] Wire the UI module into the plugin's `frame` hook:
   - Performable: `frame: (args) => Request<NAME>(args.el, args.show_request, args.on);`
   - Source: `frame: (args) => { setDisplay(args.eye, false); return Request<NAME>(args.el, {update: args.on.update}); }`
-- [ ] Source panes with fetched data: ship the viewer component in `renderer/components/` and expose it via the plugin's `viewer` hook (no `App.ts` edit — factories come from the registry)
+- [ ] Source panes with fetched data: ship the viewer component (shared ones in `renderer/components/`, kind-specific ones colocated in `plugins/<name>/`) and expose it via the plugin's `viewer` hook (no `App.ts` edit — factories come from the registry)
 
 ## Plugin (`renderer/plugins/`, every kind)
 
-- [ ] Create `plugins/<name>.ts` exporting a `Plugin`: `kind` + `kindTag` for every kind; optional `menuEntries` for per-kind context-menu entries
+- [ ] Create `plugins/<name>/index.ts` exporting a `Plugin` (the UI factory lives in the sibling `viewer.ts`): `kind` + `kindTag` for every kind; optional `menuEntries` for per-kind context-menu entries
 - [ ] Source kinds: add `cache` (via `createSourceCache({fetcher, errorTitle})`), `itemKey`, `label`, `tag`, optional `onOpen` (called as `(id, item, itemKey)`, opens the pane via `store.openViewer`) and `childrenOf` (`(item) => Promise<Item[]>` for group items); add `viewer` (`{componentType, factory}`) when items have a viewer pane
 - [ ] `itemKey`/`label`/`tag` are sync mappings over cached data — async work belongs to the fetcher
 - [ ] Add one line to `plugins` in `renderer/plugins/index.ts`

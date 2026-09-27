@@ -1,7 +1,7 @@
 import * as t from "@/types.ts";
-import {type get_request} from "./store.ts";
-import {Signal} from "./lib/utils.ts";
-import HTTPRequestView, {HTTPRequestViewResult} from "./components/HTTPRequestView.ts";
+import {type get_request} from "../../store.ts";
+import {Signal} from "../../lib/utils.ts";
+import HTTPRequestView, {HTTPRequestViewResult} from "../../components/HTTPRequestView.ts";
 
 type Request = t.HTTPRequest;
 

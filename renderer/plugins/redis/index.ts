@@ -1,6 +1,6 @@
 import * as t from "@/types.ts";
-import type {Plugin} from "./cache.ts";
-import RequestRedis from "../RequestRedis.ts";
+import type {Plugin} from "../cache.ts";
+import RequestRedis from "./viewer.ts";
 
 export const redisPlugin: Plugin = {
   kind: t.Kind.REDIS,

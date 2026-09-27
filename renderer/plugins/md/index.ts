@@ -1,6 +1,6 @@
 import * as t from "@/types.ts";
-import type {Plugin} from "./cache.ts";
-import RequestMD from "../RequestMD.ts";
+import type {Plugin} from "../cache.ts";
+import RequestMD from "./viewer.ts";
 
 export const mdPlugin: Plugin = {
   kind: t.Kind.MD,
