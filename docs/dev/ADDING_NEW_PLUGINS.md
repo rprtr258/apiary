@@ -23,6 +23,7 @@ main.ts                       # ipcMain.handle(...) per channel
 preload.ts                    # ipcRenderer.invoke(...) mirror, exposed via contextBridge
 global.d.ts                   # Api interface — the typed IPC contract
 renderer/Request<Kind>.ts     # UI factory (default export) + component test
+renderer/plugins/             # Plugin module per request kind (see step 7)
 renderer/App.ts               # createFrame switch (kind → UI module), panelkaFactory
 ```
 
@@ -53,7 +54,7 @@ export type RequestData =
 ;
 ```
 
-If the kind is performable (it has a `Perform` action), also add `ExampleResponse` to the `ResponseData` and `HistoryEntry` unions in the same file. Source kinds (like SQLSource, HTTPSource, MCP) have a `RequestData` member only — their data is fetched on demand through dedicated IPC endpoints, not through response history.
+If the kind is performable (it has a `Perform` action), also add `ExampleResponse` to the `ResponseData` and `HistoryEntry` unions in the same file. Source kinds (like SQLSource, HTTPSource, MCP) have a `RequestData` member only — their data is fetched on demand through dedicated IPC endpoints, not through response history, and they expose their browsable items through their plugin (step 7).
 
 ### 2. Backend Plugin (`main/database/example.ts`)
 
@@ -168,7 +169,77 @@ Source panes that display fetched data also register a dedicated viewer componen
 
 **No `main/db.ts` changes are needed**: the v1 migration switch in `db.ts` only handles kinds that existed in v1 databases; new kinds never appear there (`Create` writes the current format directly).
 
-### 7. Post-Implementation Checks
+### 7. Plugin (`renderer/plugins/`)
+
+Every request kind registers a `Plugin` under `renderer/plugins/` — a whole-app plugin, not just a sidebar entry. The sidebar (tree children, click handling, item tags, the context-menu Refresh entry, staleness) renders generically from the registry; source kinds additionally provide a `SourceCache` for their browsable items.
+
+Plain (performable) kind — `renderer/plugins/http.ts`:
+
+```typescript
+import * as t from "@/types.ts";
+import type {Plugin} from "./cache.ts";
+
+export const httpPlugin: Plugin = {
+  kind: t.Kind.HTTP,
+  kindTag: {text: "HTTP", color: "lime", type: "success"},
+  menuEntries: [copyAsCurl],   // optional per-kind context-menu entries
+};
+```
+
+Source kind — `renderer/plugins/sqlSource.ts` (adds the cache and item hooks):
+
+```typescript
+import * as t from "@/types.ts";
+import {createSourceCache, type Plugin} from "./cache.ts";
+import {api} from "../api.ts";
+import {store} from "../store.ts";
+
+export const sqlSourcePlugin: Plugin<t.TableInfo> = {
+  kind: t.Kind.SQLSource,
+  kindTag: {text: "SQL*", color: "#70a0e8"},
+  cache: createSourceCache<t.TableInfo>({
+    fetcher: id => api.requestListTablesSQLSource(id),   // Promise<Result<TableInfo[]>>
+    errorTitle: "Could not fetch tables",
+  }),
+  itemKey: table => table.name,
+  label: table => formatTableLabel(table),
+  tag: () => ({text: "TBL", type: "info"}),
+  onOpen: (id, table, itemKey) => store.openTableViewer(id, itemKey, table),
+};
+```
+
+Register it — the only sidebar-related edit outside `renderer/plugins/`:
+
+```typescript
+// renderer/plugins/index.ts
+import {httpPlugin} from "./http.ts";
+// ...
+export const plugins = [httpPlugin, /* ... */ sqlSourcePlugin, httpSourcePlugin, mcpPlugin];
+```
+
+Contract:
+
+| Field | Applies to | Required | Meaning |
+|-------|-----------|----------|---------|
+| `kind` | all kinds | yes | Registry key (the `t.Kind` value); also the virtual-key segment: `virtual:<kind>:<sourceID>:<itemKey>` |
+| `kindTag` | all kinds | yes | Request-node badge data `{text, color, type?}` (replaces the old `badge()` switch) |
+| `menuEntries` | all kinds | no | Per-kind context-menu entries (e.g. HTTP → Copy as curl) |
+| `cache` | source kinds | no | `SourceCache<Item>` built by `createSourceCache({fetcher, errorTitle})`; its presence enables tree children and the Refresh entry |
+| `fetcher` / `errorTitle` | source kinds | via `createSourceCache` | IPC call returning `Result<Item[]>`; notification title on fetch failure |
+| `itemKey` | source kinds | with cache | Unique key per item among its siblings (name; or index when items are unkeyed) |
+| `label` | source kinds | with cache | Display label (plain string, no DOM) |
+| `tag` | source kinds | with cache | Per-item tag data `{text, type, style?}` rendered by the generic tree row |
+| `onOpen` | source kinds | no | Click action for leaf items, called as `(id, item, itemKey)` (the `itemKey` carries the index for unkeyed items). Group nodes omit it |
+| `childrenOf` | source kinds | no | `(item) => Promise<Item[]>` — children of a group item; absent/empty → leaf. Enables nesting (e.g. source → tables/views groups → concrete items) |
+
+Rules:
+
+- `itemKey`, `label`, `tag` are **sync** mappings over data already in the cache — for anything async, fetch into the cache and bump the `changed` signal; never make these hooks async.
+- The cache stores a flat `Item[]`; grouping and nesting are `childrenOf`'s job.
+- Virtual keys are path-joined (`virtual:<kind>:<sourceID>:<groupKey>:<itemKey>`) and are only safe to rename while virtual nodes are leaves (leaves are not persisted in `localStorage("expanded-keys")`).
+- Do not edit `renderer/sidebar/` when adding a kind — nothing there references individual kinds.
+
+### 8. Post-Implementation Checks
 
 ```bash
 bun run test             # unit + component tests

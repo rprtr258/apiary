@@ -233,7 +233,8 @@ export const store = ((): Store => {
       await this.fetch();
     },
     async openTableViewer(sqlSourceID: string, tableName: string, tableInfo: t.TableInfo): Promise<void> {
-      if (findExistingTab<StateSQLSourceTable>("TableViewer", t => t.sqlSourceID === sqlSourceID && t.tableName === tableName) !== undefined)
+      const componentType = "TableViewer";
+      if (findExistingTab<StateSQLSourceTable>(componentType, t => t.sqlSourceID === sqlSourceID && t.tableName === tableName) !== undefined)
         return;
 
       // Get database type from SQL source request. It may not be in the lazy
@@ -254,7 +255,7 @@ export const store = ((): Store => {
       const databaseType = sqlSourceRequest.database;
 
       const sourceName = sqlSourceID in this.requests ? t.pathToName(this.requests[sqlSourceID].path) : sqlSourceID;
-      layout.instance?.addItem("TableViewer", `${sourceName}/${tableName}`, {
+      layout.instance?.addItem(componentType, `${sourceName}/${tableName}`, {
         sqlSourceID,
         tableName,
         tableInfo,
@@ -262,18 +263,20 @@ export const store = ((): Store => {
       });
     },
     openEndpointViewer(sourceID: string, endpointIndex: number, endpointInfo: t.EndpointInfo): void {
-      if (findExistingTab<StateHTTPSourceEndpoint>("EndpointViewer", t => t.sourceID === sourceID && t.endpointIndex === endpointIndex) !== undefined)
+      const componentType = "EndpointViewer";
+      if (findExistingTab<StateHTTPSourceEndpoint>(componentType, t => t.sourceID === sourceID && t.endpointIndex === endpointIndex) !== undefined)
         return;
 
       const sourceName = sourceID in this.requests ? t.pathToName(this.requests[sourceID].path) : sourceID;
-      layout.instance?.addItem("EndpointViewer", `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`, {sourceID, endpointIndex, endpointInfo});
+      layout.instance?.addItem(componentType, `${sourceName}/${endpointInfo.method} ${endpointInfo.path}`, {sourceID, endpointIndex, endpointInfo});
     },
     openToolViewer(sourceID: string, tool: t.MCPTool): void {
-      if (findExistingTab<StateMCPTool>("ToolViewer", t => t.sourceID === sourceID && t.tool.name === tool.name) !== undefined)
+      const componentType = "ToolViewer";
+      if (findExistingTab<StateMCPTool>(componentType, t => t.sourceID === sourceID && t.tool.name === tool.name) !== undefined)
         return;
 
       const sourceName = sourceID in this.requests ? t.pathToName(this.requests[sourceID].path) : sourceID;
-      layout.instance?.addItem("ToolViewer", `${sourceName}/${tool.name}`, {sourceID, tool});
+      layout.instance?.addItem(componentType, `${sourceName}/${tool.name}`, {sourceID, tool});
     },
     navigateToTab(direction: "next" | "prev"): void {
       const active = layout.instance?.activeTab();

@@ -1,14 +1,14 @@
 import * as t from "@/types.ts";
 import {none, Option, some} from "@/option.ts";
-import {NTag, NTree, TagType, TreeOption, treeLabelClass} from "../components/dataview.ts";
+import {NTag, NTree, TreeOption, treeLabelClass} from "../components/dataview.ts";
 import {NScrollbar} from "../components/layout.ts";
 import {store} from "../store.ts";
-import {DOMNode, formatSize, m, signal} from "../lib/utils.ts";
+import {DOMNode, m, signal} from "../lib/utils.ts";
 import {useLocalStorage} from "../lib/localStorage.ts";
 import {css} from "../lib/styles.ts";
-import {endpointCache, fetchSources, sourceCacheChanged, tableCache, toolCache} from "./sourceCache.ts";
+import {changed} from "../plugins/cache.ts";
+import {ensureFresh, kindTag, pluginsByKind} from "../plugins/index.ts";
 import {showContextMenu} from "./contextMenu.ts";
-import {badge} from "./shared.ts";
 
 function basename(id: string): string {
   return id.split("/").pop() ?? "";
@@ -18,40 +18,46 @@ function dirname(id: string): string {
   return id.split("/").slice(0, -1).join("/");
 }
 
-function formatTableLabel(args: {
-  name: string,
-  rowCount: number,
-  sizeBytes: number,
-}): string {
-  const {name, rowCount: rows, sizeBytes: bytes} = args;
-  return `${name} (${rows.toLocaleString()} rows, ${formatSize(bytes)})`;
-}
-
 const byLabel = (a: TreeOption, b: TreeOption): number => a.label.localeCompare(b.label);
 
-function formatEndpointLabel(endpoint: t.EndpointInfo): string {
-  const {path} = endpoint;
-  // Format: /route/
-  // Ensure path starts with / and ends with / if not empty
-  const formattedPath = path === "" ? "/" : path.startsWith("/") ? path : `/${path}`;
-  const pathWithTrailingSlash = formattedPath.endsWith("/") ? formattedPath : `${formattedPath}/`;
-  return pathWithTrailingSlash;
-}
-
+// Virtual children of source requests: "loading"/"empty" placeholders or real
+// items addressed as `virtual:<Kind value>:<sourceID>:<itemKey...>` with
+// path-joined segments for nested items.
 type VirtualKey = {
+  kind: string,
   sourceID: string,
-  name: string,
-  kind: "table" | "endpoint" | "tool" | "loading" | "empty",
+  segments: string[],
 };
 
 function parseVirtualKey(key: string): Option<VirtualKey> {
   const parts = key.split(":");
-  if (parts.length !== 4)
+  if (parts.length < 4 || parts[0] !== "virtual")
     return none;
-  const [, kind, sourceID, name] = parts;
-  if (!((kind): kind is VirtualKey["kind"] => ["table", "endpoint", "tool", "loading", "empty"].includes(kind))(kind))
-    return none;
-  return some({sourceID, name, kind});
+  const [, kind, sourceID, ...segments] = parts;
+  return some({kind, sourceID, segments});
+}
+
+// Click resolution for virtual items: parse segments, walk cached items level
+// by level via itemKey (and childrenOf for future nested plugins), then hand
+// the leaf item to the plugin's onOpen.
+async function resolveVirtual(kind: string, sourceID: string, segments: string[]): Promise<void> {
+  const plugin = pluginsByKind[kind as t.Kind];
+  if (plugin.itemKey === undefined || segments.length === 0)
+    return;
+  let items = plugin.cache?.get(sourceID)?.items;
+  if (items === undefined)
+    return;
+  let item: unknown = undefined;
+  for (const segment of segments) {
+    const index = items.findIndex((candidate, i) => plugin.itemKey?.(candidate, i) === segment);
+    if (index === -1)
+      return;
+    item = items[index];
+    items = plugin.childrenOf === undefined ? [] : await plugin.childrenOf(item);
+  }
+  if (item === undefined)
+    return;
+  await plugin.onOpen?.(sourceID, item, segments.join(":"));
 }
 
 const expandedKeys = useLocalStorage<string[]>("expanded-keys", []);
@@ -80,26 +86,6 @@ function drag({node, dragNode, dropPosition}: {
       store.rename(oldID, dir(into) + basename(oldID));
       break;
   }
-}
-
-type HTTPMethodProps = {
-  bg: string,
-  color: string,
-  tagType: TagType,
-};
-const httpMethodPropsUnknown: HTTPMethodProps = {bg: "#3a3a3a", color: "#c0c0c0", tagType: "info"}; // Grey
-const httpMethodPropsMap: Record<string, HTTPMethodProps> = {
-  "GET":     {bg: "#1a5f3a", color: "#70e888", tagType: "success"}, // Green
-  "POST":    {bg: "#2a3a5f", color: "#85b4ee", tagType: "info"},    // Blue
-  "PUT":     {bg: "#5f4a1a", color: "#e8c070", tagType: "warning"}, // Orange/Yellow
-  "DELETE":  {bg: "#5f1a1a", color: "#e98a8a", tagType: "error"},   // Red
-  "PATCH":   {bg: "#3a1a5f", color: "#a870e8", tagType: "warning"}, // Purple
-  "HEAD":    {bg: "#1a5f5f", color: "#70e8e8", tagType: "info"},    // Cyan
-  "OPTIONS": {bg: "#5f5f1a", color: "#e8e870", tagType: "info"},    // Yellow
-};
-function httpMethodProps(method: string): HTTPMethodProps {
-  const upperMethod = method.toUpperCase();
-  return httpMethodPropsMap[upperMethod] ?? httpMethodPropsUnknown;
 }
 
 // pulse keyframes + class for loading state
@@ -133,61 +119,30 @@ export function createTreeView(): {el: HTMLElement} {
         ...tree.IDs.map(id => {
             const req = store.requests[id];
             const children: TreeOption[] | undefined = (() => {
-              switch (true) {
-              case req.kind === t.Kind.SQLSource:
-                if (id in tableCache && Object.keys(tableCache[id].tables).length > 0) {
-                  return Object.values(tableCache[id].tables).map(table => ({
-                    key: `virtual:table:${id}:${table.name}`,
-                    label: formatTableLabel(table),
-                  })).sort(byLabel);
-                } else {
-                  // Show "Loading..." or "(None)" based on loading state
-                  // Check if cache exists AND is loading
-                  const isLoading = id in tableCache && (tableCache[id].loading ?? false);
-                  return [{
-                    key: `virtual:${isLoading ? "loading" : "empty"}:${id}:table`,
-                    label: isLoading ? "Loading..." : "(None)",
-                    disabled: true,
-                  }];
-                }
-              case req.kind === t.Kind.HTTPSource:
-                if (id in endpointCache && endpointCache[id].endpoints.length > 0) {
-                  return endpointCache[id].endpoints.map((endpoint, index) => ({
-                    key: `virtual:endpoint:${id}:${index}`,
-                    label: formatEndpointLabel(endpoint),
-                  })).sort(byLabel);
-                } else {
-                  // Show "Loading..." or "(None)" based on loading state
-                  const isLoading = id in endpointCache && (endpointCache[id].loading ?? false);
-                  return [{
-                    key: `virtual:${isLoading ? "loading" : "empty"}:${id}:endpoint`,
-                    label: isLoading ? "Loading..." : "(None)",
-                    disabled: true,
-                  }];
-                }
-              case req.kind === t.Kind.MCP:
-                if (id in toolCache && toolCache[id].tools.length > 0) {
-                  return toolCache[id].tools.map(tool => ({
-                    key: `virtual:tool:${id}:${tool.name}`,
-                    label: tool.name,
-                  })).sort(byLabel);
-                } else {
-                  const isLoading = id in toolCache && (toolCache[id].loading ?? false);
-                  return [{
-                    key: `virtual:${isLoading ? "loading" : "empty"}:${id}:tool`,
-                    label: isLoading ? "Loading..." : "(None)",
-                    disabled: true,
-                  }];
-                }
-              default:
+              const plugin = pluginsByKind[req.kind];
+              if (plugin.cache === undefined || plugin.itemKey === undefined)
                 return undefined;
+              const entry = plugin.cache.get(id);
+              if (entry !== undefined && entry.items.length > 0) {
+                return entry.items.map((item, index) => ({
+                  key: `virtual:${plugin.kind}:${id}:${plugin.itemKey?.(item, index) ?? ""}`,
+                  label: plugin.label?.(item) ?? "",
+                })).sort(byLabel);
               }
+              // Show "Loading..." or "(None)" based on loading state, kept
+              // disabled so it is not clickable. Node stays expandable (folder).
+              const isLoading = entry?.loading ?? false;
+              return [{
+                key: `virtual:${isLoading ? "loading" : "empty"}:${id}:${plugin.kind}`,
+                label: isLoading ? "Loading..." : "(None)",
+                disabled: true,
+              }];
             })();
 
             return {
               key: id,
               label: t.pathToName(store.requests[id].path),
-              ...(children !== undefined ? {children} : {}), // Only set children for SQLSource/HTTPSource
+              ...(children !== undefined ? {children} : {}), // Only set children for requests with source caches
             };
         }),
       ].sort(byLabel);
@@ -203,8 +158,8 @@ export function createTreeView(): {el: HTMLElement} {
             const oldKeys = expandedKeysSignal.value;
             expandedKeysSignal.update(() => keys);
 
-            // Fetch data for sources that were just expanded (staleness/loading guarded inside fetchSources)
-            await fetchSources(keys.filter(key => !oldKeys.includes(key)));
+            // Fetch data for sources that were just expanded (staleness/loading guarded inside ensureFresh)
+            await ensureFresh(keys.filter(key => !oldKeys.includes(key)));
           },
           drop: drag,
           context_menu: (option: TreeOption, event: MouseEvent) => {
@@ -218,38 +173,11 @@ export function createTreeView(): {el: HTMLElement} {
 
             const virtual = parseVirtualKey(id);
             if (virtual.isSome()) {
-              const {kind, sourceID, name} = virtual.value;
-              switch (kind) {
-              // Skip "loading" and "empty" virtual items
-              case "loading":
-              case "empty":
+              const {kind, sourceID, segments} = virtual.value;
+              // Skip "loading" and "empty" placeholders (also disabled above)
+              if (kind === "loading" || kind === "empty")
                 return;
-              case "table":
-                if (!(sourceID in tableCache) || !(name in tableCache[sourceID].tables))
-                  return;
-                const tableInfo = tableCache[sourceID].tables[name];
-                store.openTableViewer(sourceID, name, tableInfo);
-                break;
-              case "endpoint": {
-                const endpointIndex = parseInt(name, 10);
-                if (!(sourceID in endpointCache) || endpointIndex >= endpointCache[sourceID].endpoints.length)
-                  return;
-
-                // Open virtual endpoint viewer (not real HTTP request)
-                const endpoint = endpointCache[sourceID].endpoints[endpointIndex];
-                store.openEndpointViewer(sourceID, endpointIndex, endpoint);
-                break;
-              }
-              case "tool": {
-                if (!(sourceID in toolCache))
-                  return;
-                const tool = toolCache[sourceID].tools.find(tl => tl.name === name);
-                if (tool === undefined)
-                  return;
-                store.openToolViewer(sourceID, tool);
-                break;
-              }
-              }
+              resolveVirtual(kind, sourceID, segments);
             } else {
               store.selectRequest(id);
             }
@@ -258,210 +186,104 @@ export function createTreeView(): {el: HTMLElement} {
         render: (option: TreeOption, _level: number, _expanded: boolean): DOMNode => {
           const virtual = parseVirtualKey(option.key);
           if (virtual.isSome()) {
-            const {kind, sourceID, name} = virtual.value;
+            const {kind, sourceID, segments} = virtual.value;
             switch (kind) {
             case "empty":
-                // "(None)" item - simple text, disabled, no badge, no hover effects
-                return m("span", {
-                  style: {
-                    display: "flex",
-                    alignItems: "center",
-                    width: "100%",
-                    opacity: "0.6",
-                    color: "#808080",
-                    fontStyle: "italic",
-                    pointerEvents: "none", // TODO: move into parent element
-                  },
-                }, "(None)");
-              case "loading":
-                // "Loading..." item - not disabled, shows loading state
-                return m("span", {
-                  class: pulseClass,
-                  style: {
-                    display: "flex",
-                    alignItems: "center",
-                    width: "100%",
-                    color: "#a0a0a0",
-                    fontStyle: "italic",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    overflow: "clip",
-                  },
-                  title: "Loading...",
-                }, "Loading...");
-              case "table": // Virtual table item
-                return m("span", {
-                  style: {
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    width: "100%",
-                  },
+              // "(None)" item - simple text, disabled, no badge, no hover effects
+              return m("span", {
+                style: {
+                  display: "flex",
+                  alignItems: "center",
+                  width: "100%",
+                  opacity: "0.6",
+                  color: "#808080",
+                  fontStyle: "italic",
+                  pointerEvents: "none", // TODO: move into parent element
                 },
-                NTag({
-                  type: "info",
-                  style: {
-                    minWidth: "2em",
-                    justifyContent: "center",
-                    display: "flex",
-                    alignItems: "center",
-                    backgroundColor: "#1a3a5f",
-                    color: "#70c0e8",
-                    fontWeight: "bold",
-                    padding: "2px 4px",
-                  },
-                }, "TBL"),
-                m("span", {
-                  style: {
-                    flex: "1",
-                    minWidth: "0",
-                    color: "#e0e0e0",
-                    overflow: "clip",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  },
-                  title: option.label,
-                }, option.label));
-              case "endpoint": { // Virtual endpoint item
-                const endpointIndex = parseInt(name, 10);
-                if (sourceID in endpointCache && endpointIndex < endpointCache[sourceID].endpoints.length) {
-                  const endpoint = endpointCache[sourceID].endpoints[endpointIndex];
-                  // Determine tag color based on HTTP method
-                  const {bg, color, tagType} = httpMethodProps(endpoint.method);
-
-                  return m("span", {
-                    style: {
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      width: "100%",
-                    },
-                  },
-                  NTag({
-                    type: tagType,
-                    style: {
-                      minWidth: "2em",
-                      justifyContent: "center",
-                      display: "flex",
-                      alignItems: "center",
-                      backgroundColor: bg,
-                      color,
-                      fontWeight: "bold",
-                      padding: "2px 4px",
-                    },
-                  }, endpoint.method),
-                  m("span", {
-                    style: {
-                      flex: "1",
-                      minWidth: "0",
-                      color: "#e0e0e0",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    },
-                    title: option.label,
-                  }, option.label));
-                }
-                // Fallback if endpoint not found in cache
-                return m("span", {
-                  style: {
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    width: "100%",
-                  },
+              }, "(None)");
+            case "loading":
+              // "Loading..." item - not disabled, shows loading state
+              return m("span", {
+                class: pulseClass,
+                style: {
+                  display: "flex",
+                  alignItems: "center",
+                  width: "100%",
+                  color: "#a0a0a0",
+                  fontStyle: "italic",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  overflow: "clip",
                 },
-                NTag({
-                  type: "success",
-                  style: {
-                    minWidth: "4em",
-                    justifyContent: "center",
-                    display: "flex",
-                    alignItems: "center",
-                    backgroundColor: "#1a5f3a",
-                    color: "#70e888",
-                    fontWeight: "bold",
-                    padding: "2px 4px",
-                  },
-                }, "EP"),
-                m("span", {
-                  style: {
-                    flex: "1",
-                    minWidth: "0",
-                    color: "#e0e0e0",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  },
-                  title: option.label,
-                }, option.label));
-              }
-              case "tool":
-                return m("span", {
-                  style: {
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    width: "100%",
-                  },
-                },
-                NTag({
-                  type: "info",
-                  style: {
-                    minWidth: "2em",
-                    justifyContent: "center",
-                    display: "flex",
-                    alignItems: "center",
-                    backgroundColor: "#000000",
-                    color: "#FFFFFF",
-                    fontWeight: "bold",
-                    padding: "2px 4px",
-                  },
-                }, "TOOL"),
-                m("span", {
-                  style: {
-                    flex: "1",
-                    minWidth: "0",
-                    color: "#e0e0e0",
-                    overflow: "clip",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  },
-                  title: option.label,
-                }, option.label));
-              }
+                title: "Loading...",
+              }, "Loading...");
             }
+            const plugin = pluginsByKind[kind as t.Kind];
+            if (plugin.cache !== undefined && plugin.itemKey !== undefined) {
+              // Generic item row: tag from the plugin's tag hook + shared ellipsized label
+              const leaf = segments[segments.length - 1];
+              const item = plugin.cache.get(sourceID)?.items.find((candidate, index) => plugin.itemKey?.(candidate, index) === leaf);
+              const tagData = item !== undefined && plugin.tag !== undefined ? plugin.tag(item) : undefined;
+              return m("span", {
+                style: {
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  width: "100%",
+                },
+              },
+              ...(tagData !== undefined ? [NTag({
+                type: tagData.type,
+                style: {
+                  minWidth: "2em",
+                  justifyContent: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  fontWeight: "bold",
+                  padding: "2px 4px",
+                  ...tagData.style,
+                },
+              }, tagData.text)] : []),
+              m("span", {
+                style: {
+                  flex: "1",
+                  minWidth: "0",
+                  color: "#e0e0e0",
+                  overflow: "clip",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                },
+                title: option.label,
+              }, option.label));
+            }
+          }
 
-          // Handle requests (including SQLSource/HTTPSource)
+          // Handle requests (including sources)
           if (option.key in store.requests) {
             const req = store.requests[option.key];
-            const [method, color] = badge(req.kind);
+            const tag = kindTag(req.kind);
 
             // Check if this source is currently loading
-            const isLoading =
-              (req.kind === t.Kind.SQLSource && option.key in tableCache && (tableCache[option.key].loading ?? false)) ||
-              (req.kind === t.Kind.HTTPSource && option.key in endpointCache && (endpointCache[option.key].loading ?? false)) ||
-              (req.kind === t.Kind.MCP && option.key in toolCache && (toolCache[option.key].loading ?? false));
-
-            // Determine tag type - regular requests have no background, just colored text
-            const tagType = req.kind === t.Kind.HTTP ? "success" : "info";
+            const isLoading = pluginsByKind[req.kind].cache?.get(option.key)?.loading ?? false;
 
             // The tree component automatically adds folder icon for items with children
             // We just need to render the badge and label
 
             return [
               NTag({
-                type: tagType,
+                type: tag.type ?? "info",
                 class: isLoading ? pulseClass : undefined,
                 style: {
                   minWidth: "4em",
                   justifyContent: "center",
                   display: "flex",
                   alignItems: "center",
-                  color: color,
+                  color: tag.color,
                   fontWeight: "bold",
                   padding: "2px 4px",
                   backgroundColor: "#202020",
                 },
-              }, method),
+              }, tag.text),
               m("span", {
                 style: {
                   flex: "1",
@@ -512,7 +334,7 @@ export function createTreeView(): {el: HTMLElement} {
     }
   }
 
-  sourceCacheChanged.sub(function*() {while (true) { yield; updateTree(); }}());
+  changed.sub(function*() {while (true) { yield; updateTree(); }}());
 
   store.requestsTree.sub(function*() {
     while (true) {
@@ -520,7 +342,7 @@ export function createTreeView(): {el: HTMLElement} {
       updateTree();
       // Fetch data for expanded sources when requests tree updates
       // (e.g., when store.fetch() loads requests on app startup)
-      fetchSources(expandedKeysSignal.value).catch(err => {
+      ensureFresh(expandedKeysSignal.value).catch(err => {
         console.error("Failed to fetch expanded sources:", err);
       });
     }
