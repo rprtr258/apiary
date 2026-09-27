@@ -1,14 +1,12 @@
-import * as t from "@/types.ts";
 import {NIcon} from "../components/dataview.ts";
-import {ContentCopyFilled, CopySharp, DeleteOutlined, EditOutlined, Refresh} from "../components/icons.ts";
-import {api} from "../api.ts";
+import {CopySharp, DeleteOutlined, EditOutlined, Refresh} from "../components/icons.ts";
 import {store} from "../store.ts";
-import notification from "../lib/notification.ts";
 import {DOMNode, m} from "../lib/utils.ts";
 import {globalDropdown, renameInit} from "./shared.ts";
-import {fetchEndpoints, fetchTables} from "./sourceCache.ts";
+import {pluginsByKind} from "../plugins/index.ts";
 
 export function showContextMenu(id: string, event: MouseEvent): void {
+  const kind = store.requests[id].kind;
   const preOptions: {
     label: string,
     key: string,
@@ -18,6 +16,17 @@ export function showContextMenu(id: string, event: MouseEvent): void {
       click: () => void,
     },
   }[] = [
+    // Plugin-provided entries (e.g. "Copy as curl" for HTTP)
+    ...(pluginsByKind[kind].menuEntries?.(id) ?? []),
+    {
+      label: "Refresh",
+      key: "refresh",
+      icon: NIcon({component: Refresh}),
+      show: pluginsByKind[kind].cache !== undefined,
+      on: {
+        click: () => pluginsByKind[kind].cache?.fetch(id),
+      },
+    },
     {
       label: "Rename",
       key: "rename",
@@ -31,48 +40,7 @@ export function showContextMenu(id: string, event: MouseEvent): void {
       key: "duplicate",
       icon: NIcon({component: CopySharp}),
       on: {
-        click: () => {
-          store.duplicate(id);
-        },
-      },
-    },
-    {
-      label: "Copy as curl",
-      key: "copy-as-curl",
-      icon: NIcon({component: ContentCopyFilled}),
-      show: store.requests[id].kind === t.Kind.HTTP,
-      on: {
-        click: () => {
-          api.get(id).then(r => {
-            if (r.kind === "err") {
-              notification("error", "Error", {content: `Failed to load request: ${r.value}`});
-              return;
-            }
-
-            const req = r.value.Request as unknown as t.HTTPRequest; // TODO: remove unknown cast
-            const httpToCurl = ({url, method, body, headers}: t.HTTPRequest) => {
-              const headersStr = headers.length > 0 ? " " + headers.map(({key, value}) => `-H "${key}: ${value}"`).join(" ") : "";
-              const bodyStr = body !== "" ? ` -d '${body}'` : "";
-              return `curl -X ${method} ${url}${headersStr}${bodyStr}`;
-            };
-            navigator.clipboard.writeText(httpToCurl(req));
-          });
-        },
-      },
-    },
-    {
-      label: "Refresh",
-      key: "refresh",
-      icon: NIcon({component: Refresh}),
-      show: store.requests[id].kind === t.Kind.SQLSource || store.requests[id].kind === t.Kind.HTTPSource,
-      on: {
-        click: () => {
-          if (store.requests[id].kind === t.Kind.SQLSource) {
-            fetchTables(id);
-          } else if (store.requests[id].kind === t.Kind.HTTPSource) {
-            fetchEndpoints(id);
-          }
-        },
+        click: () => store.duplicate(id),
       },
     },
     {
@@ -80,13 +48,11 @@ export function showContextMenu(id: string, event: MouseEvent): void {
       key: "delete",
       icon: NIcon({color: "red", component: DeleteOutlined}),
       on: {
-        click: () => {
-          store.deleteRequest(id);
-        },
+        click: () => store.deleteRequest(id),
       },
     },
   ];
-  const options = preOptions.filter(opt => opt.show !== false).map(opt => {
+  const options = preOptions.filter(opt => opt.show ?? true).map(opt => {
     const res = m("div", {
       style: {
         padding: "8px 12px",

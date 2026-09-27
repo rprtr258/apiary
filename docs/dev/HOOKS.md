@@ -44,17 +44,18 @@ expanded.value = {...};      // write (persists to localStorage)
 
 Used by `renderer/sidebar/tree.ts` (persisting expanded tree keys) and `renderer/store.ts`.
 
-## Cache pattern — `renderer/sidebar/sourceCache.ts`
+## Cache pattern — `renderer/plugins/cache.ts`
 
 Source metadata (SQL tables, OpenAPI endpoints, MCP tools) is fetched on demand and cached with a staleness window so the sidebar doesn't re-query the backend on every render:
 
 ```typescript
-// tableCache / endpointCache / toolCache follow the same shape:
-// - fetch once per entry, invalidate after a staleness window
-// - a version signal bumps when a cache changes, and subscribers re-render on it
+// createSourceCache<Item>({fetcher, errorTitle}) builds a flat Item[] cache:
+// - fetch once per entry, invalidate after a staleness window (STALE_AFTER)
+// - a `changed` version signal bumps when a cache mutates, and subscribers re-render on it
+// - ensureFresh(ids) fetches only entries that are stale or missing (in-flight entries are skipped)
 ```
 
-When adding a new source kind with browsable metadata, follow this pattern rather than ad-hoc fetch-on-render.
+Each source plugin (`renderer/plugins/<kind>.ts`) owns one cache; adding a new source kind with browsable metadata means adding a plugin with a `cache` + `itemKey`/`label`/`tag`/`onOpen` hooks and registering it in `renderer/plugins/index.ts`.
 
 ## Debounced auto-update
 

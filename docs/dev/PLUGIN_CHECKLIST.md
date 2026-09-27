@@ -44,6 +44,14 @@
   - Source: `setDisplay(eye, false); return Request<NAME>(el, {update: on.update});`
 - [ ] Source panes with fetched data: register a viewer component (pattern: `TableViewer` / `EndpointViewer` / `ToolViewer`)
 
+## Plugin (`renderer/plugins/`, every kind)
+
+- [ ] Create `plugins/<name>.ts` exporting a `Plugin`: `kind` + `kindTag` for every kind; optional `menuEntries` for per-kind context-menu entries
+- [ ] Source kinds: add `cache` (via `createSourceCache({fetcher, errorTitle})`), `itemKey`, `label`, `tag`, optional `onOpen` (called as `(id, item, itemKey)`) and `childrenOf` (`(item) => Promise<Item[]>` for group items)
+- [ ] `itemKey`/`label`/`tag` are sync mappings over cached data — async work belongs to the fetcher
+- [ ] Add one line to `plugins` in `renderer/plugins/index.ts`
+- [ ] No edits in `renderer/sidebar/` — tree children, click handling, tags, the Refresh entry, and staleness are registry-driven
+
 ## Database (`main/db.ts`)
 
 - [ ] No changes needed — the v1 migration switch only covers kinds that existed in v1 databases

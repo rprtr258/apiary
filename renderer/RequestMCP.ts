@@ -3,7 +3,7 @@ import ParamsList from "./components/ParamsList.ts";
 import {NInput, NInputGroup, NSelect} from "./components/input.ts";
 import {get_request} from "./store.ts";
 import {api} from "./api.ts";
-import {invalidateTools, setTools} from "./sidebar/sourceCache.ts";
+import {mcpPlugin} from "./plugins/mcp.ts";
 import * as t from "@/types.ts";
 import {m} from "./lib/utils.ts";
 
@@ -32,7 +32,7 @@ export default function(
       // with the current server params.
       async function updateConnectionStatus(): Promise<void> {
         const res = await api.mcpListTools(requestID);
-        setTools(requestID, res);
+        mcpPlugin.cache?.seed(requestID, res);
         statusLabel.setStatus(res.map_or_else(
           tools => `Connected! ${tools.length} tools available.`,
           err => `Connection failed: ${err}`,
@@ -42,7 +42,7 @@ export default function(
       async function update_request(patch: Partial<Request>): Promise<void> {
         Object.assign(request, patch);
         await on.update(patch);
-        invalidateTools(requestID);
+        mcpPlugin.cache?.invalidate(requestID);
         await updateConnectionStatus();
       };
 

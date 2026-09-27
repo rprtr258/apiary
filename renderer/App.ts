@@ -16,7 +16,8 @@ import {Eye, EyeClosed} from "./components/icons.ts";
 import {CommandPalette, Item} from "./components/CommandPalette.ts";
 import RequestTableViewer from "./components/TableView.ts";
 import EndpointViewer from "./components/EndpointViewer.ts";
-import {badge, sidebar, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./Sidebar.ts";
+import {sidebar, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./Sidebar.ts";
+import {kindTag} from "./plugins/index.ts";
 import RequestHTTP from "./RequestHTTP.ts";
 import RequestSQL from "./RequestSQL.ts";
 import RequestGRPC from "./RequestGRPC.ts";
@@ -248,21 +249,21 @@ command_bar_new_request_kind_visible.sub(function*() {
 // Function to compute open request items
 const getOpenRequestItems = (): Item[] => Object
   .entries(store.requests)
-  .map(([id, preview]) => [id, preview, badge(preview.kind)] as const)
-  .map(([id, preview, [method, color]]) => ({
+  .map(([id, preview]) => [id, preview, kindTag(preview.kind)] as const)
+  .map(([id, preview, tag]) => ({
     label: preview.path, // TODO: preload store.requests2, fix ebanij rot kazino
     group: preview.kind,
     prefix: NTag({
-      type: preview.kind === t.Kind.HTTP ? "success" : "info",
+      type: tag.type ?? "info",
       style: {
         minWidth: "4em",
         justifyContent: "center",
         display: "flex",
         alignItems: "center",
-        color: color,
+        color: tag.color,
         fontWeight: "bold",
       },
-    }, method),
+    }, tag.text),
     perform: () => store.selectRequest(id),
   }));
 
