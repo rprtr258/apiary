@@ -1,15 +1,15 @@
+import * as t from "@/types.ts";
 import {create, createResponse, extractSubKind, generateID, load, save, Delete as remove, rename, update, Request, HistoryEntry} from "./db.ts";
 import {EmptyRequest as HTTPEmptyRequest, sendHTTP} from "./database/http.ts";
 import {EmptyRequest as JQEmptyRequest, sendJQ} from "./database/jq.ts";
 import {DefaultMarkdown, sendMD} from "./database/md.ts";
-import {sendSQL, EmptyRequest as SQLEmptyRequest} from "./database/sql.ts";
+import {describeTable, listTables, sendSQL, EmptyRequest as SQLEmptyRequest} from "./database/sql.ts";
 import {EmptyRequest as RedisEmptyRequest, sendRedis} from "./database/redis.ts";
 import {sendDIFF} from "./database/diff.ts";
 import {sendGRPC, grpcMethods, grpcQueryFake, grpcQueryValidate} from "./database/grpc.ts";
 import {parseSpec, generateExampleRequest, fetchSpec} from "./database/http_source.ts";
-import {listTables, describeTable, countRowsSQLSource, testSQLSource, buildTableUpdateScript, buildReadTableQuery, updateTableRows, EmptyRequest as SQLSourceEmptyRequest} from "./database/sql_source.ts";
+import {countRowsSQLSource, testSQLSource, buildTableUpdateScript, buildReadTableQuery, updateTableRows, EmptyRequest as SQLSourceEmptyRequest} from "./database/sql_source.ts";
 import {EmptyRequest as MCPEmptyRequest, listTools as mcpListTools, callTool as mcpCallTool} from "./database/mcp.ts";
-import * as t from "@/types.ts";
 
 async function get(id: t.RequestID): Promise<Request> {
   const j = await load();

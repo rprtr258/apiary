@@ -1,5 +1,5 @@
 import {createClient} from "@clickhouse/client";
-import {ColumnType, SQLRequest, SQLResponse} from "@/types.ts";
+import {ColumnInfo, ColumnType, SQLRequest, SQLResponse, TableInfo, TableSchema} from "@/types.ts";
 
 // TODO: fix get types
 function convertTypes(columns: number, rows: unknown[][]): ColumnType[] {
@@ -58,4 +58,34 @@ export async function sendBatch(request: Omit<SQLRequest, "query">, statements: 
   } finally {
     await client.close();
   }
+}
+
+export async function describe(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
+  // Get columns
+  const colResult = await send({...request, query: `SELECT
+  name,
+  type,
+  default_kind != '',
+  default_expression
+FROM system.columns
+WHERE database = currentDatabase() AND table = '${tableName}'`});
+  const columns: ColumnInfo[] = colResult.rows.map(r => ({
+    name: String(r[0]),
+    typename: String(r[1]),
+    type: String(r[1]) as ColumnType,
+    nullable: String(r[1]).includes("Nullable"),
+    defaultValue: ["YES" as unknown, 1, true].includes(r[2]) ? JSON.stringify(r[3] ?? "") : "",
+  }));
+
+  // TODO: get rest
+  return {columns, constraints: [], foreign_keys: [], indexes: []};
+}
+
+export async function listTables(request: Omit<SQLRequest, "query">): Promise<TableInfo[]> {
+  return (await send({...request, query: `SELECT
+  name,
+  total_rows,
+  total_bytes
+FROM system.tables
+WHERE database = currentDatabase()`})).rows.map(([name, rowCount, sizeBytes]): TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
 }
