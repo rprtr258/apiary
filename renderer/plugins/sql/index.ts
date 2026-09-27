@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import type {Plugin} from "../cache.ts";
+import {Plugin} from "../types.ts";
 import RequestSQL from "./viewer.ts";
 
 export const sqlPlugin: Plugin = {

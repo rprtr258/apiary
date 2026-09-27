@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import type {Plugin} from "../cache.ts";
+import {Plugin} from "../types.ts";
 import RequestJQ from "./viewer.ts";
 
 export const jqPlugin: Plugin = {
