@@ -1,12 +1,12 @@
 import * as t from "@/types.ts";
-import {get_request, last_history_entry} from "./store.ts";
-import {m, setDisplay, Signal} from "./lib/utils.ts";
-import ParamsList from "./components/ParamsList.ts";
-import {NInput, NButton, NInputGroup, NSelect} from "./components/input.ts";
-import {NTabs, NSplit} from "./components/layout.ts";
-import {NTag, NTable, NEmpty} from "./components/dataview.ts";
-import ViewJSON from "./components/ViewJSON.ts";
-import {api} from "./api.ts";
+import {get_request, last_history_entry} from "../../store.ts";
+import {m, setDisplay, Signal} from "../../lib/utils.ts";
+import ParamsList from "../../components/ParamsList.ts";
+import {NInput, NButton, NInputGroup, NSelect} from "../../components/input.ts";
+import {NTabs, NSplit} from "../../components/layout.ts";
+import {NTag, NTable, NEmpty} from "../../components/dataview.ts";
+import ViewJSON from "../../components/ViewJSON.ts";
+import {api} from "../../api.ts";
 
 type Request = {kind: t.Kind.GRPC} & t.GRPCRequest;
 

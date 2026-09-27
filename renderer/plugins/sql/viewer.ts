@@ -1,11 +1,11 @@
 import * as t from "@/types.ts";
-import {m, setDisplay, Signal} from "./lib/utils.ts";
-import {get_request, last_history_entry, store} from "./store.ts";
-import {NEmpty} from "./components/dataview.ts";
-import {NButton, NInputGroup, NSelect, NSelectInput} from "./components/input.ts";
-import {NScrollbar, NSplit} from "./components/layout.ts";
-import {DataTable} from "./components/TableView.ts";
-import EditorSQL from "./EditorSQL.ts";
+import {m, setDisplay, Signal} from "../../lib/utils.ts";
+import {get_request, last_history_entry, store} from "../../store.ts";
+import {NEmpty} from "../../components/dataview.ts";
+import {NButton, NInputGroup, NSelect, NSelectInput} from "../../components/input.ts";
+import {NScrollbar, NSplit} from "../../components/layout.ts";
+import {DataTable} from "../../components/TableView.ts";
+import EditorSQL from "../../EditorSQL.ts";
 
 type Request = t.SQLRequest;
 

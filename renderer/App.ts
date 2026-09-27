@@ -1,7 +1,7 @@
 import {ComponentContainer, LayoutConfig, Tab} from "./layout/types.ts";
 import * as t from "@/types.ts";
-import {Kinds, HistoryEntry, Request} from "@/types.ts";
-import {m, setDisplay, Signal, signal} from "./lib/utils.ts";
+import {Kinds, Request} from "@/types.ts";
+import {m, setDisplay, signal} from "./lib/utils.ts";
 import notification from "./lib/notification.ts";
 import {
   get_request, updateLocalstorage, update_request, send, last_history_entry,
@@ -14,17 +14,7 @@ import {NIcon, NResult, NTag} from "./components/dataview.ts";
 import {Eye, EyeClosed} from "./components/icons.ts";
 import {CommandPalette, Item} from "./components/CommandPalette.ts";
 import {sidebar, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./Sidebar.ts";
-import {kindTag, plugins} from "./plugins/index.ts";
-import RequestHTTP from "./RequestHTTP.ts";
-import RequestSQL from "./RequestSQL.ts";
-import RequestGRPC from "./RequestGRPC.ts";
-import RequestJQ from "./RequestJQ.ts";
-import RequestRedis from "./RequestRedis.ts";
-import RequestMD from "./RequestMD.ts";
-import RequestDIFF from "./RequestDIFF.ts";
-import RequestSQLSource from "./RequestSQLSource.ts";
-import RequestHTTPSource from "./RequestHTTPSource.ts";
-import RequestMCP from "./RequestMCP.ts";
+import {kindTag, plugins, pluginsByKind} from "./plugins/index.ts";
 
 function create() {
   const kind = newRequestKind.value!;
@@ -275,40 +265,6 @@ type Panelka = {
   el: HTMLElement,
 };
 
-type Frame = {
-  loaded(r: get_request): void,
-  push_history_entry?(he: HistoryEntry): void, // show last history entry
-  send?: () => Promise<void>,
-  unmount(): void,
-};
-
-function createFrame(
-  el: HTMLElement,
-  kind: t.Kind,
-  show_request: Signal<boolean>,
-  on: {update: (patch: Partial<Request>) => Promise<void>, send: () => Promise<void>},
-  eye: HTMLElement,
-): Frame {
-  switch (kind) {
-    case t.Kind.HTTP: return RequestHTTP(el, show_request, on);
-    case t.Kind.SQL: return RequestSQL(el, show_request, on);
-    case t.Kind.GRPC: return RequestGRPC(el, show_request, on);
-    case t.Kind.JQ: return RequestJQ(el, show_request, on);
-    case t.Kind.REDIS: return RequestRedis(el, show_request, on);
-    case t.Kind.MD: return RequestMD(el, show_request, on);
-    case t.Kind.DIFF: return RequestDIFF(el, show_request, on);
-    case t.Kind.SQLSource:
-      setDisplay(eye, false); // TODO: dont draw eye in the first place?
-      return RequestSQLSource(el, {update: on.update});
-    case t.Kind.HTTPSource:
-      setDisplay(eye, false);
-      return RequestHTTPSource(el, {update: on.update});
-    case t.Kind.MCP:
-      setDisplay(eye, false);
-      return RequestMCP(el, {update: on.update});
-  }
-}
-
 // Track send handler for the active frame so keyboard shortcuts (Ctrl+Enter) also render results
 let activeFrameSend: (() => Promise<void>) | undefined;
 
@@ -359,18 +315,17 @@ const panelkaFactory = (
     });
 
   });
-  const frame = createFrame(
+  const frame = pluginsByKind[store.requests[id].kind].frame({
     el,
-    store.requests[id].kind,
     show_request,
-    {
+    eye,
+    on: {
       update: (patch: Partial<Request>) => update_request(id, patch),
       send: () => send(id).then(_ => {
         frame.push_history_entry?.(last_history_entry(store.requests2[id])!);
       }),
     },
-    eye,
-  );
+  });
   const frame_unsub = () => frame.unmount();
   get_request(id).then(r => {
     if (r === null) {

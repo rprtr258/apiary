@@ -1,11 +1,11 @@
-import {NEmpty, StatusLabel} from "./components/dataview.ts";
-import ParamsList from "./components/ParamsList.ts";
-import {NInput, NInputGroup, NSelect} from "./components/input.ts";
-import {get_request} from "./store.ts";
-import {api} from "./api.ts";
-import {mcpPlugin} from "./plugins/mcp.ts";
+import {NEmpty, StatusLabel} from "../../components/dataview.ts";
+import ParamsList from "../../components/ParamsList.ts";
+import {NInput, NInputGroup, NSelect} from "../../components/input.ts";
+import {get_request} from "../../store.ts";
+import {api} from "../../api.ts";
+import {mcpPlugin} from "./index.ts";
 import * as t from "@/types.ts";
-import {m} from "./lib/utils.ts";
+import {m} from "../../lib/utils.ts";
 
 type Request = t.MCPRequest;
 

@@ -1,9 +1,10 @@
 import * as t from "@/types.ts";
-import notification from "../lib/notification.ts";
-import {api} from "../api.ts";
-import {NIcon} from "../components/dataview.ts";
-import {ContentCopyFilled} from "../components/icons.ts";
-import type {MenuOption, Plugin} from "./cache.ts";
+import notification from "../../lib/notification.ts";
+import {api} from "../../api.ts";
+import {NIcon} from "../../components/dataview.ts";
+import {ContentCopyFilled} from "../../components/icons.ts";
+import type {MenuOption, Plugin} from "../cache.ts";
+import RequestHTTP from "./viewer.ts";
 
 function httpToCurl({url, method, body, headers}: t.HTTPRequest): string {
   const headersStr = headers.length > 0 ? " " + headers.map(({key, value}) => `-H "${key}: ${value}"`).join(" ") : "";
@@ -33,5 +34,6 @@ const copyAsCurl = (id: string): MenuOption => ({
 export const httpPlugin: Plugin = {
   kind: t.Kind.HTTP,
   kindTag: {text: "HTTP", color: "lime", type: "success"},
+  frame: (args) => RequestHTTP(args.el, args.show_request, args.on),
   menuEntries: (id: string) => [copyAsCurl(id)],
 };

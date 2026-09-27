@@ -7,7 +7,7 @@ This guide explains how to add a new request kind plugin to apiary.
 Every request kind (HTTP, SQL, gRPC, Redis, JQ, Markdown, DIFF, MCP, SQLSource, HTTPSource) is a *plugin* with two halves:
 
 - **Backend** (`main/database/<kind>.ts`): a `send<Kind>` function plus an `EmptyRequest` template, dispatched from `main/api.ts`.
-- **Frontend** (`renderer/Request<Kind>.ts`): a UI factory, registered in the `createFrame` switch in `renderer/App.ts`.
+- **Frontend** (`renderer/plugins/<kind>/viewer.ts`): a UI factory, wired into the kind's plugin via the `frame` hook in `renderer/plugins/<kind>/index.ts`.
 
 The two halves connect through the typed IPC surface: `main.ts` (handlers) → `preload.ts` (bridge) → `global.d.ts` (`Api` interface).
 
@@ -22,9 +22,10 @@ main/db.ts                    # JSON DB — no changes needed for new kinds (see
 main.ts                       # ipcMain.handle(...) per channel
 preload.ts                    # ipcRenderer.invoke(...) mirror, exposed via contextBridge
 global.d.ts                   # Api interface — the typed IPC contract
-renderer/Request<Kind>.ts     # UI factory (default export) + component test
-renderer/plugins/             # Plugin module per request kind (see step 7)
-renderer/App.ts               # createFrame switch (kind → UI module), panelkaFactory
+renderer/plugins/<kind>/viewer.ts   # UI factory (default export) + colocated component test
+renderer/plugins/<kind>/index.ts    # Plugin module: kindTag, frame, menus, source cache (see step 7)
+renderer/plugins/index.ts           # Central registry — register the new plugin here
+renderer/App.ts               # panelkaFactory (kind → plugin.frame dispatch)
 ```
 
 ## Step-by-Step Implementation
@@ -117,9 +118,9 @@ Example: {
 },
 ```
 
-### 5. Frontend Module (`renderer/RequestExample.ts`)
+### 5. Frontend Module (`renderer/plugins/<kind>/viewer.ts`)
 
-Default-export a factory following the existing pattern (see `renderer/RequestDIFF.ts` for a full reference):
+Default-export a factory following the existing pattern (see `renderer/plugins/diff/viewer.ts` for a full reference):
 
 ```typescript
 export default function(
@@ -144,56 +145,60 @@ Conventions:
 - Build DOM with `m()` from `renderer/lib/utils.ts` (no VDOM).
 - Use `signal<T>()` only for watched state; plain locals otherwise.
 - Styles via `css`/`css.raw` from `renderer/lib/styles.ts`.
-- Errors render above the main content (see the hidden `el_error` pattern in `RequestDIFF.ts`).
-- For auto-computing kinds, debounce rapid updates (500ms, as in `RequestDIFF.ts`).
+- Errors render above the main content (see the hidden `el_error` pattern in `plugins/diff/viewer.ts`).
+- For auto-computing kinds, debounce rapid updates (500ms, as in `plugins/diff/viewer.ts`).
 - Clean up listeners/editors in `unmount()`.
-- Add component tests in `renderer/RequestExample.test.ts` (see `renderer/components/CommandPalette.test.ts` for the `bun:test` + `happy-dom` pattern).
+- Add component tests in `renderer/plugins/<kind>/viewer.test.ts` (see `renderer/plugins/diff/viewer.test.ts` and `renderer/components/CommandPalette.test.ts` for the `bun:test` + `happy-dom` pattern).
 
-### 6. Registration (`renderer/App.ts`)
+### 6. Registration (`renderer/plugins/<kind>/`)
 
-Import the module and add a case to `createFrame`:
+Wire the UI module into the plugin's `frame` hook:
 
 ```typescript
-import RequestExample from "./RequestExample.ts";
+import RequestExample from "./viewer.ts";
 
 // performable kind:
-case t.Kind.Example: return RequestExample(el, show_request, on);
+frame: (args) => RequestExample(args.el, args.show_request, args.on),
 
 // source kind (no send/eye — they query sources on demand):
-case t.Kind.Example:
-  setDisplay(eye, false);
-  return RequestExample(el, {update: on.update});
+frame: (args) => {
+  setDisplay(args.eye, false);
+  return RequestExample(args.el, {update: args.on.update});
+},
 ```
 
-Source panes that display fetched data also ship a viewer component in `renderer/components/` and expose it through the plugin's `viewer` hook — `App.ts` builds the layout factories from the registry, so no per-viewer edit is needed there.
+Source panes that display fetched data also ship a viewer component and expose it through the plugin's `viewer` hook — shared viewers stay in `renderer/components/` (e.g. `TableView.ts`, `EndpointViewer.ts`), kind-specific ones colocate in the plugin dir (e.g. `plugins/mcp/tool.ts`). `App.ts` builds the layout factories from the registry, so no per-viewer edit is needed there.
 
 **No `main/db.ts` changes are needed**: the v1 migration switch in `db.ts` only handles kinds that existed in v1 databases; new kinds never appear there (`Create` writes the current format directly).
 
 ### 7. Plugin (`renderer/plugins/`)
 
-Every request kind registers a `Plugin` under `renderer/plugins/` — a whole-app plugin, not just a sidebar entry. The sidebar (tree children, click handling, item tags, the context-menu Refresh entry, staleness) renders generically from the registry; source kinds additionally provide a `SourceCache` for their browsable items.
+Every request kind registers a `Plugin` under `renderer/plugins/<kind>/` (a whole-app plugin, not just a sidebar entry): `index.ts` holds the `Plugin` object, `viewer.ts` the frame UI factory, extra kind-specific viewer components and colocated tests live alongside. The sidebar (tree children, click handling, item tags, the context-menu Refresh entry, staleness) renders generically from the registry; source kinds additionally provide a `SourceCache` for their browsable items.
 
-Plain (performable) kind — `renderer/plugins/http.ts`:
+Plain (performable) kind — `renderer/plugins/http/index.ts`:
 
 ```typescript
 import * as t from "@/types.ts";
-import type {Plugin} from "./cache.ts";
+import type {Plugin} from "../cache.ts";
+import RequestHTTP from "./viewer.ts";
 
 export const httpPlugin: Plugin = {
   kind: t.Kind.HTTP,
   kindTag: {text: "HTTP", color: "lime", type: "success"},
-  menuEntries: [copyAsCurl],   // optional per-kind context-menu entries
+  frame: (args) => RequestHTTP(args.el, args.show_request, args.on),
+  menuEntries: (id) => [copyAsCurl(id)],   // optional per-kind context-menu entries
 };
 ```
 
-Source kind — `renderer/plugins/sqlSource.ts` (adds the cache, item hooks and viewer):
+Source kind — `renderer/plugins/sql_source/index.ts` (adds the cache, item hooks and viewer):
 
 ```typescript
 import * as t from "@/types.ts";
-import {createSourceCache, type Plugin} from "./cache.ts";
-import {api} from "../api.ts";
-import {store} from "../store.ts";
-import RequestTableViewer from "../components/TableView.ts";
+import {createSourceCache, type Plugin} from "../cache.ts";
+import {api} from "../../api.ts";
+import {store} from "../../store.ts";
+import RequestSQLSource from "./viewer.ts";
+import RequestTableViewer from "../../components/TableView.ts";
 
 const componentType = "TableViewer";
 type StateSQLSourceTable = {
@@ -206,6 +211,10 @@ type StateSQLSourceTable = {
 export const sqlSourcePlugin: Plugin<t.TableInfo> = {
   kind: t.Kind.SQLSource,
   kindTag: {text: "SQL*", color: "#70a0e8"},
+  frame: (args) => {
+    setDisplay(args.eye, false);
+    return RequestSQLSource(args.el, {update: args.on.update});
+  },
   cache: createSourceCache<t.TableInfo>({
     fetcher: id => api.requestListTablesSQLSource(id),   // Promise<Result<TableInfo[]>>
     errorTitle: "Could not fetch tables",
@@ -226,7 +235,7 @@ Register it — the only sidebar-related edit outside `renderer/plugins/`:
 
 ```typescript
 // renderer/plugins/index.ts
-import {httpPlugin} from "./http.ts";
+import {httpPlugin} from "./http";
 // ...
 export const plugins = [httpPlugin, /* ... */ sqlSourcePlugin, httpSourcePlugin, mcpPlugin];
 ```
@@ -279,8 +288,8 @@ The DIFF kind is a good end-to-end reference:
 - `shared/types.ts`: `Kind.DIFF = "diff"`, `DIFFRequest {left, right}`, `DIFFResponse {diff, stats, leftType, rightType}`, plus `ResponseData`/`HistoryEntry` members.
 - `main/database/diff.ts`: sync `sendDIFF` (JSON structural diff or line diff via the `diff` package) + `diff.test.ts`.
 - `main/api.ts`: inline `emptyRequestForKind` case `{left: "", right: ""}` and a `Perform` case.
-- `renderer/RequestDIFF.ts`: default-export factory, split panes, 500ms debounced auto-perform, error banner above content.
-- `renderer/App.ts`: `case t.Kind.DIFF: return RequestDIFF(el, show_request, on);`
+- `renderer/plugins/diff/viewer.ts`: default-export factory, split panes, 500ms debounced auto-perform, error banner above content.
+- `renderer/plugins/diff/index.ts` + registration in `renderer/plugins/index.ts`: `frame` dispatch (no `App.ts` edit — `panelkaFactory` routes via the registry).
 
 ## Best Practices
 

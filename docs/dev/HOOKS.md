@@ -55,21 +55,21 @@ Source metadata (SQL tables, OpenAPI endpoints, MCP tools) is fetched on demand 
 // - ensureFresh(ids) fetches only entries that are stale or missing (in-flight entries are skipped)
 ```
 
-Each source plugin (`renderer/plugins/<kind>.ts`) owns one cache; adding a new source kind with browsable metadata means adding a plugin with `cache` + `itemKey`/`label`/`tag`/`onOpen`/`viewer` hooks and registering it in `renderer/plugins/index.ts`.
+Each source plugin (`renderer/plugins/<kind>/index.ts`) owns one cache; adding a new source kind with browsable metadata means adding a plugin with `cache` + `itemKey`/`label`/`tag`/`onOpen`/`viewer` hooks and registering it in `renderer/plugins/index.ts`.
 
 ## Debounced auto-update
 
 UI modules that recompute on every keystroke (e.g. DIFF) debounce updates:
 
 ```typescript
-// renderer/RequestDIFF.ts
+// renderer/plugins/diff/viewer.ts
 if (updateTimeout !== null) window.clearTimeout(updateTimeout);
 updateTimeout = window.setTimeout(() => { /* perform + render */ }, 500); // 500ms debounce
 ```
 
 ## The UI-module contract (the "hook" of request panes)
 
-Every `renderer/Request<Kind>.ts` factory receives its inputs and returns its lifecycle — this is the component-level seam:
+Every `renderer/plugins/<kind>/viewer.ts` factory receives its inputs and returns its lifecycle — this is the component-level seam:
 
 ```typescript
 export default function(
@@ -87,7 +87,7 @@ export default function(
 - `push_history_entry(he)` — render the latest history entry
 - `unmount()` — tear down editors/listeners/timers
 
-Source kinds receive only `{update}` and hide the send/eye affordances (see `createFrame` in `renderer/App.ts`).
+Source kinds receive only `{update}` and hide the send/eye affordances (see the `frame` hook on their plugins in `renderer/plugins/`).
 
 ## Testing state primitives
 

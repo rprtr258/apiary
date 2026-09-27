@@ -1,11 +1,11 @@
-import {NButton, NInputGroup, NInput} from "./components/input.ts";
-import {NEmpty} from "./components/dataview.ts";
-import {NSplit} from "./components/layout.ts";
-import ViewJSON from "./components/ViewJSON.ts";
-import EditorJSON from "./components/EditorJSON.ts";
 import * as t from "@/types.ts";
-import {get_request, last_history_entry} from "./store.ts";
-import {m, Signal, setDisplay, signal} from "./lib/utils.ts";
+import {NButton, NInputGroup, NInput} from "../../components/input.ts";
+import {NEmpty} from "../../components/dataview.ts";
+import {NSplit} from "../../components/layout.ts";
+import ViewJSON from "../../components/ViewJSON.ts";
+import EditorJSON from "../../components/EditorJSON.ts";
+import {get_request, last_history_entry} from "../../store.ts";
+import {m, Signal, setDisplay, signal} from "../../lib/utils.ts";
 
 type Request = {kind: t.Kind.REDIS} & t.RedisRequest;
 
