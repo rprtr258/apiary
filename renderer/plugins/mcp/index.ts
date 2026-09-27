@@ -1,7 +1,8 @@
 import * as t from "@/types.ts";
 import {api} from "../../api.ts";
 import {setDisplay} from "../../lib/utils.ts";
-import {createSourceCache, type Plugin} from "../cache.ts";
+import {createSourceCache} from "../cache.ts";
+import {Plugin} from "../types.ts";
 import {store} from "../../store.ts";
 import ToolViewer from "./tool.ts";
 import RequestMCP from "./viewer.ts";

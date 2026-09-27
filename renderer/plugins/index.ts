@@ -1,6 +1,7 @@
 import * as t from "@/types.ts";
+import {KindTag, Plugin} from "./types.ts";
 import {store} from "../store.ts";
-import {isStale, type KindTag, type Plugin} from "./cache.ts";
+import {isStale} from "./cache.ts";
 import {httpPlugin} from "./http/index.ts";
 import {httpSourcePlugin} from "./http_source/index.ts";
 import {sqlPlugin} from "./sql/index.ts";

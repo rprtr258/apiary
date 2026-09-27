@@ -3,7 +3,7 @@ import notification from "../../lib/notification.ts";
 import {api} from "../../api.ts";
 import {NIcon} from "../../components/dataview.ts";
 import {ContentCopyFilled} from "../../components/icons.ts";
-import type {MenuOption, Plugin} from "../cache.ts";
+import {MenuOption, Plugin} from "../types.ts";
 import RequestHTTP from "./viewer.ts";
 
 function httpToCurl({url, method, body, headers}: t.HTTPRequest): string {

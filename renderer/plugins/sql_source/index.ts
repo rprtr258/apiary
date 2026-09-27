@@ -1,10 +1,11 @@
 import * as t from "@/types.ts";
 import {api} from "../../api.ts";
 import {formatSize, setDisplay} from "../../lib/utils.ts";
-import {createSourceCache, type Plugin} from "../cache.ts";
+import {createSourceCache} from "../cache.ts";
 import {store} from "../../store.ts";
 import RequestTableViewer from "../../components/TableView.ts";
 import RequestSQLSource from "./viewer.ts";
+import {Plugin} from "../types.ts";
 
 const componentType = "TableViewer";
 type StateSQLSourceTable = {
