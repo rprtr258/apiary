@@ -32,8 +32,8 @@ export type Api = {
   },
   HTTPSource: {
     ListEndpoints:          (_1: string                               ) => Promise<t.EndpointInfo[]>,
-    GenerateExampleRequest: (_1: string, _2: number                   ) => Promise<t.HTTPRequest>,
-    PerformVirtualEndpoint: (_1: string, _2: number, _3: t.HTTPRequest) => Promise<Record<string, unknown>>,
+    GenerateExampleRequest: (_1: string, _2: t.EndpointKey            ) => Promise<t.HTTPRequest>,
+    PerformVirtualEndpoint: (_1: string, _2: t.EndpointKey, _3: t.HTTPRequest) => Promise<Record<string, unknown>>,
     Test:                   (_1: string                               ) => Promise<void>,
   },
   MCP: {

@@ -7,7 +7,7 @@ import {Modal, NSplit} from "./layout.ts";
 import {ComponentContainer} from "../layout/types.ts";
 import {NIcon} from "./dataview.ts";
 import {QuestionCircleOutlined} from "./icons.ts";
-import type {StateMCPTool} from "../store.ts";
+import type {StateMCPTool} from "../plugins/mcp.ts";
 
 export type ToolViewerProps = StateMCPTool;
 

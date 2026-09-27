@@ -1,6 +1,6 @@
 import {describe, test, expect, mock, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {Duplicate, resolveSQLRequest} from "./api.ts";
+import {Duplicate, HTTPSource, resolveSQLRequest} from "./api.ts";
 import {load} from "./db.ts";
 
 // In-memory filesystem so load()/save() round-trip without touching disk.
@@ -69,6 +69,38 @@ describe("Duplicate", () => {
 
   test("throws when duplicating a non-existent request", async () => {
     expect(Duplicate("nope")).rejects.toThrow("nope");
+  });
+});
+
+describe("HTTPSource.GenerateExampleRequest", () => {
+  beforeEach(() => {
+    files["db.json"] = Buffer.from(JSON.stringify({
+      ...db_seed,
+      request: [{id: "src", kind: "http-source", path: "src"}],
+      "http-source": {
+        src: {
+          serverUrl: "https://api.example.com",
+          specSource: "file",
+          specData: JSON.stringify({
+            openapi: "3.0.0",
+            info: {title: "t", version: "0"},
+            paths: {"/pets": {get: {responses: {}}}},
+          }),
+          auth: {type: "none"},
+        },
+      },
+    }));
+  });
+
+  test("throws for endpoint missing from the schema", () => {
+    expect(HTTPSource.GenerateExampleRequest("src", {method: "POST", path: "/nope"}))
+      .rejects.toThrow("POST /nope");
+  });
+
+  test("generates example for endpoint found by method and path", async () => {
+    const example = await HTTPSource.GenerateExampleRequest("src", {method: "GET", path: "/pets"});
+    expect(example.method).toBe("GET");
+    expect(example.url).toBe("https://api.example.com/pets");
   });
 });
 

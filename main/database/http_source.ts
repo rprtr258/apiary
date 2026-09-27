@@ -15,6 +15,8 @@ export async function fetchSpec(sourceRequest: HTTPSourceRequest): Promise<OpenA
   switch (sourceRequest.specSource) {
   case "url":
     const url = sourceRequest.specData;
+    if (url === "")
+      throw new Error("spec URL is not set");
     const resp = await fetch(url);
     if (!resp.ok)
       throw new Error(`failed to fetch spec: ${resp.status}`);

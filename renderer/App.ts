@@ -4,9 +4,8 @@ import {Kinds, HistoryEntry, Request} from "@/types.ts";
 import {m, setDisplay, Signal, signal} from "./lib/utils.ts";
 import notification from "./lib/notification.ts";
 import {
-  StateRequest, StateHTTPSourceEndpoint, StateSQLSourceTable,
   get_request, updateLocalstorage, update_request, send, last_history_entry,
-  Store, store,
+  StateRequest, Store, store,
 } from "./store.ts";
 import layout from "./layout.ts";
 import {NInput} from "./components/input.ts";
@@ -14,10 +13,8 @@ import {NModal, NSplit} from "./components/layout.ts";
 import {NIcon, NResult, NTag} from "./components/dataview.ts";
 import {Eye, EyeClosed} from "./components/icons.ts";
 import {CommandPalette, Item} from "./components/CommandPalette.ts";
-import RequestTableViewer from "./components/TableView.ts";
-import EndpointViewer from "./components/EndpointViewer.ts";
 import {sidebar, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./Sidebar.ts";
-import {kindTag} from "./plugins/index.ts";
+import {kindTag, plugins} from "./plugins/index.ts";
 import RequestHTTP from "./RequestHTTP.ts";
 import RequestSQL from "./RequestSQL.ts";
 import RequestGRPC from "./RequestGRPC.ts";
@@ -28,8 +25,6 @@ import RequestDIFF from "./RequestDIFF.ts";
 import RequestSQLSource from "./RequestSQLSource.ts";
 import RequestHTTPSource from "./RequestHTTPSource.ts";
 import RequestMCP from "./RequestMCP.ts";
-import ToolViewer from "./components/MCPToolViewer.ts";
-import type {StateMCPTool} from "./store.ts";
 
 function create() {
   const kind = newRequestKind.value!;
@@ -409,20 +404,13 @@ function stripStaleTabs(config: LayoutConfig, validIds: Set<string>): void {
 }
 
 // Keep a component tab only if the request/source it references still exists.
+// Request panes reference their request by id; item viewers (and any other
+// component) reference their source request by sourceID.
 function isComponentValid(node: LayoutConfigNode, validIds: Set<string>): boolean {
   const state = node.componentState;
-  switch (node.componentType) {
-    case "MyComponent":
-      return state === undefined || validIds.has(String(state["id"]));
-    case "TableViewer":
-      return state !== undefined && validIds.has(String(state["sqlSourceID"]));
-    case "EndpointViewer":
-      return state !== undefined && validIds.has(String(state["sourceID"]));
-    case "ToolViewer":
-      return state !== undefined && validIds.has(String(state["sourceID"]));
-    default:
-      return true;
-  }
+  if (node.componentType === "MyComponent")
+    return state === undefined || validIds.has(String(state["id"]));
+  return state !== undefined && validIds.has(String(state["sourceID"]));
 }
 
 // Recursively drop stale component tabs and the containers left empty by dropping.
@@ -481,9 +469,10 @@ function preApp(root: HTMLElement, store: Store) {
 
   layout.init(el_layout, store.layoutConfig, {
     "MyComponent": (container, state) => panelkaFactory(container, state as StateRequest),
-    "TableViewer": (container, state) => RequestTableViewer(container, state as StateSQLSourceTable),
-    "EndpointViewer": (container, state) => EndpointViewer(container, state as StateHTTPSourceEndpoint),
-    "ToolViewer": (container, state) => ToolViewer(container, state as StateMCPTool),
+    ...Object.fromEntries(plugins
+      .map(plugin => plugin.viewer)
+      .filter(viewer => viewer !== undefined)
+      .map(viewer => [viewer.componentType, viewer.factory] as const)),
   }, () => {
     update_empty_state();
     updateLocalstorage();

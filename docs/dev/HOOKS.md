@@ -55,7 +55,7 @@ Source metadata (SQL tables, OpenAPI endpoints, MCP tools) is fetched on demand 
 // - ensureFresh(ids) fetches only entries that are stale or missing (in-flight entries are skipped)
 ```
 
-Each source plugin (`renderer/plugins/<kind>.ts`) owns one cache; adding a new source kind with browsable metadata means adding a plugin with a `cache` + `itemKey`/`label`/`tag`/`onOpen` hooks and registering it in `renderer/plugins/index.ts`.
+Each source plugin (`renderer/plugins/<kind>.ts`) owns one cache; adding a new source kind with browsable metadata means adding a plugin with `cache` + `itemKey`/`label`/`tag`/`onOpen`/`viewer` hooks and registering it in `renderer/plugins/index.ts`.
 
 ## Debounced auto-update
 

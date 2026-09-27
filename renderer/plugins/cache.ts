@@ -4,6 +4,7 @@ import {signal} from "../lib/utils.ts";
 import notification from "../lib/notification.ts";
 import type {DOMNode} from "../lib/utils.ts";
 import type {TagType} from "../components/dataview.ts";
+import type {ComponentContainer} from "../layout/types.ts";
 
 // Time after which a cached listing is considered stale.
 export const STALE_AFTER = 1000*60*5; // 5 minutes
@@ -49,17 +50,28 @@ export type MenuOption = {
   },
 };
 
+// Everything needed to mount a source item's viewer pane: the layout
+// componentType (persistence + dedup key, see store.openViewer) and the
+// component factory. Viewer states extend ViewerState ({sourceID, itemKey},
+// store.ts) with the item data their component needs; the state types live in
+// the plugin files.
+export type Viewer = {
+  componentType: string,
+  factory: (container: ComponentContainer, state: unknown) => void,
+};
+
 // Same bivariance reasoning as SourceCache above.
 export type Plugin<Item = unknown> = {
   kind: t.Kind,
   kindTag: KindTag,
   menuEntries?(id: string): MenuOption[],
   cache?: SourceCache<Item>,
-  itemKey?(item: Item, index: number): string,
+  itemKey?(item: Item): string,
   label?(item: Item): string,
   tag?(item: Item): TagData,
-  onOpen?(id: string, item: Item, itemKey: string): void | Promise<void>,
+  onOpen?(id: string, item: Item, itemKey: string): void,
   childrenOf?(item: Item): Promise<Item[]>,
+  viewer?: Viewer,
 };
 
 export function isStale<Item>(cache: SourceCache<Item>, id: string): boolean {

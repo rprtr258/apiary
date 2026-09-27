@@ -8,12 +8,12 @@ import {ComponentContainer} from "../layout/types.ts";
 
 export type EndpointViewerProps = {
   sourceID: string,
-  endpointIndex: number,
+  endpointInfo: t.EndpointInfo,
 };
 
 export default function EndpointViewer(
   container: ComponentContainer,
-  {sourceID, endpointIndex}: EndpointViewerProps,
+  {sourceID, endpointInfo}: EndpointViewerProps,
 ): HTTPRequestViewResult {
   const el: HTMLElement = container.element;
 
@@ -21,24 +21,13 @@ export default function EndpointViewer(
     exampleRequest: t.HTTPRequest,
     schema?: JSONSchema7,
   }> => {
-    // First, get the endpoint list to extract schema
-    const endpointsRes = await api.requestListEndpointsHTTPSource(sourceID);
-    if (endpointsRes.kind === "err") {
-      throw new Error(`Could not fetch endpoints: ${endpointsRes.value}`);
-    }
-
-    const endpoints = endpointsRes.value;
-    if (endpointIndex < 0 || endpointIndex >= endpoints.length) {
-      throw new Error(`Invalid endpoint index: ${endpointIndex}`);
-    }
-
-    const content = endpoints[endpointIndex].requestBody?.content;
+    const content = endpointInfo.requestBody?.content;
     const schema: JSONSchema7 | undefined =
       content !== undefined && "application/json" in content ?
       content["application/json"].schema :
       undefined;
 
-    const exampleRes = await api.requestGenerateExampleRequestHTTPSource(sourceID, endpointIndex);
+    const exampleRes = await api.requestGenerateExampleRequestHTTPSource(sourceID, {method: endpointInfo.method, path: endpointInfo.path});
     if (exampleRes.kind === "err") {
       throw new Error(`Could not generate example request: ${exampleRes.value}`);
     }
@@ -59,7 +48,7 @@ export default function EndpointViewer(
       showRequest: signal(true),
       schema,
       on: {send: async (request: t.HTTPRequest) => {
-        const res = await api.requestPerformVirtualEndpointHTTPSource(sourceID, endpointIndex, request);
+        const res = await api.requestPerformVirtualEndpointHTTPSource(sourceID, {method: endpointInfo.method, path: endpointInfo.path}, request);
         if (res.kind === "err")
           throw new Error(`Could not perform request: ${res.value}`);
         httpRequestView?.push_history_entry(res.value);

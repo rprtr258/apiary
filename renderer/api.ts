@@ -142,20 +142,20 @@ export const api = {
 
   async requestGenerateExampleRequestHTTPSource(
     id: string,
-    endpointIndex: number,
+    key: t.EndpointKey,
   ): Promise<Result<t.HTTPRequest>> {
-    return await wrap(() => Api.HTTPSource.GenerateExampleRequest(id, endpointIndex), {reqId: id, endpointIndex});
+    return await wrap(() => Api.HTTPSource.GenerateExampleRequest(id, key), {reqId: id, key});
   },
 
   async requestPerformVirtualEndpointHTTPSource(
     sourceID: string,
-    endpointIndex: number,
+    key: t.EndpointKey,
     request: t.HTTPRequest,
   ): Promise<Result<t.HistoryEntry>> {
     // The Go function expects *t.HTTPRequest (pointer) which can be nil
     // The TypeScript definition doesn't reflect this, so we need to cast
-    return await wrap(() => Api.HTTPSource.PerformVirtualEndpoint(sourceID, endpointIndex, request),
-      {sourceID, endpointIndex, request}) as Result<t.HistoryEntry>;
+    return await wrap(() => Api.HTTPSource.PerformVirtualEndpoint(sourceID, key, request),
+      {sourceID, key, request}) as Result<t.HistoryEntry>;
   },
 
   async requestTestHTTPSource(

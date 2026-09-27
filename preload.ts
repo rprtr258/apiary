@@ -34,8 +34,8 @@ const api: Api = {
   },
   HTTPSource: {
     ListEndpoints:          (a1: string                               ): Promise<t.EndpointInfo[]>        => ipcRenderer.invoke("HTTPSource.ListEndpoints",          a1        ),
-    GenerateExampleRequest: (a1: string, a2: number                   ): Promise<t.HTTPRequest>           => ipcRenderer.invoke("HTTPSource.GenerateExampleRequest", a1, a2    ),
-    PerformVirtualEndpoint: (a1: string, a2: number, a3: t.HTTPRequest): Promise<Record<string, unknown>> => ipcRenderer.invoke("HTTPSource.PerformVirtualEndpoint", a1, a2, a3),
+    GenerateExampleRequest: (a1: string, a2: t.EndpointKey              ): Promise<t.HTTPRequest>           => ipcRenderer.invoke("HTTPSource.GenerateExampleRequest", a1, a2    ),
+    PerformVirtualEndpoint: (a1: string, a2: t.EndpointKey, a3: t.HTTPRequest): Promise<Record<string, unknown>> => ipcRenderer.invoke("HTTPSource.PerformVirtualEndpoint", a1, a2, a3),
     Test:                   (a1: string                               ): Promise<void>                    => ipcRenderer.invoke("HTTPSource.Test",                   a1        ),
   },
   MCP: {

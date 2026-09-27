@@ -82,7 +82,7 @@ function Request<Kind>(
 
 The deletion test: these are pass-throughs but that's OK - they're UI adapters, not shallow logic.
 
-`panelkaFactory` in `renderer/App.ts` dispatches kind -> module via a switch and is registered as the layout component factory for request panes. Source panes register dedicated viewer components (`TableView.ts`, `EndpointViewer.ts`, `MCPToolViewer.ts`).
+`panelkaFactory` in `renderer/App.ts` dispatches kind -> module via a switch and is registered as the layout component factory for request panes. Source panes get their viewer components (`TableView.ts`, `EndpointViewer.ts`, `MCPToolViewer.ts`) from the plugin registry's `viewer` hooks, which `App.ts` turns into layout factories.
 
 ### Frontend: Sidebar + Source Cache
 
@@ -96,7 +96,7 @@ Every request kind is also a frontend plugin. The registry drives everything tha
 
 - `renderer/plugins/cache.ts` - shared engine, no registry/store imports: `createSourceCache<Item>({fetcher, errorTitle})` (flat `Item[]` cache with a staleness window `STALE_AFTER`, a `changed` version signal, `fetch`/`ensureFresh`/`invalidate`/`seed`/`get`), plus the `Plugin`/`SourceCache`/`TagData`/`MenuOption` contract types
 - `renderer/plugins/index.ts` - explicit central registry: `plugins` array (one `Plugin` per kind), `pluginsByKind` map, `kindTag(kind)` helper, and `ensureFresh(ids)` (filters to real request ids, dispatches each id to its kind's cache - staleness and in-flight guards live inside the caches)
-- `renderer/plugins/<kind>.ts` - one module per kind: always `{kind, kindTag}`; optionally `menuEntries` (context-menu entries, e.g. "Copy as curl"), `cache` (source listing), `itemKey`/`label`/`tag`/`onOpen` (sidebar item identity, display, badge, open action), `childrenOf` (for future nested item groups)
+- `renderer/plugins/<kind>.ts` - one module per kind: always `{kind, kindTag}`; optionally `menuEntries` (context-menu entries, e.g. "Copy as curl"), `cache` (source listing), `itemKey`/`label`/`tag`/`onOpen` (sidebar item identity, display, badge, open action), `viewer` (`{componentType, factory}` for the item's viewer pane, deduped and titled via `store.openViewer`), `childrenOf` (for future nested item groups)
 
 Adding a new kind means adding one `renderer/plugins/<kind>.ts` and registering it in `renderer/plugins/index.ts`; no `switch (kind)` edits anywhere else. The `createFrame` UI-factory switch stays as-is (UI modules are not part of the registry).
 
@@ -167,7 +167,7 @@ Tests cross at the interface, not past it.
 3. `main/api.ts`: add a case in `emptyRequestForKind`, dispatch in `Perform` (performable kinds) or a dedicated sub-API (source kinds).
 4. `main.ts` + `preload.ts` + `global.d.ts`: expose new channels through the typed IPC surface.
 5. `renderer/Request<Kind>.ts`: UI factory; register it in the `panelkaFactory` switch in `renderer/App.ts`.
-6. `renderer/plugins/<kind>.ts`: `{kind, kindTag}` plus any `menuEntries` / `cache` / `itemKey` / `label` / `tag` / `onOpen` hooks; register the plugin in `renderer/plugins/index.ts` (kind badge, context-menu entries and source listings then come from the registry - no further `switch (kind)` edits).
+6. `renderer/plugins/<kind>.ts`: `{kind, kindTag}` plus any `menuEntries` / `cache` / `itemKey` / `label` / `tag` / `onOpen` / `viewer` hooks; register the plugin in `renderer/plugins/index.ts` (kind badge, context-menu entries, source listings and viewer panes then come from the registry - no further `switch (kind)` edits).
 
 ## Architecture Decisions (ADRs)
 

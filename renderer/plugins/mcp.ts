@@ -2,6 +2,14 @@ import * as t from "@/types.ts";
 import {api} from "../api.ts";
 import {createSourceCache, type Plugin} from "./cache.ts";
 import {store} from "../store.ts";
+import ToolViewer from "../components/MCPToolViewer.ts";
+
+const componentType = "ToolViewer";
+export type StateMCPTool = {
+  sourceID: string,
+  itemKey: string,
+  tool: t.MCPTool,
+};
 
 export const mcpPlugin: Plugin<t.MCPTool> = {
   kind: t.Kind.MCP,
@@ -17,6 +25,10 @@ export const mcpPlugin: Plugin<t.MCPTool> = {
     type: "info",
     style: {backgroundColor: "#000000", color: "#FFFFFF"},
   }),
-  onOpen: (id: string, tool: t.MCPTool) =>
-    store.openToolViewer(id, tool),
+  viewer: {
+    componentType,
+    factory: (container, state) => ToolViewer(container, state as StateMCPTool),
+  },
+  onOpen: (id: string, tool: t.MCPTool, itemKey: string) =>
+    store.openViewer(componentType, tool.name, {sourceID: id, itemKey, tool}),
 };

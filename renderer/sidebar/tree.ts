@@ -49,7 +49,7 @@ async function resolveVirtual(kind: string, sourceID: string, segments: string[]
     return;
   let item: unknown = undefined;
   for (const segment of segments) {
-    const index = items.findIndex((candidate, i) => plugin.itemKey?.(candidate, i) === segment);
+    const index = items.findIndex((candidate) => plugin.itemKey?.(candidate) === segment);
     if (index === -1)
       return;
     item = items[index];
@@ -57,7 +57,7 @@ async function resolveVirtual(kind: string, sourceID: string, segments: string[]
   }
   if (item === undefined)
     return;
-  await plugin.onOpen?.(sourceID, item, segments.join(":"));
+  plugin.onOpen?.(sourceID, item, segments.join(":"));
 }
 
 const expandedKeys = useLocalStorage<string[]>("expanded-keys", []);
@@ -124,8 +124,8 @@ export function createTreeView(): {el: HTMLElement} {
                 return undefined;
               const entry = plugin.cache.get(id);
               if (entry !== undefined && entry.items.length > 0) {
-                return entry.items.map((item, index) => ({
-                  key: `virtual:${plugin.kind}:${id}:${plugin.itemKey?.(item, index) ?? ""}`,
+                return entry.items.map((item) => ({
+                  key: `virtual:${plugin.kind}:${id}:${plugin.itemKey?.(item) ?? ""}`,
                   label: plugin.label?.(item) ?? "",
                 })).sort(byLabel);
               }
@@ -222,7 +222,7 @@ export function createTreeView(): {el: HTMLElement} {
             if (plugin.cache !== undefined && plugin.itemKey !== undefined) {
               // Generic item row: tag from the plugin's tag hook + shared ellipsized label
               const leaf = segments[segments.length - 1];
-              const item = plugin.cache.get(sourceID)?.items.find((candidate, index) => plugin.itemKey?.(candidate, index) === leaf);
+              const item = plugin.cache.get(sourceID)?.items.find((candidate) => plugin.itemKey?.(candidate) === leaf);
               const tagData = item !== undefined && plugin.tag !== undefined ? plugin.tag(item) : undefined;
               return m("span", {
                 style: {

@@ -292,7 +292,7 @@ export const HTTPSource = {
     return await parseSpec(specData);
   },
 
-  async GenerateExampleRequest(id: t.RequestID, endpointIndex: number): Promise<t.HTTPRequest> {
+  async GenerateExampleRequest(id: t.RequestID, key: t.EndpointKey): Promise<t.HTTPRequest> {
     const req = await get(id);
     if (req.Kind !== t.Kind.HTTPSource)
       throw new Error(`request ${id} is not HTTPSource`);
@@ -300,26 +300,16 @@ export const HTTPSource = {
     const sourceRequest = req.Data;
     const spec = await fetchSpec(sourceRequest);
     const endpoints = await parseSpec(spec);
-    if (endpointIndex < 0 || endpointIndex >= endpoints.length)
-      throw new Error(`invalid endpoint index ${endpointIndex}`);
-
-    return generateExampleRequest(endpoints[endpointIndex], sourceRequest.serverUrl, sourceRequest.auth);
+    const endpoint = endpoints.find(e => e.method === key.method && e.path === key.path);
+    if (endpoint === undefined)
+      throw new Error(`endpoint ${key.method} ${key.path} not found in schema`);
+    return generateExampleRequest(endpoint, sourceRequest.serverUrl, sourceRequest.auth);
   },
 
-  async PerformVirtualEndpoint(sourceID: t.RequestID, endpointIndex: number, modifiedRequest?: Partial<t.HTTPRequest>): Promise<Record<string, unknown>> {
+  async PerformVirtualEndpoint(id: t.RequestID, key: t.EndpointKey, modifiedRequest?: Partial<t.HTTPRequest>): Promise<Record<string, unknown>> {
     // Perform an HTTP request generated from the OpenAPI spec
-    const req = await get(sourceID);
-    if (req.Kind !== t.Kind.HTTPSource)
-      throw new Error(`request ${sourceID} is not HTTPSource`);
-
-    const spec = await fetchSpec(req.Data);
-    const endpoints = await parseSpec(spec);
-    if (endpointIndex < 0 || endpointIndex >= endpoints.length)
-      throw new Error(`invalid endpoint index ${endpointIndex}`);
-
-    const exampleRequest = generateExampleRequest(endpoints[endpointIndex], req.Data.serverUrl, req.Data.auth);
+    const finalRequest = await this.GenerateExampleRequest(id, key);
     // Merge with modified request if provided
-    const finalRequest = exampleRequest;
     if (modifiedRequest !== undefined) {
       // Merge fields from modifiedRequest into exampleRequest
       finalRequest.method = modifiedRequest.method ?? finalRequest.method;
@@ -334,7 +324,7 @@ export const HTTPSource = {
     const result = await sendHTTP(finalRequest);
     const received_at = new Date();
     return {
-      RequestId:   sourceID,
+      RequestId:   id,
       sent_at:     sent_at.toISOString(),
       received_at: received_at.toISOString(),
       request:     finalRequest,

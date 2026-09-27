@@ -165,7 +165,7 @@ case t.Kind.Example:
   return RequestExample(el, {update: on.update});
 ```
 
-Source panes that display fetched data also register a dedicated viewer component in the layout (see the `TableViewer`, `EndpointViewer`, `ToolViewer` registrations later in `App.ts`, backed by `renderer/components/TableView.ts`, `EndpointViewer.ts`, `MCPToolViewer.ts`).
+Source panes that display fetched data also ship a viewer component in `renderer/components/` and expose it through the plugin's `viewer` hook — `App.ts` builds the layout factories from the registry, so no per-viewer edit is needed there.
 
 **No `main/db.ts` changes are needed**: the v1 migration switch in `db.ts` only handles kinds that existed in v1 databases; new kinds never appear there (`Create` writes the current format directly).
 
@@ -186,13 +186,22 @@ export const httpPlugin: Plugin = {
 };
 ```
 
-Source kind — `renderer/plugins/sqlSource.ts` (adds the cache and item hooks):
+Source kind — `renderer/plugins/sqlSource.ts` (adds the cache, item hooks and viewer):
 
 ```typescript
 import * as t from "@/types.ts";
 import {createSourceCache, type Plugin} from "./cache.ts";
 import {api} from "../api.ts";
 import {store} from "../store.ts";
+import RequestTableViewer from "../components/TableView.ts";
+
+const componentType = "TableViewer";
+type StateSQLSourceTable = {
+  sourceID: string,
+  itemKey: string,
+  tableName: string,
+  tableInfo: t.TableInfo,
+};
 
 export const sqlSourcePlugin: Plugin<t.TableInfo> = {
   kind: t.Kind.SQLSource,
@@ -204,7 +213,12 @@ export const sqlSourcePlugin: Plugin<t.TableInfo> = {
   itemKey: table => table.name,
   label: table => formatTableLabel(table),
   tag: () => ({text: "TBL", type: "info"}),
-  onOpen: (id, table, itemKey) => store.openTableViewer(id, itemKey, table),
+  viewer: {
+    componentType,
+    factory: (container, state) => RequestTableViewer(container, state as StateSQLSourceTable),
+  },
+  onOpen: (id, table, itemKey) =>
+    store.openViewer(componentType, itemKey, {sourceID: id, itemKey, tableName: itemKey, tableInfo: table}),
 };
 ```
 
@@ -230,6 +244,7 @@ Contract:
 | `label` | source kinds | with cache | Display label (plain string, no DOM) |
 | `tag` | source kinds | with cache | Per-item tag data `{text, type, style?}` rendered by the generic tree row |
 | `onOpen` | source kinds | no | Click action for leaf items, called as `(id, item, itemKey)` (the `itemKey` carries the index for unkeyed items). Group nodes omit it |
+| `viewer` | source kinds | no | `{componentType, factory}` — mounts the item's viewer pane. `componentType` is the layout component name persisted in saved layouts (dedup key together with `{sourceID, itemKey}`, see `store.openViewer`, which also composes the `sourceName/` title prefix); `factory(container, state)` builds the component. `App.ts` derives all viewer factories from the registry |
 | `childrenOf` | source kinds | no | `(item) => Promise<Item[]>` — children of a group item; absent/empty → leaf. Enables nesting (e.g. source → tables/views groups → concrete items) |
 
 Rules:

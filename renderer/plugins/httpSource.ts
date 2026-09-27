@@ -3,6 +3,14 @@ import {api} from "../api.ts";
 import type {TagType} from "../components/dataview.ts";
 import {createSourceCache, type Plugin} from "./cache.ts";
 import {store} from "../store.ts";
+import EndpointViewer from "../components/EndpointViewer.ts";
+
+const componentType = "EndpointViewer";
+type StateHTTPSourceEndpoint = {
+  sourceID: string,
+  itemKey: string,
+  endpointInfo: t.EndpointInfo,
+};
 
 type HTTPMethodProps = {
   bg: string,
@@ -40,7 +48,7 @@ export const httpSourcePlugin: Plugin<t.EndpointInfo> = {
     fetcher: (id: string) => api.requestListEndpointsHTTPSource(id),
     errorTitle: "Could not fetch endpoints",
   }),
-  itemKey: (_endpoint: t.EndpointInfo, index: number) => String(index),
+  itemKey: (endpoint: t.EndpointInfo) => `${endpoint.method} ${endpoint.path}`,
   label: formatEndpointLabel,
   tag: (endpoint: t.EndpointInfo) => {
     const {bg, color, type} = httpMethodProps(endpoint.method);
@@ -50,6 +58,11 @@ export const httpSourcePlugin: Plugin<t.EndpointInfo> = {
       style: {backgroundColor: bg, color},
     };
   },
+  viewer: {
+    componentType,
+    factory: (container, state) => EndpointViewer(container, state as StateHTTPSourceEndpoint),
+  },
   onOpen: (id: string, endpoint: t.EndpointInfo, itemKey: string) =>
-    store.openEndpointViewer(id, Number(itemKey), endpoint),
+    store.openViewer(componentType, `${endpoint.method} ${endpoint.path}`,
+      {sourceID: id, itemKey, endpointInfo: endpoint}),
 };
