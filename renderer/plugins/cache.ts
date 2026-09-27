@@ -1,8 +1,8 @@
 import * as t from "@/types.ts";
 import type {Result} from "@/result.ts";
-import {signal} from "../lib/utils.ts";
+import {signal, DOMNode, Signal} from "../lib/utils.ts";
 import notification from "../lib/notification.ts";
-import type {DOMNode} from "../lib/utils.ts";
+import type {get_request} from "../store.ts";
 import type {TagType} from "../components/dataview.ts";
 import type {ComponentContainer} from "../layout/types.ts";
 
@@ -60,10 +60,32 @@ export type Viewer = {
   factory: (container: ComponentContainer, state: unknown) => void,
 };
 
+// A mounted request pane: what panelkaFactory needs to drive the frame after
+// mounting. Factories mirror the Request<Kind> modules: request kinds toggle
+// their editor via show_request (the eye in the tab); source kinds hide the
+// eye and only take update.
+export type Frame = {
+  loaded(r: get_request): void,
+  push_history_entry?(he: t.HistoryEntry): void, // show last history entry
+  send?: () => Promise<void>,
+  unmount(): void,
+};
+
+export type FrameArgs = {
+  el: HTMLElement,
+  show_request: Signal<boolean>,
+  eye: HTMLElement,
+  on: {
+    update: (patch: Partial<t.Request>) => Promise<void>,
+    send: () => Promise<void>,
+  },
+};
+
 // Same bivariance reasoning as SourceCache above.
 export type Plugin<Item = unknown> = {
   kind: t.Kind,
   kindTag: KindTag,
+  frame(args: FrameArgs): Frame,
   menuEntries?(id: string): MenuOption[],
   cache?: SourceCache<Item>,
   itemKey?(item: Item): string,

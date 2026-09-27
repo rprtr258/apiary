@@ -36,12 +36,11 @@
 - [ ] Clean up listeners/editors in `unmount()`
 - [ ] Create `Request<NAME>.test.ts` (`bun:test` + `happy-dom`)
 
-## Registration (`renderer/App.ts`)
+## Registration (`renderer/plugins/`)
 
-- [ ] Import the module (default export)
-- [ ] Add case to `createFrame`:
-  - Performable: `case t.Kind.<NAME>: return Request<NAME>(el, show_request, on);`
-  - Source: `setDisplay(eye, false); return Request<NAME>(el, {update: on.update});`
+- [ ] Wire the UI module into the plugin's `frame` hook:
+  - Performable: `frame: (args) => Request<NAME>(args.el, args.show_request, args.on);`
+  - Source: `frame: (args) => { setDisplay(args.eye, false); return Request<NAME>(args.el, {update: args.on.update}); }`
 - [ ] Source panes with fetched data: ship the viewer component in `renderer/components/` and expose it via the plugin's `viewer` hook (no `App.ts` edit — factories come from the registry)
 
 ## Plugin (`renderer/plugins/`, every kind)

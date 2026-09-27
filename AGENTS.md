@@ -37,7 +37,7 @@ apiary is a cross-platform desktop application for managing various API requests
 - **Directories**:
   - `main/`: Electron main process - `api.ts` (API facade), `db.ts` (JSON DB), `database/`: plugin implementations (HTTP, SQL, gRPC, Redis, etc.).
   - `renderer/`: Vanilla TypeScript UI components and logic
-    - `plugins/`: frontend plugin registry (`index.ts` registry, `cache.ts` source-cache engine, one `<kind>.ts` per kind for kind badges/menu entries/source listings).
+    - `plugins/`: frontend plugin registry (`index.ts` registry, `cache.ts` source-cache engine, one `<kind>.ts` per kind for kind badges/pane factories/menu entries/source listings).
   - `shared/`: Shared types and utilities (`types.ts` with the `Kind` enum, imported as `@/types.ts`).
 
 ## Code Style
@@ -123,8 +123,8 @@ numbers.forEach(n => console.log(n));
 ## Architecture Patterns
 
 - **Backend Services**: Each request kind (HTTP, SQL, etc.) has a plugin module in `main/database/` with a `send*` function and a `*EmptyRequest` constant. `main/api.ts` dispatches by kind (`emptyRequestForKind`, `Perform`).
-- **Frontend Factories**: Each request kind has a `Request*.ts` factory function in `renderer/` taking `(el, show_request, on)` and returning `{loaded, push_history_entry, unmount}`. Kind -> module dispatch lives in `panelkaFactory` in `renderer/App.ts`.
-- **Frontend Plugins**: Each request kind has a `renderer/plugins/<kind>.ts` module registered in `renderer/plugins/index.ts` with `{kind, kindTag}` plus optional `menuEntries` / `cache` / `itemKey` / `label` / `tag` / `onOpen` hooks. Sidebar badges, context-menu entries, source listings and their staleness caching come from this registry.
+- **Frontend Factories**: Each request kind has a `Request*.ts` factory function in `renderer/` taking `(el, show_request, on)` and returning `{loaded, push_history_entry, unmount}`. Kind -> module dispatch lives in the plugin registry's `frame` hooks (`renderer/plugins/`), called from `panelkaFactory` in `renderer/App.ts`.
+- **Frontend Plugins**: Each request kind has a `renderer/plugins/<kind>.ts` module registered in `renderer/plugins/index.ts` with `{kind, kindTag, frame}` (`frame` mounts the kind's `Request<Kind>.ts` UI factory into a pane) plus optional `menuEntries` / `cache` / `itemKey` / `label` / `tag` / `onOpen` hooks. Pane mounting, sidebar badges, context-menu entries, source listings and their staleness caching come from this registry.
 - **Reactivity**: Use `signal<T>()` for state, but only if it is watched by using `sub`, otherwise use mutable locals. Use `m()` for DOM building, no VDOM.
 - **Components**: `N*` functions return DOM elements; `Request*` functions manage state in provided container.
 - **Store**: Central state management in `renderer/store.ts` with CRUD operations and backend coordination.
@@ -144,8 +144,8 @@ numbers.forEach(n => console.log(n));
   - Add `Kind` value and `RequestData` member in `shared/types.ts`.
   - Add plugin file in `main/database/` with `send*` function, `*EmptyRequest` constant, and unit test.
   - Add `Request*.ts` in `renderer/` following factory pattern.
-  - Add `renderer/plugins/<kind>.ts` (`{kind, kindTag}` + optional source-cache/menu hooks) and register it in `renderer/plugins/index.ts`.
-  - Register in `renderer/App.ts` `panelkaFactory` (kind switch) and add case in `emptyRequestForKind` + `Perform` dispatch in `main/api.ts`.
+  - Add `renderer/plugins/<kind>.ts` (`{kind, kindTag, frame}` + optional source-cache/menu hooks) and register it in `renderer/plugins/index.ts`.
+  - Add case in `emptyRequestForKind` + `Perform` dispatch in `main/api.ts`.
   - Add IPC handler in `main.ts`.
   - Add preload bridge in `preload.ts`.
   - Extend the `Api` interface in `global.d.ts`.

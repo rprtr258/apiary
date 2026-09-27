@@ -87,7 +87,7 @@ export default function(
 - `push_history_entry(he)` — render the latest history entry
 - `unmount()` — tear down editors/listeners/timers
 
-Source kinds receive only `{update}` and hide the send/eye affordances (see `createFrame` in `renderer/App.ts`).
+Source kinds receive only `{update}` and hide the send/eye affordances (see the `frame` hook on their plugins in `renderer/plugins/`).
 
 ## Testing state primitives
 

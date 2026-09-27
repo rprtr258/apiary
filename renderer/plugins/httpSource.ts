@@ -1,9 +1,11 @@
 import * as t from "@/types.ts";
 import {api} from "../api.ts";
+import {setDisplay} from "../lib/utils.ts";
 import type {TagType} from "../components/dataview.ts";
 import {createSourceCache, type Plugin} from "./cache.ts";
 import {store} from "../store.ts";
 import EndpointViewer from "../components/EndpointViewer.ts";
+import RequestHTTPSource from "../RequestHTTPSource.ts";
 
 const componentType = "EndpointViewer";
 type StateHTTPSourceEndpoint = {
@@ -44,6 +46,10 @@ function formatEndpointLabel(endpoint: t.EndpointInfo): string {
 export const httpSourcePlugin: Plugin<t.EndpointInfo> = {
   kind: t.Kind.HTTPSource,
   kindTag: {text: "HTTP*", color: "lime"},
+  frame: (args) => {
+    setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
+    return RequestHTTPSource(args.el, {update: args.on.update});
+  },
   cache: createSourceCache<t.EndpointInfo>({
     fetcher: (id: string) => api.requestListEndpointsHTTPSource(id),
     errorTitle: "Could not fetch endpoints",

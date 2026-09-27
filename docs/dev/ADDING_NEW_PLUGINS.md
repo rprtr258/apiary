@@ -7,7 +7,7 @@ This guide explains how to add a new request kind plugin to apiary.
 Every request kind (HTTP, SQL, gRPC, Redis, JQ, Markdown, DIFF, MCP, SQLSource, HTTPSource) is a *plugin* with two halves:
 
 - **Backend** (`main/database/<kind>.ts`): a `send<Kind>` function plus an `EmptyRequest` template, dispatched from `main/api.ts`.
-- **Frontend** (`renderer/Request<Kind>.ts`): a UI factory, registered in the `createFrame` switch in `renderer/App.ts`.
+- **Frontend** (`renderer/Request<Kind>.ts`): a UI factory, wired into the kind's plugin via the `frame` hook in `renderer/plugins/<kind>.ts`.
 
 The two halves connect through the typed IPC surface: `main.ts` (handlers) → `preload.ts` (bridge) → `global.d.ts` (`Api` interface).
 
@@ -23,8 +23,8 @@ main.ts                       # ipcMain.handle(...) per channel
 preload.ts                    # ipcRenderer.invoke(...) mirror, exposed via contextBridge
 global.d.ts                   # Api interface — the typed IPC contract
 renderer/Request<Kind>.ts     # UI factory (default export) + component test
-renderer/plugins/             # Plugin module per request kind (see step 7)
-renderer/App.ts               # createFrame switch (kind → UI module), panelkaFactory
+renderer/plugins/             # Plugin module per request kind: kindTag, frame, menus, source cache (see step 7)
+renderer/App.ts               # panelkaFactory (kind → plugin.frame dispatch)
 ```
 
 ## Step-by-Step Implementation
@@ -149,20 +149,21 @@ Conventions:
 - Clean up listeners/editors in `unmount()`.
 - Add component tests in `renderer/RequestExample.test.ts` (see `renderer/components/CommandPalette.test.ts` for the `bun:test` + `happy-dom` pattern).
 
-### 6. Registration (`renderer/App.ts`)
+### 6. Registration (`renderer/plugins/`)
 
-Import the module and add a case to `createFrame`:
+Wire the UI module into the plugin's `frame` hook:
 
 ```typescript
-import RequestExample from "./RequestExample.ts";
+import RequestExample from "../RequestExample.ts";
 
 // performable kind:
-case t.Kind.Example: return RequestExample(el, show_request, on);
+frame: (args) => RequestExample(args.el, args.show_request, args.on),
 
 // source kind (no send/eye — they query sources on demand):
-case t.Kind.Example:
-  setDisplay(eye, false);
-  return RequestExample(el, {update: on.update});
+frame: (args) => {
+  setDisplay(args.eye, false);
+  return RequestExample(args.el, {update: args.on.update});
+},
 ```
 
 Source panes that display fetched data also ship a viewer component in `renderer/components/` and expose it through the plugin's `viewer` hook — `App.ts` builds the layout factories from the registry, so no per-viewer edit is needed there.
@@ -178,10 +179,12 @@ Plain (performable) kind — `renderer/plugins/http.ts`:
 ```typescript
 import * as t from "@/types.ts";
 import type {Plugin} from "./cache.ts";
+import RequestHTTP from "../RequestHTTP.ts";
 
 export const httpPlugin: Plugin = {
   kind: t.Kind.HTTP,
   kindTag: {text: "HTTP", color: "lime", type: "success"},
+  frame: (args) => RequestHTTP(args.el, args.show_request, args.on),
   menuEntries: [copyAsCurl],   // optional per-kind context-menu entries
 };
 ```
@@ -206,6 +209,10 @@ type StateSQLSourceTable = {
 export const sqlSourcePlugin: Plugin<t.TableInfo> = {
   kind: t.Kind.SQLSource,
   kindTag: {text: "SQL*", color: "#70a0e8"},
+  frame: (args) => {
+    setDisplay(args.eye, false);
+    return RequestSQLSource(args.el, {update: args.on.update});
+  },
   cache: createSourceCache<t.TableInfo>({
     fetcher: id => api.requestListTablesSQLSource(id),   // Promise<Result<TableInfo[]>>
     errorTitle: "Could not fetch tables",

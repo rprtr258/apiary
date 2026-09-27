@@ -1,9 +1,10 @@
 import * as t from "@/types.ts";
 import {api} from "../api.ts";
-import {formatSize} from "../lib/utils.ts";
+import {formatSize, setDisplay} from "../lib/utils.ts";
 import {createSourceCache, type Plugin} from "./cache.ts";
 import {store} from "../store.ts";
 import RequestTableViewer from "../components/TableView.ts";
+import RequestSQLSource from "../RequestSQLSource.ts";
 
 const componentType = "TableViewer";
 type StateSQLSourceTable = {
@@ -20,6 +21,10 @@ function formatTableLabel(table: t.TableInfo): string {
 export const sqlSourcePlugin: Plugin<t.TableInfo> = {
   kind: t.Kind.SQLSource,
   kindTag: {text: "SQL*", color: "#70a0e8"},
+  frame: (args) => {
+    setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
+    return RequestSQLSource(args.el, {update: args.on.update});
+  },
   cache: createSourceCache<t.TableInfo>({
     fetcher: (id: string) => api.requestListTablesSQLSource(id),
     errorTitle: "Could not fetch tables",

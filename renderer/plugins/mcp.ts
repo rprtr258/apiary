@@ -1,8 +1,10 @@
 import * as t from "@/types.ts";
 import {api} from "../api.ts";
+import {setDisplay} from "../lib/utils.ts";
 import {createSourceCache, type Plugin} from "./cache.ts";
 import {store} from "../store.ts";
 import ToolViewer from "../components/MCPToolViewer.ts";
+import RequestMCP from "../RequestMCP.ts";
 
 const componentType = "ToolViewer";
 export type StateMCPTool = {
@@ -14,6 +16,10 @@ export type StateMCPTool = {
 export const mcpPlugin: Plugin<t.MCPTool> = {
   kind: t.Kind.MCP,
   kindTag: {text: "MCP", color: "white"},
+  frame: (args) => {
+    setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
+    return RequestMCP(args.el, {update: args.on.update});
+  },
   cache: createSourceCache<t.MCPTool>({
     fetcher: (id: string) => api.mcpListTools(id),
     errorTitle: "Could not fetch tools",
