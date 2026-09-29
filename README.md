@@ -15,13 +15,19 @@ A desktop API client that speaks HTTP, SQL, gRPC, Redis, and more - all in one w
 
 ## Getting started
 
+### Homebrew (Linux)
+
+```bash
+brew install rprtr258/tap/apiary
+```
+
 ### Download
 
 Grab the latest binary from [GitHub Releases](https://github.com/rprtr258/apiary/releases):
 
 | Platform | File |
 |----------|------|
-| Linux (x64) | `apiary-linux-x64.AppImage` |
+| Linux (x64) | `apiary-linux-x86_64.AppImage` |
 | macOS (Intel) | `apiary-darwin-x64.dmg` |
 | macOS (Apple Silicon) | `apiary-darwin-arm64.dmg` |
 | Windows (x64) | `apiary-win-x64.exe` |
@@ -29,8 +35,8 @@ Grab the latest binary from [GitHub Releases](https://github.com/rprtr258/apiary
 Make it executable (Linux/macOS):
 
 ```bash
-chmod +x apiary-linux-x64.AppImage
-./apiary-linux-x64.AppImage
+chmod +x apiary-linux-x86_64.AppImage
+./apiary-linux-x86_64.AppImage
 ```
 
 ### Build from source

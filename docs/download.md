@@ -46,16 +46,22 @@ If you prefer to build Apiary from source, see the [Building from Source](/guide
 
 ## Installation Instructions
 
+### Homebrew (Linux)
+
+```bash
+brew install rprtr258/tap/apiary
+```
+
 ### Linux/macOS
 
 1. Download the binary for your platform
 2. Make it executable:
    ```bash
-   chmod +x apiary-linux-amd64
+   chmod +x apiary-linux-x86_64.AppImage
    ```
 3. Run it:
    ```bash
-   ./apiary-linux-amd64
+   ./apiary-linux-x86_64.AppImage
    ```
 
 ### Windows

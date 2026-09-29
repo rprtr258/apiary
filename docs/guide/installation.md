@@ -1,30 +1,36 @@
 # Installation
 
-There are two ways to install Apiary: downloading pre-built binaries or building from source.
+There are three ways to install Apiary: Homebrew, downloading pre-built binaries, or building from source.
+
+## Homebrew (Linux)
+
+```bash
+brew install rprtr258/tap/apiary
+```
 
 ## Download Pre-built Binaries
 
-Visit the [GitHub Releases](https://github.com/rprtr258/apiary/releases) page and download the latest binary for your platform:
+Grab the latest binary from [GitHub Releases](https://github.com/rprtr258/apiary/releases):
 
 | Platform | File |
 |----------|------|
-| Linux (amd64) | `apiary-linux-amd64` |
-| macOS (Intel) | `apiary-darwin-amd64` |
-| macOS (Apple Silicon) | `apiary-darwin-arm64` |
-| Windows (amd64) | `apiary-windows-amd64.exe` |
+| Linux (x64) | `apiary-linux-x86_64.AppImage` |
+| macOS (Intel) | `apiary-darwin-x64.dmg` |
+| macOS (Apple Silicon) | `apiary-darwin-arm64.dmg` |
+| Windows (x64) | `apiary-win-x64.exe` |
 
 ### Linux/macOS
 
 Make the binary executable:
 
 ```bash
-chmod +x apiary-linux-amd64
+chmod +x apiary-linux-x86_64.AppImage
 ```
 
 Then run it:
 
 ```bash
-./apiary-linux-amd64
+./apiary-linux-x86_64.AppImage
 ```
 
 ### Windows
@@ -32,7 +38,7 @@ Then run it:
 Double-click the `.exe` file or run from command line:
 
 ```cmd
-apiary-windows-amd64.exe
+apiary-win-x64.exe
 ```
 
 ## Building from Source
@@ -53,17 +59,22 @@ bun install
 bun run dist
 ```
 
-The built binary will be located in `build/bin/`:
+The built binary will be located in `release/`.
 
-- Linux/macOS: `build/bin/apiary`
-- Windows: `build/bin/apiary.exe`
+### Development Servers (optional)
+
+Docker Compose spins up test services for local development:
+
+```bash
+docker compose up -d     # MySQL, PostgreSQL, Redis, gRPC, PetStore API
+```
 
 ### Development Mode
 
 To run Apiary in development mode with hot reload:
 
 ```bash
-bun run _start
+bun run dev
 ```
 
 ## First Run
@@ -86,7 +97,11 @@ Example:
 
 ## Updating
 
-To update Apiary, simply download the latest binary from the releases page and replace the old one.
+To update Apiary, simply download the latest binary from the releases page and replace the old one. If you installed via Homebrew, run:
+
+```bash
+brew upgrade apiary
+```
 
 ## Next Steps
 
