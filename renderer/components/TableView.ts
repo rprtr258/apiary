@@ -369,7 +369,7 @@ export function DataTable() {
   function openCellMenu(e: MouseEvent, j: number, i: number): void {
     if (editable === undefined || lastProps === undefined || openMenu !== undefined)
       return;
-    if (editable.nullable[i] === false)
+    if (!editable.nullable[i])
       return;
     e.preventDefault();
     const column = lastProps.columns[i];
@@ -429,7 +429,7 @@ export function DataTable() {
           finish();
       });
       select.addEventListener("blur", () => {
-        if (changed === false)
+        if (!changed)
           finish();
       });
       td.replaceChildren(select);
@@ -451,13 +451,13 @@ export function DataTable() {
     input.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        if (closed === false) {
+        if (!closed) {
           closed = true;
           commit(input.value);
         }
       } else if (e.key === "Escape") {
         e.preventDefault();
-        if (closed === false) {
+        if (!closed) {
           closed = true;
           invalid.delete(cellKeyOf(j, column));
           finish(); // discard the in-progress edit
@@ -465,7 +465,7 @@ export function DataTable() {
       }
     });
     input.addEventListener("blur", () => {
-      if (closed === false) {
+      if (!closed) {
         closed = true;
         commit(input.value); // any outer click commits
       }
@@ -485,7 +485,7 @@ export function DataTable() {
     const column = lastProps!.columns[i];
     const key = rowKeyOf(j);
     const cellKey = `${key}:${column}`;
-    const edited = editable !== undefined && edits.get(key)?.changes.has(column) === true;
+    const edited = editable !== undefined && (edits.get(key)?.changes.has(column) ?? false);
     const td = m("td", {
       style: {
         cursor: editable === undefined ? "default" : "cell",
@@ -497,10 +497,10 @@ export function DataTable() {
         backgroundColor: j % 2 === 0 ? "var(--row-even)" : "",
       },
       "data-testid": "data-cell",
-    }, render(edited === true ? edits.get(key)!.changes.get(column)! : r[i] ?? null));
-    if (edited === true)
+    }, render(edited ? edits.get(key)!.changes.get(column)! : r[i] ?? null));
+    if (edited)
       td.classList.add(edited_cell_style);
-    if (invalid.has(cellKey) === true) {
+    if (invalid.has(cellKey)) {
       // Failed commit: keep the typed value in a red-outlined input.
       td.classList.add(invalid_cell_style);
       buildEditor(td, j, i, invalid.get(cellKey), true);
@@ -773,7 +773,7 @@ export default function(
 
   // Sync DataTable editability (and the banner) with PK info and readOnly.
   function syncEditing(): void {
-    if (pkColumns.value.length === 0 || readOnly.value === true) {
+    if (pkColumns.value.length === 0 || readOnly.value) {
       dataTable.setEditable(undefined);
       edits.update(() => []);
       if (pkColumns.value.length === 0) {

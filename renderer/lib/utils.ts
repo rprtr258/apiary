@@ -243,7 +243,7 @@ export function signal<T>(value: T): Signal<T> {
     },
     update(f: (value: T) => T, force = false) {
       const value = f(_value);
-      if (force === false && deepEquals(value, _value))
+      if (!force && deepEquals(value, _value))
         return;
       _value = value;
       for (const sub of subs)

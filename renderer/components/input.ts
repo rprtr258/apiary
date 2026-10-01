@@ -34,7 +34,7 @@ export function NInputGroup(props: {style: Partial<CSSStyleDeclaration>}, ...chi
   return m("div", props, children);
 }
 
-type SelectOption<T> = {
+export type SelectOption<T> = {
   label: string,
   value?: T,
 };
@@ -162,7 +162,7 @@ export function NSelectInput(props: NSelectInputProps): HTMLDivElement {
       const el_item = m("div", {
         class: [
           selectInputStyles.item,
-          i === highlighted && item.disabled === false ? selectInputStyles.itemHighlighted : "",
+          i === highlighted && !item.disabled ? selectInputStyles.itemHighlighted : "",
           item.disabled ? selectInputStyles.itemDisabled : "",
         ].filter(c => c !== "").join(" "),
         role: "option",
@@ -170,7 +170,7 @@ export function NSelectInput(props: NSelectInputProps): HTMLDivElement {
       if (item.disabled) {
         el_item.setAttribute("aria-disabled", "true");
       }
-      if (item.disabled === false) {
+      if (!item.disabled) {
         el_item.addEventListener("mousedown", (e: MouseEvent) => {
           e.preventDefault(); // keep focus on input, so blur does not close the popup before selection
           select(item.label);
@@ -198,12 +198,12 @@ export function NSelectInput(props: NSelectInputProps): HTMLDivElement {
     items = filtered.length === 0
       ? [{label: "none", disabled: true}]
       : filtered.map(option => ({label: option.label, disabled: false}));
-    highlighted = items.findIndex(item => item.disabled === false);
+    highlighted = items.findIndex(item => !item.disabled);
     render();
   };
 
   const onOutsidePointerDown = (e: PointerEvent): void => {
-    if (e.target !== el_input && el_popup.contains(e.target as Node) === false) {
+    if (e.target !== el_input && !el_popup.contains(e.target as Node)) {
       close();
     }
   };
@@ -225,7 +225,7 @@ export function NSelectInput(props: NSelectInputProps): HTMLDivElement {
   };
 
   const close = (): void => {
-    if (isOpen === false) {
+    if (!isOpen) {
       return;
     }
     isOpen = false;
@@ -257,7 +257,7 @@ export function NSelectInput(props: NSelectInputProps): HTMLDivElement {
     onkeydown: (e: KeyboardEvent) => {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
-        if (isOpen === false) {
+        if (!isOpen) {
           refresh(el_input.value);
           open();
           return;
@@ -268,7 +268,7 @@ export function NSelectInput(props: NSelectInputProps): HTMLDivElement {
         }
         for (let step = 0; step < items.length; step++) {
           highlighted = (highlighted + dir + items.length) % items.length;
-          if (items[highlighted].disabled === false) {
+          if (!items[highlighted].disabled) {
             break;
           }
         }
@@ -277,7 +277,7 @@ export function NSelectInput(props: NSelectInputProps): HTMLDivElement {
         }
         render();
       } else if (e.key === "Enter") {
-        if (isOpen && highlighted >= 0 && items[highlighted].disabled === false) {
+        if (isOpen && highlighted >= 0 && !items[highlighted].disabled) {
           e.preventDefault();
           select(items[highlighted].label);
           close();

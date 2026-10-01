@@ -221,7 +221,7 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
         svg.style.backgroundPosition = `${translateX - 4}px ${translateY - 16}px`;
       }
       if (draggedNode !== null) {
-        if (selectionDisabled === false) {
+        if (!selectionDisabled) {
           const texts = draggedNode.querySelectorAll("text");
           for (const text of texts)
             text.style.userSelect = "none";
