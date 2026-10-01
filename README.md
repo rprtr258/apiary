@@ -60,7 +60,7 @@ docker compose up -d     # MySQL, PostgreSQL, Redis, gRPC, PetStore API
 
 ## How it works
 
-Launch apiary, and it creates a `db.json` file in the current directory. Each request is a row with a kind tag (http, sql, grpc, redis, jq, md, diff) and its parameters. The UI is a tabbed workspace powered by [GoldenLayout](https://golden-layout.com/) with [CodeMirror](https://codemirror.net/) editors.
+Launch apiary, and it creates a `db.json` file in your user data directory (e.g. `~/.config/apiary/` on Linux); set `APIARY_DB_PATH` to move it. Each request is a row with a kind tag (http, sql, grpc, redis, jq, md, diff) and its parameters. The UI is a tabbed workspace powered by [GoldenLayout](https://golden-layout.com/) with [CodeMirror](https://codemirror.net/) editors.
 
 ## Development
 

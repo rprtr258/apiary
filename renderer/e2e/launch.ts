@@ -20,6 +20,9 @@ export async function launchApp(seed?: (dir: string) => Promise<void>): Promise<
     cwd: dir,
     env: {
       ...process.env,
+      // Main process points db.json at the per-user app data dir unless overridden —
+      // send it to this test's temp dir where the seed writes db.json.
+      APIARY_DB_PATH: path.join(dir, "db.json"),
       // Silence the CSP warning so console-message assertions stay clean.
       ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
     },
