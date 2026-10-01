@@ -141,7 +141,7 @@ const selectInputStyles = {
 type SelectInputItem = {label: string, disabled: boolean};
 
 let selectInputCounter = 0;
-export function NSelectInput(props: NSelectInputProps): HTMLDivElement {
+export function NSelectInput(props: NSelectInputProps): {el: HTMLDivElement} {
   const popupID = `nselect-input-popup-${selectInputCounter++}`;
 
   let byLabel = new Map<string, SelectOption<string>>();
@@ -254,8 +254,8 @@ export function NSelectInput(props: NSelectInputProps): HTMLDivElement {
         refresh(label);
       }
     },
-    onkeydown: (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    onkeydown: (e: KeyboardEvent) => {switch (e.key) {
+      case "ArrowDown": case "ArrowUp": {
         e.preventDefault();
         if (!isOpen) {
           refresh(el_input.value);
@@ -266,7 +266,7 @@ export function NSelectInput(props: NSelectInputProps): HTMLDivElement {
         if (highlighted === -1) {
           highlighted = dir === 1 ? -1 : items.length; // wrap ends: down starts at 0, up at last item
         }
-        for (let step = 0; step < items.length; step++) {
+        for (let i = 0; i < items.length; i++) {
           highlighted = (highlighted + dir + items.length) % items.length;
           if (!items[highlighted].disabled) {
             break;
@@ -276,24 +276,30 @@ export function NSelectInput(props: NSelectInputProps): HTMLDivElement {
           highlighted = -1; // all items disabled
         }
         render();
-      } else if (e.key === "Enter") {
+        return;
+      }
+      case "Enter": {
         if (isOpen && highlighted >= 0 && !items[highlighted].disabled) {
           e.preventDefault();
           select(items[highlighted].label);
           close();
         }
-      } else if (e.key === "Escape") {
-        close();
+        return;
       }
-    },
+      case "Escape": {
+        close();
+        return;
+      }
+    }},
     onblur: close,
   });
   el_input.setAttribute("aria-expanded", "false");
 
-  // NOTE: the wrapper generates no box (the input stays the NInputGroup grid
-  // item), and the fixed-position popup is out of flow, so it does not become
-  // a grid item either.
-  return m("div", {style: {display: "contents"}}, el_input, el_popup);
+  return {
+    // NOTE: the wrapper generates no box (the input stays the NInputGroup grid item),
+    // and the fixed-position popup is out of flow, so it does not become a grid item either.
+    el: m("div", {style: {display: "contents"}}, el_input, el_popup),
+  };
 }
 
 type NButtonProps = {

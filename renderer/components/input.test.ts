@@ -298,7 +298,7 @@ describe("NSelectInput", () => {
     new MouseEvent("mousedown", {bubbles: true, cancelable: true}) as unknown as Event;
 
   test("renders input with options in popup after focus", () => {
-    const el = NSelectInput({placeholder: "DSN", options});
+    const {el} = NSelectInput({placeholder: "DSN", options});
 
     expect(el.tagName).toBe("DIV");
     const input = el.querySelector("input") as HTMLInputElement;
@@ -315,20 +315,20 @@ describe("NSelectInput", () => {
   });
 
   test("shows option label for known value", () => {
-    const el = NSelectInput({options, value: "id1"});
+    const {el} = NSelectInput({options, value: "id1"});
     const input = el.querySelector("input") as HTMLInputElement;
     expect(input.getAttribute("value")).toBe("prod/mydb");
   });
 
   test("shows raw custom value", () => {
-    const el = NSelectInput({options, value: "localhost:5432/db"});
+    const {el} = NSelectInput({options, value: "localhost:5432/db"});
     const input = el.querySelector("input") as HTMLInputElement;
     expect(input.getAttribute("value")).toBe("localhost:5432/db");
   });
 
   test("reports option value when entered text matches a label", () => {
     const updateMock = mock((s: string) => void s);
-    const el = NSelectInput({options, on: {update: updateMock}});
+    const {el} = NSelectInput({options, on: {update: updateMock}});
     const input = el.querySelector("input") as HTMLInputElement;
     input.value = "prod/other";
     input.dispatchEvent(new Event("input"));
@@ -337,7 +337,7 @@ describe("NSelectInput", () => {
 
   test("reports raw text for custom input", () => {
     const updateMock = mock((s: string) => void s);
-    const el = NSelectInput({options, on: {update: updateMock}});
+    const {el} = NSelectInput({options, on: {update: updateMock}});
     const input = el.querySelector("input") as HTMLInputElement;
     input.value = "localhost:5432/db";
     input.dispatchEvent(new Event("input"));
@@ -346,7 +346,7 @@ describe("NSelectInput", () => {
 
   test("re-evaluates options getter on focus", () => {
     let current = options();
-    const el = NSelectInput({options: () => current});
+    const {el} = NSelectInput({options: () => current});
     const el_popup = popup(el);
     const input = el.querySelector("input") as HTMLInputElement;
 
@@ -360,7 +360,7 @@ describe("NSelectInput", () => {
   });
 
   test("closes popup on blur", () => {
-    const el = NSelectInput({options});
+    const {el} = NSelectInput({options});
     const el_popup = popup(el);
     const input = el.querySelector("input") as HTMLInputElement;
 
@@ -372,7 +372,7 @@ describe("NSelectInput", () => {
 
   test("none option is disabled and non-choosable when no options exist", () => {
     const updateMock = mock((s: string) => void s);
-    const el = NSelectInput({options: () => [], on: {update: updateMock}});
+    const {el} = NSelectInput({options: () => [], on: {update: updateMock}});
     const el_popup = popup(el);
     const input = el.querySelector("input") as HTMLInputElement;
 
@@ -389,7 +389,7 @@ describe("NSelectInput", () => {
 
   test("none placeholder appears disabled only when filter matches no options", () => {
     const updateMock = mock((s: string) => void s);
-    const el = NSelectInput({options, on: {update: updateMock}});
+    const {el} = NSelectInput({options, on: {update: updateMock}});
     const el_popup = popup(el);
     const input = el.querySelector("input") as HTMLInputElement;
 
@@ -410,7 +410,7 @@ describe("NSelectInput", () => {
 
   test("keyboard navigation cannot pick disabled none", () => {
     const updateMock = mock((s: string) => void s);
-    const el = NSelectInput({options: () => [], on: {update: updateMock}});
+    const {el} = NSelectInput({options: () => [], on: {update: updateMock}});
     const input = el.querySelector("input") as HTMLInputElement;
 
     input.dispatchEvent(new Event("focus"));
@@ -425,7 +425,7 @@ describe("NSelectInput", () => {
 
   test("keyboard navigation picks an option with Enter", () => {
     const updateMock = mock((s: string) => void s);
-    const el = NSelectInput({options, on: {update: updateMock}});
+    const {el} = NSelectInput({options, on: {update: updateMock}});
     const input = el.querySelector("input") as HTMLInputElement;
 
     input.dispatchEvent(new Event("focus"));
