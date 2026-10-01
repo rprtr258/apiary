@@ -7,8 +7,11 @@ import {NInput, NInputGroup, NSelect} from "../../components/input.ts";
 
 type Request = t.HTTPSourceRequest;
 
-//@ts-expect-error // TODO: unused for now
-type SpecSource = "file" | "url";
+const specSources: t.HTTPSourceSpecSource[] = ["file", "url"];
+const specSourceOptions = specSources.map(source => ({label: source, value: source}));
+
+const authTypes: t.AuthType[] = ["none", "basic", "bearer", "apikey", "oauth"];
+const authTypesOptions = authTypes.map(typ => ({label: typ, value: typ}));
 
 // Type declaration for showOpenFilePicker
 declare global {
@@ -24,23 +27,9 @@ declare global {
 }
 
 function AuthFields(auth: t.AuthConfig, onUpdate: (patch: Partial<t.AuthConfig>) => void) {
-  // Ensure auth.type is valid
-  const validAuthTypes = ["none", "basic", "bearer", "apikey", "oauth"];
-  const validAuthType = validAuthTypes.includes(auth.type) ? auth.type : "none";
-  // If auth.type was invalid, update it
-  if (validAuthType !== auth.type) {
-    onUpdate({type: validAuthType});
-  }
-
   const authTypeSelect = NSelect<t.AuthType>({
-    label: validAuthType,
-    options: [
-      {label: "none", value: "none"},
-      {label: "basic", value: "basic"},
-      {label: "bearer", value: "bearer"},
-      {label: "apikey", value: "apikey"},
-      {label: "oauth", value: "oauth"},
-    ],
+    label: auth.type,
+    options: authTypesOptions,
     on: {update: type => onUpdate({type})},
   });
 
@@ -127,7 +116,8 @@ export default function(
 
       const updateSpecInputUI = () => {
         specInput.replaceChildren();
-        if (request.specSource === "file") {
+        switch (request.specSource) {
+        case "file": {
           const fileButton = m("button", {
             style: {
               border: "1px solid #ccc",
@@ -175,7 +165,9 @@ export default function(
             }, `Loaded: ${request.specData.length} chars`);
             specInput.appendChild(preview);
           }
-        } else {
+          break;
+        }
+        case "url": {
           const urlInput = NInput({
             placeholder: "Spec URL",
             value: request.specData,
@@ -183,24 +175,16 @@ export default function(
             style: {width: "100%"},
           });
           specInput.appendChild(urlInput);
+          break;
+        }
         }
       };
 
       updateSpecInputUI();
 
-      // Ensure specSource is valid
-      const validSpecSource = ["file", "url"].includes(request.specSource) ? request.specSource : "file";
-      // If specSource was invalid, update it
-      if (validSpecSource !== request.specSource) {
-        update_request({specSource: validSpecSource});
-      }
-
-      const specSourceSelect = NSelect<"file" | "url">({
-        label: validSpecSource,
-        options: [
-          {label: "file", value: "file"},
-          {label: "url", value: "url"},
-        ],
+      const specSourceSelect = NSelect<t.HTTPSourceSpecSource>({
+        label: request.specSource,
+        options: specSourceOptions,
           on: {update: specSource => {
             update_request({specSource});
             // Update the UI to show file picker or URL input

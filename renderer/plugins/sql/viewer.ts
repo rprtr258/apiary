@@ -88,7 +88,7 @@ export default function(
         },
       },
         db_select.el,
-        dsn_select,
+        dsn_select.el,
         el_run.el,
       );
 

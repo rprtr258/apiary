@@ -121,9 +121,10 @@ export type HTTPResponse = {
   headers: KV[],
 };
 
+export type HTTPSourceSpecSource = "file" | "url";
 export type HTTPSourceRequest = {
   serverUrl: string,
-  specSource: "file" | "url",
+  specSource: HTTPSourceSpecSource,
   specData: string,
   auth: AuthConfig,
 };
