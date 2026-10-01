@@ -2,6 +2,7 @@ import {z} from "zod";
 import * as t from "@/types.ts";
 import {api} from "./api.ts";
 import {signal, Signal} from "./lib/utils.ts";
+import {PersistRevertedError} from "./hooks/useRequest.ts";
 import layout from "./layout.ts";
 import {ItemConfig, LayoutConfig} from "./layout/types.ts";
 import {ComponentItem, Stack} from "./layout/manager.ts";
@@ -208,6 +209,9 @@ export const store = ((): Store => {
       if (id in this.requests2) {
         delete this.requests2[id];
       }
+      persistSeqs.delete(id); // no in-flight persist can own a deleted request's state anymore
+      lastPersisted.delete(id);
+      lastPersistedSeqs.delete(id);
       await this.fetch();
     },
     async rename(id: string, newName: string): Promise<void> {
@@ -221,6 +225,11 @@ export const store = ((): Store => {
       const component = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
       component?.tab.setTitle(newName);
       await this.fetch();
+      // Refresh the undo target from the cached (last-known-persisted) request state; rename
+      // does not change persisted data, this re-records the current object defensively.
+      if (id in this.requests2) {
+        lastPersisted.set(id, this.requests2[id].request);
+      }
     },
     openViewer<S extends ViewerState>(componentType: string, titlePart: string, state: S): void {
       if (findExistingTab<S>(componentType, t => t.sourceID === state.sourceID && t.itemKey === state.itemKey) !== undefined)
@@ -316,16 +325,62 @@ export async function send(id: string): Promise<void> {
   store.requests2[id].history.push(res.value);
 }
 
+// Per-request persist sequence: incremented on entry; undo only while this call is still the
+// newest persist. One hook update maps 1:1 onto one store update, so this mirrors useRequest's
+// stale-token rule and both layers roll back together under concurrent failures (object identity
+// would restore an older optimistic state when a newer persist's failure already reverted to it).
+const persistSeqs = new Map<string, number>();
+// Per-request last successfully persisted state: the undo target. Call-order old_request is not
+// safe here — under overlapping persists it can be an earlier call's optimistic object whose IPC
+// later failed, and undoing to it would silently resurrect a patch that never persisted.
+const lastPersisted = new Map<string, t.Request>();
+// Seq of the state currently recorded in lastPersisted. Successes are recorded only when they
+// advance this (in-order successes and late out-of-order successes advance it; an even later
+// success below the recorded seq must not regress the undo target below backend truth).
+const lastPersistedSeqs = new Map<string, number>();
+
 export async function update_request(id: string, patch: Partial<t.Request>): Promise<void> {
+  const seq = (persistSeqs.get(id) ?? 0) + 1;
+  persistSeqs.set(id, seq);
   const old_request = store.requests2[id].request;
+  if (!lastPersisted.has(id)) {
+    lastPersisted.set(id, old_request); // the pre-branch state is by definition the last persisted one
+    lastPersistedSeqs.set(id, 0);
+  }
   const {id: _id, path: _path, kind: _kind, ...old_data} = old_request;
-  const new_data = {...old_data, ...patch} as t.Request; // Data-only, sent to backend
-  store.requests2[id].request = {...old_request, ...patch} as t.Request; // NOTE: optimistic update, keep id/path/kind
-  const res = await api.request_update(id, old_request.kind, new_data);
+  // patch may carry id/path/kind (full request from useRequest) — strip them from the merged result too,
+  // otherwise they leak into the persisted Data and break Duplicate/Rename (stale ids in the copy).
+  const {id: _sid, path: _spath, kind: _skind, ...new_data} = {...old_data, ...patch};
+  const optimistic = {...old_request, ...new_data} as t.Request;
+  store.requests2[id].request = optimistic; // NOTE: optimistic update, keeps id/path/kind from old_request
+  const res = await api.request_update(id, old_request.kind, new_data as t.Request);
   if (res.kind === "err") {
-    store.requests2[id].request = old_request; // NOTE: undo change
+    // Request deleted while the persist IPC was in flight: nothing to roll back (the maps
+    // were cleared), and the stale-failure read below would dereference a missing entry.
+    if (!(id in store.requests2)) {
+      throw new PersistRevertedError(`Could not save current request: ${res.value}`, old_request);
+    }
+    // Undo only if no newer concurrent persist has started since (persistSeqs staleness rule).
+    const is_newest = persistSeqs.get(id) === seq;
+    const reverted = is_newest
+      ? lastPersisted.get(id) ?? old_request // NOTE: undo to last persisted state
+      : store.requests2[id].request; // stale failure: a newer persist owns the state
+    if (is_newest) {
+      store.requests2[id].request = reverted;
+    }
     notification("error", "Could not save current request", {error: res.value});
-    return;
+    // Surface the failure plus the state we reverted to, so useRequest rolls its
+    // optimistic state back to the same target instead of its own prevRequest
+    // (which can be an older in-flight persist's never-persisted optimistic state).
+    throw new PersistRevertedError(`Could not save current request: ${res.value}`, reverted);
+  }
+  // Record only successes newer than the last recorded one: an out-of-order (superseded)
+  // success still becomes backend truth when its seq is above the recorded one (the newer
+  // persist may still fail and roll back to it), but never regresses lastPersisted below
+  // a newer success that already landed.
+  if ((lastPersistedSeqs.get(id) ?? 0) < seq) {
+    lastPersisted.set(id, optimistic);
+    lastPersistedSeqs.set(id, seq);
   }
 }
 

@@ -1,5 +1,6 @@
 import * as t from "@/types.ts";
 import {m, setDisplay, Signal} from "../../lib/utils.ts";
+import {useRequest} from "../../hooks/useRequest.ts";
 import {get_request, last_history_entry, store} from "../../store.ts";
 import {NEmpty} from "../../components/dataview.ts";
 import {NButton, NInputGroup, NSelect, NSelectInput} from "../../components/input.ts";
@@ -34,6 +35,9 @@ export default function(
     dataTable.update({columns: response.columns, rows: response.rows as t.RowValue[][], typenames: response.typenames, types: response.types, on: {}});
   };
   const unmounts: (() => void)[] = [];
+  const requestHook = useRequest<t.SQLRequest>({initialRequest: {database: "postgres", dsn: "", query: ""}, on: {update: async request => {
+    await on.update(request);
+  }}});
 
   return {
     loaded: (r: get_request): void => {
@@ -41,10 +45,12 @@ export default function(
       el_response.replaceChildren(el_scrollable);
 
       const request = r.request as Request;
+      requestHook.requestSignal.update(() => request);
       const el_run = NButton({
         primary: true,
         on: {click: async () => {
-          await on.send();
+          // Await so useButton keeps the loading (disabled) state for the whole IPC round trip.
+          await on.send().catch(() => {});
         }},
       }, "Run");
       const el_editor = EditorSQL({
@@ -76,8 +82,13 @@ export default function(
       });
       const update_request = (patch: Partial<Request>): void => {
         el_run.disabled = true;
-        on.update(patch).then(() => {
+        requestHook.update(patch).finally(() => {
           el_run.disabled = false;
+        }).catch(() => {
+          // Persist failed and the hook rolled back; re-sync the selects to the reverted state.
+          // NOTE: query editor not re-synced (EditorSQL exposes no update API)
+          db_select.set(requestHook.request.database);
+          dsn_select.set(requestHook.request.dsn);
         });
       };
 

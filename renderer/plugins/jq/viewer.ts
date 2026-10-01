@@ -5,6 +5,7 @@ import ViewJSON from "../../components/ViewJSON.ts";
 import EditorJSON from "../../components/EditorJSON.ts";
 import {NSplit} from "../../components/layout.ts";
 import {get_request, last_history_entry} from "../../store.ts";
+import {useRequest} from "../../hooks/useRequest.ts";
 import {m, setDisplay, Signal} from "../../lib/utils.ts";
 
 type Request = {kind: t.Kind.JQ} & t.JQRequest;
@@ -29,10 +30,18 @@ export default function(
     on: {click: on.send},
     disabled: true,
   }, "Send");
+  const requestHook = useRequest<t.JQRequest>({initialRequest: {query: "", json: ""}, on: {update: async request => {
+    await on.update(request);
+  }}});
+  let el_query_input: HTMLInputElement;
   const update_request = (patch: Partial<t.JQRequest>): void => {
     el_send.disabled = true;
-    on.update(patch).then(() => {
+    requestHook.update(patch).finally(() => {
       el_send.disabled = false;
+    }).catch(() => {
+      // Persist failed and the hook rolled back; re-sync the query input to the reverted state.
+      // NOTE: json editor not re-synced (EditorJSON exposes no update API)
+      el_query_input.value = requestHook.request.query;
     });
   };
 
@@ -55,18 +64,21 @@ export default function(
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
+      // Seed the hook with the loaded request (documented requestSignal escape hatch): edits
+      // propagate the hook's FULL request to store.update_request, so the unseeded
+      // {query: "", json: ""} default would wipe the other field on the first edit.
+      requestHook.requestSignal.update(() => request);
       update_response(last_history_entry(r)?.response as t.JQResponse | undefined);
 
       const el_input_group = NInputGroup({style: {
         display: "grid",
         gridTemplateColumns: "11fr 1fr",
       }}, [
-        NInput({
+        (el_query_input = NInput({
           placeholder: "JQ query",
-          status: jqerror !== undefined ? "error" : "success",
           value: request.query,
           on: {update: (query: string) => update_request({query})},
-        }),
+        })),
         el_send.el,
       ]);
 

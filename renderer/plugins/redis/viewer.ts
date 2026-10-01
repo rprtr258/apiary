@@ -6,6 +6,7 @@ import ViewJSON from "../../components/ViewJSON.ts";
 import EditorJSON from "../../components/EditorJSON.ts";
 import {get_request, last_history_entry} from "../../store.ts";
 import {m, Signal, setDisplay, signal} from "../../lib/utils.ts";
+import {useRequest} from "../../hooks/useRequest.ts";
 
 type Request = {kind: t.Kind.REDIS} & t.RedisRequest;
 
@@ -26,16 +27,27 @@ export default function(
 
   const el_send = NButton({
     primary: true,
-    on: {click: on.send},
+    on: {click: async () => {
+      // Await so useButton keeps the loading (disabled) state for the whole IPC round trip.
+      await on.send().catch(() => {});
+    }},
     disabled: false,
   }, "Send");
+  const requestHook = useRequest<t.RedisRequest>({initialRequest: {dsn: "", query: ""}, on: {update: async request => {
+    await on.update(request);
+  }}});
   const response = signal<t.RedisResponse | undefined>(undefined);
+  let dsnInput: HTMLInputElement;
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
   const update_request = (patch: Partial<t.RedisRequest>): void => {
     el_send.disabled = true;
-    on.update(patch).then(() => {
+    requestHook.update(patch).finally(() => {
       el_send.disabled = false;
+    }).catch(() => {
+      // Persist failed and the hook rolled back; re-sync the input to the reverted state.
+      dsnInput.value = requestHook.request.dsn;
+      // NOTE: query editor not re-synced on failed persist (EditorJSON exposes no update API)
     });
   };
   const el_response = m("div", {class: "h100"});
@@ -62,13 +74,14 @@ export default function(
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
+      requestHook.requestSignal.update(() => request);
       response.update(() => last_history_entry(r)?.response as t.RedisResponse | undefined);
 
       const el_input_group = NInputGroup({style: {
         display: "grid",
         gridTemplateColumns: "11fr 1fr",
       }}, [
-        NInput({
+        dsnInput = NInput({
           style: {
             flexGrow: "1",
           },
