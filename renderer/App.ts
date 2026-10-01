@@ -283,6 +283,11 @@ const panelkaFactory = (
   });
 
   let activeTab: Tab | undefined;
+  // Send wrapper shared by the frame's Perform button, Ctrl+Enter and the
+  // command palette "Run" item: performs and renders the newest history entry.
+  const onSend = (): Promise<void> => send(id).then(_ => {
+    frame.push_history_entry?.(last_history_entry(store.requests2[id])!);
+  });
   container.on("tab", (tab: Tab): void => {
     activeTab = tab;
     eye_unsub = show_request.sub(function*() {
@@ -301,8 +306,7 @@ const panelkaFactory = (
     // Track when this tab becomes active
     container.on("show", () => {
       store.activeComponentID = id;
-      // reuse frame's send wrapper that includes push_history_entry
-      activeFrameSend = frame.send;
+      activeFrameSend = onSend;
     });
     container.on("destroy", () => {
       eye_unsub();
@@ -321,9 +325,7 @@ const panelkaFactory = (
     eye,
     on: {
       update: (patch: Partial<Request>) => update_request(id, patch),
-      send: () => send(id).then(_ => {
-        frame.push_history_entry?.(last_history_entry(store.requests2[id])!);
-      }),
+      send: onSend,
     },
   });
   const frame_unsub = () => frame.unmount();

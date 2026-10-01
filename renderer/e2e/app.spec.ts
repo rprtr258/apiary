@@ -1,19 +1,6 @@
 import {expect} from "@playwright/test";
 import type {Page} from "@playwright/test";
-import {test} from "./launch.ts";
-
-// The Electron window isn't focused under Playwright, so a single
-// `page.keyboard.press("Control+N")` is dropped and never reaches the renderer
-// (handleKeyDown in App.ts never fires). Bring the window to front and send the
-// modifiers+key as separate events so the keydown is delivered.
-async function openNewRequestPalette(page: Page): Promise<void> {
-  await page.bringToFront();
-  // Let the focused window settle before sending keys, else they get dropped.
-  await page.waitForTimeout(500);
-  await page.keyboard.down("Control");
-  await page.keyboard.press("KeyN");
-  await page.keyboard.up("Control");
-}
+import {pressWith, test} from "./launch.ts";
 
 function useErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -76,7 +63,7 @@ test("creates HTTP request via command palette", async ({page}) => {
   const errors = useErrors(page);
 
   // Open command palette with Ctrl+N
-  await openNewRequestPalette(page);
+  await pressWith(page, ["Control"], "KeyN");
 
   expect(errors).toEqual([]); // fails if any console.error occurred
 
@@ -120,7 +107,7 @@ test("handles invalid URL error", async ({page}) => {
   const errors = useErrors(page);
 
   // Create and open a request
-  await openNewRequestPalette(page);
+  await pressWith(page, ["Control"], "KeyN");
   await page.waitForSelector("text=HTTP");
   await page.click("text=HTTP");
   await page.waitForSelector("input");
