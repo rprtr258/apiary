@@ -47,3 +47,20 @@ export const test = base.extend<Fixtures>({
     await use(page);
   },
 });
+
+// The Electron window isn't focused under Playwright, so a single
+// `page.keyboard.press("Control+N")` is dropped and never reaches the renderer
+// (handleKeyDown in App.ts never fires). Bring the window to front and send the
+// modifiers+key as separate events so the keydown is delivered.
+export async function pressWith(page: Page, modifiers: string[], key: string): Promise<void> {
+  await page.bringToFront();
+  // Let the focused window settle before sending keys, else they get dropped.
+  await page.waitForTimeout(500);
+  for (const modifier of modifiers) {
+    await page.keyboard.down(modifier);
+  }
+  await page.keyboard.press(key);
+  for (const modifier of modifiers.reverse()) {
+    await page.keyboard.up(modifier);
+  }
+}

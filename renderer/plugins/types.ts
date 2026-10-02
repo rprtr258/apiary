@@ -34,7 +34,6 @@ export type FrameArgs = {
 export type Frame = {
   loaded(r: get_request): void,
   push_history_entry?(he: t.HistoryEntry): void, // show last history entry
-  send?: () => Promise<void>,
   unmount(): void,
 };
 
