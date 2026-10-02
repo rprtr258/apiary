@@ -1,26 +1,6 @@
-import {rm} from "fs/promises";
-import type {ElectronApplication} from "playwright";
-import {test as base, expect} from "@playwright/test";
+import {expect} from "@playwright/test";
 import type {Page} from "@playwright/test";
-import {launchApp} from "./launch.ts";
-
-type Fixtures = {
-  app: ElectronApplication,
-  page: Page,
-};
-
-const test = base.extend<Fixtures>({
-  app: async ({}, use) => {
-    const {app, dir} = await launchApp();
-    await use(app);
-    await app.close();
-    await rm(dir, {recursive: true, force: true}).catch(() => {});
-  },
-  page: async ({app}, use) => {
-    const page = await app.firstWindow();
-    await use(page);
-  },
-});
+import {test} from "./launch.ts";
 
 // The Electron window isn't focused under Playwright, so a single
 // `page.keyboard.press("Control+N")` is dropped and never reaches the renderer
@@ -47,11 +27,6 @@ function useErrors(page: Page): string[] {
   });
   return errors;
 }
-
-test.beforeEach(async ({page}) => {
-  // Electron already opens the app window; just wait for it to render.
-  await page.waitForSelector("body");
-});
 
 test("creates HTTP request via sidebar dropdown", async ({page}) => {
   const errors = useErrors(page);
