@@ -117,11 +117,19 @@ export function extractSubKind(
   }
 }
 
+// Location of db.json; defaults to cwd (scripts, tests). The Electron main process
+// points it at the per-user app data dir via setDBPath.
+let dbPath = "db.json";
+
+export function setDBPath(p: string): void {
+  dbPath = p;
+}
+
 export async function load(): Promise<DB> {
   // TODO: migrate db
   let b: Buffer;
   try {
-    b = await readFile("db.json");
+    b = await readFile(dbPath);
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
       const j: DB = {};
@@ -267,7 +275,7 @@ export async function save(j: DB): Promise<void> {
       r.Data as t.MCPRequest,
     ])),
   };
-  await writeFile("db.json", JSON.stringify(raw, null, 2));
+  await writeFile(dbPath, JSON.stringify(raw, null, 2));
 }
 
 export async function create(

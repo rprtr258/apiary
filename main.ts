@@ -4,9 +4,13 @@ import {app, BrowserWindow, ipcMain, Menu} from "electron";
 import data from "./package.json" with {type: "json"};
 import * as t from "@/types.ts";
 import * as api from "./main/api.ts";
-import {Request} from "./main/db.ts";
+import {Request, setDBPath} from "./main/db.ts";
 
 const version = data.version;
+
+// db.json lives in the per-user app data dir (e.g. ~/.config/apiary on Linux), so the
+// same db is found regardless of cwd; APIARY_DB_PATH overrides it (e2e tests).
+setDBPath(process.env.APIARY_DB_PATH ?? path.join(app.getPath("appData"), data.name, "db.json"));
 
 if (process.argv.includes("--version")) {
   console.log(version);

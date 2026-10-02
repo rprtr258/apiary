@@ -79,7 +79,7 @@ bun run dev
 
 ## First Run
 
-When you first run Apiary, it will create a `db.json` file in your current directory to store all requests, responses, and settings.
+When you first run Apiary, it will create a `db.json` file in your user data directory (e.g. `~/.config/apiary/` on Linux, `~/Library/Application Support/apiary/` on macOS, `%APPDATA%/apiary/` on Windows) to store all requests, responses, and settings. Set the `APIARY_DB_PATH` environment variable to use a different location.
 
 ### Command Line Options
 
