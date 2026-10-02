@@ -116,8 +116,7 @@ jobs:
 
       - name: Rebuild native modules for Electron ABI
         # e2e tests launch the app and load better-sqlite3 from inside Electron,
-        # which needs the Electron NODE_MODULE_VERSION, not bun's (see
-        # sql-source-table.spec.ts:8).
+        # which needs the Electron NODE_MODULE_VERSION, not bun's (see sql-source-table.spec.ts:8).
         run: bun run kal
 
       - name: Run E2E tests
