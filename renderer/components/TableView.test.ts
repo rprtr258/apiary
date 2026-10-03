@@ -402,10 +402,10 @@ describe("TableViewer toolbar", () => {
     };
     const el = makeViewer();
     // NTabs keeps every tab's content in the DOM (inactive tabs are hidden):
-    // children are [header, data, schema, indexes, constraints, relations]
-    const contents = el.children[0].children;
-    const relations = contents[5] as HTMLElement;
-    const constraintsTab = contents[4] as HTMLElement;
+    // children are [header, [data, schema, indexes, constraints, relations]]
+    const contents = el.children[0].children[1].children;
+    const relations = contents[4] as HTMLElement;
+    const constraintsTab = contents[3] as HTMLElement;
     await waitFor(() => expect(relations.textContent).toContain("fk_user"));
     expect(relations.textContent).toContain("user_id");
     expect(relations.textContent).toContain("public");

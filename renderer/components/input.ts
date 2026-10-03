@@ -1,9 +1,13 @@
-import {m, DOMNode, setDisplay} from "../lib/utils.ts";
+import {some, none, option} from "@/option.ts";
+import {m, DOMNode, setDisplay, arrayGet} from "../lib/utils.ts";
 import {css} from "../lib/styles.ts";
+import {useInput} from "../hooks/form/useInput.ts";
+import {useSelect} from "../hooks/form/useSelect.ts";
+import {useButton} from "../hooks/form/useButton.ts";
 
 type NInputProps = {
   placeholder?: string,
-  status?: "success" | "error", // TODO: highlight with red, method to update
+  status?: "success" | "error",
   value?: string,
   on?: {
     update: (value: string) => void,
@@ -13,15 +17,41 @@ type NInputProps = {
   disabled?: boolean,
   autofocus?: boolean,
 };
+const inputErrorClass = css("border-color: red; background-color: rgba(255, 0, 0, 0.1);");
+const inputSuccessClass = css("border-color: green; background-color: rgba(0, 255, 0, 0.1);");
+
 export function NInput(props: NInputProps) {
+  const inputHook = useInput({
+    initialValue: props.value,
+    on: {
+      change: props.on?.update,
+    },
+  });
+
   const el = m("input", {
-    style: props.style,
-    value: props.value,
+    value: inputHook.value,
     placeholder: props.placeholder,
-    oninput: (e: Event) => props.on?.update((e.target as HTMLInputElement).value),
+    oninput: (e: Event) => inputHook.on.change((e.target as HTMLInputElement).value),
+    onblur: () => inputHook.on.blur(),
+    onfocus: () => inputHook.on.focus(),
     onkeydown: props.on?.keydown,
     disabled: props.disabled,
   });
+
+  // Inline props.style (dynamic) is static per instance — apply once; status colors go through css classes.
+  Object.assign(el.style, props.style);
+  const restyle = (): void => {
+    el.classList.toggle(inputErrorClass, inputHook.touched && props.status === "error");
+    el.classList.toggle(inputSuccessClass, inputHook.touched && props.status === "success");
+  };
+  // Restyle on touched transitions (focus/blur) — value changes can't alter the style
+  // (props.style/status are static); the subscription-time resume applies the initial styling.
+  inputHook.touchedSignal.sub(function*() {
+    while (true) {
+      yield;
+      restyle();
+    }
+  }());
 
   if (props.autofocus ?? false) {
     queueMicrotask(() => el.focus());
@@ -37,6 +67,7 @@ export function NInputGroup(props: {style: Partial<CSSStyleDeclaration>}, ...chi
 export type SelectOption<T> = {
   label: string,
   value?: T,
+  disabled?: boolean,
 };
 type NSelectProps<T> = {
   label?: string,
@@ -46,59 +77,87 @@ type NSelectProps<T> = {
   disabled?: boolean,
   on: {update: (value: T) => void},
 };
-export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () => void} {
-  let current: number | null = props.options.findIndex(opt => opt.label === props.label);
-  if (current === -1) {
-    if (props.placeholder === undefined) {
-      throw new Error(`Option ${props.label} not found in ${JSON.stringify(props.options)}`);
-    }
-    current = null;
+export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, set: (value: T) => void, reset: () => void, setOptions: (options: SelectOption<T>[]) => void} {
+  // Find initial value based on label; options without a value are disabled headers
+  const selectable = props.options.filter(opt => opt.value !== undefined) as {label: string, value: T, disabled?: boolean}[];
+  const initialValue = props.label !== undefined && props.label !== ""
+    ? selectable.find(opt => opt.label === props.label)?.value
+    : undefined;
+
+  if (initialValue === undefined && props.placeholder === undefined) {
+    throw new Error(`Option ${props.label} not found in ${JSON.stringify(props.options)}`);
   }
+
+  const selectHook = useSelect({
+    options: selectable,
+    initialValue,
+    placeholder: props.placeholder,
+    on: {
+      change: value => {
+        if (value.isSome()) {
+          props.on.update(value.value);
+        }
+      },
+    },
+  });
 
   const el_placeholder = m("option", {
     value: "",
     disabled: props.placeholder === undefined ? true : undefined,
     hidden: true,
-    selected: current === null ? true : undefined,
+    selected: selectHook.value.isNone() ? true : undefined,
   }, props.placeholder ?? "");
-  const el_opts = props.options.map(({label, value}, i) => m("option", {
+  const el_opts = props.options.map(({label, value, disabled}, i) => m("option", {
     value: String(i),
-    selected: i === current ? true : undefined, // NOTE: any value makes selected, so we explicitly set undefined
-    disabled: value === undefined ? true : undefined,
+    selected: (selectHook.value.isSome() && selectHook.value.value === value) ? true : undefined, // NOTE: any value makes selected, so we explicitly set undefined
+    disabled: (disabled ?? false) || value === undefined ? true : undefined,
   }, label));
 
   const el = m("select", {
     style: props.style,
+    disabled: (props.disabled ?? false) ? true : undefined,
     onchange: (e: Event) => {
       const i = parseInt((e.target! as HTMLSelectElement).value);
-      const value = props.options[i].value;
-      if (current !== null) {
-        el_opts[current].selected = false;
-      }
-      el_opts[i].selected = true;
-      current = i;
-      props.on.update(value!);
+      const value = arrayGet(props.options, i).flatMap(opt => opt.value === undefined ? none : some(opt.value));
+      selectHook.on.change(value);
     },
   },
     el_placeholder,
-    ...el_opts,
+    el_opts,
   );
-
   // Workaround for happy-dom bug: set selectedIndex after creating select
-  if (current !== null) {
-    el.selectedIndex = current + 1; // +1 for placeholder
+  if (selectHook.value.isSome()) {
+    el.selectedIndex = props.options.findIndex(opt => opt.value === selectHook.value.unwrap()) + 1; // +1 for placeholder
   }
 
   return {
     el,
+    set(value: T) {
+      // Programmatic value sync (e.g. reverting the DOM after a failed persist):
+      // updates the hook state too — a bare DOM selectedIndex write leaves the hook stale.
+      const i = props.options.findIndex(opt => opt.value === value);
+      if (i === -1) {
+        throw new Error(`Option ${String(value)} not found in ${JSON.stringify(props.options)}`);
+      }
+      selectHook.setValue(option(value)); // silent: fires no props.on.update
+      el.selectedIndex = i + 1; // +1 for placeholder
+    },
     reset() {
-      if (current === null)
-        return;
-
-      el_opts[current].selected = false;
-      el_placeholder.selected = true;
-      current = null;
+      selectHook.clear(); // NOTE: back to placeholder state; reset() would restore initialValue while the DOM shows the placeholder
       el.selectedIndex = 0; // Select placeholder
+    },
+    setOptions(options: SelectOption<T>[]) {
+      props.options = options;
+      el.replaceChildren(el_placeholder, ...options.map(({label, value, disabled}, i) => m("option", {
+        value: String(i),
+        selected: (selectHook.value.isSome() && selectHook.value.value === value) ? true : undefined, // NOTE: any value makes selected, so we explicitly set undefined
+        disabled: (disabled ?? false) || value === undefined ? true : undefined,
+      }, label)));
+      // Re-sync the visible selection: the current value may have arrived with the new options
+      // (or vanished with them), mirroring the happy-dom selectedIndex workaround above.
+      el.selectedIndex = selectHook.value.isSome()
+        ? options.findIndex(opt => opt.value === selectHook.value.unwrap()) + 1 // +1 for placeholder
+        : 0;
     },
   };
 }
@@ -141,7 +200,7 @@ const selectInputStyles = {
 type SelectInputItem = {label: string, disabled: boolean};
 
 let selectInputCounter = 0;
-export function NSelectInput(props: NSelectInputProps): {el: HTMLDivElement} {
+export function NSelectInput(props: NSelectInputProps): {el: HTMLDivElement, set: (value: string) => void} {
   const popupID = `nselect-input-popup-${selectInputCounter++}`;
 
   let byLabel = new Map<string, SelectOption<string>>();
@@ -299,6 +358,10 @@ export function NSelectInput(props: NSelectInputProps): {el: HTMLDivElement} {
     // NOTE: the wrapper generates no box (the input stays the NInputGroup grid item),
     // and the fixed-position popup is out of flow, so it does not become a grid item either.
     el: m("div", {style: {display: "contents"}}, el_input, el_popup),
+    set(value: string): void {
+      // Mirror creation semantics: show the option's label, or the raw value for free-text entries.
+      el_input.value = byValue.get(value)?.label ?? value;
+    },
   };
 }
 
@@ -327,7 +390,10 @@ const btnStyles = {
 };
 
 export function NButton(props: NButtonProps, ...children: DOMNode[]) {
-  let state: "active" | "disabled" | "loading";
+  const buttonHook = useButton({
+    on: props.on,
+    disabled: props.disabled ?? false,
+  });
 
   const el_clock = m("span", {style: {marginRight: "8px"}}, "⏳");
   const el = m("button", {
@@ -335,41 +401,43 @@ export function NButton(props: NButtonProps, ...children: DOMNode[]) {
       textWrapMode: "nowrap",
       ...props.style,
     },
-    onclick: async (): Promise<void> => {
-      if (state !== "active") {
-        return;
-      }
-
-      update("loading");
-      try {
-        await props.on.click();
-      } finally {
-        update("active");
-      }
-  }}, el_clock, children);
-  function update(newState: typeof state) {
-    state = newState;
-
+    onclick: () => buttonHook.on.click(),
+    disabled: buttonHook.disabledSignal.value || buttonHook.loadingSignal.value ? true : undefined,
+  }, el_clock, children);
+  const update = (): void => {
     el.classList.remove(...el.classList);
-    switch (state) {
-      case "active": el.classList.toggle(btnStyles.primary, props.primary ?? false); break;
-      case "disabled": el.classList.add(btnStyles.disabled); break;
-      case "loading": el.classList.add(btnStyles.loading); break;
-    }
+    // Old NButton was a single state machine: disabled/loading buttons render as
+    // such (gray/faded), primary styling only in the active state.
+    const loading = buttonHook.loadingSignal.value;
+    const disabled = buttonHook.disabledSignal.value;
+    el.classList.toggle(btnStyles.primary, (props.primary ?? false) && !disabled && !loading);
+    el.classList.toggle(btnStyles.disabled, disabled && !loading);
+    el.classList.toggle(btnStyles.loading, loading);
     if (props.class !== undefined)
       el.classList.add(props.class);
 
-    setDisplay(el_clock, state === "loading");
-    el.disabled = state !== "active";
-  }
-  update(props.disabled ?? false ? "disabled" : "active"); // initial update
+    setDisplay(el_clock, buttonHook.loadingSignal.value);
+    el.disabled = buttonHook.disabledSignal.value || buttonHook.loadingSignal.value;
+  };
+  buttonHook.disabledSignal.sub(function*() {
+    while (true) {
+      yield;
+      update();
+    }
+  }());
+  buttonHook.loadingSignal.sub(function*() {
+    while (true) {
+      yield;
+      update();
+    }
+  }());
   return {
     el,
     set loading(value: boolean) {
-      update(value ? "loading" : state === "loading" ? "active" : state);
+      buttonHook.loading = value;
     },
     set disabled(value: boolean) {
-      update(value ? "disabled" : state === "disabled" ? "active" : state);
+      buttonHook.disabled = value;
     },
   };
 }

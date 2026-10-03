@@ -90,6 +90,16 @@ The deletion test: these are pass-throughs but that's OK - they're UI adapters, 
 - `renderer/sidebar/tree.ts` - tree rendering of request paths (persists expanded keys via `lib/localStorage.ts`); renders generic rows from plugin data (kindTag badge for requests, tag/label hooks for source items)
 - `renderer/sidebar/contextMenu.ts`, `shared.ts` (pure view modules; menu entries and refresh come from the plugin registry)
 
+### Frontend: Headless Hooks (`renderer/hooks/`)
+
+DOM-free state logic shared by components and plugin viewers:
+
+- `useRequest<T>` - request state: `update(patch)` merge + persistence callback (transactional: hook state rolls back if persistence throws), loading/error, in-flight counting, `reset` (expose `requestSignal` for side-effect-free loading)
+- `useRequestOperations<Req>` - in-flight send tracking (`sendingSignal`; concurrent sends allowed)
+- `useTabs` - tab selection with disabled tabs and `onTabChange` (used by `NTabs`)
+- `form/` (`useInput`, `useSelect`, `useButton`, `FormField` type) - field state (value/touched/dirty/errors) behind `NInput`/`NSelect`/`NButton`; `useSelect` is value-based with per-option `disabled`
+- `NRequestForm` (`renderer/components/NRequestForm.ts`) - reusable HTTP request form (method/url/send/params/headers/body) composed from `useRequest` + `useRequestOperations` (send + in-flight tracking only; persistence flows through `useRequest`)
+
 ### Frontend: Plugins (`renderer/plugins/`)
 
 Every request kind is also a frontend plugin. The registry drives everything that is "data about a kind" in the sidebar, context menu and command palette:
