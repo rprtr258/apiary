@@ -9,6 +9,9 @@ import {m} from "../../lib/utils.ts";
 
 type Request = t.MCPRequest;
 
+const transports: t.MCPTransport[] = ["stdio", "http", "sse"];
+const transportOptions = transports.map(transport => ({label: transport, value: transport}));
+
 export default function(
   el: HTMLElement,
   on: {
@@ -48,11 +51,7 @@ export default function(
 
       const transportSelect = NSelect<t.MCPTransport>({
         label: request.transport,
-        options: [
-          {label: "stdio", value: "stdio"},
-          {label: "http", value: "http"},
-          {label: "sse", value: "sse"},
-        ],
+        options: transportOptions,
         on: {update: transport => {
           update_request((() => {
             switch (transport) {

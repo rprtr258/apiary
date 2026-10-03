@@ -52,7 +52,7 @@ apiary is a cross-platform desktop application for managing various API requests
 - **Object curly spacing**: No spaces inside braces: `{key: value}` not `{ key: value }`
 - **Commas**: Use trailing commas in multiline objects/arrays/interfaces
 - **Interface members**: Use commas to separate interface entries (not semicolons)
-- **Boolean comparisons**: Use strict boolean expressions: `if (value === true)` not `if (value)`, `if (value === false)` not `if (!value)`
+- **Boolean comparisons**: For plain `boolean` values use truthiness and negation: `if (value)` not `if (value === true)`, `if (!value)` not `if (value === false)` (enforced by the type-aware `local/no-boolean-literal-compare` ESLint rule, defined in `eslint/rules/`). Explicit comparisons (`=== true`, `=== false`) are only for narrowing union values (e.g. `boolean | undefined`, `t.RowValue | null`); the rule flags exact booleans and passes unions. Null checks stay explicit: `if (value === null)`, not `if (!value)`
 - **Equality**: Use `===` and `!==` instead of `==` and `!=`
 - **Array methods**: Avoid `forEach`; use `for...of` or functional methods that return values
 - **Type imports**: Use `import type` for type-only imports when appropriate
@@ -102,13 +102,15 @@ interface User {
 **Boolean comparisons:**
 ```typescript
 // Correct
-if (value === true) { /* handle true */ }
-if (value === false) { /* handle false */ }
-if (value === null) { /* handle null */ }
-if (value === undefined) { /* handle undefined */ }
+if (value) { /* plain boolean, handle truthy */ }
+if (!value) { /* plain boolean, handle falsy */ }
+if (value === null) { /* handle null, keeps null distinct from false */ }
+if (value === undefined) { /* handle undefined, keeps undefined distinct from false */ }
+// Correct only for union values (e.g. boolean | undefined), not plain booleans
+if (unionValue === true) { /* narrow the union */ }
 // Incorrect
-if (value) { /* truthy check */ }
-if (!value) { /* falsy check */ }
+if (value === true) { /* literal comparison on a plain boolean */ }
+if (value === false) { /* literal comparison on a plain boolean */ }
 ```
 
 **Array methods:**

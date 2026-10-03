@@ -4,6 +4,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 import stylistic from "@stylistic/eslint-plugin";
 import importPlugin from "eslint-plugin-import";
+import {noBooleanLiteralCompare} from "./eslint/rules/no-boolean-literal-compare.ts";
 
 export default defineConfig([
   {
@@ -27,6 +28,7 @@ export default defineConfig([
     plugins: {
       "@stylistic": stylistic,
       import: importPlugin,
+      local: {rules: {"no-boolean-literal-compare": noBooleanLiteralCompare}},
     },
     rules: {
       "eqeqeq": ["error", "always"],
@@ -41,6 +43,7 @@ export default defineConfig([
         selector: "CallExpression[callee.property.name='forEach']",
         message: "forEach is prohibited. Use for..of or functional methods with value return.",
       }],
+      "local/no-boolean-literal-compare": "error",
       "@stylistic/semi": ["error", "always"],
       "@stylistic/member-delimiter-style": ["error", {
         "multiline": {delimiter: "comma", requireLast: true},

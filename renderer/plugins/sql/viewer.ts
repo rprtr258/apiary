@@ -52,6 +52,28 @@ export default function(
         on: {update: (query: string) => update_request({query})},
         class: "h100",
       });
+      const db_select = NSelect({
+        style: {minWidth: "0"},
+        label: t.Database[request.database],
+        options: Object.keys(t.Database).map(db => ({label: t.Database[db as keyof typeof t.Database], value: db})),
+        on: {update: (database: string) => {
+          // DSN options list only sources of the chosen database, so a chosen source cannot be kept.
+          const patch: Partial<Request> = {database: database as t.Database};
+          const current = r.request as Request; // live request, the captured `request` is stale after updates
+          if (current.dsn in store.requests && store.requests[current.dsn].kind === t.Kind.SQLSource && store.requests[current.dsn].subKind !== database) {
+            patch.dsn = "";
+          }
+          update_request(patch);
+        }},
+      });
+      const dsn_select = NSelectInput({
+        placeholder: "DSN",
+        options: () => Object.entries(store.requests)
+          .filter(([, source]) => source.kind === t.Kind.SQLSource && source.subKind === (r.request as Request).database)
+          .map(([id, source]) => ({label: source.path, value: id})),
+        value: request.dsn,
+        on: {update: (dsn: string) => update_request({dsn})},
+      });
       const update_request = (patch: Partial<Request>): void => {
         el_run.disabled = true;
         on.update(patch).then(() => {
@@ -65,28 +87,8 @@ export default function(
           gridTemplateColumns: "1fr 10fr 1fr",
         },
       },
-        NSelect({
-          style: {minWidth: "0"},
-          label: t.Database[request.database],
-          options: Object.keys(t.Database).map(db => ({label: t.Database[db as keyof typeof t.Database], value: db})),
-          on: {update: (database: string) => {
-            // DSN options list only sources of the chosen database, so a chosen source cannot be kept.
-            const patch: Partial<Request> = {database: database as t.Database};
-            const current = r.request as Request; // live request, the captured `request` is stale after updates
-            if (current.dsn in store.requests && store.requests[current.dsn].kind === t.Kind.SQLSource && store.requests[current.dsn].subKind !== database) {
-              patch.dsn = "";
-            }
-            update_request(patch);
-          }},
-        }).el,
-        NSelectInput({
-          placeholder: "DSN",
-          options: () => Object.entries(store.requests)
-            .filter(([, source]) => source.kind === t.Kind.SQLSource && source.subKind === (r.request as Request).database)
-            .map(([id, source]) => ({label: source.path, value: id})),
-          value: request.dsn,
-          on: {update: (dsn: string) => update_request({dsn})},
-        }),
+        db_select.el,
+        dsn_select,
         el_run.el,
       );
 
