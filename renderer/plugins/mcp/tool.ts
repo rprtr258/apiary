@@ -136,32 +136,27 @@ export default function ToolViewer(
   unmounts.push(() => view.unmount());
 
   async function send() {
-    sendButton.el.disabled = true;
-    try {
-      const parsed: t.JSONValue = (() => {
-        const raw = args.trim();
-        if (raw === "")
-          return null;
-
-        try {
-          return JSON.parse(raw) as t.JSONValue;
-        } catch (e) {
-          view.update(JSON.stringify({error: e instanceof Error ? e.message : String(e)}, null, 2));
-        }
+    const parsed: t.JSONValue = (() => {
+      const raw = args.trim();
+      if (raw === "")
         return null;
-      })();
-      view.update(JSON.stringify({status: "calling"}, null, 2));
-      const res = item.kind === "prompt"
-        ? await api.mcpCallPrompt(sourceID, item.name, parsed)
-        : await api.mcpCallTool(sourceID, item.name, parsed);
-      if (res.kind === "err") {
-        view.update(JSON.stringify({error: String(res.value)}, null, 2));
-        return;
+
+      try {
+        return JSON.parse(raw) as t.JSONValue;
+      } catch (e) {
+        view.update(JSON.stringify({error: e instanceof Error ? e.message : String(e)}, null, 2));
       }
-      view.update(JSON.stringify(res.value, null, 2));
-    } finally {
-      sendButton.el.disabled = false;
+      return null;
+    })();
+    view.update(JSON.stringify({status: "calling"}, null, 2));
+    const res = item.kind === "prompt"
+      ? await api.mcpCallPrompt(sourceID, item.name, parsed)
+      : await api.mcpCallTool(sourceID, item.name, parsed);
+    if (res.kind === "err") {
+      view.update(JSON.stringify({error: String(res.value)}, null, 2));
+      return;
     }
+    view.update(JSON.stringify(res.value, null, 2));
   };
 
   const sendButton = NButton({
