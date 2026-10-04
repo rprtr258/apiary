@@ -335,7 +335,8 @@ const btnStyles = {
 };
 
 export function NButton(props: NButtonProps, ...children: DOMNode[]) {
-  let state: "active" | "disabled" | "loading";
+  let disabled = props.disabled ?? false;
+  let loading = false;
 
   const el_clock = m("span", {style: {marginRight: "8px"}}, "⏳");
   const el = m("button", {
@@ -343,41 +344,39 @@ export function NButton(props: NButtonProps, ...children: DOMNode[]) {
       textWrapMode: "nowrap",
       ...props.style,
     },
+    class: props.class,
     onclick: async (): Promise<void> => {
-      if (state !== "active") {
+      if (disabled || loading) {
         return;
       }
 
-      update("loading");
+      loading = true;
+      update();
       try {
         await props.on.click();
       } finally {
-        update("active");
+        loading = false;
+        update();
       }
   }}, el_clock, children);
-  function update(newState: typeof state) {
-    state = newState;
+  function update() {
+    el.classList.toggle(btnStyles.loading, loading);
+    el.classList.toggle(btnStyles.disabled, !loading && disabled);
+    el.classList.toggle(btnStyles.primary, !loading && !disabled && (props.primary ?? false));
 
-    el.classList.remove(...el.classList);
-    switch (state) {
-      case "active": el.classList.toggle(btnStyles.primary, props.primary ?? false); break;
-      case "disabled": el.classList.add(btnStyles.disabled); break;
-      case "loading": el.classList.add(btnStyles.loading); break;
-    }
-    if (props.class !== undefined)
-      el.classList.add(props.class);
-
-    setDisplay(el_clock, state === "loading");
-    el.disabled = state !== "active";
+    setDisplay(el_clock, loading);
+    el.disabled = disabled || loading;
   }
-  update(props.disabled ?? false ? "disabled" : "active"); // initial update
+  update(); // initial update
   return {
     el,
     set loading(value: boolean) {
-      update(value ? "loading" : state === "loading" ? "active" : state);
+      loading = value;
+      update();
     },
     set disabled(value: boolean) {
-      update(value ? "disabled" : state === "disabled" ? "active" : state);
+      disabled = value;
+      update();
     },
   };
 }
