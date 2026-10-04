@@ -97,7 +97,7 @@ export function createTreeView(): {el: HTMLElement} {
         "update:expanded-keys": (keys: string[]) => {
           // Rebuilding happens in the expandedKeysSignal subscription below;
           // materializing the newly expanded paths fires their listing fetches
-          expandedKeysSignal.update(() => keys);
+          expandedKeysSignal.value = keys;
         },
         drop: drag,
         context_menu: (option: TreeOption, event: MouseEvent) => {

@@ -25,13 +25,13 @@ function create() {
   // TODO: show new request in list
 }
 function createCancel() {
-  newRequestKind.update(() => undefined);
-  newRequestName.update(() => undefined);
+  newRequestKind.value = undefined;
+  newRequestName.value = undefined;
 }
 
 function renameCancel() {
-  renameID.update(() => undefined);
-  renameValue.update(() => undefined);
+  renameID.value = undefined;
+  renameValue.value = undefined;
 }
 function rename() {
   const fromID = renameID.value;
@@ -66,7 +66,7 @@ function getCommandPaletteItems(): Item[] {
           label: "Create new",
           shortcut: ["Ctrl", "N"],
           perform: () => {
-            command_bar_new_request_kind_visible.update(() => true);
+            command_bar_new_request_kind_visible.value = true;
           },
         },
         {
@@ -79,7 +79,7 @@ function getCommandPaletteItems(): Item[] {
           label: "Open",
           shortcut: ["Ctrl", "P"],
           perform: () => {
-            command_bar_open_visible.update(() => true);
+            command_bar_open_visible.value = true;
           },
         },
         ...(currentID !== null ? (() => {
@@ -212,7 +212,7 @@ function getCommandPaletteItems(): Item[] {
 const mainCommandPalette = CommandPalette({
   items: getCommandPaletteItems,
   placeholder: "Type a command or search...",
-  on: {close: () => commandBarVisible.update(() => false)},
+  on: {close: () => {commandBarVisible.value = false;}},
 });
 commandBarVisible.sub(function*() {
   while (true) mainCommandPalette.visible = yield;
@@ -222,11 +222,11 @@ const newRequestKindPalette = CommandPalette({
   items: () => Kinds.map(kind => ({
     label: kind,
     perform: () => {
-      newRequestKind.update(() => kind);
+      newRequestKind.value = kind;
     },
   })),
   placeholder: "Enter kind of new request",
-  on: {close: () => command_bar_new_request_kind_visible.update(() => false)},
+  on: {close: () => {command_bar_new_request_kind_visible.value = false;}},
 });
 command_bar_new_request_kind_visible.sub(function*() {
   while (true) newRequestKindPalette.visible = yield;
@@ -256,10 +256,11 @@ const getOpenRequestItems = (): Item[] => Object
 const openRequestPalette = CommandPalette({
   items: getOpenRequestItems,
   placeholder: "Type or search request id to open",
-  on: {close: () => command_bar_open_visible.update(() => false)},
+  on: {close: () => {command_bar_open_visible.value = false;}},
 });
 command_bar_open_visible.sub(function*() {
-  while (true) openRequestPalette.visible = yield;
+  while (true)
+    openRequestPalette.visible = yield;
 }());
 
 type Panelka = {
@@ -439,7 +440,7 @@ function preApp(root: HTMLElement, store: Store) {
 
   const inputCreate = NInput({
     on: {
-      update: (value: string) => newRequestName.update(() => value),
+      update: (value: string) => {newRequestName.value = value;},
       keydown: (e: KeyboardEvent) => {
         if (e.key === "Enter")
           create();
@@ -461,7 +462,7 @@ function preApp(root: HTMLElement, store: Store) {
     },
   }, inputCreate);
   const inputRename = NInput({
-    on: {update: (value: string) => renameValue.update(() => value)},
+    on: {update: (value: string) => {renameValue.value = value;}},
     style: {width: "100%", boxSizing: "border-box", padding: "0.5em"},
   });
   const modalRename = NModal({
@@ -489,7 +490,7 @@ function preApp(root: HTMLElement, store: Store) {
       if (!modalCreate.display) {
         const newName = new Date().toUTCString();
         inputCreate.value = newName;
-        newRequestName.update(() => newName);
+        newRequestName.value = newName;
         modalCreate.display = true;
       }
     }
@@ -550,7 +551,7 @@ function preApp(root: HTMLElement, store: Store) {
       if (anyModalIsOpen()) {
         return;
       }
-      command_bar_new_request_kind_visible.update(() => true);
+      command_bar_new_request_kind_visible.value = true;
       return;
     }
 

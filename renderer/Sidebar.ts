@@ -60,7 +60,7 @@ export const sidebar = function() {
 
   const new_select = NSelect<t.Kind>({
     on: {update: (value: t.Kind) => {
-      newRequestKind.update(() => value);
+      newRequestKind.value = value;
       new_select.reset();
     }},
     placeholder: "New",
