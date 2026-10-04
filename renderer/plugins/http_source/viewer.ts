@@ -4,6 +4,7 @@ import {api} from "../../api.ts";
 import {get_request} from "../../store.ts";
 import {NEmpty, StatusLabel} from "../../components/dataview.ts";
 import {NInput, NInputGroup, NSelect} from "../../components/input.ts";
+import {useRequest} from "../../hooks/useRequest.ts";
 
 type Request = t.HTTPSourceRequest;
 
@@ -88,12 +89,23 @@ export default function(
         ), res.kind === "ok");
       };
 
+      const requestHook = useRequest<Request>({initialRequest: request, on: {update: async newRequest => {
+        // Persist first; the status refresh runs after commit so its failure
+        // cannot roll back a successful persist.
+        await on.update(newRequest);
+        await updateConnectionStatus().catch(() => {});
+      }}});
       const update_request = async (patch: Partial<Request>): Promise<void> => {
-        // Update local request object properties
-        Object.assign(request, patch);
-        // Update backend
-        await on.update(patch);
-        await updateConnectionStatus();
+        try {
+          await requestHook.update(patch);
+        } catch {
+          // Persist failed and the hook rolled back; rebuild the UI so widgets match the reverted state.
+          serverUrlInput.value = requestHook.request.serverUrl;
+          updateAuthFields();
+          updateSpecInputUI();
+          specSourceSelect.set(requestHook.request.specSource);
+          return;
+        }
 
         // Update UI if auth changed
         if (patch.auth !== undefined) {
@@ -116,7 +128,7 @@ export default function(
 
       const updateSpecInputUI = () => {
         specInput.replaceChildren();
-        switch (request.specSource) {
+        switch (requestHook.request.specSource) {
         case "file": {
           const fileButton = m("button", {
             style: {
@@ -154,7 +166,7 @@ export default function(
           }, "Choose File");
           specInput.appendChild(fileButton);
 
-          if (request.specData !== "") {
+          if (requestHook.request.specData !== "") {
             const preview = m("div", {
               style: {
                 marginLeft: "8px",
@@ -162,7 +174,7 @@ export default function(
                 color: "#666",
                 alignSelf: "center",
               },
-            }, `Loaded: ${request.specData.length} chars`);
+            }, `Loaded: ${requestHook.request.specData.length} chars`);
             specInput.appendChild(preview);
           }
           break;
@@ -170,7 +182,7 @@ export default function(
         case "url": {
           const urlInput = NInput({
             placeholder: "Spec URL",
-            value: request.specData,
+            value: requestHook.request.specData,
             on: {update: (newValue: string) => update_request({specData: newValue})},
             style: {width: "100%"},
           });
@@ -186,16 +198,14 @@ export default function(
         label: request.specSource,
         options: specSourceOptions,
           on: {update: specSource => {
+            // Update the UI to show file picker or URL input; update_request rebuilds it on success.
             update_request({specSource});
-            // Update the UI to show file picker or URL input
-            request.specSource = specSource;
-            updateSpecInputUI();
           }},
       });
 
       const authFieldsContainer = m("div");
-      const updateAuthFields = () => authFieldsContainer.replaceChildren(AuthFields(request.auth, patch => {
-        update_request({auth: {...request.auth, ...patch} as t.AuthConfig});
+      const updateAuthFields = () => authFieldsContainer.replaceChildren(AuthFields(requestHook.request.auth, patch => {
+        update_request({auth: {...requestHook.request.auth, ...patch} as t.AuthConfig});
       }));
       updateAuthFields();
 
