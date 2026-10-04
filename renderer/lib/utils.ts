@@ -230,6 +230,7 @@ export type Signal<T> = {
   update(f: (value: T) => T, force?: boolean): void,
   sub(sub: Sub<T>): () => void,
   get value(): T, // TODO: remove?
+  set value(value: T),
 };
 export function signal<T>(value: T): Signal<T> {
   let _value = value;
@@ -250,6 +251,7 @@ export function signal<T>(value: T): Signal<T> {
         sub.next(value);
     },
     get value(): T {return _value;},
+    set value(value: T) {this.update(_ => value)},
   };
 }
 
