@@ -690,7 +690,7 @@ export default function(
 
   // clearAllSorts function is available but not currently used
   // const clearAllSorts = (): void => {
-  //   sortColumns.update(() => []);
+  //   sortColumns.value = [];
   // };
 
   // Reload data when sorting changes. The subscription fires once immediately
@@ -784,7 +784,7 @@ export default function(
   function syncEditing(): void {
     if (pkColumns.value.length === 0 || readOnly.value) {
       dataTable.setEditable(undefined);
-      edits.update(() => []);
+      edits.value = [];
       if (pkColumns.value.length === 0) {
         bannerSpan.textContent = "No primary key — editing disabled";
         setDisplay(bannerSpan, true);
@@ -797,7 +797,7 @@ export default function(
     dataTable.setEditable({
       pkColumns: pkColumns.value,
       nullable: schemaColumns.value.map(c => c.nullable),
-      onEditsChange: list => edits.update(() => list),
+      onEditsChange: list => {edits.value = list;},
     });
     setDisplay(bannerSpan, false);
   }
@@ -807,12 +807,12 @@ export default function(
     const res = await api.get(sourceID);
     if (res.kind === "err")
       return;
-    readOnly.update(() => (res.value.Request.Data as t.SQLSourceRequest).readOnly);
+    readOnly.value = (res.value.Request.Data as t.SQLSourceRequest).readOnly;
     syncEditing();
   })();
 
   async function loadData(page: number) {
-    loading.update(() => true);
+    loading.value = true;
     const read: t.TableRead = {
       table: tableName,
       orderBy: sortColumns.value.map(({column, direction}) => ({column, direction})),
@@ -821,7 +821,7 @@ export default function(
       offset: page * pageSize,
     };
     const res = await api.requestPerformSQLSource(sourceID, read);
-    loading.update(() => false);
+    loading.value = false;
 
     if (res.kind !== "ok") {
       // Keep the current view: an invalid filter (or a failed page load) must
@@ -830,7 +830,7 @@ export default function(
     } else {
       // Commit the page only on success, so pagination stays consistent with
       // the data still on screen after a failed load.
-      currentPage.update(() => page);
+      currentPage.value = page;
       const data = res.value.response as t.SQLResponse;
       dataTable.update({
         columns: data.columns,
@@ -892,8 +892,8 @@ export default function(
       on: {},
     });
 
-    schemaColumns.update(() => columns);
-    pkColumns.update(() => primaryKeyColumns(res.value));
+    schemaColumns.value = columns;
+    pkColumns.value = primaryKeyColumns(res.value);
     syncEditing();
   }
 
@@ -903,11 +903,11 @@ export default function(
   const applyFilter = async (filter: t.TableFilter | null): Promise<void> => {
     currentFilter = filter;
     if (filter === null) {
-      totalRows.update(() => tableInfo.rowCount);
+      totalRows.value = tableInfo.rowCount;
     } else {
       const res = await api.requestCountRowsSQLSource(sourceID, tableName, filter);
       if (res.kind === "ok")
-        totalRows.update(() => res.value);
+        totalRows.value = res.value;
     }
     await loadData(0);
   };

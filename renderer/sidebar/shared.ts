@@ -7,8 +7,8 @@ export const newRequestName = signal<string | undefined>(undefined);
 export const renameID = signal<t.RequestID | undefined>(undefined);
 export const renameValue = signal<string | undefined>(undefined);
 export function renameInit(id: t.RequestID) {
-  renameID.update(() => id);
-  renameValue.update(() => id);
+  renameID.value = id;
+  renameValue.value = id;
 }
 
 export const sidebarHidden = signal(false);
@@ -34,7 +34,7 @@ function Dropdown() {
   open.sub(function*() {while(true) setDisplay(el, yield);}());
   document.addEventListener("click", e => {
     if (!el.contains(e.target as Node))
-      open.update(() => false);
+      open.value = false;
   });
 
   return {
@@ -47,7 +47,7 @@ function Dropdown() {
       el.style.top = `${y}px`;
 
       el.replaceChildren(...options);
-      open.update(() => true);
+      open.value = true;
 
       // NOTE: we can go out of window (literally),
       // so we have to adjust dropdown position to be inside if possible
@@ -59,7 +59,7 @@ function Dropdown() {
       }
     },
     hide() {
-      open.update(() => false);
+      open.value = false;
     },
   };
 }

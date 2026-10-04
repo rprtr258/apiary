@@ -62,7 +62,7 @@ export default function(
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
-      response.update(() => last_history_entry(r)?.response as t.RedisResponse | undefined);
+      response.value = last_history_entry(r)?.response as t.RedisResponse | undefined;
 
       const el_input_group = NInputGroup({style: {
         display: "grid",
@@ -104,7 +104,7 @@ export default function(
       el.replaceChildren(el_container);
     },
     push_history_entry(he: t.HistoryEntry) {
-      response.update(() => he.response as t.RedisResponse);
+      response.value = he.response as t.RedisResponse;
     },
     unmount() {
       for (const unmount of unmounts) {
