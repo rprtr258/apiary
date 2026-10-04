@@ -5,6 +5,7 @@ import ParamsList from "../../components/ParamsList.ts";
 import NButton from "../../components/button.ts";
 import {NSelect} from "../../components/input_select.ts";
 import {NInput, NInputGroup} from "../../components/input.ts";
+import {useRequest} from "../../hooks/useRequest.ts";
 import {NTabs, NSplit} from "../../components/layout.ts";
 import {NTag, NTable, NEmpty, tagColors} from "../../components/dataview.ts";
 import ViewJSON from "../../components/ViewJSON.ts";
@@ -94,47 +95,58 @@ export default function(
 
   let methods: {[service: string]: string[]} = {};
   let loading_methods = false;
+  const requestHook = useRequest<t.GRPCRequest>({initialRequest: {
+    target: "",
+    method: "",
+    payload: "",
+    metadata: [],
+  }, on: {update: on.update}});
   const el_send = NButton({
     primary: true,
     on: {click: on.send},
     disabled: true,
   }, "Send");
-  const method_select = NSelect({
-    options: [],
-    placeholder: "Method",
-    disabled: loading_methods,
-    on: {update: (method: string) => update_request({method})},
-  });
   const targetInput = NInput({
     placeholder: "Addr",
     value: "",
     on: {update: (target: string) => update_request({target})},
   });
+  const method_select = NSelect({
+    label: "",
+    options: [],
+    placeholder: "Method",
+    disabled: loading_methods,
+    on: {update: (method: string) => update_request({method})},
+  });
+
   const el_input_group = NInputGroup({style: {
     gridColumn: "span 2",
     display: "grid",
     gridTemplateColumns: "1fr 10fr 1fr",
   }}, method_select.el, targetInput, el_send.el);
 
-
   function update_request(patch: Partial<t.GRPCRequest>): void {
-    loading_methods = true;
     el_send.disabled = true;
-    on.update(patch).then(() => {
-      loading_methods = false;
+    requestHook.update(patch).finally(() => {
       el_send.disabled = false;
+    }).catch(() => {
+      targetInput.value = requestHook.requestSignal.value.target;
+      try {
+        method_select.set(requestHook.requestSignal.value.method);
+      } catch {}
+      // TODO: metadata list not re-synced on failed persist (ParamsList exposes no update API)
     });
   }
 
   return {
     loaded: (r: get_request): void => {
       const request = r.request as Request;
-      method_select.set(request.method);
+      requestHook.requestSignal.value = request;
       targetInput.value = request.target;
+      method_select.set(request.method);
 
       loading_methods = true;
       api.grpcMethods(r.request.id).then(res => {
-        loading_methods = false;
         if (res.kind === "err") {
           notification("error", "Error fetching GRPC methods", {content: res.value});
           return;
@@ -144,10 +156,18 @@ export default function(
           .sort(([s1], [s2]) => s1.localeCompare(s2))
           .flatMap(([service, methods]) => [{
             label: service,
+            value: undefined,
+            disabled: true,
           }, ...methods.map(method => ({
             label: method,
             value: service + "." + method,
           }))]));
+      }).catch(() => {
+      }).finally(() => {
+        loading_methods = false;
+        // The select is created while methods are still loading; re-enable it once they
+        // settle — unless they failed and it stayed empty (nothing to select).
+        method_select.el.disabled = Object.keys(methods).length === 0;
       });
 
       const el_req_tabs = NTabs({
