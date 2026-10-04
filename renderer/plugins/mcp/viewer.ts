@@ -6,6 +6,7 @@ import {NInput, NInputGroup} from "../../components/input.ts";
 import {get_request} from "../../store.ts";
 import {api} from "../../api.ts";
 import {invalidateMCP, seedMCP} from "./item.ts";
+import {useRequest} from "../../hooks/useRequest.ts";
 import {m} from "../../lib/utils.ts";
 
 type Request = t.MCPRequest;
@@ -43,12 +44,19 @@ export default function(
         ), res.kind === "ok");
       };
 
-      async function update_request(patch: Partial<Request>): Promise<void> {
-        Object.assign(request, patch);
-        await on.update(patch);
+      const requestHook = useRequest<Request>({initialRequest: request, on: {update: async newRequest => {
+        await on.update(newRequest);
         invalidateMCP(requestID);
-        await updateConnectionStatus();
-      };
+        await updateConnectionStatus().catch(() => {});
+      }}});
+      async function update_request(patch: Partial<Request>): Promise<void> {
+        try {
+          return await requestHook.update(patch);
+        } catch {
+          renderFields();
+          transportSelect.set(requestHook.requestSignal.value.transport);
+        }
+      }
 
       const transportSelect = NSelect<t.MCPTransport>({
         label: request.transport,
@@ -60,14 +68,14 @@ export default function(
               return {transport: "stdio", command: "", args: [], env: []};
             case "http":
             case "sse":
-              return request.transport === "stdio" ? {
+              return requestHook.requestSignal.value.transport === "stdio" ? {
                 transport,
                 url: "",
                 headers: [],
               } : {
                 transport,
-                url: request.url,
-                headers: request.headers,
+                url: requestHook.requestSignal.value.url,
+                headers: requestHook.requestSignal.value.headers,
               };
             }
           })());
@@ -85,23 +93,23 @@ export default function(
       }
 
       function renderFields(): void {
-        fieldsContainer.replaceChildren(...(() => {
-          switch (request.transport) {
+        fieldsContainer.replaceChildren(...((): HTMLElement[] => {
+          switch (requestHook.requestSignal.value.transport) {
           case "stdio": {
             const commandInput = NInput({
               placeholder: "bunx",
-              value: request.command,
+              value: requestHook.requestSignal.value.command,
               style: {flex: "1"},
               on: {update: (v: string) => update_request({command: v})},
             });
             const argsInput = NInput({
               placeholder: "-y @modelcontextprotocol/server-filesystem /tmp",
-              value: request.args.join(" "),
+              value: requestHook.requestSignal.value.args.join(" "),
               style: {flex: "1"},
               on: {update: (v: string) => update_request({args: v.split(" ").map(a => a.trim()).filter(a => a !== "")})},
             });
             const envList = ParamsList({
-              value: request.env,
+              value: requestHook.requestSignal.value.env,
               on: {update: (value: t.KV[]) => update_request({env: value})},
             });
             envList.style.flex = "1";
@@ -115,12 +123,12 @@ export default function(
           case "sse": {
             const urlInput = NInput({
               placeholder: "https://example.com/mcp",
-              value: request.url,
+              value: requestHook.requestSignal.value.url,
               style: {flex: "1"},
               on: {update: (v: string) => update_request({url: v})},
             });
             const headersList = ParamsList({
-              value: request.headers,
+              value: requestHook.requestSignal.value.headers,
               on: {update: (value: t.KV[]) => update_request({headers: value})},
             });
             headersList.style.flex = "1";
