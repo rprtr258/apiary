@@ -1,6 +1,7 @@
 import * as t from "@/types.ts";
 import {m, setDisplay, Signal} from "../../lib/utils.ts";
 import {api} from "../../api.ts";
+import {useRequest} from "../../hooks/useRequest.ts";
 import {get_request, store} from "../../store.ts";
 import {NEmpty} from "../../components/dataview.ts";
 import {NButton, NInputGroup, NSelect, NSelectInput} from "../../components/input.ts";
@@ -56,6 +57,11 @@ export default function(
     dataTable.update({columns: response.columns, rows: response.rows as t.RowValue[][], typenames: response.typenames, types: response.types, on: {}});
   };
   const unmounts: (() => void)[] = [];
+  const requestHook = useRequest<t.SQLRequest>({initialRequest: {
+    database: "postgres",
+    dsn: "",
+    query: "",
+  }, on: {update: on.update}});
 
   // Plan tabs: the plan is fetched for the current request when either tab is
   // opened, kept while the query/dsn/database stay unchanged, and never
@@ -141,10 +147,11 @@ export default function(
       el_response.replaceChildren(tabs);
 
       const request = r.request as Request;
+      requestHook.requestSignal.value = request;
       const el_run = NButton({
         primary: true,
         on: {click: async () => {
-          await on.send();
+          await on.send().catch(() => {});
         }},
       }, "Run");
       const el_editor = EditorSQL({
@@ -176,8 +183,11 @@ export default function(
       });
       const update_request = (patch: Partial<Request>): void => {
         el_run.disabled = true;
-        on.update(patch).then(() => {
+        requestHook.update(patch).finally(() => {
           el_run.disabled = false;
+        }).catch(() => {
+          db_select.set(requestHook.requestSignal.value.database);
+          dsn_select.set(requestHook.requestSignal.value.dsn);
         });
       };
 
