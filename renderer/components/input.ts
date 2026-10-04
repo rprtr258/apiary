@@ -1,9 +1,14 @@
 import {m, DOMNode, setDisplay} from "../lib/utils.ts";
 import {css} from "../lib/styles.ts";
 
+const inputStyles = {
+  error: css("border-color: red; background-color: rgba(255, 0, 0, 0.1);"),
+  success: css("border-color: green; background-color: rgba(0, 255, 0, 0.1);"),
+};
+
 type NInputProps = {
   placeholder?: string,
-  status?: "success" | "error", // TODO: highlight with red, method to update
+  status?: "success" | "error",
   value?: string,
   on?: {
     update: (value: string) => void,
@@ -23,6 +28,12 @@ export function NInput(props: NInputProps) {
     disabled: props.disabled,
   });
 
+  // Status highlight, e.g. red on a validation error
+  el.addEventListener("focus", () => {
+    el.classList.toggle(inputStyles.error, props.status === "error");
+    el.classList.toggle(inputStyles.success, props.status === "success");
+  });
+
   if (props.autofocus ?? false) {
     queueMicrotask(() => el.focus());
   }
@@ -37,6 +48,7 @@ export function NInputGroup(props: {style: Partial<CSSStyleDeclaration>}, ...chi
 export type SelectOption<T> = {
   label: string,
   value?: T,
+  disabled?: boolean,
 };
 type NSelectProps<T> = {
   label?: string,
@@ -49,38 +61,49 @@ type NSelectProps<T> = {
 export function NSelect<T>(props: NSelectProps<T>): {
   el: HTMLElement,
   reset: () => void,
+  set: (value: T) => void,
+  setOptions: (options: SelectOption<T>[]) => void,
 } {
-  let current: number | null = props.options.findIndex(opt => opt.label === props.label);
-  if (current === -1) {
-    if (props.placeholder === undefined) {
-      throw new Error(`Option ${props.label} not found in ${JSON.stringify(props.options)}`);
-    }
-    current = null;
+  let current: T | undefined = props.label === undefined || props.label === "" ?
+    undefined :
+    props.options.find(opt => opt.label === props.label && opt.value !== undefined)?.value;
+  if (props.label !== undefined && props.label !== "" && current === undefined && props.placeholder === undefined) {
+    throw new Error(`Option ${props.label} not found in ${JSON.stringify(props.options)}`);
   }
 
   const el_placeholder = m("option", {
     value: "",
     disabled: props.placeholder === undefined ? true : undefined,
     hidden: true,
-    selected: current === null ? true : undefined,
   }, props.placeholder ?? "");
-  const el_opts = props.options.map(({label, value}, i) => m("option", {
-    value: String(i),
-    selected: i === current ? true : undefined, // NOTE: any value makes selected, so we explicitly set undefined
-    disabled: value === undefined ? true : undefined,
-  }, label));
 
+  function selectedIndex(options: SelectOption<T>[]): number {
+    if (current === undefined)
+      return 0; // 0 = placeholder
+    return options.findIndex(opt => opt.value === current) + 1; // +1 for it
+  }
+
+  // NOTE: any value makes selected, so we explicitly set undefined
+  const renderOptions = (options: SelectOption<T>[]): HTMLOptionElement[] => options.map(({label, value, disabled}, i) => m("option", {
+    value: String(i),
+    selected: current !== undefined && current === value ? true : undefined,
+    disabled: (disabled ?? false) || value === undefined ? true : undefined,
+  }, label));
+  let el_opts = renderOptions(props.options);
   const el = m("select", {
     style: props.style,
+    // m() maps props to attributes, and in HTML presence of "disabled" disables
+    // regardless of value - so a false must become undefined (attribute omitted).
+    disabled: props.disabled === true ? true : undefined,
     onchange: (e: Event) => {
       const i = parseInt((e.target! as HTMLSelectElement).value);
-      const value = props.options[i].value;
-      if (current !== null) {
-        el_opts[current].selected = false;
-      }
       el_opts[i].selected = true;
-      current = i;
-      props.on.update(value!);
+      const value = props.options[i]?.value;
+      if (value === undefined) {
+        return; // header (no value) or placeholder: no selection
+      }
+      current = value;
+      props.on.update(value);
     },
   },
     el_placeholder,
@@ -88,20 +111,33 @@ export function NSelect<T>(props: NSelectProps<T>): {
   );
 
   // Workaround for happy-dom bug: set selectedIndex after creating select
-  if (current !== null) {
-    el.selectedIndex = current + 1; // +1 for placeholder
-  }
+  el.selectedIndex = selectedIndex(props.options);
 
   return {
     el,
+    set: (value: T): void => {
+      // Programmatic value sync (e.g. reverting the DOM after a failed persist): silent, fires no props.on.update.
+      const i = props.options.findIndex(opt => opt.value === value);
+      if (i === -1) {
+        throw new Error(`Option ${String(value)} not found in ${JSON.stringify(props.options)}`);
+      }
+      current = value;
+      el.selectedIndex = i + 1; // +1 for placeholder
+    },
     reset() {
-      if (current === null)
-        return;
-
-      el_opts[current].selected = false;
-      el_placeholder.selected = true;
-      current = null;
+      current = undefined;
       el.selectedIndex = 0; // Select placeholder
+    },
+    setOptions: (options: SelectOption<T>[]): void => {
+      props.options = options;
+      if (current !== undefined && !options.some(opt => opt.value === current)) {
+        current = undefined; // the selected value is gone with the old options: back to the placeholder
+      }
+      el_opts = renderOptions(options);
+      el.replaceChildren(el_placeholder, ...el_opts);
+      // Re-sync the visible selection: the current value may have arrived with the new
+      // options (or vanished with them), mirroring the happy-dom workaround above.
+      el.selectedIndex = selectedIndex(options);
     },
   };
 }
@@ -146,6 +182,7 @@ type SelectInputItem = {label: string, disabled: boolean};
 let selectInputCounter = 0;
 export function NSelectInput(props: NSelectInputProps): {
   el: HTMLDivElement,
+  set: (value: string) => void,
 } {
   const popupID = `nselect-input-popup-${selectInputCounter++}`;
 
@@ -312,6 +349,11 @@ export function NSelectInput(props: NSelectInputProps): {
     // NOTE: the wrapper generates no box (the input stays the NInputGroup grid item),
     // and the fixed-position popup is out of flow, so it does not become a grid item either.
     el: m("div", {style: {display: "contents"}}, el_input, el_popup),
+    set(value: string): void {
+      // Programmatic value sync (e.g. reverting the DOM after a failed persist): shows the
+      // option's label for the value, silent (fires no props.on.update).
+      el_input.value = byValue.get(value)?.label ?? value;
+    },
   };
 }
 
