@@ -1,6 +1,7 @@
 import {z} from "zod";
 import * as t from "@/types.ts";
 import {api} from "./api.ts";
+import {PersistRevertedError} from "./hooks/useRequest.ts";
 import {signal, Signal} from "./lib/utils.ts";
 import layout from "./layout.ts";
 import {ItemConfig, LayoutConfig} from "./layout/types.ts";
@@ -208,6 +209,7 @@ export const store = ((): Store => {
       if (id in this.requests2) {
         delete this.requests2[id];
       }
+      lastPersisted.delete(id); // no in-flight persist can own a deleted request's state anymore
       await this.fetch();
     },
     async rename(id: t.RequestID, newName: string): Promise<void> {
@@ -317,16 +319,54 @@ export async function send(id: t.RequestID): Promise<void> {
   store.requests2[id].history.push(res.value);
 }
 
+// Last state known to have landed on the backend, per request, with the persist seq that
+// recorded it. update_request rolls failed persists back to it — never to an older in-flight
+// persist's never-persisted optimistic state. One global monotonic seq is enough: comparisons
+// are per-request, and a higher seq is never a smaller number.
+let persistSeq = 0;
+const lastPersisted = new Map<string, {seq: number, request: t.Request}>();
+
 export async function update_request(id: t.RequestID, patch: Partial<t.Request>): Promise<void> {
+  const seq = ++persistSeq;
   const old_request = store.requests2[id].request;
+  if (!lastPersisted.has(id)) {
+    lastPersisted.set(id, {seq: 0, request: old_request}); // the pre-branch state is by definition the last persisted one
+  }
   const {id: _id, path: _path, kind: _kind, ...old_data} = old_request;
-  const new_data = {...old_data, ...patch} as t.Request; // Data-only, sent to backend
-  store.requests2[id].request = {...old_request, ...patch} as t.Request; // NOTE: optimistic update, keep id/path/kind
+  // patch may carry id/path/kind (full request from useRequest) — strip them from the merged
+  // result too, otherwise they leak into the persisted Data and break Duplicate/Rename.
+  const {id: _sid, path: _spath, kind: _skind, ...new_data} = {...old_data, ...patch} as t.Request; // Data-only, sent to backend
+  const optimistic = {...old_request, ...patch} as t.Request;
+  store.requests2[id].request = optimistic; // NOTE: optimistic update, keeps id/path/kind
   const res = await api.request_update(id, old_request.kind, new_data);
   if (res.kind === "err") {
-    store.requests2[id].request = old_request; // NOTE: undo change
+    if (!(id in store.requests2)) {
+      // Request deleted while the persist IPC was in flight: nothing to roll back.
+      notification("error", "Could not save current request", {error: res.value});
+      throw new PersistRevertedError(`Could not save current request: ${res.value}`, old_request);
+    }
+    // Revert only if no newer persist (or fetch/rename) has replaced the state since (identity
+    // check) — and to the last persisted state, never to a never-persisted optimistic patch.
+    const recorded = lastPersisted.get(id)!; // set above
+    const is_current = store.requests2[id].request === optimistic;
+    if (is_current) {
+      store.requests2[id].request = recorded.request;
+    }
     notification("error", "Could not save current request", {error: res.value});
-    return;
+    // Surface the failure plus the state the store reverted to, so useRequest rolls its
+    // optimistic state back to the same target instead of its own pre-patch state
+    // (which can be an older in-flight persist's never-persisted optimistic state).
+    throw new PersistRevertedError(
+      `Could not save current request: ${res.value}`,
+      is_current ? recorded.request : store.requests2[id].request,
+    );
+  }
+  // Record only successes newer than the last recorded one: an out-of-order success still
+  // becomes backend truth (the newer persist may still fail and roll back to it), but never
+  // regresses lastPersisted below a newer success that already landed.
+  const recorded = lastPersisted.get(id);
+  if (recorded === undefined || recorded.seq < seq) {
+    lastPersisted.set(id, {seq, request: optimistic});
   }
 }
 
