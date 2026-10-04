@@ -54,6 +54,7 @@ describe("NSelect", () => {
     });
 
     expect(el.tagName).toBe("SELECT");
+    expect(el.hasAttribute("disabled")).toBe(false);
     expect(el.children.length).toBe(4); // placeholder + 3 options
 
     const options = el.children;

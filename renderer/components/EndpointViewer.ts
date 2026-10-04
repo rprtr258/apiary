@@ -44,7 +44,6 @@ export default function EndpointViewer(
 
   loadEndpointData().then(({exampleRequest, schema}) => {
     httpRequestView = HTTPRequestView(el, {
-      initialRequest: exampleRequest,
       showRequest: signal(true),
       schema,
       on: {send: async (request: t.HTTPRequest) => {
