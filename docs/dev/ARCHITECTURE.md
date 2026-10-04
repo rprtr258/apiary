@@ -85,6 +85,12 @@ The deletion test: these are pass-throughs but that's OK - they're UI adapters, 
 
 `panelkaFactory` in `renderer/App.ts` dispatches kind -> module via the plugin registry's `frame` hooks and is registered as the layout component factory for request panes. Source panes get their viewer components (shared ones from `renderer/components/`, kind-specific ones colocated in the plugin dir) from the plugin registry's `viewers` lists, which `App.ts` turns into layout factories.
 
+### Frontend: Headless Hooks (`renderer/hooks/`)
+
+DOM-free state logic shared by components and plugin viewers:
+
+- `useRequest<T>` - request state: `update(patch)` applies an optimistic merge and hands the merged request to the persistence callback; transactional — both the store and the hook roll back when persistence fails (the store throws `PersistRevertedError` carrying the state it reverted to; a newer update having started makes a failure stale). `loading` counts in-flight updates; `requestSignal` exposes the loaded request so plugin viewers can seed it directly (the one sanctioned direct `signal` write without a `sub` watcher).
+
 ### Frontend: Sidebar + Source Items
 
 - `renderer/Sidebar.ts` - sidebar shell
