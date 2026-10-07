@@ -26,7 +26,7 @@ export type Api = {
     Test:          (_1: string            ) => Promise<void>,
     ListTables:    (_1: string            ) => Promise<t.TableInfo[]>,
     DescribeTable: (_1: string, _2: string) => Promise<t.TableSchema>,
-    CountRows:     (_1: string, _2: string) => Promise<number>,
+    CountRows:     (_1: string, _2: string, _3: t.TableFilter) => Promise<number>,
     UpdateTableRows: (_1: string, _2: string, _3: string[], _4: t.CellUpdate[]) => Promise<t.SQLResponse>,
     BuildTableUpdate: (_1: string, _2: string, _3: string[], _4: t.CellUpdate[]) => Promise<string>,
   },

@@ -270,20 +270,36 @@ const state: {
   schema: t.TableSchema,
   readOnly: boolean,
   updateError: string | undefined,
+  performError: string | undefined,
+  countRows: number,
 } = {
   data: DATA,
   schema: SCHEMA,
   readOnly: false,
   updateError: undefined,
+  performError: undefined,
+  countRows: 2,
 };
 
 const updateCalls: unknown[][] = [];
 const buildCalls: unknown[][] = [];
+const performCalls: unknown[][] = [];
+const countCalls: unknown[][] = [];
+const notifications: unknown[][] = [];
 
 // Hoisted by bun to run before the TableView import below.
 const apiMock = {
   get: async () => ok({Request: {ID: "s1", Path: "", Data: {database: "postgres", dsn: "", readOnly: state.readOnly}}, History: []} as unknown as t.GetResponse),
-  requestPerformSQLSource: async () => ok({sent_at: "", received_at: "", kind: t.Kind.SQL, request: {}, response: state.data} as unknown as t.HistoryEntry),
+  requestPerformSQLSource: async (...args: unknown[]) => {
+    performCalls.push(args);
+    if (state.performError !== undefined)
+      return {kind: "err", value: state.performError} as unknown as t.HistoryEntry;
+    return ok({sent_at: "", received_at: "", kind: t.Kind.SQL, request: {}, response: state.data} as unknown as t.HistoryEntry);
+  },
+  requestCountRowsSQLSource: async (...args: unknown[]) => {
+    countCalls.push(args);
+    return ok(state.countRows);
+  },
   requestDescribeTableSQLSource: async () => ok(state.schema),
   requestUpdateTableRowsSQLSource: async (...args: unknown[]) => {
     updateCalls.push(args);
@@ -297,6 +313,11 @@ const apiMock = {
   },
 };
 mock.module("../api.ts", () => ({api: apiMock}));
+mock.module("../lib/notification.ts", () => ({
+  default: (...args: unknown[]) => {
+    notifications.push(args);
+  },
+}));
 
 function makeViewer(): HTMLElement {
   const el = document.createElement("div");
@@ -317,13 +338,38 @@ function buttonByText(el: HTMLElement, text: string): HTMLButtonElement {
   return btn;
 }
 
+function setInput(input: HTMLInputElement, value: string): void {
+  input.value = value;
+  fire(input, "input");
+}
+
+function setColumn(el: HTMLElement, name: string): void {
+  // The testid sits on the NSelectInput wrapper; the editable input is inside it.
+  const input = el.querySelector<HTMLInputElement>("[data-testid=\"filter-column\"] input");
+  expect(input).not.toBeNull();
+  setInput(input!, name);
+}
+
+function filterValue(el: HTMLElement): HTMLInputElement {
+  return el.querySelector<HTMLInputElement>("input[data-testid=\"filter-value\"]")!;
+}
+
+function filterExpr(el: HTMLElement): HTMLInputElement {
+  return el.querySelector<HTMLInputElement>("input[data-testid=\"filter-expr\"]")!;
+}
+
 describe("TableViewer toolbar", () => {
   beforeEach(() => {
     state.schema = SCHEMA;
     state.readOnly = false;
     state.updateError = undefined;
+    state.performError = undefined;
+    state.countRows = 2;
     updateCalls.length = 0;
     buildCalls.length = 0;
+    performCalls.length = 0;
+    countCalls.length = 0;
+    notifications.length = 0;
   });
 
   test("apply runs updates by pk and changed columns, then clears and reloads", async () => {
@@ -434,5 +480,81 @@ describe("TableViewer toolbar", () => {
     });
     const apply = buttonByText(el, "Apply");
     expect(apply.closest("div")!.style.display).toBe("none");
+  });
+
+  test("filter applies debounced with the value, refreshes the filtered count, and paginates", async () => {
+    state.countRows = 250;
+    const el = makeViewer();
+    await waitFor(() => expect(performCalls.length).toBe(1)); // initial load
+
+    setColumn(el, "id");
+    setInput(filterValue(el), "5");
+    await waitFor(() => expect(performCalls.length).toBe(2), 3500);
+    const read = performCalls[1][1] as t.TableRead;
+    expect(read.filter).toEqual({kind: "simple", column: "id", op: "=", value: "5"});
+    expect(read.offset).toBe(0); // filter change reloads the first page
+    expect(countCalls).toEqual([["s1", "users", {kind: "simple", column: "id", op: "=", value: "5"}]]);
+    expect(el.textContent).toContain("of 250"); // pagination shows the filtered count
+
+    // paging keeps the active filter and moves the offset
+    buttonByText(el, "Next").click();
+    await waitFor(() => expect(performCalls.length).toBe(3));
+    const nextRead = performCalls[2][1] as t.TableRead;
+    expect(nextRead.filter).toEqual({kind: "simple", column: "id", op: "=", value: "5"});
+    expect(nextRead.offset).toBe(100);
+
+    // clearing the value removes the filter and restores the full row count
+    setInput(filterValue(el), "");
+    await waitFor(() => expect(performCalls.length).toBe(4), 3500);
+    expect((performCalls[3][1] as t.TableRead).filter).toBeNull();
+    expect(countCalls.length).toBe(1); // no extra count for the unfiltered view
+    expect(el.textContent).toContain("of 2");
+  });
+
+  test("invalid manual filter shows an error notification and keeps the view", async () => {
+    const el = makeViewer();
+    await waitFor(() => {
+      const container = el.querySelector("[data-testid=\"data-container\"]")!;
+      expect(container.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]").length).toBeGreaterThan(0);
+    });
+    state.performError = "syntax error at or near \"==\"";
+
+    buttonByText(el, "Manual").click();
+    const builderRow: HTMLElement | null = el.querySelector("[data-testid=\"filter-builder-row\"]");
+    expect(builderRow?.style.display).toBe("none");
+    setInput(filterExpr(el), "id ==");
+    await waitFor(() => expect(performCalls.length).toBe(2), 3500);
+    const read = performCalls[1][1] as t.TableRead;
+    expect(read.filter).toEqual({kind: "manual", expr: "id =="});
+    // error notification carries the engine error
+    expect(notifications.some(n => n[0] === "error" && n[1] === "Could not load data" &&
+      (n[2] as {error: string}).error === "syntax error at or near \"==\"")).toBe(true);
+    // the view still shows the previous data (not blanked)
+    const cell = el.querySelector("[data-testid=\"data-container\"]")!.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
+    expect(cell.textContent).toBe("a");
+  });
+
+  test("cell editing still works while a filter is active", async () => {
+    const el = makeViewer();
+    await waitFor(() => expect(el.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]").length).toBeGreaterThan(0));
+
+    setColumn(el, "id");
+    setInput(filterValue(el), "1");
+    await waitFor(() => expect(performCalls.length).toBe(2), 3500);
+    // re-query after the filtered reload replaced the table content
+    const nameCell = el.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
+    fire(nameCell, "dblclick");
+    const input = nameCell.querySelector<HTMLInputElement>("input")!;
+    input.value = "x";
+    fireKey(input, "Enter");
+    const apply = buttonByText(el, "Apply");
+    await waitFor(() => expect(apply.closest("div")!.style.display).not.toBe("none"));
+    apply.click();
+    await waitFor(() => {
+      // updates go through by pk while the filter is active, and the reload
+      // that follows still carries the active filter
+      expect(updateCalls).toEqual([["s1", "users", ["id"], [{pkValues: [1], column: "name", value: "x"}]]]);
+      expect((performCalls.at(-1)![1] as t.TableRead).filter).toEqual({kind: "simple", column: "id", op: "=", value: "1"});
+    });
   });
 });

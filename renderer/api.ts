@@ -112,8 +112,9 @@ export const api = {
   async requestCountRowsSQLSource(
     id: string,
     tableName: string,
+    filter: t.TableFilter,
   ): Promise<Result<number>> {
-    return await wrap(() => Api.SQLSource.CountRows(id, tableName), {reqId: id, tableName});
+    return await wrap(() => Api.SQLSource.CountRows(id, tableName, filter), {reqId: id, tableName});
   },
 
   async requestUpdateTableRowsSQLSource(

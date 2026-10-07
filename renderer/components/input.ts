@@ -208,6 +208,14 @@ export function NSelectInput(props: NSelectInputProps): {el: HTMLDivElement} {
     }
   };
 
+  const onWindowScroll = (e: Event): void => {
+    // A scroll inside the popup list itself must keep the popup open; only a
+    // scroll elsewhere moves the input away from its fixed-position popup.
+    if (!el_popup.contains(e.target as Node)) {
+      close();
+    }
+  };
+
   const open = (): void => {
     if (isOpen) {
       return;
@@ -221,7 +229,7 @@ export function NSelectInput(props: NSelectInputProps): {el: HTMLDivElement} {
     el_popup.style.display = "";
     document.addEventListener("pointerdown", onOutsidePointerDown, true);
     window.addEventListener("resize", close);
-    window.addEventListener("scroll", close, true);
+    window.addEventListener("scroll", onWindowScroll, true);
   };
 
   const close = (): void => {
@@ -233,7 +241,7 @@ export function NSelectInput(props: NSelectInputProps): {el: HTMLDivElement} {
     el_input.setAttribute("aria-expanded", "false");
     document.removeEventListener("pointerdown", onOutsidePointerDown, true);
     window.removeEventListener("resize", close);
-    window.removeEventListener("scroll", close, true);
+    window.removeEventListener("scroll", onWindowScroll, true);
   };
 
   refresh("");

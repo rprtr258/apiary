@@ -76,9 +76,22 @@ export type SQLSourceRequest = {
   readOnly: boolean,
 };
 
+export type FilterOp =
+  | "=" | "!=" | "<" | "<=" | ">" | ">=" | "in"
+  | "like" | "not like"
+  | "is null" | "is not null";
+
+/** Table viewer filter. A simple filter's value is the raw renderer input —
+ * the main process parses it into SQL literal(s) (numbers and true/false by
+ * content, `in` splits the string on commas; null only for the null checks). */
+export type TableFilter =
+  | {kind: "simple", column: string, op: FilterOp, value: string | null}
+  | {kind: "manual", expr: string};
+
 export type TableRead = {
   table: string,
   orderBy: {column: string, direction: "asc" | "desc"}[],
+  filter: TableFilter | null,
   limit: number,
   offset: number,
 };

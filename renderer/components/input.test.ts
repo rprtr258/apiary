@@ -370,6 +370,26 @@ describe("NSelectInput", () => {
     expect(el_popup.style.display).toBe("none");
   });
 
+  test("scrolling inside the popup keeps it open; a scroll elsewhere closes it", () => {
+    const {el} = NSelectInput({options});
+    document.body.appendChild(el);
+    const el_popup = popup(el);
+    const input = el.querySelector("input") as HTMLInputElement;
+
+    input.dispatchEvent(new Event("focus"));
+    expect(el_popup.style.display).toBe(""); // open
+
+    // scrolling the popup list itself must not close the popup
+    el_popup.dispatchEvent(new Event("scroll"));
+    expect(el_popup.style.display).toBe("");
+
+    // a scroll anywhere else would leave the fixed-position popup detached from the input
+    window.dispatchEvent(new Event("scroll"));
+    expect(el_popup.style.display).toBe("none");
+
+    el.remove();
+  });
+
   test("none option is disabled and non-choosable when no options exist", () => {
     const updateMock = mock((s: string) => void s);
     const {el} = NSelectInput({options: () => [], on: {update: updateMock}});

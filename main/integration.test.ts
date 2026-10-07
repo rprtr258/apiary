@@ -56,7 +56,7 @@ describe.if(IS_INTEGRATION)("SQLSource (postgres)", () => {
   });
 
   test("counts rows", async () => {
-    const count = await countRowsSQLSource(pgRequest(), tableName);
+    const count = await countRowsSQLSource(pgRequest(), tableName, null);
     expect(count).toBeGreaterThanOrEqual(2);
   });
 

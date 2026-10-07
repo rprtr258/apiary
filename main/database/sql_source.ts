@@ -1,4 +1,4 @@
-import {SQLRequest, SQLSourceRequest, TableRead, RowValue, CellUpdate, SQLResponse} from "@/types.ts";
+import {SQLRequest, SQLSourceRequest, TableRead, TableFilter, RowValue, CellUpdate, SQLResponse} from "@/types.ts";
 import {describeTable, quoteIdent, sendSQL, sendSQLBatch} from "./sql.ts";
 
 export const EmptyRequest: SQLSourceRequest = {
@@ -18,6 +18,59 @@ export function sqlLiteral(v: RowValue): string {
     return v ? "TRUE" : "FALSE";
   const s = v instanceof Date ? v.toISOString() : String(v);
   return `'${s.replaceAll("'", "''")}'`;
+}
+
+// Parse the raw renderer-side filter value into a literal: numbers and
+// true/false by content, anything else stays a string (quoted by sqlLiteral).
+// Type mismatches surface as engine errors when the query runs.
+function parseFilterValue(raw: string): RowValue {
+  const n = Number(raw);
+  if (!Number.isNaN(n))
+    return n;
+  const b = raw.trim().toLowerCase();
+  if (["true", "false"].includes(b))
+    return b === "true";
+  return raw;
+}
+
+// WHERE condition for a table-viewer filter. Simple filters arrive with the
+// raw value string and are parsed here into literal(s) (`in` splits the
+// string on commas); manual filters embed the user's SQL condition verbatim —
+// an invalid condition fails the query, which the viewer reports instead of
+// updating the view.
+export function buildFilterCondition(request: Omit<SQLRequest, "query">, filter: TableFilter): string {
+  if (filter.kind === "manual")
+    return `(${filter.expr})`;
+
+  const column = quoteIdent[request.database](filter.column);
+
+  if (filter.op === "is null")
+    return `${column} IS NULL`;
+  if (filter.op === "is not null")
+    return `${column} IS NOT NULL`;
+
+  if (filter.value === null)
+    throw new Error(`filter operator "${filter.op}" requires a value`);
+
+  if (filter.op === "in") {
+    const values = filter.value.split(",").map(v => v.trim()).filter(v => v !== "");
+    if (values.length === 0)
+      throw new Error(`filter operator "in" requires at least one value`);
+    return `${column} IN (${values.map(v => sqlLiteral(parseFilterValue(v))).join(", ")})`;
+  }
+
+  const value = sqlLiteral(parseFilterValue(filter.value));
+  const op = {
+    "like":     "LIKE",
+    "not like": "NOT LIKE",
+    "=":        "=",
+    "!=":       "!=",
+    "<":        "<",
+    "<=":       "<=",
+    ">":        ">",
+    ">=":       ">=",
+  }[filter.op]; 
+  return `${column} ${op} ${value}`;
 }
 
 // One UPDATE per edited row, only its changed columns. Edits with identical
@@ -106,13 +159,16 @@ export async function buildReadTableQuery(request: Omit<SQLRequest, "query">, re
     // best-effort: order as well as we can
   }
   const orderBy = orderTerms.length > 0 ? ` ORDER BY ${orderTerms.join(", ")}` : "";
-  return `SELECT * FROM ${q(read.table)}${orderBy} LIMIT ${read.limit} OFFSET ${read.offset}`;
+  const where = read.filter !== null ? ` WHERE ${buildFilterCondition(request, read.filter)}` : "";
+  return `SELECT * FROM ${q(read.table)}${where}${orderBy} LIMIT ${read.limit} OFFSET ${read.offset}`;
 }
 
-export async function countRowsSQLSource(request: Omit<SQLRequest, "query">, tableName: string): Promise<number> {
+export async function countRowsSQLSource(request: Omit<SQLRequest, "query">, tableName: string, filter: TableFilter | null): Promise<number> {
   // Quote each part of schema-qualified names separately
-  const quoted = tableName.split(".").map(p => quoteIdent[request.database](p)).join(".");
-  const result = await sendSQL({...request, query: `SELECT COUNT(*) FROM ${quoted}`});
+  const q = quoteIdent[request.database];
+  const quoted = tableName.split(".").map(q).join(".");
+  const where = filter !== null ? ` WHERE ${buildFilterCondition(request, filter)}` : "";
+  const result = await sendSQL({...request, query: `SELECT COUNT(*) FROM ${quoted}${where}`});
   return Number(result.rows[0]?.[0] ?? 0);
 }
 

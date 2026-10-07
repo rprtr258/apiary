@@ -257,12 +257,12 @@ export const SQLSource = {
     return await describeTable({dsn, database}, tableName);
   },
 
-  async CountRows(id: t.RequestID, tableName: string): Promise<number> {
+  async CountRows(id: t.RequestID, tableName: string, filter: t.TableFilter): Promise<number> {
     const req = await get(id);
     if (req.Kind !== t.Kind.SQLSource)
       throw new Error(`request ${id} is not SQLSource`);
     const {dsn, database} = req.Data;
-    return await countRowsSQLSource({dsn, database}, tableName);
+    return await countRowsSQLSource({dsn, database}, tableName, filter);
   },
 
   async UpdateTableRows(id: t.RequestID, tableName: string, pkColumns: string[], updates: t.CellUpdate[]): Promise<t.SQLResponse> {

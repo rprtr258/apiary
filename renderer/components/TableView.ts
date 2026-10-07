@@ -6,6 +6,7 @@ import {css} from "../lib/styles.ts";
 import notification from "../lib/notification.ts";
 import {NButton} from "./input.ts";
 import {NScrollbar, NTabs} from "./layout.ts";
+import TableFilter from "./TableFilter.ts";
 import {NIcon} from "./dataview.ts";
 import {CheckSquareOutlined, ClockCircleOutlined, FieldNumberOutlined, ItalicOutlined, QuestionCircleOutlined} from "./icons.ts";
 import {ComponentContainer} from "../layout/types.ts";
@@ -639,6 +640,9 @@ export default function(
   const currentPage = signal(0);
   const totalRows = signal(tableInfo.rowCount);
 
+  // Active table filter (from the filter bar); null means unfiltered.
+  let currentFilter: t.TableFilter | null = null;
+
   // Sorting state
   const sortColumns = signal<SortColumn[]>([]);
 
@@ -688,10 +692,16 @@ export default function(
   //   sortColumns.update(() => []);
   // };
 
-  // Reload data when sorting changes
+  // Reload data when sorting changes. The subscription fires once immediately
+  // with the initial (empty) sort — skip that to avoid a duplicate first load.
   sortColumns.sub(function*() {
+    let initial = true;
     while (true) {
       yield;
+      if (initial) {
+        initial = false;
+        continue;
+      }
       // Reload current page with new sorting
       loadData(currentPage.value);
     }
@@ -707,16 +717,14 @@ export default function(
   };
 
   const prevButton = NButton({
-    on: {click: () => {
-      currentPage.update(v => Math.max(0, v - 1));
-      loadData(currentPage.value);
+    on: {click: async (): Promise<void> => {
+      await loadData(Math.max(0, currentPage.value - 1));
     }},
     disabled: prevDisabled(),
   }, "Previous");
   const nextButton = NButton({
-    on: {click: () => {
-      currentPage.update(v => v + 1);
-      loadData(currentPage.value);
+    on: {click: async (): Promise<void> => {
+      await loadData(currentPage.value + 1);
     }},
     disabled: nextDisabled(),
   }, "Next");
@@ -807,30 +815,35 @@ export default function(
     const read: t.TableRead = {
       table: tableName,
       orderBy: sortColumns.value.map(({column, direction}) => ({column, direction})),
+      filter: currentFilter,
       limit: pageSize,
       offset: page * pageSize,
     };
     const res = await api.requestPerformSQLSource(sourceID, read);
     loading.update(() => false);
 
-    let data: t.SQLResponse | undefined = undefined;
     if (res.kind !== "ok") {
+      // Keep the current view: an invalid filter (or a failed page load) must
+      // not blank the table.
       notification("error", "Could not load data", {error: res.value});
     } else {
-      data = res.value.response as t.SQLResponse;
+      // Commit the page only on success, so pagination stays consistent with
+      // the data still on screen after a failed load.
+      currentPage.update(() => page);
+      const data = res.value.response as t.SQLResponse;
+      dataTable.update({
+        columns: data.columns,
+        rows: data.rows as t.RowValue[][],
+        typenames: data.typenames,
+        types: data.types,
+        sortColumns: sortColumns.value,
+        on: {
+          sortAdd: addSort,
+          sortRemove: removeSort,
+          sortToggle: toggleSort,
+        },
+      });
     }
-    dataTable.update({
-      columns: data?.columns ?? [],
-      rows: (data?.rows ?? []) as t.RowValue[][],
-      typenames: data?.typenames ?? [],
-      types: data?.types ?? [],
-      sortColumns: sortColumns.value,
-      on: {
-        sortAdd: addSort,
-        sortRemove: removeSort,
-        sortToggle: toggleSort,
-      },
-    });
     // Update UI elements
     prevButton.disabled = prevDisabled();
     nextButton.disabled = nextDisabled();
@@ -883,11 +896,29 @@ export default function(
     syncEditing();
   }
 
+  // Applies a filter from the filter bar: refreshes the filtered row count
+  // (so pagination works under filtering) and reloads the first page. A failed
+  // load keeps the current view and reports the error.
+  const applyFilter = async (filter: t.TableFilter | null): Promise<void> => {
+    currentFilter = filter;
+    if (filter === null) {
+      totalRows.update(() => tableInfo.rowCount);
+    } else {
+      const res = await api.requestCountRowsSQLSource(sourceID, tableName, filter);
+      if (res.kind === "ok")
+        totalRows.update(() => res.value);
+    }
+    await loadData(0);
+  };
+
+  const el_filter = TableFilter(() => schemaColumns.value,{apply: applyFilter});
+
   // Initial load
   loadData(0);
   loadSchema();
 
   const dataTab = m("div", {class: "h100", style: {display: "flex", flexDirection: "column"}},
+    el_filter.el,
     m("div", {style: {display: "flex", gap: "1em", alignItems: "center"}},
       prevButton.el,
       infoSpan,
