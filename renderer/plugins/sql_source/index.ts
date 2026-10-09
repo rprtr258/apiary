@@ -43,5 +43,5 @@ export const sqlSourcePlugin: Plugin<t.TableInfo> = {
     [componentType]: (container, state) => RequestTableViewer(container, state as StateSQLSourceTable),
   },
   onOpen: (id, table, itemKey) =>
-    store.openViewer(componentType, itemKey, {sourceID: id, itemKey, tableName: itemKey, tableInfo: table}),
+    store.openViewer(itemKey, componentType, {sourceID: id, itemKey, tableName: itemKey, tableInfo: table}),
 };

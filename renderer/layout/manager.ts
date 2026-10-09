@@ -525,7 +525,7 @@ export class LayoutManager {
     this.notifyChanged();
   }
 
-  addItem(type: string, title: string, state: unknown): void {
+  addItem(title: string, type: string, state: unknown): void {
     const config = {
       type: "component",
       title: title,

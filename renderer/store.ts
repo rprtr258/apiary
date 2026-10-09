@@ -105,7 +105,7 @@ export type Store = {
   duplicate(id: t.RequestID): Promise<void>,
   deleteRequest(id: t.RequestID): Promise<void>,
   rename(id: t.RequestID, newName: string): Promise<void>,
-  openViewer<S extends ViewerState>(componentType: string, titlePart: string, state: S): void,
+  openViewer<S extends ViewerState>(titlePart: string, componentType: string, state: S): void,
   // Tab navigation methods
   navigateToTab(direction: "next" | "prev"): void,
   selectTabByIndex(index: number): void,
@@ -153,7 +153,7 @@ export const store = ((): Store => {
         activateTab({id, item: tab});
         return;
       }
-      layout.instance?.addItem("MyComponent", id, {id});
+      layout.instance?.addItem(id, "MyComponent", {id});
       this.fetch().catch(e => notification("error", "Failed to fetch requests", {error: e}));
     },
     async fetch(): Promise<void> {
@@ -222,12 +222,13 @@ export const store = ((): Store => {
       component?.tab.setTitle(newName);
       await this.fetch();
     },
-    openViewer<S extends ViewerState>(componentType: string, titlePart: string, state: S): void {
+    openViewer<S extends ViewerState>(titlePart: string, componentType: string, state: S): void {
       if (findExistingTab<S>(componentType, t => t.sourceID === state.sourceID && t.itemKey === state.itemKey) !== undefined)
         return;
-      const sourceName = state.sourceID in this.requests
-        ? t.pathToName(this.requests[state.sourceID].path) : state.sourceID;
-      layout.instance?.addItem(componentType, `${sourceName}/${titlePart}`, state);
+      const sourceName = state.sourceID in this.requests ?
+        t.pathToName(this.requests[state.sourceID].path) :
+        state.sourceID;
+      layout.instance?.addItem(`${sourceName}/${titlePart}`, componentType, state);
     },
     navigateToTab(direction: "next" | "prev"): void {
       const active = layout.instance?.activeTab();

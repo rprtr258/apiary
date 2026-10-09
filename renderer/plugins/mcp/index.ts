@@ -36,5 +36,5 @@ export const mcpPlugin: Plugin<t.MCPTool | t.MCPPrompt> = {
     [componentType]: (container, state) => ToolViewer(container, state as StateMCPItem),
   },
   onOpen: (id, item, itemKey) =>
-    store.openViewer(componentType, item.name, {sourceID: id, itemKey, item}),
+    store.openViewer(item.name, componentType, {sourceID: id, itemKey, item}),
 };
