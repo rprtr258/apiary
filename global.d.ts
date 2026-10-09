@@ -40,6 +40,7 @@ export type Api = {
     ListItems:  (_1: string                             ) => Promise<t.MCPListItems>,
     CallTool:   (_1: string, _2: string, _3: t.JSONValue) => Promise<unknown>,
     CallPrompt: (_1: string, _2: string, _3: t.JSONValue) => Promise<unknown>,
+    Complete:   (_1: string, _2: t.MCPCompleteParams) => Promise<t.MCPCompletion>,
   },
 };
 

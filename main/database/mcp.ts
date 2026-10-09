@@ -4,7 +4,7 @@ import {StreamableHTTPClientTransport} from "@modelcontextprotocol/sdk/client/st
 import {SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js";
 import {Agent} from "undici";
 import type {Transport} from "@modelcontextprotocol/sdk/shared/transport.js";
-import type {MCPRequest, MCPTool, MCPPrompt, JSONSchema, JSONValue} from "@/types.ts";
+import type {MCPRequest, MCPTool, MCPPrompt, JSONSchema, JSONValue, MCPCompleteParams, MCPCompletion} from "@/types.ts";
 
 export const EmptyRequest: MCPRequest = {
   transport: "stdio",
@@ -150,5 +150,16 @@ export async function callPrompt(req: MCPRequest, promptName: string, args: JSON
       name: promptName,
       arguments: args as Record<string, string> | undefined,
     });
+  });
+}
+
+export async function complete(req: MCPRequest, params: MCPCompleteParams): Promise<MCPCompletion> {
+  console.log("[mcp] complete", req.transport, params.ref.name, params.argument.name);
+  return await withClient(req, async (client) => {
+    // A server without the capability would error; empty is the protocol's
+    // "no suggestions"
+    if (client.getServerCapabilities()?.completions === undefined)
+      return {completion: {values: []}};
+    return await client.complete(params);
   });
 }

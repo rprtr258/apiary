@@ -1,4 +1,9 @@
+import type {CompletionContext, CompletionResult, CompletionSource} from "@codemirror/autocomplete";
+import {syntaxTree} from "@codemirror/language";
+import type {EditorState} from "@codemirror/state";
+import type {SyntaxNode} from "@lezer/common";
 import * as t from "@/types.ts";
+import {none, Option, some} from "@/option.ts";
 import {generateExampleFromSchema} from "@/example.ts";
 import {api} from "../../api.ts";
 import {m} from "../../lib/utils.ts";
@@ -20,6 +25,91 @@ function promptSchema(prompt: t.MCPPrompt): t.JSONSchema {
   };
 }
 
+// String values of the object's properties (except `except`), as
+// completion/complete context
+function stringArgs(state: EditorState, object: SyntaxNode, except: string): Record<string, string> {
+  const args: Record<string, string> = {};
+  for (let prop = object.firstChild; prop !== null; prop = prop.nextSibling) {
+    const key = prop.firstChild;
+    const value = prop.lastChild;
+    if (prop.name !== "Property" || key === null || key.name !== "PropertyName" || value === null || value.name !== "String")
+      continue;
+    try {
+      const name = JSON.parse(state.doc.sliceString(key.from, key.to)) as string;
+      if (name !== except)
+        args[name] = JSON.parse(state.doc.sliceString(value.from, value.to)) as string;
+    } catch {
+      // Strings mid-edit may be invalid JSON; skip them in the context
+    }
+  }
+  return args;
+}
+
+// Argument under the caret of an args JSON document: the string value the
+// caret sits in, its property name, the other arguments' string values, and
+// the content range of the value string
+export function promptArgAt(state: EditorState, pos: number): Option<{
+  name: string,
+  value: string,
+  args: Record<string, string>,
+  from: number,
+  to: number,
+}> {
+  const node = syntaxTree(state).resolveInner(pos, -1);
+  // The caret must sit inside a string value whose key names the argument
+  if (node.name !== "String" || node.parent?.name !== "Property")
+    return none;
+  const key = node.parent.firstChild;
+  const object = node.parent.parent;
+  if (key === null || key.name !== "PropertyName" || object === null)
+    return none;
+  const from = node.from + 1; // skip the opening quote
+  if (pos < from || pos > node.to - 1)
+    return none;
+  try {
+    const name = JSON.parse(state.doc.sliceString(key.from, key.to)) as string;
+    return some({
+      name,
+      value: state.doc.sliceString(from, pos),
+      args: stringArgs(state, object, name),
+      from,
+      to: node.to - 1,
+    });
+  } catch {
+    return none; // key is mid-edit, not a valid string yet
+  }
+}
+
+// Real MCP completion for prompt arguments: while the caret sits inside a
+// prompt argument's string value, ask the server for suggestions with the
+// partial value and the other arguments as context
+function promptCompletions(sourceID: string, prompt: t.MCPPrompt): CompletionSource {
+  // Each query spins up a fresh server connection (per-op reconnect); sleep
+  // off the typing so continuous input does not spawn a process per keystroke
+  return async (context: CompletionContext): Promise<CompletionResult | null> => {
+    const argOpt = promptArgAt(context.state, context.pos);
+    if (argOpt.isNone())
+      return null;
+
+    const arg = argOpt.value;
+    await new Promise(resolve => setTimeout(resolve, 300));
+    if (context.aborted)
+      return null;
+    const res = await api.mcpComplete(sourceID, {
+      ref: {type: "ref/prompt", name: prompt.name},
+      argument: {name: arg.name, value: arg.value},
+      context: {arguments: arg.args},
+    });
+    if (res.kind === "err")
+      return null;
+    return {
+      from: arg.from,
+      to: arg.to,
+      options: res.value.completion.values.map(value => ({label: value})),
+    };
+  };
+}
+
 export default function ToolViewer(
   container: ComponentContainer,
   {sourceID, item}: StateMCPItem,
@@ -34,6 +124,7 @@ export default function ToolViewer(
   const editor = EditorJSON({
     value: args,
     schema,
+    completions: item.kind === "prompt" ? [promptCompletions(sourceID, item)] : undefined,
     on: {update: (value: string) => {args = value;}},
     style: {height: "100%"},
   });
