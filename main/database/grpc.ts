@@ -250,7 +250,7 @@ function newFake(js: JSONSchema): JSONValue {
  *     serialization/deserialization
  *   - Captures response trailers (via status event) as metadata
  */
-export async function sendGRPC(request: GRPCRequest): Promise<GRPCResponse> {
+export async function send(request: GRPCRequest): Promise<GRPCResponse> {
   // Parse method: fully qualified "package.Service/Method"
   const [serviceFull, methodName] = splitMethodName(request.method);
   if (serviceFull === null || methodName === null) {

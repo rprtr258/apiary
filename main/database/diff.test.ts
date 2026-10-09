@@ -1,5 +1,5 @@
 import {describe, test, expect} from "bun:test";
-import {detectType, sendDIFF} from "./diff.ts";
+import {detectType, send} from "./diff.ts";
 
 describe("detectType", () => {
   for (const [name, tc] of Object.entries({
@@ -131,7 +131,7 @@ describe("sendDIFF", () => {
     },
   })) {
     test(name, () => {
-      const result = sendDIFF({left, right});
+      const result = send({left, right});
       expect(result.leftType).toBe(leftType);
       expect(result.rightType).toBe(rightType);
       expect(result.diff).toBe(diff);

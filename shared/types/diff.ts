@@ -1,9 +1,9 @@
-export type DIFFRequest = {
+export type DiffRequest = {
   left: string,
   right: string,
 };
 
-export type DIFFResponse = {
+export type DiffResponse = {
   diff: string,
   stats: string,
   leftType: string,

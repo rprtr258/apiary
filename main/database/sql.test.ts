@@ -4,7 +4,7 @@ import {join} from "path";
 import {mock, describe, test, expect} from "bun:test";
 import {Database as BunDB} from "bun:sqlite";
 import {SQLRequest, ColumnType} from "@/types.ts";
-import {sendSQL} from "./sql.ts";
+import {send} from "./sql.ts";
 
 // better-sqlite3 is not supported in Bun (native addon).
 // Mock it with a thin adapter wrapping bun:sqlite.
@@ -42,13 +42,13 @@ describe("sendSQL sqlite", () => {
     const dir = await mkdtemp(join(tmpdir(), "sqlite-list-tables"));
     const TEST_DB = dir + "/apiary-sql-test.db";
 
-    const result1 = await sendSQL(req({dsn: TEST_DB, query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"}));
+    const result1 = await send(req({dsn: TEST_DB, query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"}));
     expect(result1).toEqual({typenames: [], types: [], columns: [], rows: []});
 
-    const result2 = await sendSQL(req({dsn: TEST_DB, query: "CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT, user_id INTEGER)"}));
+    const result2 = await send(req({dsn: TEST_DB, query: "CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT, user_id INTEGER)"}));
     expect(result2).toEqual({typenames: [], types: [], columns: [], rows: []});
 
-    const result = await sendSQL(req({dsn: TEST_DB, query: "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"}));
+    const result = await send(req({dsn: TEST_DB, query: "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"}));
     expect(result).toEqual({typenames: ["string"], types: [ColumnType.STRING], columns: ["name"], rows: [["posts"], ["users"]]});
   });
 });

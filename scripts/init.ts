@@ -4,7 +4,7 @@ import {
   Database, Kind, RequestID,
   ColumnType,
 } from "@/types.ts";
-import {DefaultMarkdown} from "../main/database/md.ts";
+import {EmptyRequest} from "../main/database/md.ts";
 import {create, load, Request, createResponse, HistoryEntry} from "../main/db.ts";
 
 const nil = null;
@@ -49,7 +49,7 @@ for (const [path, [kind, data]] of Object.entries({
     query: ". + 1 | . * 3",
     json:  "2\n3",
   }],
-  "readme": [Kind.MD, DefaultMarkdown],
+  "readme": [Kind.MD, EmptyRequest],
   "test-grpc": [Kind.GRPC, {
     target: "localhost:50051",
     method: "helloworld.Greeter.SayHello",

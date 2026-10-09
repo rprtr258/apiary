@@ -1,15 +1,15 @@
 import * as t from "@/types.ts";
 import {create, createResponse, extractSubKind, generateID, load, save, Delete as remove, rename, update, Request, HistoryEntry} from "./db.ts";
-import {EmptyRequest as HTTPEmptyRequest, sendHTTP} from "./database/http.ts";
-import {EmptyRequest as JQEmptyRequest, sendJQ} from "./database/jq.ts";
-import {DefaultMarkdown, sendMD} from "./database/md.ts";
-import {describeTable, listTables, sendSQL, EmptyRequest as SQLEmptyRequest} from "./database/sql.ts";
-import {EmptyRequest as RedisEmptyRequest, sendRedis} from "./database/redis.ts";
-import {sendDIFF} from "./database/diff.ts";
-import {sendGRPC, grpcMethods, grpcQueryFake, grpcQueryValidate} from "./database/grpc.ts";
-import {parseSpec, generateExampleRequest, fetchSpec} from "./database/http_source.ts";
-import {countRowsSQLSource, testSQLSource, buildTableUpdateScript, buildReadTableQuery, updateTableRows, EmptyRequest as SQLSourceEmptyRequest} from "./database/sql_source.ts";
-import {EmptyRequest as MCPEmptyRequest, listTools as mcpListTools, callTool as mcpCallTool} from "./database/mcp.ts";
+import * as http from "./database/http.ts";
+import * as jq from "./database/jq.ts";
+import * as md from "./database/md.ts";
+import * as sql from "./database/sql.ts";
+import * as redis from "./database/redis.ts";
+import * as diff from "./database/diff.ts";
+import * as grpc from "./database/grpc.ts";
+import * as http_source from "./database/http_source.ts";
+import * as sql_source from "./database/sql_source.ts";
+import * as mcp from "./database/mcp.ts";
 
 async function get(id: t.RequestID): Promise<Request> {
   const j = await load();
@@ -74,16 +74,16 @@ export async function Get(id: t.RequestID): Promise<t.GetResponse> {
 // Empty request templates for each kind
 function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   switch (kind) {
-  case t.Kind.HTTP: return HTTPEmptyRequest;
-  case t.Kind.SQL: return SQLEmptyRequest;
-  case t.Kind.JQ: return JQEmptyRequest;
-  case t.Kind.MD: return DefaultMarkdown;
-  case t.Kind.REDIS: return RedisEmptyRequest;
-  case t.Kind.GRPC: return {target: "", method: "", payload: "", metadata: []};
-  case t.Kind.DIFF: return {left: "", right: ""};
-  case t.Kind.SQLSource: return SQLSourceEmptyRequest;
+  case t.Kind.HTTP:       return http.EmptyRequest;
+  case t.Kind.SQL:        return sql.EmptyRequest;
+  case t.Kind.JQ:         return jq.EmptyRequest;
+  case t.Kind.MD:         return md.EmptyRequest;
+  case t.Kind.REDIS:      return redis.EmptyRequest;
+  case t.Kind.GRPC:       return {target: "", method: "", payload: "", metadata: []};
+  case t.Kind.DIFF:       return diff.EmptyRequest;
+  case t.Kind.SQLSource:  return sql_source.EmptyRequest;
   case t.Kind.HTTPSource: return {serverUrl: "", specSource: "url", specData: "", auth: {type: "none"}};
-  case t.Kind.MCP: return MCPEmptyRequest;
+  case t.Kind.MCP:        return mcp.EmptyRequest;
   }
 }
 
@@ -155,25 +155,25 @@ export async function Perform(id: t.RequestID): Promise<PerformResponse> {
   let response: unknown;
   switch (req.Kind) {
   case t.Kind.HTTP:
-    response = await sendHTTP(req.Data);
+    response = await http.send(req.Data);
     break;
   case t.Kind.JQ:
-    response = await sendJQ(req.Data);
+    response = await jq.send(req.Data);
     break;
   case t.Kind.MD:
-    response = await sendMD(req.Data);
+    response = await md.send(req.Data);
     break;
   case t.Kind.SQL:
-    response = await sendSQL({...req.Data, dsn: resolveSQLRequest(j, req.Data)});
+    response = await sql.send({...req.Data, dsn: resolveSQLRequest(j, req.Data)});
     break;
   case t.Kind.REDIS:
-    response = await sendRedis(req.Data);
+    response = await redis.send(req.Data);
     break;
   case t.Kind.GRPC:
-    response = await sendGRPC(req.Data);
+    response = await grpc.send(req.Data);
     break;
   case t.Kind.DIFF:
-    response = sendDIFF(req.Data);
+    response = diff.send(req.Data);
     break;
   default:
     throw new Error(`Perform not yet implemented for kind ${req.Kind}`);
@@ -195,16 +195,16 @@ export const GRPC = {
     const req = await get(id);
     if (req.Kind !== t.Kind.GRPC)
       throw new Error(`query kind is ${req.Kind}, expected grpc`);
-    return await grpcMethods(req.Data.target);
+    return await grpc.grpcMethods(req.Data.target);
   },
 
   async QueryFake(target: string, method: string): Promise<string> {
-    return await grpcQueryFake(target, method);
+    return await grpc.grpcQueryFake(target, method);
   },
 
   // NOTE: method fully qualified
   async QueryValidate(target: string, method: string, payload: string): Promise<void> {
-    await grpcQueryValidate(target, method, payload);
+    await grpc.grpcQueryValidate(target, method, payload);
   },
 };
 
@@ -219,10 +219,10 @@ export const SQLSource = {
     const sqlRequest: t.SQLRequest = {
       dsn: sourceRequest.dsn,
       database: sourceRequest.database,
-      query: await buildReadTableQuery(sourceRequest, read),
+      query: await sql_source.buildReadTableQuery(sourceRequest, read),
       readOnly: sourceRequest.readOnly,
     };
-    const result = await sendSQL(sqlRequest);
+    const result = await sql.send(sqlRequest);
     const received_at = new Date();
     return {
       RequestId:   id,
@@ -238,7 +238,7 @@ export const SQLSource = {
     if (req.Kind !== t.Kind.SQLSource)
       throw new Error(`request ${id} is not SQLSource`);
     const {dsn, database, readOnly} = req.Data;
-    await testSQLSource({dsn, database, readOnly});
+    await sql_source.testSQLSource({dsn, database, readOnly});
   },
 
   async ListTables(id: t.RequestID): Promise<t.TableInfo[]> {
@@ -246,7 +246,7 @@ export const SQLSource = {
     if (req.Kind !== t.Kind.SQLSource)
       throw new Error(`request ${id} is not SQLSource`);
     const {dsn, database} = req.Data;
-    return await listTables({dsn, database});
+    return await sql.listTables({dsn, database});
   },
 
   async DescribeTable(id: t.RequestID, tableName: string): Promise<t.TableSchema> {
@@ -254,7 +254,7 @@ export const SQLSource = {
     if (req.Kind !== t.Kind.SQLSource)
       throw new Error(`request ${id} is not SQLSource`);
     const {dsn, database} = req.Data;
-    return await describeTable({dsn, database}, tableName);
+    return await sql.describeTable({dsn, database}, tableName);
   },
 
   async CountRows(id: t.RequestID, tableName: string, filter: t.TableFilter): Promise<number> {
@@ -262,7 +262,7 @@ export const SQLSource = {
     if (req.Kind !== t.Kind.SQLSource)
       throw new Error(`request ${id} is not SQLSource`);
     const {dsn, database} = req.Data;
-    return await countRowsSQLSource({dsn, database}, tableName, filter);
+    return await sql_source.countRowsSQLSource({dsn, database}, tableName, filter);
   },
 
   async UpdateTableRows(id: t.RequestID, tableName: string, pkColumns: string[], updates: t.CellUpdate[]): Promise<t.SQLResponse> {
@@ -270,7 +270,7 @@ export const SQLSource = {
     if (req.Kind !== t.Kind.SQLSource)
       throw new Error(`request ${id} is not SQLSource`);
     const {dsn, database, readOnly} = req.Data;
-    return await updateTableRows({dsn, database, readOnly}, tableName, pkColumns, updates);
+    return await sql_source.updateTableRows({dsn, database, readOnly}, tableName, pkColumns, updates);
   },
 
   async BuildTableUpdate(id: t.RequestID, tableName: string, pkColumns: string[], updates: t.CellUpdate[]): Promise<string> {
@@ -278,7 +278,7 @@ export const SQLSource = {
     if (req.Kind !== t.Kind.SQLSource)
       throw new Error(`request ${id} is not SQLSource`);
     const {dsn, database, readOnly} = req.Data;
-    return buildTableUpdateScript({dsn, database, readOnly}, tableName, pkColumns, updates);
+    return sql_source.buildTableUpdateScript({dsn, database, readOnly}, tableName, pkColumns, updates);
   },
 };
 
@@ -288,8 +288,8 @@ export const HTTPSource = {
     if (req.Kind !== t.Kind.HTTPSource)
       throw new Error(`request ${id} is not HTTPSource`);
     const sourceRequest = req.Data;
-    const specData = await fetchSpec(sourceRequest);
-    return await parseSpec(specData);
+    const specData = await http_source.fetchSpec(sourceRequest);
+    return await http_source.parseSpec(specData);
   },
 
   async GenerateExampleRequest(id: t.RequestID, key: t.EndpointKey): Promise<t.HTTPRequest> {
@@ -298,12 +298,12 @@ export const HTTPSource = {
       throw new Error(`request ${id} is not HTTPSource`);
 
     const sourceRequest = req.Data;
-    const spec = await fetchSpec(sourceRequest);
-    const endpoints = await parseSpec(spec);
+    const spec = await http_source.fetchSpec(sourceRequest);
+    const endpoints = await http_source.parseSpec(spec);
     const endpoint = endpoints.find(e => e.method === key.method && e.path === key.path);
     if (endpoint === undefined)
       throw new Error(`endpoint ${key.method} ${key.path} not found in schema`);
-    return generateExampleRequest(endpoint, sourceRequest.serverUrl, sourceRequest.auth);
+    return http_source.generateExampleRequest(endpoint, sourceRequest.serverUrl, sourceRequest.auth);
   },
 
   async PerformVirtualEndpoint(id: t.RequestID, key: t.EndpointKey, modifiedRequest?: Partial<t.HTTPRequest>): Promise<Record<string, unknown>> {
@@ -321,7 +321,7 @@ export const HTTPSource = {
     }
 
     const sent_at = new Date();
-    const result = await sendHTTP(finalRequest);
+    const result = await http.send(finalRequest);
     const received_at = new Date();
     return {
       RequestId:   id,
@@ -338,8 +338,8 @@ export const HTTPSource = {
       throw new Error(`request ${id} is not HTTPSource`);
     const sourceRequest = req.Data;
     // Verify spec is parseable
-    const specData = await fetchSpec(sourceRequest);
-    void(await parseSpec(specData)); // TODO: use/return?
+    const specData = await http_source.fetchSpec(sourceRequest);
+    void(await http_source.parseSpec(specData)); // TODO: use/return?
   },
 };
 
@@ -348,13 +348,13 @@ export const MCP = {
     const req = await get(id);
     if (req.Kind !== t.Kind.MCP)
       throw new Error(`request ${id} is not MCP`);
-    return await mcpListTools(req.Data);
+    return await mcp.listTools(req.Data);
   },
 
   async CallTool(id: t.RequestID, toolName: string, args: unknown): Promise<unknown> {
     const req = await get(id);
     if (req.Kind !== t.Kind.MCP)
       throw new Error(`request ${id} is not MCP`);
-    return await mcpCallTool(req.Data, toolName, args);
+    return await mcp.callTool(req.Data, toolName, args);
   },
 };
