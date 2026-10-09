@@ -26,7 +26,7 @@ export const api = {
     return await wrap(async () => Api.List(), {});
   },
 
-  async get(id: string): Promise<Result<t.GetResponse>> {
+  async get(id: t.RequestID): Promise<Result<t.GetResponse>> {
     const y = await wrap(async () => Api.Get(id), {id});
     // TODO: it seems that is not needed, remove if so
     return y.map((y: t.GetResponse) => {
@@ -53,7 +53,7 @@ export const api = {
   },
 
   async request_update(
-    id: string,
+    id: t.RequestID,
     kind: t.Kind,
     req: Request["Data"],
   ): Promise<Result<void>> {
@@ -61,20 +61,20 @@ export const api = {
   },
 
   async rename(
-    id: string,
+    id: t.RequestID,
     newName: string,
   ): Promise<Result<void>> {
     return await wrap(() => Api.Rename(id, newName), {reqId: id, newName});
   },
 
   async requestPerform(
-    id: string,
+    id: t.RequestID,
   ): Promise<Result<t.HistoryEntry>> {
     return await wrap(() => Api.Perform(id), {reqId: id}) as Result<t.HistoryEntry>;
   },
 
   async requestDelete(
-    id: string,
+    id: t.RequestID,
   ): Promise<Result<void>> {
     return await wrap(() => Api.Delete(id), {reqId: id});
   },
@@ -84,33 +84,33 @@ export const api = {
   },
 
   async requestPerformSQLSource(
-    id: string,
+    id: t.RequestID,
     read: t.TableRead,
   ): Promise<Result<t.HistoryEntry>> {
     return await wrap(() => Api.SQLSource.Perform(id, read), {reqId: id, table: read.table}) as Result<t.HistoryEntry>;
   },
 
   async requestTestSQLSource(
-    id: string,
+    id: t.RequestID,
   ): Promise<Result<void>> {
     return await wrap(() => Api.SQLSource.Test(id), {reqId: id});
   },
 
   async requestListTablesSQLSource(
-    id: string,
+    id: t.RequestID,
   ): Promise<Result<t.TableInfo[]>> {
     return await wrap(() => Api.SQLSource.ListTables(id), {reqId: id});
   },
 
   async requestDescribeTableSQLSource(
-    id: string,
+    id: t.RequestID,
     tableName: string,
   ): Promise<Result<t.TableSchema>> {
     return await wrap(() => Api.SQLSource.DescribeTable(id, tableName), {reqId: id, tableName});
   },
 
   async requestCountRowsSQLSource(
-    id: string,
+    id: t.RequestID,
     tableName: string,
     filter: t.TableFilter,
   ): Promise<Result<number>> {
@@ -118,7 +118,7 @@ export const api = {
   },
 
   async requestUpdateTableRowsSQLSource(
-    id: string,
+    id: t.RequestID,
     tableName: string,
     pkColumns: string[],
     updates: t.CellUpdate[],
@@ -127,7 +127,7 @@ export const api = {
   },
 
   async requestBuildTableUpdateSQLSource(
-    id: string,
+    id: t.RequestID,
     tableName: string,
     pkColumns: string[],
     updates: t.CellUpdate[],
@@ -136,13 +136,13 @@ export const api = {
   },
 
   async requestListEndpointsHTTPSource(
-    id: string,
+    id: t.RequestID,
   ): Promise<Result<t.EndpointInfo[]>> {
     return await wrap(() => Api.HTTPSource.ListEndpoints(id), {reqId: id});
   },
 
   async requestGenerateExampleRequestHTTPSource(
-    id: string,
+    id: t.RequestID,
     key: t.EndpointKey,
   ): Promise<Result<t.HTTPRequest>> {
     return await wrap(() => Api.HTTPSource.GenerateExampleRequest(id, key), {reqId: id, key});
@@ -160,19 +160,19 @@ export const api = {
   },
 
   async requestTestHTTPSource(
-    id: string,
+    id: t.RequestID,
   ): Promise<Result<void>> {
     return await wrap(() => Api.HTTPSource.Test(id), {reqId: id});
   },
 
   async mcpListItems(
-    id: string,
+    id: t.RequestID,
   ): Promise<Result<t.MCPListItems>> {
     return await wrap(() => Api.MCP.ListItems(id), {reqId: id});
   },
 
   async mcpCallTool(
-    id: string,
+    id: t.RequestID,
     toolName: string,
     args: t.JSONValue,
   ): Promise<Result<unknown>> {
@@ -180,7 +180,7 @@ export const api = {
   },
 
   async mcpCallPrompt(
-    id: string,
+    id: t.RequestID,
     promptName: string,
     args: t.JSONValue,
   ): Promise<Result<unknown>> {
@@ -188,7 +188,7 @@ export const api = {
   },
 
   async mcpComplete(
-    id: string,
+    id: t.RequestID,
     params: t.MCPCompleteParams,
   ): Promise<Result<t.MCPCompletion>> {
     return await wrap(() => Api.MCP.Complete(id, params), {reqId: id, argument: params.argument});

@@ -12,7 +12,7 @@ function httpToCurl({url, method, body, headers}: t.HTTPRequest): string {
   return `curl -X ${method} ${url}${headersStr}${bodyStr}`;
 }
 
-const copyAsCurl = (id: string): MenuOption => ({
+const copyAsCurl = (id: t.RequestID): MenuOption => ({
   label: "Copy as curl",
   key: "copy-as-curl",
   icon: NIcon({component: ContentCopyFilled}),
@@ -34,6 +34,6 @@ const copyAsCurl = (id: string): MenuOption => ({
 export const httpPlugin: Plugin = {
   kind: t.Kind.HTTP,
   kindTag: {text: "HTTP", color: "lime", type: "success"},
-  frame: (args) => RequestHTTP(args.el, args.show_request, args.on),
-  menuEntries: (id: string) => [copyAsCurl(id)],
+  frame: args => RequestHTTP(args.el, args.show_request, args.on),
+  menuEntries: id => [copyAsCurl(id)],
 };

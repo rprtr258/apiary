@@ -17,23 +17,23 @@ export type StateMCPItem = {
 export const mcpPlugin: Plugin<t.MCPTool | t.MCPPrompt> = {
   kind: t.Kind.MCP,
   kindTag: {text: "MCP", color: "white"},
-  frame: (args) => {
+  frame: args => {
     setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
     return RequestMCP(args.el, {update: args.on.update});
   },
   cache: createSourceCache<t.MCPTool | t.MCPPrompt>({
-    fetcher: async (id: string) => (await api.mcpListItems(id)).map(items => [
+    fetcher: async id => (await api.mcpListItems(id)).map(items => [
       ...items.tools,
       ...items.prompts,
     ]),
     errorTitle: "Could not fetch tools and prompts",
   }),
-  itemKey: (item: t.MCPTool | t.MCPPrompt) => `${item.kind === "prompt" ? "Prompts" : "Tools"}/${item.name}`,
-  label: (item: t.MCPTool | t.MCPPrompt) => item.name,
+  itemKey: item => `${item.kind === "prompt" ? "Prompts" : "Tools"}/${item.name}`,
+  label: item => item.name,
   viewer: {
     componentType,
     factory: (container, state) => ToolViewer(container, state as StateMCPItem),
   },
-  onOpen: (id: string, item: t.MCPTool | t.MCPPrompt, itemKey: string) =>
+  onOpen: (id, item, itemKey) =>
     store.openViewer(componentType, item.name, {sourceID: id, itemKey, item}),
 };

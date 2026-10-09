@@ -76,7 +76,7 @@ export default function(
     },
   });
 
-  let id: string | undefined = undefined;
+  let id: t.RequestID | undefined = undefined;
   const el_response = m("div", {
     class: "h100 markdown-body",
     style: {

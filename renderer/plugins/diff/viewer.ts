@@ -137,7 +137,7 @@ export default function(
     },
   });
 
-  let id: string | undefined = undefined;
+  let id: t.RequestID | undefined = undefined;
   let diffEditor: EditorView | null = null;
 
   const unmounts: (() => void)[] = [];

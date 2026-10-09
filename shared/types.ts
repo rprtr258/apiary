@@ -54,11 +54,11 @@ export type Response = {
 };
 
 export type Request = {
-  id: string,
+  id: RequestID,
   path: string,
 } & RequestData;
 export type Request2 = {
-  ID: string,
+  ID: RequestID,
   Path: string,
   Data: unknown,
   Responses: Response[],

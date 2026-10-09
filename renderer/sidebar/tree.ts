@@ -27,7 +27,7 @@ const byLabel = (a: TreeOption, b: TreeOption): number => a.label.localeCompare(
 // (e.g. MCP item keys "Tools/<name>" group tools under a "Tools" node)
 function itemTree(
   plugin: Plugin,
-  id: string,
+  id: t.RequestID,
   items: unknown[],
   prefix: string[] = [],
 ): TreeOption[] {

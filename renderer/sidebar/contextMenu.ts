@@ -1,3 +1,4 @@
+import {RequestID} from "@/types.ts";
 import {NIcon} from "../components/dataview.ts";
 import {CopySharp, DeleteOutlined, EditOutlined, Refresh} from "../components/icons.ts";
 import {store} from "../store.ts";
@@ -5,7 +6,7 @@ import {DOMNode, m} from "../lib/utils.ts";
 import {globalDropdown, renameInit} from "./shared.ts";
 import {pluginsByKind} from "../plugins/index.ts";
 
-export function showContextMenu(id: string, event: MouseEvent): void {
+export function showContextMenu(id: RequestID, event: MouseEvent): void {
   // Only real requests have a context menu (virtual items and group folders
   // like "Tools" have no request entry and would crash the lookup below)
   if (!(id in store.requests))
