@@ -1,10 +1,10 @@
+import * as t from "@/types.ts";
 import {NEmpty, StatusLabel} from "../../components/dataview.ts";
 import ParamsList from "../../components/ParamsList.ts";
 import {NInput, NInputGroup, NSelect} from "../../components/input.ts";
 import {get_request} from "../../store.ts";
 import {api} from "../../api.ts";
 import {mcpPlugin} from "./index.ts";
-import * as t from "@/types.ts";
 import {m} from "../../lib/utils.ts";
 
 type Request = t.MCPRequest;
@@ -30,14 +30,17 @@ export default function(
       const request = r.request as Request;
       const statusLabel = StatusLabel();
 
-      // Check connection by listing tools; status is set from the result.
-      // The same result refreshes the sidebar tool cache so it stays in sync
-      // with the current server params.
+      // Check connection by listing tools and prompts; status is set from the
+      // result. The same result refreshes the sidebar cache so it stays in
+      // sync with the current server params.
       async function updateConnectionStatus(): Promise<void> {
-        const res = await api.mcpListTools(requestID);
-        mcpPlugin.cache?.seed(requestID, res);
+        const res = await api.mcpListItems(requestID);
+        mcpPlugin.cache?.seed(requestID, res.map(items => [
+          ...items.tools,
+          ...items.prompts,
+        ]));
         statusLabel.setStatus(res.map_or_else(
-          tools => `Connected! ${tools.length} tools available.`,
+          items => `Connected! ${items.tools.length} tools, ${items.prompts.length} prompts available.`,
           err => `Connection failed: ${err}`,
         ), res.kind === "ok");
       };

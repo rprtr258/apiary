@@ -344,11 +344,16 @@ export const HTTPSource = {
 };
 
 export const MCP = {
-  async ListTools(id: t.RequestID): Promise<t.MCPTool[]> {
+  // Tools and prompts in one listing: the sidebar cache holds both as subitems
+  async ListItems(id: t.RequestID): Promise<t.MCPListItems> {
     const req = await get(id);
     if (req.Kind !== t.Kind.MCP)
       throw new Error(`request ${id} is not MCP`);
-    return await mcp.listTools(req.Data);
+    const [tools, prompts] = await Promise.all([
+      mcp.listTools(req.Data),
+      mcp.listPrompts(req.Data),
+    ]);
+    return {tools, prompts};
   },
 
   async CallTool(id: t.RequestID, toolName: string, args: t.JSONValue): Promise<unknown> {
@@ -356,5 +361,12 @@ export const MCP = {
     if (req.Kind !== t.Kind.MCP)
       throw new Error(`request ${id} is not MCP`);
     return await mcp.callTool(req.Data, toolName, args);
+  },
+
+  async CallPrompt(id: t.RequestID, promptName: string, args: t.JSONValue): Promise<unknown> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.MCP)
+      throw new Error(`request ${id} is not MCP`);
+    return await mcp.callPrompt(req.Data, promptName, args);
   },
 };

@@ -1,5 +1,5 @@
-import {generateExampleFromSchema} from "@/example.ts";
 import * as t from "@/types.ts";
+import {generateExampleFromSchema} from "@/example.ts";
 import {api} from "../../api.ts";
 import {m} from "../../lib/utils.ts";
 import EditorJSON from "../../components/EditorJSON.ts";
@@ -9,21 +9,31 @@ import {Modal, NSplit} from "../../components/layout.ts";
 import {ComponentContainer} from "../../layout/types.ts";
 import {NIcon} from "../../components/dataview.ts";
 import {QuestionCircleOutlined} from "../../components/icons.ts";
-import type {StateMCPTool} from "./index.ts";
+import {type StateMCPItem} from "./index.ts";
+
+// Prompt arguments as a synthetic JSON schema so the editor gets the same
+// hints and example generation as tool input schemas
+function promptSchema(prompt: t.MCPPrompt): t.JSONSchema {
+  return {
+    type: "object",
+    properties: Object.fromEntries(prompt.arguments.map(arg => [arg.name, {type: "string"}])),
+  };
+}
 
 export default function ToolViewer(
   container: ComponentContainer,
-  {sourceID, tool}: StateMCPTool,
+  {sourceID, item}: StateMCPItem,
 ): void {
   const el: HTMLElement = container.element;
   el.style.overflow = "hidden";
   const unmounts: (() => void)[] = [];
 
-  let args = JSON.stringify(generateExampleFromSchema(tool.inputSchema), null, 2);
+  const schema = item.kind === "prompt" ? promptSchema(item) : item.inputSchema;
+  let args = JSON.stringify(generateExampleFromSchema(schema), null, 2);
 
   const editor = EditorJSON({
     value: args,
-    schema: tool.inputSchema,
+    schema,
     on: {update: (value: string) => {args = value;}},
     style: {height: "100%"},
   });
@@ -47,7 +57,9 @@ export default function ToolViewer(
         return null;
       })();
       view.update(JSON.stringify({status: "calling"}, null, 2));
-      const res = await api.mcpCallTool(sourceID, tool.name, parsed);
+      const res = item.kind === "prompt"
+        ? await api.mcpCallPrompt(sourceID, item.name, parsed)
+        : await api.mcpCallTool(sourceID, item.name, parsed);
       if (res.kind === "err") {
         view.update(JSON.stringify({error: String(res.value)}, null, 2));
         return;
@@ -64,8 +76,8 @@ export default function ToolViewer(
   }, "Send");
 
   const infoModal = Modal({
-    title: tool.name,
-    children: [m("div", {style: {whiteSpace: "pre-wrap", overflow: "auto", maxHeight: "60vh"}}, tool.description)],
+    title: item.name,
+    children: [m("div", {style: {whiteSpace: "pre-wrap", overflow: "auto", maxHeight: "60vh"}}, item.description)],
     buttons: [{id: "close", text: "Close"}],
     on: {close: (id?: string) => {
       if (id === "close") infoModal.display = false;
@@ -89,7 +101,7 @@ export default function ToolViewer(
     gridTemplateColumns: "1fr 10fr 1fr",
   }},
     infoButton,
-    m("h3", {style: {margin: "0", minWidth: "0"}}, tool.name),
+    m("h3", {style: {margin: "0", minWidth: "0"}}, item.name),
     sendButton.el,
   );
 

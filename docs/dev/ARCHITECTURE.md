@@ -87,7 +87,7 @@ The deletion test: these are pass-throughs but that's OK - they're UI adapters, 
 ### Frontend: Sidebar + Source Cache
 
 - `renderer/Sidebar.ts` - sidebar shell
-- `renderer/sidebar/tree.ts` - tree rendering of request paths (persists expanded keys via `lib/localStorage.ts`); renders generic rows from plugin data (kindTag badge for requests, tag/label hooks for source items, whose itemKey "/"-paths nest into virtual folder nodes the same way request ids nest into directories, e.g. MCP tools under "Tools")
+- `renderer/sidebar/tree.ts` - tree rendering of request paths (persists expanded keys via `lib/localStorage.ts`); renders generic rows from plugin data (kindTag badge for requests, tag/label hooks for source items, whose itemKey "/"-paths nest into virtual folder nodes the same way request ids nest into directories, e.g. MCP tools and prompts under "Tools"/"Prompts")
 - `renderer/sidebar/contextMenu.ts`, `shared.ts` (pure view modules; menu entries and refresh come from the plugin registry)
 
 ### Frontend: Plugins (`renderer/plugins/`)

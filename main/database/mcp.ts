@@ -4,7 +4,7 @@ import {StreamableHTTPClientTransport} from "@modelcontextprotocol/sdk/client/st
 import {SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js";
 import {Agent} from "undici";
 import type {Transport} from "@modelcontextprotocol/sdk/shared/transport.js";
-import type {MCPRequest, MCPTool, JSONSchema, JSONValue} from "@/types.ts";
+import type {MCPRequest, MCPTool, MCPPrompt, JSONSchema, JSONValue} from "@/types.ts";
 
 export const EmptyRequest: MCPRequest = {
   transport: "stdio",
@@ -95,6 +95,7 @@ const permissive: JSONSchema = {type: "object", properties: {}};
 export function mapTool(tool: {name: string, description?: string, inputSchema?: unknown}): MCPTool {
   const schema = tool.inputSchema;
   return {
+    kind: "tool",
     name: tool.name,
     description: tool.description ?? "",
     inputSchema: schema === undefined ? permissive : schema as JSONSchema,
@@ -103,8 +104,34 @@ export function mapTool(tool: {name: string, description?: string, inputSchema?:
 
 export async function listTools(req: MCPRequest): Promise<MCPTool[]> {
   return await withClient(req, async (client) => {
+    // Servers may support only a subset of tools/prompts/resources; listing is
+    // merged by ListItems, so an unsupported listing is just empty
+    if (client.getServerCapabilities()?.tools === undefined)
+      return [];
     const {tools} = await client.listTools();
     return tools.map(mapTool);
+  });
+}
+
+export function mapPrompt(prompt: {name: string, description?: string, arguments?: {name: string, description?: string, required?: boolean}[]}): MCPPrompt {
+  return {
+    kind: "prompt",
+    name: prompt.name,
+    description: prompt.description ?? "",
+    arguments: (prompt.arguments ?? []).map(arg => ({
+      name: arg.name,
+      description: arg.description ?? "",
+      required: arg.required ?? false,
+    })),
+  };
+}
+
+export async function listPrompts(req: MCPRequest): Promise<MCPPrompt[]> {
+  return await withClient(req, async (client) => {
+    if (client.getServerCapabilities()?.prompts === undefined)
+      return [];
+    const {prompts} = await client.listPrompts();
+    return prompts.map(mapPrompt);
   });
 }
 
@@ -113,6 +140,15 @@ export async function callTool(req: MCPRequest, toolName: string, args: JSONValu
     return await client.callTool({ // TODO: is result always is content[] ? render nicely if so
       name: toolName,
       arguments: args as Record<string, unknown> | undefined,
+    });
+  });
+}
+
+export async function callPrompt(req: MCPRequest, promptName: string, args: JSONValue): Promise<unknown> {
+  return await withClient(req, async (client) => {
+    return await client.getPrompt({
+      name: promptName,
+      arguments: args as Record<string, string> | undefined,
     });
   });
 }
