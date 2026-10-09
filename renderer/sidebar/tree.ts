@@ -1,14 +1,12 @@
 import * as t from "@/types.ts";
-import {none, Option, some} from "@/option.ts";
-import {NTag, NTree, TreeOption, tagColors, treeLabelClass} from "../components/dataview.ts";
+import {NTag, NTree, TreeOption, treeLabelClass} from "../components/dataview.ts";
 import {NScrollbar} from "../components/layout.ts";
 import {store} from "../store.ts";
 import {DOMNode, m, signal} from "../lib/utils.ts";
 import {useLocalStorage} from "../lib/localStorage.ts";
 import {css} from "../lib/styles.ts";
 import {changed} from "../plugins/cache.ts";
-import {ensureFresh, kindTag, pluginsByKind} from "../plugins/index.ts";
-import type {Plugin} from "../plugins/types.ts";
+import {byLabel, parseVirtualKey, sourceBadge, sourceChildren, sourceIsLoading, sourceResolve} from "../plugins/source.ts";
 import {showContextMenu} from "./contextMenu.ts";
 
 function basename(id: string): string {
@@ -17,83 +15,6 @@ function basename(id: string): string {
 
 function dirname(id: string): string {
   return id.split("/").slice(0, -1).join("/");
-}
-
-const byLabel = (a: TreeOption, b: TreeOption): number => a.label.localeCompare(b.label);
-
-// Source items as virtual options (`virtual:<Kind>:<sourceID>:<itemKey>`),
-// nested by "/" in itemKey the same way directories nest request id paths:
-// each intermediate path component becomes a virtual folder node
-// (e.g. MCP item keys "Tools/<name>" group tools under a "Tools" node)
-function itemTree(
-  plugin: Plugin,
-  id: t.RequestID,
-  items: unknown[],
-  prefix: string[] = [],
-): TreeOption[] {
-  const dirs = new Map<string, unknown[]>();
-  const leaves: TreeOption[] = [];
-  for (const item of items) {
-    const key = plugin.itemKey?.(item) ?? "";
-    const parts = key.split("/");
-    if (parts.length === prefix.length + 1)
-      leaves.push({
-        key: `virtual:${plugin.kind}:${id}:${key}`,
-        label: plugin.label?.(item) ?? "",
-      });
-    else {
-      const segment = parts[prefix.length];
-      dirs.set(segment, [...(dirs.get(segment) ?? []), item]);
-    }
-  }
-  return [
-    ...dirs.entries().map(([segment, children]) => ({
-      key: `virtual:${plugin.kind}:${id}:${[...prefix, segment].join("/")}`,
-      label: segment,
-      children: itemTree(plugin, id, children, [...prefix, segment]),
-    })),
-    ...leaves,
-  ].sort(byLabel);
-}
-
-// Virtual children of source requests: "loading"/"empty" placeholders or real
-// items addressed as `virtual:<Kind value>:<sourceID>:<itemKey>`; item keys are
-// "/"-paths, nested into virtual folder nodes like request id directories.
-type VirtualKey = {
-  kind: string,
-  sourceID: string,
-  segments: string[],
-};
-
-function parseVirtualKey(key: string): Option<VirtualKey> {
-  const parts = key.split(":");
-  if (parts.length < 4 || parts[0] !== "virtual")
-    return none;
-  const [, kind, sourceID, ...segments] = parts;
-  return some({kind, sourceID, segments});
-}
-
-// Click resolution for virtual items: parse segments, walk cached items level
-// by level via itemKey (and childrenOf for future nested plugins), then hand
-// the leaf item to the plugin's onOpen.
-async function resolveVirtual(kind: string, sourceID: string, segments: string[]): Promise<void> {
-  const plugin = pluginsByKind[kind as t.Kind];
-  if (plugin.itemKey === undefined || segments.length === 0)
-    return;
-  let items = plugin.cache?.get(sourceID)?.items;
-  if (items === undefined)
-    return;
-  let item: unknown = undefined;
-  for (const segment of segments) {
-    const index = items.findIndex((candidate) => plugin.itemKey?.(candidate) === segment);
-    if (index === -1)
-      return;
-    item = items[index];
-    items = plugin.childrenOf === undefined ? [] : await plugin.childrenOf(item);
-  }
-  if (item === undefined)
-    return;
-  plugin.onOpen?.(sourceID, item, segments.join(":"));
 }
 
 const expandedKeys = useLocalStorage<string[]>("expanded-keys", []);
@@ -143,6 +64,7 @@ export function createTreeView(): {el: HTMLElement} {
 
   function updateTree() {
     const requestsTree = store.requestsTree.value;
+    const expandedSet = new Set(expandedKeysSignal.value);
 
     const data = (() => {
       const mapper = (tree: t.Tree): TreeOption[] => [
@@ -152,31 +74,16 @@ export function createTreeView(): {el: HTMLElement} {
           children: mapper(v),
         })),
         ...tree.IDs.map(id => {
-            const req = store.requests[id];
-            const children: TreeOption[] | undefined = (() => {
-              const plugin = pluginsByKind[req.kind];
-              if (plugin.cache === undefined || plugin.itemKey === undefined)
-                return undefined;
-              const entry = plugin.cache.get(id);
-              if (entry === undefined || entry.items.length === 0) {
-                // Show "Loading..." or "(None)" based on loading state, kept
-                // disabled so it is not clickable. Node stays expandable (folder).
-                const isLoading = entry?.loading ?? false;
-                return [{
-                  key: `virtual:${isLoading ? "loading" : "empty"}:${id}:${plugin.kind}`,
-                  label: isLoading ? "Loading..." : "(None)",
-                  disabled: true,
-                }];
-              }
-              // Items as virtual options, nested by "/" in itemKey the same way
-              // directories nest request id paths
-              return itemTree(plugin, id, entry.items);
-            })();
+            // Children of source requests materialize lazily along expanded
+            // paths (their listing thunks fetch when stale); kinds without
+            // source items keep children unset
+            const children = sourceChildren(id, expandedSet);
 
             return {
               key: id,
               label: t.pathToName(store.requests[id].path),
-              ...(children !== undefined ? {children} : {}), // Only set children for requests with source caches
+              ...(children !== undefined ? {children} : {}), // Only set children for requests with source items
+              loading: sourceIsLoading(id),
             };
         }),
       ].sort(byLabel);
@@ -187,12 +94,10 @@ export function createTreeView(): {el: HTMLElement} {
       defaultExpandedKeys: expandedKeysSignal.value,
       data,
       on: {
-        "update:expanded-keys": async (keys: string[]) => {
-          const oldKeys = expandedKeysSignal.value;
+        "update:expanded-keys": (keys: string[]) => {
+          // Rebuilding happens in the expandedKeysSignal subscription below;
+          // materializing the newly expanded paths fires their listing fetches
           expandedKeysSignal.update(() => keys);
-
-          // Fetch data for sources that were just expanded (staleness/loading guarded inside ensureFresh)
-          await ensureFresh(keys.filter(key => !oldKeys.includes(key)));
         },
         drop: drag,
         context_menu: (option: TreeOption, event: MouseEvent) => {
@@ -210,7 +115,7 @@ export function createTreeView(): {el: HTMLElement} {
             // Skip "loading" and "empty" placeholders (also disabled above)
             if (kind === "loading" || kind === "empty")
               return;
-            resolveVirtual(kind, sourceID, segments);
+            sourceResolve(sourceID, segments);
           } else {
             store.selectRequest(id);
           }
@@ -219,7 +124,7 @@ export function createTreeView(): {el: HTMLElement} {
       render: (option: TreeOption, _level: number, _expanded: boolean): DOMNode => {
         const virtual = parseVirtualKey(option.key);
         if (virtual.isSome()) {
-          const {kind, sourceID, segments} = virtual.value;
+          const {kind} = virtual.value;
           switch (kind) {
           case "empty":
             // "(None)" item - simple text, disabled, no badge, no hover effects
@@ -251,71 +156,66 @@ export function createTreeView(): {el: HTMLElement} {
               title: "Loading...",
             }, "Loading...");
           }
-          const plugin = pluginsByKind[kind as t.Kind];
-          if (plugin.cache !== undefined && plugin.itemKey !== undefined) {
-            // Generic item row: tag from the plugin's tag hook + shared ellipsized label
-            const leaf = segments[segments.length - 1];
-            const item = plugin.cache.get(sourceID)?.items.find((candidate) => plugin.itemKey?.(candidate) === leaf);
-            const tagData = item !== undefined && plugin.tag !== undefined ? plugin.tag(item) : undefined;
-            return m("span", {
-              style: {
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                width: "100%",
-              },
+          // Generic source item row: tag baked at materialization (leaves and
+          // virtual folders render without a tag) + shared ellipsized label
+          return m("span", {
+            style: {
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              width: "100%",
             },
-            ...(tagData !== undefined ? [NTag({
-              label: tagData.text,
-              style: {
-                minWidth: "2em",
-                justifyContent: "center",
-                display: "flex",
-                alignItems: "center",
-                fontWeight: "bold",
-                padding: "2px 4px",
-                color: tagColors[tagData.type],
-                ...tagData.style,
-              },
-            })] : []),
-            m("span", {
-              style: {
-                flex: "1",
-                minWidth: "0",
-                color: "#e0e0e0",
-                overflow: "clip",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              },
-              title: option.label,
-            }, option.label));
-          }
+          },
+          ...(option.tag !== undefined ? [NTag({
+            label: option.tag.label,
+            color: option.tag.color,
+            background: option.tag.background,
+            style: {
+              minWidth: "2em",
+              justifyContent: "center",
+              display: "flex",
+              alignItems: "center",
+              fontWeight: "bold",
+              padding: "2px 4px",
+            },
+          })] : []),
+          NTag({
+            label: option.label,
+            tooltip: option.label,
+            color: "#e0e0e0",
+            style: {
+              flex: "1",
+              minWidth: "0",
+              overflow: "clip",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            },
+          }));
         }
 
         // Handle requests (including sources)
         if (option.key in store.requests) {
-          const req = store.requests[option.key];
-          const tag = kindTag(req.kind);
-
-          // Check if this source is currently loading
-          const isLoading = pluginsByKind[req.kind].cache?.get(option.key)?.loading ?? false;
+          const tag = sourceBadge(option.key);
 
           // The tree component automatically adds folder icon for items with children
-          // We just need to render the badge and label
+          // We just need to render the badge and label; loading is baked into
+          // the option during materialization
 
           return [
             NTag({
-              label: tag.text,
+              label: tag.label,
               color: tag.color,
-              background: "#202020",
-              class: isLoading ? pulseClass : undefined,
+              background: tag.background,
+              class: (option.loading ?? false) ? pulseClass : undefined,
+              bordered: true,
               style: {
                 minWidth: "4em",
                 justifyContent: "center",
                 display: "flex",
                 alignItems: "center",
                 fontWeight: "bold",
-                padding: "2px 4px",
+                padding: "1px 0px",
+                margin: "1px 6px",
               },
             }),
             m("span", {
@@ -362,12 +262,9 @@ export function createTreeView(): {el: HTMLElement} {
   store.requestsTree.sub(function*() {
     while (true) {
       yield;
+      // Rebuilding also refreshes expanded source listings: their listing
+      // thunks fetch when stale during materialization (e.g. on app startup)
       updateTree();
-      // Fetch data for expanded sources when requests tree updates
-      // (e.g., when store.fetch() loads requests on app startup)
-      ensureFresh(expandedKeysSignal.value).catch(err => {
-        console.error("Failed to fetch expanded sources:", err);
-      });
     }
   }());
   expandedKeysSignal.sub(function*() {while (true) { yield; updateTree(); }}());

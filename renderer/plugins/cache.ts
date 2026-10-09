@@ -2,6 +2,7 @@ import {RequestID} from "@/types.ts";
 import type {Result} from "@/result.ts";
 import {signal} from "../lib/utils.ts";
 import notification from "../lib/notification.ts";
+import type {Item} from "./source.ts";
 
 // Time after which a cached listing is considered stale.
 export const STALE_AFTER = 1000*60*5; // 5 minutes
@@ -42,6 +43,13 @@ export function createSourceCache<T>(
       cache[id] = {lastFetch: 0, items: []};
     }
     cache[id].loading = true;
+    // Defer the notification out of the caller's frame: fetches are started
+    // during tree materialization, which can run inside a changed-signal
+    // subscriber generator (sidebar rebuild). A synchronous update here
+    // would call .next() on that running generator - a hard JS error - and
+    // abort the fetch before the API call, leaving the listing stuck in
+    // loading state forever.
+    await Promise.resolve();
     changed.update(v => v + 1);
     const res = await fetcher(id);
     if (res.kind === "err") {
@@ -78,4 +86,14 @@ export function createSourceCache<T>(
     get,
   };
   return self;
+}
+
+// Children thunk body for listing nodes: serves the current entries as nodes
+// and fires a staleness-guarded fetch (fire-and-forget) when the listing is
+// missing or stale. Placeholder rendering (Loading.../(None)) is handled by
+// the source facade, not here.
+export function listChildren<T>(cache: SourceCache<T>, id: string, toNode: (entry: T) => Item): Item[] {
+  if (isStale(cache, id))
+    void cache.fetch(id);
+  return (cache.get(id)?.items ?? []).map(toNode);
 }

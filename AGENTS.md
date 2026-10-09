@@ -37,7 +37,7 @@ apiary is a cross-platform desktop application for managing various API requests
 - **Directories**:
   - `main/`: Electron main process - `api.ts` (API facade), `db.ts` (JSON DB), `database/`: plugin implementations (HTTP, SQL, gRPC, Redis, etc.).
   - `renderer/`: Vanilla TypeScript UI components and logic
-    - `plugins/`: frontend plugin registry (`index.ts` registry, `cache.ts` source-cache engine + `Plugin` contract types, one `<kind>/` directory per kind: `index.ts` registration + `viewer.ts` frame UI for kind badges/pane factories/menu entries/source listings).
+    - `plugins/`: frontend plugin registry (`index.ts` registry, `source.ts` source Item tree + virtual keys + listing facade, `cache.ts` source-cache engine, one `<kind>/` directory per kind: `index.ts` registration (root item carrying the kind badge) + `viewer.ts` frame UI for pane factories/menu entries/source listings).
   - `shared/`: Shared types and utilities (`types.ts` with the `Kind` enum, imported as `@/types.ts`).
 
 ## Code Style
@@ -126,7 +126,7 @@ numbers.forEach(n => console.log(n));
 
 - **Backend Services**: Each request kind (HTTP, SQL, etc.) has a plugin module in `main/database/` with a `send*` function and a `*EmptyRequest` constant. `main/api.ts` dispatches by kind (`emptyRequestForKind`, `Perform`).
 - **Frontend Factories**: Each request kind has a `viewer.ts` factory function in its `renderer/plugins/<kind>/` directory taking `(el, show_request, on)` and returning `{loaded, push_history_entry, unmount}`. Kind -> module dispatch lives in the plugin registry's `frame` hooks (`renderer/plugins/`), called from `panelkaFactory` in `renderer/App.ts`.
-- **Frontend Plugins**: Each request kind has a `renderer/plugins/<kind>/index.ts` module registered in `renderer/plugins/index.ts` with `{kind, kindTag, frame}` (`frame` mounts the kind's `viewer.ts` UI factory into a pane) plus optional `menuEntries` / `cache` / `itemKey` / `label` / `tag` / `onOpen` hooks. Pane mounting, sidebar badges, context-menu entries, source listings and their staleness caching come from this registry.
+- **Frontend Plugins**: Each request kind has a `renderer/plugins/<kind>/index.ts` module registered in `renderer/plugins/index.ts` with `{kind, frame, root}` (`frame` mounts the kind's `viewer.ts` UI factory into a pane; `root(id): RootItem` returns the kind's invisible root carrying the kind badge) plus optional `menuEntries` / `viewers` hooks. Pane mounting, sidebar badges, context-menu entries and source listings come from this registry. Every kind's root is a pure factory (kinds without source items return a badge-only root; source kinds build closures over kind-private `createSourceCache` instances); the facade in `renderer/plugins/source.ts` materializes it into the sidebar tree lazily along expanded paths (virtual-key encoding, "Loading..."/"(None)" placeholders, "/"-nesting and click resolution included), so sidebar code never touches caches or item types.
 - **Reactivity**: Use `signal<T>()` for state, but only if it is watched by using `sub`, otherwise use mutable locals. Use `m()` for DOM building, no VDOM.
 - **Components**: `N*` functions return DOM elements; `viewer.ts` factory functions manage state in provided container.
 - **Store**: Central state management in `renderer/store.ts` with CRUD operations and backend coordination.
@@ -146,11 +146,16 @@ numbers.forEach(n => console.log(n));
   - Add `Kind` value and `RequestData` member in `shared/types.ts`.
   - Add plugin file in `main/database/` with `send*` function, `*EmptyRequest` constant, and unit test.
   - Add `renderer/plugins/<kind>/viewer.ts` in `renderer/` following factory pattern.
-  - Add `renderer/plugins/<kind>/index.ts` (`{kind, kindTag, frame}` + optional source-cache/menu hooks) and register it in `renderer/plugins/index.ts`.
+  - Add `renderer/plugins/<kind>/index.ts` (`{kind, kindTag, frame}` + optional `viewers` / `menuEntries` / `root` hooks) and register it in `renderer/plugins/index.ts`.
   - Add case in `emptyRequestForKind` + `Perform` dispatch in `main/api.ts`.
   - Add IPC handler in `main.ts`.
   - Add preload bridge in `preload.ts`.
   - Extend the `Api` interface in `global.d.ts`.
+
+## Testing Notes
+
+- bun `mock.module` registrations are process-wide and leak across test files (e.g. `components/TableView.test.ts` mocks `api.ts` for everything loaded after it). Tests importing the api chain must register their own `mock.module` before dynamically importing the modules under test.
+- Renderer tests run under happy-dom without the Electron bridge; stubbed api methods must return real `ok()`/`err()` Results (`@/result.ts`), since fetchers call `.map`/`.unwrap` on them.
 
 ## Post-Task Checks
 

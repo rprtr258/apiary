@@ -23,7 +23,7 @@ main.ts                       # ipcMain.handle(...) per channel
 preload.ts                    # ipcRenderer.invoke(...) mirror, exposed via contextBridge
 global.d.ts                   # Api interface — the typed IPC contract
 renderer/plugins/<kind>/viewer.ts   # UI factory (default export) + colocated component test
-renderer/plugins/<kind>/index.ts    # Plugin module: kindTag, frame, menus, source cache (see step 7)
+renderer/plugins/<kind>/index.ts    # Plugin module: frame, root (kind badge), menus, source cache (see step 7)
 renderer/plugins/index.ts           # Central registry — register the new plugin here
 renderer/App.ts               # panelkaFactory (kind → plugin.frame dispatch)
 ```
@@ -184,7 +184,7 @@ import RequestHTTP from "./viewer.ts";
 
 export const httpPlugin: Plugin = {
   kind: t.Kind.HTTP,
-  kindTag: {text: "HTTP", color: "lime", type: "success"},
+  root: () => ({key: "", label: "", badge: {text: "HTTP", color: "lime", type: "success"}}),
   frame: (args) => RequestHTTP(args.el, args.show_request, args.on),
   menuEntries: (id) => [copyAsCurl(id)],   // optional per-kind context-menu entries
 };
@@ -210,7 +210,7 @@ type StateSQLSourceTable = {
 
 export const sqlSourcePlugin: Plugin<t.TableInfo> = {
   kind: t.Kind.SQLSource,
-  kindTag: {text: "SQL*", color: "#70a0e8"},
+  root: id => ({key: "", label: "", badge: {text: "SQL*", color: "#70a0e8"}, /* + listing thunks */ }),
   frame: (args) => {
     setDisplay(args.eye, false);
     return RequestSQLSource(args.el, {update: args.on.update});
@@ -245,7 +245,7 @@ Contract:
 | Field | Applies to | Required | Meaning |
 |-------|-----------|----------|---------|
 | `kind` | all kinds | yes | Registry key (the `t.Kind` value); also the virtual-key segment: `virtual:<kind>:<sourceID>:<itemKey>` |
-| `kindTag` | all kinds | yes | Request-node badge data `{text, color, type?}` (replaces the old `badge()` switch) |
+| `root` | all kinds | yes | Invisible `RootItem` carrying the kind badge `{text, color, type?}`; source kinds give it `children`/`loading`/`refresh` listing thunks |
 | `menuEntries` | all kinds | no | Per-kind context-menu entries (e.g. HTTP → Copy as curl) |
 | `cache` | source kinds | no | `SourceCache<T>` built by `createSourceCache(fetcher, errorTitle)`; its presence enables tree children and the Refresh entry |
 | `fetcher` / `errorTitle` | source kinds | via `createSourceCache` | IPC call returning `Result<Item[]>`; notification title on fetch failure |

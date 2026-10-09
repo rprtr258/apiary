@@ -1,5 +1,6 @@
 import {css} from "../lib/styles.ts";
 import {clone, m, DOMNode} from "../lib/utils.ts";
+import {ItemBadge} from "../plugins/types.ts";
 import {ResultInfo, FolderOpenOutlined, FolderOutlined} from "./icons.ts";
 
 export function Json<T>(data: T) {
@@ -13,7 +14,7 @@ export const tagColors: Record<TagType, string> = {
   warning: "yellow",
   error: "red",
 };
-type NTagProps = {
+export type NTagProps = {
   label: string,
   tooltip?: string,
   color?: string,
@@ -28,9 +29,9 @@ export function NTag(props: NTagProps) {
     style: {
       color: props.color,
       backgroundColor: props.background,
-      ...(props.bordered ? {
+      ...((props.bordered ?? false) ? {
         borderColor: props.color,
-        borderWidth: props.bordered ?? false ? undefined : "1px",
+        borderWidth: "1px",
         borderStyle: "solid",
         borderRadius: "2px",
       } : {}),
@@ -129,6 +130,8 @@ export type TreeOption = {
   key: string,
   label: string,
   disabled?: boolean,
+  tag?: ItemBadge, // baked at materialization; rendered by the sidebar tree
+  loading?: boolean, // baked at materialization; drives the request-row pulse
   children?: TreeOption[],
 };
 type NTreeProps = {

@@ -33,7 +33,8 @@ const copyAsCurl = (id: t.RequestID): MenuOption => ({
 
 export const httpPlugin: Plugin = {
   kind: t.Kind.HTTP,
-  kindTag: {text: "HTTP", color: "lime"},
   frame: args => RequestHTTP(args.el, args.show_request, args.on),
+  viewers: {},
   menuEntries: id => [copyAsCurl(id)],
+  root: () => ({key: "", label: "", badge: {label: "HTTP", color: "lime"}}),
 };

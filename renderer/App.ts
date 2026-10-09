@@ -14,7 +14,8 @@ import {NIcon, NResult, NTag} from "./components/dataview.ts";
 import {Eye, EyeClosed} from "./components/icons.ts";
 import {CommandPalette, Item} from "./components/CommandPalette.ts";
 import {sidebar, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./Sidebar.ts";
-import {kindTag, plugins, pluginsByKind} from "./plugins/index.ts";
+import {plugins, pluginsByKind} from "./plugins/index.ts";
+import {sourceBadge} from "./plugins/source.ts";
 
 function create() {
   const kind = newRequestKind.value!;
@@ -234,12 +235,12 @@ command_bar_new_request_kind_visible.sub(function*() {
 // Function to compute open request items
 const getOpenRequestItems = (): Item[] => Object
   .entries(store.requests)
-  .map(([id, preview]) => [id, preview, kindTag(preview.kind)] as const)
+  .map(([id, preview]) => [id, preview, sourceBadge(id)] as const)
   .map(([id, preview, tag]) => ({
     label: preview.path, // TODO: preload store.requests2, fix ebanij rot kazino
     group: preview.kind,
     prefix: NTag({
-      label: tag.text,
+      label: tag.label,
       color: tag.color,
       style: {
         minWidth: "4em",
@@ -426,10 +427,7 @@ function preApp(root: HTMLElement, store: Store) {
 
   layout.init(el_layout, store.layoutConfig, {
     "MyComponent": (container, state) => panelkaFactory(container, state as StateRequest),
-    ...Object.fromEntries(plugins
-      .map(plugin => plugin.viewers)
-      .filter(viewers => viewers !== undefined)
-      .flatMap(viewers => Object.entries(viewers))),
+    ...Object.fromEntries(plugins.flatMap(plugin => Object.entries(plugin.viewers))),
   }, () => {
     update_empty_state();
     updateLocalstorage();

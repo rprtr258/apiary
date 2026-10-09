@@ -5,6 +5,7 @@ import {store} from "../store.ts";
 import {DOMNode, m} from "../lib/utils.ts";
 import {globalDropdown, renameInit} from "./shared.ts";
 import {pluginsByKind} from "../plugins/index.ts";
+import {sourceRefresh, sourceRefreshable} from "../plugins/source.ts";
 
 export function showContextMenu(id: RequestID, event: MouseEvent): void {
   // Only real requests have a context menu (virtual items and group folders
@@ -27,9 +28,9 @@ export function showContextMenu(id: RequestID, event: MouseEvent): void {
       label: "Refresh",
       key: "refresh",
       icon: NIcon({component: Refresh}),
-      show: pluginsByKind[kind].cache !== undefined,
+      show: sourceRefreshable(id),
       on: {
-        click: () => pluginsByKind[kind].cache?.fetch(id),
+        click: () => sourceRefresh(id),
       },
     },
     {
