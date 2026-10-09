@@ -70,5 +70,7 @@ export type Plugin<Item = unknown> = {
   tag?(item: Item): TagData,
   onOpen?(id: string, item: Item, itemKey: string): void,
   childrenOf?(item: Item): Promise<Item[]>,
-  viewer?: Viewer,
+  // Tab variants registered once at init (renderer/App.ts); items pick a
+  // variant via its componentType in their onOpen closures
+  viewers?: Record<string, (container: ComponentContainer, state: unknown) => void>,
 };

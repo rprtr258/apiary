@@ -30,9 +30,8 @@ export const mcpPlugin: Plugin<t.MCPTool | t.MCPPrompt> = {
   ),
   itemKey: item => `${item.kind === "prompt" ? "Prompts" : "Tools"}/${item.name}`,
   label: item => item.name,
-  viewer: {
-    componentType,
-    factory: (container, state) => ToolViewer(container, state as StateMCPItem),
+  viewers: {
+    [componentType]: (container, state) => ToolViewer(container, state as StateMCPItem),
   },
   onOpen: (id, item, itemKey) =>
     store.openViewer(componentType, item.name, {sourceID: id, itemKey, item}),

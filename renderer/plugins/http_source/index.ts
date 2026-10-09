@@ -65,9 +65,8 @@ export const httpSourcePlugin: Plugin<t.EndpointInfo> = {
       style: {backgroundColor: bg, color},
     };
   },
-  viewer: {
-    componentType,
-    factory: (container, state) => EndpointViewer(container, state as StateHTTPSourceEndpoint),
+  viewers: {
+    [componentType]: (container, state) => EndpointViewer(container, state as StateHTTPSourceEndpoint),
   },
   onOpen: (id, endpoint, itemKey) =>
     store.openViewer(componentType, `${endpoint.method} ${endpoint.path}`,
