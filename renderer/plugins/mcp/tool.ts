@@ -1,4 +1,5 @@
 import {generateExampleFromSchema} from "@/example.ts";
+import * as t from "@/types.ts";
 import {api} from "../../api.ts";
 import {m} from "../../lib/utils.ts";
 import EditorJSON from "../../components/EditorJSON.ts";
@@ -10,11 +11,9 @@ import {NIcon} from "../../components/dataview.ts";
 import {QuestionCircleOutlined} from "../../components/icons.ts";
 import type {StateMCPTool} from "./index.ts";
 
-export type ToolViewerProps = StateMCPTool;
-
 export default function ToolViewer(
   container: ComponentContainer,
-  {sourceID, tool}: ToolViewerProps,
+  {sourceID, tool}: StateMCPTool,
 ): void {
   const el: HTMLElement = container.element;
   el.style.overflow = "hidden";
@@ -35,16 +34,18 @@ export default function ToolViewer(
   async function send() {
     sendButton.el.disabled = true;
     try {
-      let parsed: unknown = undefined;
-      const raw = args.trim();
-      if (raw !== "") {
+      const parsed: t.JSONValue = (() => {
+        const raw = args.trim();
+        if (raw === "")
+          return null;
+
         try {
-          parsed = JSON.parse(raw);
+          return JSON.parse(raw) as t.JSONValue;
         } catch (e) {
           view.update(JSON.stringify({error: e instanceof Error ? e.message : String(e)}, null, 2));
-          return;
         }
-      }
+        return null;
+      })();
       view.update(JSON.stringify({status: "calling"}, null, 2));
       const res = await api.mcpCallTool(sourceID, tool.name, parsed);
       if (res.kind === "err") {

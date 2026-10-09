@@ -174,7 +174,7 @@ export const api = {
   async mcpCallTool(
     id: string,
     toolName: string,
-    args: unknown,
+    args: t.JSONValue,
   ): Promise<Result<unknown>> {
     return await wrap(() => Api.MCP.CallTool(id, toolName, args), {reqId: id, toolName, args});
   },

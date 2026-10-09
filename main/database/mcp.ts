@@ -4,7 +4,7 @@ import {StreamableHTTPClientTransport} from "@modelcontextprotocol/sdk/client/st
 import {SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js";
 import {Agent} from "undici";
 import type {Transport} from "@modelcontextprotocol/sdk/shared/transport.js";
-import type {MCPRequest, MCPTool, JSONSchema} from "@/types.ts";
+import type {MCPRequest, MCPTool, JSONSchema, JSONValue} from "@/types.ts";
 
 export const EmptyRequest: MCPRequest = {
   transport: "stdio",
@@ -92,27 +92,23 @@ async function withClient<T>(req: MCPRequest, fn: (client: Client) => Promise<T>
 
 const permissive: JSONSchema = {type: "object", properties: {}};
 
-export function mapTools(sdkTools: {name: string, description?: string, inputSchema?: unknown}[]): MCPTool[] {
-  return sdkTools.map(tool => {
-    const schema = tool.inputSchema;
-    return {
-      name: tool.name,
-      description: tool.description ?? "",
-      inputSchema: schema === undefined ? permissive : schema as JSONSchema,
-    };
-  });
+export function mapTool(tool: {name: string, description?: string, inputSchema?: unknown}): MCPTool {
+  const schema = tool.inputSchema;
+  return {
+    name: tool.name,
+    description: tool.description ?? "",
+    inputSchema: schema === undefined ? permissive : schema as JSONSchema,
+  };
 }
 
 export async function listTools(req: MCPRequest): Promise<MCPTool[]> {
-  console.log("[mcp] listTools", req.transport);
   return await withClient(req, async (client) => {
     const {tools} = await client.listTools();
-    return mapTools(tools);
+    return tools.map(mapTool);
   });
 }
 
-export async function callTool(req: MCPRequest, toolName: string, args: unknown): Promise<unknown> {
-  console.log("[mcp] callTool", req.transport, toolName);
+export async function callTool(req: MCPRequest, toolName: string, args: JSONValue): Promise<unknown> {
   return await withClient(req, async (client) => {
     return await client.callTool({ // TODO: is result always is content[] ? render nicely if so
       name: toolName,
