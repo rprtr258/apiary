@@ -369,4 +369,11 @@ export const MCP = {
       throw new Error(`request ${id} is not MCP`);
     return await mcp.callPrompt(req.Data, promptName, args);
   },
+
+  async Complete(id: t.RequestID, params: t.MCPCompleteParams): Promise<t.MCPCompletion> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.MCP)
+      throw new Error(`request ${id} is not MCP`);
+    return await mcp.complete(req.Data, params);
+  },
 };

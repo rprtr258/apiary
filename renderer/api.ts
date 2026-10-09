@@ -186,4 +186,11 @@ export const api = {
   ): Promise<Result<unknown>> {
     return await wrap(() => Api.MCP.CallPrompt(id, promptName, args), {reqId: id, promptName, args});
   },
+
+  async mcpComplete(
+    id: string,
+    params: t.MCPCompleteParams,
+  ): Promise<Result<t.MCPCompletion>> {
+    return await wrap(() => Api.MCP.Complete(id, params), {reqId: id, argument: params.argument});
+  },
 };

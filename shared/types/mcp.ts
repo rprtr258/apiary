@@ -44,3 +44,19 @@ export type MCPListItems = {
   tools: MCPTool[],
   prompts: MCPPrompt[],
 };
+
+// Parameters of the completion/complete request (prompt reference only;
+// resource templates are not listed by apiary)
+export type MCPCompleteParams = {
+  ref: {type: "ref/prompt", name: string},
+  argument: {name: string, value: string},
+  context?: {arguments?: Record<string, string>},
+};
+
+export type MCPCompletion = {
+  completion: {
+    values: string[],
+    total?: number,
+    hasMore?: boolean,
+  },
+};

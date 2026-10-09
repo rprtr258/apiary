@@ -1,6 +1,6 @@
 import {describe, test, expect} from "bun:test";
 import {MCPRequest, MCPTool, MCPPrompt} from "@/types.ts";
-import {mapTool, listTools, callTool, mapPrompt, listPrompts, callPrompt} from "./mcp.ts";
+import {mapTool, listTools, callTool, mapPrompt, listPrompts, callPrompt, complete} from "./mcp.ts";
 
 describe("mapTools", () => test.each([
   [
@@ -85,5 +85,24 @@ describe("getPrompt", () => {
     expect(result).toEqual({messages: [
       {role: "user", content: {type: "text", text: "Say hello to world"}},
     ]});
+  }, 15000);
+});
+
+describe("complete", () => {
+  test("completes prompt arguments from a stdio server", async () => {
+    const result = await complete(stdioReq, {
+      ref: {type: "ref/prompt", name: "greet"},
+      argument: {name: "name", value: "w"},
+      context: {arguments: {}},
+    });
+    expect(result).toEqual({completion: {values: ["world", "wonderland"], total: 2, hasMore: false}});
+  }, 15000);
+
+  test("returns empty values for unknown arguments", async () => {
+    const result = await complete(stdioReq, {
+      ref: {type: "ref/prompt", name: "greet"},
+      argument: {name: "nope", value: ""},
+    });
+    expect(result).toEqual({completion: {values: [], hasMore: false}});
   }, 15000);
 });
