@@ -1,5 +1,5 @@
 import {describe, test, expect, mock} from "bun:test";
-import {sendHTTP} from "./http.ts";
+import {send} from "./http.ts";
 import type {HTTPRequest, KV} from "@/types.ts";
 
 // Mock global fetch
@@ -22,7 +22,7 @@ function makeRequest(overrides?: Partial<HTTPRequest>): HTTPRequest {
 
 describe("sendHTTP", () => {
   test("sends a GET request and returns response", async () => {
-    const result = await sendHTTP(makeRequest());
+    const result = await send(makeRequest());
 
     expect(result.code).toBe(200);
     expect(result.body).toBe("OK");
@@ -39,7 +39,7 @@ describe("sendHTTP", () => {
     ];
 
     mockFetch.mockClear();
-    await sendHTTP(makeRequest({headers}));
+    await send(makeRequest({headers}));
 
     const calls = mockFetch.mock.calls;
     expect(calls).toHaveLength(1);
@@ -53,7 +53,7 @@ describe("sendHTTP", () => {
   test("sends body for POST requests", async () => {
     const body = JSON.stringify({name: "test"});
 
-    await sendHTTP(makeRequest({
+    await send(makeRequest({
       method: "POST",
       body,
     }));
@@ -68,7 +68,7 @@ describe("sendHTTP", () => {
   });
 
   test("does not send body for GET requests", async () => {
-    await sendHTTP(makeRequest({method: "GET", body: "should-not-send"}));
+    await send(makeRequest({method: "GET", body: "should-not-send"}));
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
@@ -80,7 +80,7 @@ describe("sendHTTP", () => {
   });
 
   test("does not send body for HEAD requests", async () => {
-    await sendHTTP(makeRequest({method: "HEAD", body: "should-not-send"}));
+    await send(makeRequest({method: "HEAD", body: "should-not-send"}));
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
@@ -92,7 +92,7 @@ describe("sendHTTP", () => {
   });
 
   test("converts response headers to KV array", async () => {
-    const result = await sendHTTP(makeRequest());
+    const result = await send(makeRequest());
 
     const contentType = result.headers.find(h => h.key === "content-type");
     expect(contentType?.value).toBe("text/plain");
@@ -106,7 +106,7 @@ describe("sendHTTP", () => {
       statusText: "Not Found",
     }))));
 
-    const result = await sendHTTP(makeRequest());
+    const result = await send(makeRequest());
     expect(result.code).toBe(404);
     expect(result.body).toBe("Not Found");
   });
@@ -116,6 +116,6 @@ describe("sendHTTP", () => {
       reject(new Error("ECONNREFUSED"));
     }));
 
-    expect(sendHTTP(makeRequest())).rejects.toThrow("ECONNREFUSED");
+    expect(send(makeRequest())).rejects.toThrow("ECONNREFUSED");
   });
 });

@@ -28,7 +28,7 @@ type v1 = {
   [t.Kind.MD]:         Record<t.RequestID, KindEntry<t.MDRequest, t.MDResponse>>,
   [t.Kind.REDIS]:      Record<t.RequestID, KindEntry<t.RedisRequest, t.RedisResponse>>,
   [t.Kind.GRPC]:       Record<t.RequestID, KindEntry<t.GRPCRequest, t.GRPCResponse>>,
-  [t.Kind.DIFF]:       Record<t.RequestID, KindEntry<t.DIFFRequest, t.DIFFResponse>>,
+  [t.Kind.DIFF]:       Record<t.RequestID, KindEntry<t.DiffRequest, t.DiffResponse>>,
   [t.Kind.SQLSource]:  Record<t.RequestID, t.SQLSourceRequest>,
   [t.Kind.HTTPSource]: Record<t.RequestID, t.HTTPSourceRequest>,
   [t.Kind.MCP]:        Record<t.RequestID, t.MCPRequest>,
@@ -78,7 +78,7 @@ export type Request = {
     Responses: historyEntry<t.GRPCRequest, t.GRPCResponse>[],
   }
   | {Kind: t.Kind.DIFF} & {
-    Data: t.DIFFRequest,
+    Data: t.DiffRequest,
     Responses: [],
   }
   | {Kind: t.Kind.SQLSource} & {
@@ -264,7 +264,7 @@ export async function save(j: DB): Promise<void> {
     } as KindEntry<t.GRPCRequest, t.GRPCResponse>])),
     diff: Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.DIFF).map(([id, r]) => [id, {
       request: r.Data,
-    } as KindEntry<t.DIFFRequest, t.DIFFResponse>])),
+    } as KindEntry<t.DiffRequest, t.DiffResponse>])),
     "http-source": Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.HTTPSource).map(([id, r]) => [id,
       r.Data as t.HTTPSourceRequest,
     ])),

@@ -12,6 +12,6 @@ export const EmptyRequest: JQRequest = {
 }`,
 };
 
-export async function sendJQ({json, query}: JQRequest): Promise<JQResponse> {
+export async function send({json, query}: JQRequest): Promise<JQResponse> {
   return {response: await jq(json, query)};
 }

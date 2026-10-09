@@ -1,9 +1,9 @@
-import {describe, test, expect, beforeAll} from "bun:test";
+import {describe, test, expect, beforeAll, afterAll} from "bun:test";
 import {SQLRequest, RedisRequest, ColumnType} from "@/types.ts";
-import {describeTable, sendSQL, listTables} from "./database/sql.ts";
-import {countRowsSQLSource, testSQLSource, buildTableUpdateStatements, updateTableRows} from "./database/sql_source.ts";
-import {sendRedis} from "./database/redis.ts";
-import {grpcMethods} from "./database/grpc.ts";
+import * as sql from "./database/sql.ts";
+import * as sql_source from "./database/sql_source.ts";
+import * as redis from "./database/redis.ts";
+import * as grpc from "./database/grpc.ts";
 
 const IS_INTEGRATION = Boolean(process.env.INTEGRATION);
 const pgDSN = process.env.PG_DSN ?? "postgres://postgres:password@localhost:5432/postgres";
@@ -12,20 +12,20 @@ function pgRequest(query?: string): SQLRequest {
   return {dsn: pgDSN, database: "postgres", query: query ?? ""};
 }
 
-describe.if(IS_INTEGRATION)("sendSQL (postgres)", () => {
+describe.if(IS_INTEGRATION)("sql.send (postgres)", () => {
   test("multiple rows", async () => {
-    const result = await sendSQL(pgRequest("SELECT * FROM (VALUES (1,'a'),(2,'b')) AS t(id, name)"));
+    const result = await sql.send(pgRequest("SELECT * FROM (VALUES (1,'a'),(2,'b')) AS t(id, name)"));
     expect(result.rows).toHaveLength(2);
     expect(result.columns).toHaveLength(2);
   });
 
   test("empty result", async () => {
-    const result = await sendSQL(pgRequest("SELECT 1 WHERE false"));
+    const result = await sql.send(pgRequest("SELECT 1 WHERE false"));
     expect(result.rows).toHaveLength(0);
   });
 
   test("SELECT 1 returns one row", async () => {
-    const result = await sendSQL(pgRequest("SELECT 1 AS num"));
+    const result = await sql.send(pgRequest("SELECT 1 AS num"));
     expect(result).toEqual({
       columns: ["num"],
       typenames: ["int4"],
@@ -40,13 +40,13 @@ describe.if(IS_INTEGRATION)("SQLSource (postgres)", () => {
 
   beforeAll(async () => {
     // Create a temp table for testing
-    await sendSQL(pgRequest(`DROP TABLE IF EXISTS ${tableName}`));
-    await sendSQL(pgRequest(`CREATE TABLE ${tableName} (id INT, name TEXT)`));
-    await sendSQL(pgRequest(`INSERT INTO ${tableName} VALUES (1, 'a'), (2, 'b')`));
+    await sql.send(pgRequest(`DROP TABLE IF EXISTS ${tableName}`));
+    await sql.send(pgRequest(`CREATE TABLE ${tableName} (id INT, name TEXT)`));
+    await sql.send(pgRequest(`INSERT INTO ${tableName} VALUES (1, 'a'), (2, 'b')`));
   });
 
   test("lists tables", async () => {
-    const tables = await listTables(pgRequest());
+    const tables = await sql.listTables(pgRequest());
     expect(tables.some(t => t.name === tableName)).toBe(true);
     expect(tables).toEqual([
       {name: "departments", rowCount: 3, sizeBytes: 49152},
@@ -56,12 +56,12 @@ describe.if(IS_INTEGRATION)("SQLSource (postgres)", () => {
   });
 
   test("counts rows", async () => {
-    const count = await countRowsSQLSource(pgRequest(), tableName, null);
+    const count = await sql_source.countRowsSQLSource(pgRequest(), tableName, null);
     expect(count).toBeGreaterThanOrEqual(2);
   });
 
   test("describes table", async () => {
-    const schema = await describeTable(pgRequest(), tableName);
+    const schema = await sql.describeTable(pgRequest(), tableName);
     expect(schema.columns).toEqual([
       {
         name: "id",
@@ -81,7 +81,7 @@ describe.if(IS_INTEGRATION)("SQLSource (postgres)", () => {
   });
 
   test("pings with SELECT 1", async () => {
-    await testSQLSource(pgRequest());
+    await sql_source.testSQLSource(pgRequest());
   });
 });
 
@@ -91,51 +91,72 @@ function req(query: string): RedisRequest {
   return {dsn: redisDSN, query};
 }
 
-describe.if(IS_INTEGRATION)("sendRedis", () => {
+describe.if(IS_INTEGRATION)("redis.send", () => {
   test("PING returns PONG", async () => {
-    const result = await sendRedis(req("PING"));
+    const result = await redis.send(req("PING"));
     expect(result.response).toContain("PONG");
   });
 
   test("SET and GET a key", async () => {
-    await sendRedis(req("SET test:key hello"));
-    const result = await sendRedis(req("GET test:key"));
+    await redis.send(req("SET test:key hello"));
+    const result = await redis.send(req("GET test:key"));
     expect(result.response).toContain("hello");
   });
 
   test("KEYS returns array", async () => {
-    const result = await sendRedis(req("KEYS *"));
+    const result = await redis.send(req("KEYS *"));
     expect(typeof result.response).toBe("string");
   });
 });
 
 describe.if(IS_INTEGRATION)("grpc", () => {
   test("list methods", async () => {
-    const methods = await grpcMethods("localhost:50051");
+    const methods = await grpc.grpcMethods("localhost:50051");
     expect(methods).toEqual({"helloworld.Greeter": ["SayHello"]});
   });
 });
 
 async function pgValues(query: string): Promise<unknown[][]> {
-  const result = await sendSQL(pgRequest(query));
+  const result = await sql.send(pgRequest(query));
   return result.rows;
+}
+
+// One table fixture.
+// Must be called at describe top level (during collection), like beforeAll itself — never inside a test.
+function useTable(
+  name: string,
+  definition: string,
+  ...seed: string[]
+) {
+  beforeAll(async () => {
+    await sql.send(pgRequest(`CREATE TABLE ${name} ${definition}`));
+    await sql.send(pgRequest(`INSERT INTO ${name} VALUES ${seed.join(",")}`));
+  });
+  afterAll(async () => {
+    await sql.send(pgRequest(`DROP TABLE IF EXISTS ${name}`));
+  });
 }
 
 describe.if(IS_INTEGRATION)("table row updates (postgres)", () => {
   const tableName = "test_table_edit";
   const compTableName = "test_table_edit_comp";
 
-  beforeAll(async () => {
-    await sendSQL(pgRequest(`DROP TABLE IF EXISTS ${tableName}`));
-    await sendSQL(pgRequest(`CREATE TABLE ${tableName} (id INT PRIMARY KEY, name TEXT, score INT NOT NULL)`));
-    await sendSQL(pgRequest(`INSERT INTO ${tableName} VALUES (1, 'a', 10), (2, 'b', 20), (3, 'c', 30)`));
-    await sendSQL(pgRequest(`DROP TABLE IF EXISTS ${compTableName}`));
-    await sendSQL(pgRequest(`CREATE TABLE ${compTableName} (a INT, b INT, val TEXT, PRIMARY KEY (a, b))`));
-    await sendSQL(pgRequest(`INSERT INTO ${compTableName} VALUES (1, 1, 'x'), (1, 2, 'y')`));
-  });
+  useTable(
+    tableName,
+    "(id INT PRIMARY KEY, name TEXT, score INT NOT NULL)",
+    "(1, 'a', 10)",
+    "(2, 'b', 20)",
+    "(3, 'c', 30)",
+  );
+  useTable(
+    compTableName,
+    "(a INT, b INT, val TEXT, PRIMARY KEY (a, b))",
+    "(1, 1, 'x')",
+    "(1, 2, 'y')",
+  );
 
   test("builds one UPDATE per row", () => {
-    const statements = buildTableUpdateStatements(
+    const statements = sql_source.buildTableUpdateStatements(
       {dsn: pgDSN, database: "postgres"},
       tableName,
       ["id"],
@@ -154,7 +175,7 @@ describe.if(IS_INTEGRATION)("table row updates (postgres)", () => {
   });
 
   test("null pk values compare with IS NULL", () => {
-    const statements = buildTableUpdateStatements(
+    const statements = sql_source.buildTableUpdateStatements(
       {dsn: pgDSN, database: "postgres"},
       tableName,
       ["id"],
@@ -164,13 +185,13 @@ describe.if(IS_INTEGRATION)("table row updates (postgres)", () => {
   });
 
   test("single cell update", async () => {
-    await updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, tableName, ["id"],
+    await sql_source.updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, tableName, ["id"],
       [{pkValues: [1], column: "name", value: "updated"}]);
     expect(await pgValues(`SELECT name FROM ${tableName} WHERE id = 1`)).toEqual([["updated"]]);
   });
 
   test("multi-row multi-column update in one batch", async () => {
-    await updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, tableName, ["id"],
+    await sql_source.updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, tableName, ["id"],
       [
         {pkValues: [2], column: "name", value: "b2"},
         {pkValues: [2], column: "score", value: 21},
@@ -180,13 +201,13 @@ describe.if(IS_INTEGRATION)("table row updates (postgres)", () => {
   });
 
   test("composite primary key", async () => {
-    await updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, compTableName, ["a", "b"],
+    await sql_source.updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, compTableName, ["a", "b"],
       [{pkValues: [1, 2], column: "val", value: "y2"}]);
     expect(await pgValues(`SELECT val FROM ${compTableName} WHERE a = 1 AND b = 2`)).toEqual([["y2"]]);
   });
 
   test("string escaping and NULL", async () => {
-    await updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, tableName, ["id"],
+    await sql_source.updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, tableName, ["id"],
       [
         {pkValues: [1], column: "name", value: "O'Brien \"quoted\""},
         {pkValues: [2], column: "name", value: null},
@@ -199,7 +220,7 @@ describe.if(IS_INTEGRATION)("table row updates (postgres)", () => {
     // score is NOT NULL: this batch must fail and leave row 1 unchanged
     let failed = false;
     try {
-      await updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, tableName, ["id"],
+      await sql_source.updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, tableName, ["id"],
         [
           {pkValues: [1], column: "name", value: "rolled_back"},
           {pkValues: [2], column: "score", value: null},
@@ -214,7 +235,7 @@ describe.if(IS_INTEGRATION)("table row updates (postgres)", () => {
   test("update matching no rows throws", async () => {
     let failed = false;
     try {
-      await updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, tableName, ["id"],
+      await sql_source.updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, tableName, ["id"],
         [{pkValues: [999], column: "name", value: "ghost"}]);
     } catch {
       failed = true;
@@ -222,28 +243,42 @@ describe.if(IS_INTEGRATION)("table row updates (postgres)", () => {
     expect(failed).toBe(true);
   });
 
-  test("timestamptz pk round-trips with microseconds", async () => {
+  describe("timestamptz pk round-trips", () => {
     const tsTable = `${tableName}_ts`;
-    await sendSQL(pgRequest(`DROP TABLE IF EXISTS ${tsTable}`));
-    await sendSQL(pgRequest(`CREATE TABLE ${tsTable} (ts TIMESTAMPTZ PRIMARY KEY, v TEXT)`));
-    await sendSQL(pgRequest(`INSERT INTO ${tsTable} VALUES ('2024-01-01T00:00:00.123456+00', 'x')`));
-    const read = await sendSQL(pgRequest(`SELECT ts FROM ${tsTable}`));
-    expect(String(read.rows[0][0])).toContain(".123456"); // raw server text, not a ms-truncated Date
-    await updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, tsTable, ["ts"],
-      [{pkValues: [read.rows[0][0] as string], column: "v", value: "y"}]);
-    expect(await pgValues(`SELECT v FROM ${tsTable}`)).toEqual([["y"]]);
+    useTable(
+      tsTable,
+      "(ts TIMESTAMPTZ PRIMARY KEY, v TEXT)",
+      "('2024-01-01T00:00:00.123456+00', 'x')",
+    );
+
+    test("timestamptz pk round-trips with microseconds", async () => {
+      const read = await sql.send(pgRequest(`SELECT ts FROM ${tsTable}`));
+      expect(String(read.rows[0][0])).toContain(".123456"); // raw server text, not a ms-truncated Date
+      await sql_source.updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, tsTable,
+        ["ts"],
+        [{pkValues: [read.rows[0][0] as string], column: "v", value: "y"}],
+      );
+      expect(await pgValues(`SELECT v FROM ${tsTable}`)).toEqual([["y"]]);
+    });
   });
 
-  test("date pk round-trips without timezone shift", async () => {
+  describe("date pk round-trips", () => {
     const dTable = `${tableName}_date`;
-    await sendSQL(pgRequest(`DROP TABLE IF EXISTS ${dTable}`));
-    await sendSQL(pgRequest(`CREATE TABLE ${dTable} (d DATE PRIMARY KEY, v TEXT)`));
-    await sendSQL(pgRequest(`INSERT INTO ${dTable} VALUES ('2024-01-01', 'x')`));
-    const read = await sendSQL(pgRequest(`SELECT d FROM ${dTable}`));
-    expect(read.rows[0][0]).toBe("2024-01-01");
-    await updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, dTable, ["d"],
-      [{pkValues: [read.rows[0][0] as string], column: "v", value: "y"}]);
-    expect(await pgValues(`SELECT v FROM ${dTable}`)).toEqual([["y"]]);
+    useTable(
+      dTable,
+      "(d DATE PRIMARY KEY, v TEXT)",
+      "('2024-01-01', 'x')",
+    );
+
+    test("date pk round-trips without timezone shift", async () => {
+      const read = await sql.send(pgRequest(`SELECT d FROM ${dTable}`));
+      expect(read.rows[0][0]).toBe("2024-01-01");
+      await sql_source.updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, dTable,
+        ["d"],
+        [{pkValues: [read.rows[0][0] as string], column: "v", value: "y"}],
+      );
+      expect(await pgValues(`SELECT v FROM ${dTable}`)).toEqual([["y"]]);
+    });
   });
 });
 

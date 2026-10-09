@@ -1,5 +1,5 @@
 import {SQLRequest, SQLSourceRequest, TableRead, TableFilter, RowValue, CellUpdate, SQLResponse} from "@/types.ts";
-import {describeTable, quoteIdent, sendSQL, sendSQLBatch} from "./sql.ts";
+import {describeTable, quoteIdent, send, sendBatch} from "./sql.ts";
 
 export const EmptyRequest: SQLSourceRequest = {
   dsn: ":memory:",
@@ -125,7 +125,7 @@ export function buildTableUpdateScript(request: Omit<SQLRequest, "query">, table
 
 export async function updateTableRows(request: Omit<SQLRequest, "query">, tableName: string, pkColumns: string[], updates: CellUpdate[]): Promise<SQLResponse> {
   const statements = buildTableUpdateStatements(request, tableName, pkColumns, updates);
-  const res = await sendSQLBatch(request, statements);
+  const res = await sendBatch(request, statements);
   if (res.affectedRows === undefined)
     return res; // driver does not report affected rows (clickhouse)
   // Each statement targets exactly one row; a mismatch means the row is gone
@@ -168,10 +168,10 @@ export async function countRowsSQLSource(request: Omit<SQLRequest, "query">, tab
   const q = quoteIdent[request.database];
   const quoted = tableName.split(".").map(q).join(".");
   const where = filter !== null ? ` WHERE ${buildFilterCondition(request, filter)}` : "";
-  const result = await sendSQL({...request, query: `SELECT COUNT(*) FROM ${quoted}${where}`});
+  const result = await send({...request, query: `SELECT COUNT(*) FROM ${quoted}${where}`});
   return Number(result.rows[0]?.[0] ?? 0);
 }
 
 export async function testSQLSource(request: Omit<SQLRequest, "query">): Promise<void> {
-  await sendSQL({...request, query: "SELECT 1"});
+  await send({...request, query: "SELECT 1"});
 }

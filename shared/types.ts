@@ -5,7 +5,7 @@ import {GRPCRequest, GRPCResponse} from "./types/grpc.ts"; export * from "./type
 import {RedisRequest, RedisResponse} from "./types/redis.ts"; export * from "./types/redis.ts";
 import {MDRequest, MDResponse} from "./types/md.ts"; export * from "./types/md.ts";
 import {JQRequest, JQResponse} from "./types/jq.ts"; export * from "./types/jq.ts";
-import {DIFFRequest, DIFFResponse} from "./types/diff.ts"; export * from "./types/diff.ts";
+import {DiffRequest, DiffResponse} from "./types/diff.ts"; export * from "./types/diff.ts";
 import {MCPRequest} from "./types/mcp.ts"; export * from "./types/mcp.ts";
 
 export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: string]: JSONValue};
@@ -71,7 +71,7 @@ export type RequestData =
   | {kind: Kind.JQ        } & JQRequest
   | {kind: Kind.REDIS     } & RedisRequest
   | {kind: Kind.MD        } & MDRequest
-  | {kind: Kind.DIFF      } & DIFFRequest
+  | {kind: Kind.DIFF      } & DiffRequest
   | {kind: Kind.SQLSource } & SQLSourceRequest
   | {kind: Kind.HTTPSource} & HTTPSourceRequest
   | {kind: Kind.MCP       } & MCPRequest
@@ -85,7 +85,7 @@ export type ResponseData =
   | {kind: Kind.JQ   } & JQResponse
   | {kind: Kind.REDIS} & RedisResponse
   | {kind: Kind.MD   } & MDResponse
-  | {kind: Kind.DIFF } & DIFFResponse
+  | {kind: Kind.DIFF } & DiffResponse
 ;
 
 export type HistoryEntry = {
@@ -98,7 +98,7 @@ export type HistoryEntry = {
   {kind: Kind.JQ,    request:    JQRequest, response:    JQResponse} |
   {kind: Kind.REDIS, request: RedisRequest, response: RedisResponse} |
   {kind: Kind.MD,    request:    MDRequest, response:    MDResponse} |
-  {kind: Kind.DIFF,  request:  DIFFRequest, response:  DIFFResponse}
+  {kind: Kind.DIFF,  request:  DiffRequest, response:  DiffResponse}
 );
 
 export type GetResponse = {

@@ -1,14 +1,14 @@
 import pg from "pg";
-import {setTypeParser, TypeId, builtins as typeIDs} from "pg-types";
+import {TypeId, builtins as typeIDs} from "pg-types";
 import {TableSchema, ColumnInfo, SQLRequest, ColumnType, SQLResponse, ConstraintInfo, IndexInfo, ForeignKey, TableInfo} from "@/types.ts";
 
 // JS Date holds only millisecond precision, so pg's default parsing of date /
 // timestamp columns into Date objects loses microseconds and shifts DATE across
 // timezones. Table editing identifies rows by these values, so keep the raw
 // server text, which round-trips exactly into UPDATE WHERE clauses.
-setTypeParser(typeIDs.DATE, (v: string) => v);
-setTypeParser(typeIDs.TIMESTAMP, (v: string) => v);
-setTypeParser(typeIDs.TIMESTAMPTZ, (v: string) => v);
+pg.types.setTypeParser(pg.types.builtins.DATE, (v: string) => v);
+pg.types.setTypeParser(pg.types.builtins.TIMESTAMP, (v: string) => v);
+pg.types.setTypeParser(pg.types.builtins.TIMESTAMPTZ, (v: string) => v);
 
 /*
 SELECT t.oid::integer as typeid, t.typname as typename

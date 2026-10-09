@@ -68,7 +68,7 @@ function diffHighlighting(view: EditorView) {
 
 const diffHighlightExtension = EditorView.decorations.of(diffHighlighting);
 
-type Request = {kind: t.Kind.DIFF} & t.DIFFRequest;
+type Request = {kind: t.Kind.DIFF} & t.DiffRequest;
 
 type EditorDiffProps = {
   value: string | null,
@@ -157,7 +157,7 @@ export default function(
           el_error.style.display = "block";
         } else {
           el_error.style.display = "none";
-          const response = res.value.response as t.DIFFResponse;
+          const response = res.value.response as t.DiffResponse;
 
           // Update diff editor
           if (diffEditor !== null) {

@@ -6,7 +6,7 @@ export const EmptyRequest: RedisRequest = {
   query: "KEYS *",
 };
 
-export async function sendRedis(request: RedisRequest): Promise<RedisResponse> {
+export async function send(request: RedisRequest): Promise<RedisResponse> {
   const client = createClient({
     url: request.dsn.startsWith("redis://") ? request.dsn : `redis://${request.dsn}`,
   });

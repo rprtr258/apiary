@@ -3,9 +3,9 @@ import sanitizeHtml from "sanitize-html";
 import type {MDRequest, MDResponse} from "@/types.ts";
 import txt from "./default.md?raw";
 
-export const DefaultMarkdown: MDRequest = {data: txt};
+export const EmptyRequest: MDRequest = {data: txt};
 
-export async function sendMD(request: MDRequest): Promise<MDResponse> {
+export async function send(request: MDRequest): Promise<MDResponse> {
   const html = await marked.parse(request.data, {
     gfm: true,
     extensions: {

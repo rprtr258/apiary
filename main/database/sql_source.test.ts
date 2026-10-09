@@ -3,7 +3,7 @@ import {tmpdir} from "os";
 import {join} from "path";
 import {mock, describe, test, expect} from "bun:test";
 import {SQLRequest, TableFilter, TableRead} from "@/types.ts";
-import {describeTable, sendSQL, listTables} from "./sql.ts";
+import {describeTable, send, listTables} from "./sql.ts";
 import {buildReadTableQuery, buildFilterCondition, countRowsSQLSource, testSQLSource, updateTableRows} from "./sql_source.ts";
 import {BetterLikeDB} from "./sql.test.ts";
 
@@ -20,10 +20,10 @@ describe("listTables", () => {
     const dir = await mkdtemp(join(tmpdir(), "sqlite-list-tables"));
     const TEST_DB = dir + "/apiary-sql-test.db";
 
-    const result1 = await sendSQL(req({dsn: TEST_DB, query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"}));
+    const result1 = await send(req({dsn: TEST_DB, query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"}));
     expect(result1).toEqual({typenames: [], types: [], columns: [], rows: []});
 
-    const result2 = await sendSQL(req({dsn: TEST_DB, query: "CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT, user_id INTEGER)"}));
+    const result2 = await send(req({dsn: TEST_DB, query: "CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT, user_id INTEGER)"}));
     expect(result2).toEqual({typenames: [], types: [], columns: [], rows: []});
 
     const result = await listTables({database: "sqlite", dsn: TEST_DB});
@@ -45,10 +45,10 @@ describe("testSQLSource", () => {
 async function use_sqlite_update_rows(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "sqlite-update-rows"));
   const dsn = join(dir, "apiary-sql-update.db");
-  await sendSQL(req({dsn, query: "CREATE TABLE t (id INT PRIMARY KEY, v TEXT)"}));
+  await send(req({dsn, query: "CREATE TABLE t (id INT PRIMARY KEY, v TEXT)"}));
   // sqlite permits NULL values in (non-INTEGER) PRIMARY KEY columns
-  await sendSQL(req({dsn, query: "INSERT INTO t (v) VALUES ('x')"}));
-  await sendSQL(req({dsn, query: "INSERT INTO t (id, v) VALUES (1, 'y')"}));
+  await send(req({dsn, query: "INSERT INTO t (v) VALUES ('x')"}));
+  await send(req({dsn, query: "INSERT INTO t (id, v) VALUES (1, 'y')"}));
   return dsn;
 }
 
@@ -57,7 +57,7 @@ describe("updateTableRows (sqlite)", () => {
     const dsn = await use_sqlite_update_rows();
     await updateTableRows({dsn, database: "sqlite", readOnly: false}, "t", ["id"],
       [{pkValues: [null], column: "v", value: "z"}]);
-    const res = await sendSQL(req({dsn, query: "SELECT v FROM t WHERE id IS NULL"}));
+    const res = await send(req({dsn, query: "SELECT v FROM t WHERE id IS NULL"}));
     expect(res.rows).toEqual([["z"]]);
   });
 
@@ -115,8 +115,8 @@ describe("buildFilterCondition", () => {
 async function use_sqlite_table_filter(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "sqlite-table-filter"));
   const dsn = join(dir, "apiary-sql-filter.db");
-  await sendSQL(req({dsn, query: "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT, score INT)"}));
-  await sendSQL(req({dsn, query: "INSERT INTO t (name, score) VALUES ('apple', 1), ('banana', 2), ('Cherry', 3), (NULL, 4)"}));
+  await send(req({dsn, query: "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT, score INT)"}));
+  await send(req({dsn, query: "INSERT INTO t (name, score) VALUES ('apple', 1), ('banana', 2), ('Cherry', 3), (NULL, 4)"}));
   return dsn;
 }
 
@@ -128,18 +128,18 @@ describe("table reads with filter (sqlite)", () => {
     const dsn = await use_sqlite_table_filter();
     request.dsn = dsn;
     const q = await buildReadTableQuery(request, read({kind: "simple", column: "score", op: ">", value: "1"}));
-    const res = await sendSQL(req({dsn, query: q}));
+    const res = await send(req({dsn, query: q}));
     expect(res.rows.map(r => r[1])).toEqual(["banana", "Cherry", null]);
   });
 
   test("manual condition filters rows and an invalid one fails the query", async () => {
     const dsn = await use_sqlite_table_filter();
     const q = await buildReadTableQuery(request, read({kind: "manual", expr: "score >= 2 AND name IS NOT NULL"}));
-    expect((await sendSQL(req({dsn, query: q}))).rows.map(r => r[1])).toEqual(["banana", "Cherry"]);
+    expect((await send(req({dsn, query: q}))).rows.map(r => r[1])).toEqual(["banana", "Cherry"]);
     const bad = await buildReadTableQuery(request, read({kind: "manual", expr: "score >="}));
     let failed = false;
     try {
-      await sendSQL(req({dsn, query: bad}));
+      await send(req({dsn, query: bad}));
     } catch {
       failed = true;
     }
@@ -156,8 +156,8 @@ describe("table reads with filter (sqlite)", () => {
 async function use_sqlite_read_table(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "sqlite-read-table"));
   const dsn = join(dir, "apiary-sql-read-table.db");
-  await sendSQL(req({dsn, query: "CREATE TABLE t (a TEXT, b INT, v TEXT, PRIMARY KEY (b, a))"}));
-  await sendSQL(req({dsn, query: "INSERT INTO t (a, b, v) VALUES ('x', 1, '1x'), ('y', 1, '1y'), ('x', 0, '0x')"}));
+  await send(req({dsn, query: "CREATE TABLE t (a TEXT, b INT, v TEXT, PRIMARY KEY (b, a))"}));
+  await send(req({dsn, query: "INSERT INTO t (a, b, v) VALUES ('x', 1, '1x'), ('y', 1, '1y'), ('x', 0, '0x')"}));
   return dsn;
 }
 
@@ -166,7 +166,7 @@ describe("buildReadTableQuery (sqlite)", () => {
     const dsn = await use_sqlite_read_table();
     const query = await buildReadTableQuery(req({dsn}), {table: "t", orderBy: [], filter: null, limit: 2, offset: 0});
     expect(query).toBe("SELECT * FROM `t` ORDER BY `b` ASC, `a` ASC LIMIT 2 OFFSET 0");
-    const res = await sendSQL(req({dsn, query}));
+    const res = await send(req({dsn, query}));
     expect(res.rows.map(r => r[2])).toEqual(["0x", "1x"]); // (b, a) key order
   });
 
@@ -174,7 +174,7 @@ describe("buildReadTableQuery (sqlite)", () => {
     const dsn = await use_sqlite_read_table();
     const query = await buildReadTableQuery(req({dsn}), {table: "t", orderBy: [{column: "a", direction: "desc"}], filter: null, limit: 2, offset: 0});
     expect(query).toBe("SELECT * FROM `t` ORDER BY `a` DESC, `b` ASC, `a` ASC LIMIT 2 OFFSET 0");
-    const res = await sendSQL(req({dsn, query}));
+    const res = await send(req({dsn, query}));
     // a DESC puts 'y' first; the two rows tied on a='x' are broken by b ASC
     expect(res.rows.map(r => r[2])).toEqual(["1y", "0x"]);
   });
@@ -184,7 +184,7 @@ describe("describeTable (sqlite)", () => {
   test("composite primary key returned as a single ordered entry", async () => {
     const dir = await mkdtemp(join(tmpdir(), "sqlite-describe-pk"));
     const dsn = join(dir, "apiary-sql-describe.db");
-    await sendSQL(req({dsn, query: "CREATE TABLE t (a TEXT, b INT, v TEXT, PRIMARY KEY (b, a))"}));
+    await send(req({dsn, query: "CREATE TABLE t (a TEXT, b INT, v TEXT, PRIMARY KEY (b, a))"}));
     const schema = await describeTable({dsn, database: "sqlite"}, "t");
     const pks = schema.constraints.filter(c => c.type === "PRIMARY KEY");
     expect(pks.length).toBe(1);
@@ -197,8 +197,8 @@ describe("describeTable (sqlite)", () => {
   test("foreign keys carry referenced table, columns, and actions", async () => {
     const dir = await mkdtemp(join(tmpdir(), "sqlite-describe-fk"));
     const dsn = join(dir, "apiary-sql-describe-fk.db");
-    await sendSQL(req({dsn, query: "CREATE TABLE users (id INTEGER PRIMARY KEY)"}));
-    await sendSQL(req({dsn, query: "CREATE TABLE posts (id INTEGER PRIMARY KEY, user_id INTEGER REFERENCES users (id) ON DELETE CASCADE ON UPDATE SET NULL)"}));
+    await send(req({dsn, query: "CREATE TABLE users (id INTEGER PRIMARY KEY)"}));
+    await send(req({dsn, query: "CREATE TABLE posts (id INTEGER PRIMARY KEY, user_id INTEGER REFERENCES users (id) ON DELETE CASCADE ON UPDATE SET NULL)"}));
     const schema = await describeTable({dsn, database: "sqlite"}, "posts");
     expect(schema.foreign_keys).toEqual([
       {name: "", column: "user_id", schema: "", table: "users", to: "id", onUpdate: "SET NULL", onDelete: "CASCADE"},

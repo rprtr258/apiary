@@ -1,4 +1,4 @@
-import {sendSQL} from "../main/database/sql.ts";
+import {send} from "../main/database/sql.ts";
 
 type i64 = number;
 type f64 = number;
@@ -86,6 +86,6 @@ const analyze_prefix = "EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) 
 const query = "SELECT * FROM employees e JOIN departments d ON e.department_id = d.id";
 
 console.log(query);
-const result = await sendSQL({database: "postgres", dsn, query: analyze_prefix + query});
+const result = await send({database: "postgres", dsn, query: analyze_prefix + query});
 const analyze = result.rows[0][0] as Data[];
 console.log(JSON.stringify(analyze[0], null, 2));

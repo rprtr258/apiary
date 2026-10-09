@@ -7,7 +7,7 @@ export const EmptyRequest: HTTPRequest = {
   headers: [],
 };
 
-export async function sendHTTP(request: HTTPRequest): Promise<HTTPResponse> {
+export async function send(request: HTTPRequest): Promise<HTTPResponse> {
   const response = await fetch(request.url, {
     method: request.method,
     headers: new Headers(request.headers.map(({key, value}): [string, string] => [key, value])),

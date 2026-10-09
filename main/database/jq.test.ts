@@ -1,6 +1,6 @@
 import {describe, test, expect, mock} from "bun:test";
 import {raw} from "jq-wasm";
-import {sendJQ} from "./jq.ts";
+import {send} from "./jq.ts";
 import type {JQRequest} from "@/types.ts";
 
 // Mock jq-wasm
@@ -20,7 +20,7 @@ function makeRequest(overrides?: Partial<JQRequest>): JQRequest {
 
 describe("sendJQ", () => {
   test("executes a simple query and returns results", async () => {
-    const result = await sendJQ(makeRequest());
+    const result = await send(makeRequest());
     expect(result.response).toEqual(["1"]);
   });
 
@@ -29,7 +29,7 @@ describe("sendJQ", () => {
       async () => ({stdout: "", stderr: "parse error: Invalid numeric literal at line 1", exitCode: 1}),
     );
 
-    expect(sendJQ(makeRequest({query: "..invalid.."}))).rejects.toThrow("jq error");
+    expect(send(makeRequest({query: "..invalid.."}))).rejects.toThrow("jq error");
   });
 
   test("handles empty results", async () => {
@@ -37,7 +37,7 @@ describe("sendJQ", () => {
       async () => ({stdout: "", stderr: "", exitCode: 0}),
     );
 
-    const result = await sendJQ(makeRequest({query: ".nonexistent"}));
+    const result = await send(makeRequest({query: ".nonexistent"}));
     expect(result.response).toEqual(["null"]);
   });
 });

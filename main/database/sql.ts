@@ -10,7 +10,7 @@ export const EmptyRequest: SQLRequest = {
   query: "SELECT 1",
 };
 
-export async function sendSQL(request: SQLRequest): Promise<SQLResponse> {
+export async function send(request: SQLRequest): Promise<SQLResponse> {
   return {
     postgres:   pg.send,
     mysql:      mysql.send,
@@ -21,7 +21,7 @@ export async function sendSQL(request: SQLRequest): Promise<SQLResponse> {
 
 // Run several statements on one connection inside one transaction. Used for
 // table cell edits: a failing statement rolls back the whole batch.
-export async function sendSQLBatch(request: Omit<SQLRequest, "query">, statements: string[]): Promise<SQLResponse> {
+export async function sendBatch(request: Omit<SQLRequest, "query">, statements: string[]): Promise<SQLResponse> {
   return {
     postgres:   pg.sendBatch,
     mysql:      mysql.sendBatch,

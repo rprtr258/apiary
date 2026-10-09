@@ -1,13 +1,15 @@
 import {diffLines} from "diff";
-import type {DIFFRequest, DIFFResponse} from "@/types.ts";
+import type {DiffRequest, DiffResponse} from "@/types.ts";
 import {type JSONValue} from "@/types.ts";
+
+export const EmptyRequest: DiffRequest = {left: "", right: ""};
 
 export function detectType(s: string): "json" | "text" {
   try { JSON.parse(s); return "json"; }
   catch { return "text"; }
 }
 
-export function sendDIFF(request: DIFFRequest): DIFFResponse {
+export function send(request: DiffRequest): DiffResponse {
   const leftType = detectType(request.left);
   const rightType = detectType(request.right);
 
