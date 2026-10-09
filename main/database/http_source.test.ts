@@ -1,5 +1,6 @@
 import {describe, test, expect} from "bun:test";
 import {OpenAPI} from "openapi-types";
+import {JSONSchema} from "@/types.ts";
 import {parseSpec, generateExampleRequest} from "./http_source.ts";
 import petstoreV2_ from "./petstore-openapi.v2.json" with {type: "json"};
 import petstoreV3_ from "./petstore-openapi.v3.json" with {type: "json"};
@@ -42,7 +43,7 @@ describe("parseSpec", () => {
           default: "available",
           enum: ["available", "pending", "sold"],
           type: "string",
-        },
+        } as JSONSchema,
       },
     ]);
   });

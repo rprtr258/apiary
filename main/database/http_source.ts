@@ -1,11 +1,12 @@
 import {dereference} from "@apidevtools/swagger-parser";
 import type {OpenAPI, OpenAPIV2, OpenAPIV3, OpenAPIV3_1} from "openapi-types";
+import {generateExampleFromSchema, generateExampleValue} from "@/example.ts";
 import type {HTTPSourceRequest, HTTPRequest, EndpointInfo, ParameterInfo, MediaTypeInfo, RequestBodyInfo, ResponseInfo, AuthConfig, KV, JSONSchema} from "@/types.ts";
 
 type PathItemObject    = OpenAPIV2.PathItemObject     |   OpenAPIV3.PathItemObject    | OpenAPIV3_1.PathItemObject;
 type OperationObject   = OpenAPIV2.OperationObject    |   OpenAPIV3.OperationObject   | OpenAPIV3_1.OperationObject;
 type ParameterObject   = OpenAPIV2.ParameterObject    |   OpenAPIV3.ParameterObject/* | OpenAPIV3_1.ParameterObject*/;
-type SchemaObject      = OpenAPIV2.SchemaObject       |   OpenAPIV3.SchemaObject      | OpenAPIV3_1.SchemaObject;
+// type SchemaObject      = OpenAPIV2.SchemaObject       |   OpenAPIV3.SchemaObject      | OpenAPIV3_1.SchemaObject;
 type RequestBodyObject = /*OpenAPIV2.RequestBodyObject|*/ OpenAPIV3.RequestBodyObject | OpenAPIV3_1.RequestBodyObject;
 type MediaTypeObject   = /*OpenAPIV2.MediaTypeObject  |*/ OpenAPIV3.MediaTypeObject   | OpenAPIV3_1.MediaTypeObject;
 type ResponsesObject   = /*OpenAPIV2.ResponsesObject  |*/ OpenAPIV3.ResponsesObject   | OpenAPIV3_1.ResponsesObject;
@@ -91,7 +92,7 @@ export function generateExampleRequest(
   const headers: KV[] = [];
   for (const param of endpoint.parameters) {
     if (param.in === "header") {
-      headers.push({key: param.name, value: String(generateExampleValue(param.schema) ?? "")});
+      headers.push({key: param.name, value: JSON.stringify(generateExampleValue(param.schema))});
     }
   }
   headers.push({key: "Content-Type", value: "application/json"});
@@ -106,7 +107,7 @@ export function generateExampleRequest(
   let url = serverURL + endpoint.path;
   for (const param of endpoint.parameters) {
     if (param.in === "path") {
-      url = url.replace(`{${param.name}}`, String(generateExampleValue(param.schema) ?? param.name));
+      url = url.replace(`{${param.name}}`, JSON.stringify(generateExampleValue(param.schema)));
     }
   }
 
@@ -114,7 +115,7 @@ export function generateExampleRequest(
   const queryParams = endpoint.parameters.filter(p => p.in === "query");
   if (queryParams.length > 0) {
     const qs = queryParams
-      .map(p => `${encodeURIComponent(p.name)}=${encodeURIComponent(String(generateExampleValue(p.schema) ?? ""))}`)
+      .map(p => `${encodeURIComponent(p.name)}=${encodeURIComponent(JSON.stringify(generateExampleValue(p.schema)))}`)
       .join("&");
     url += `?${qs}`;
   }
@@ -128,7 +129,7 @@ function extractParameters(operation: OperationObject): ParameterInfo[] {
     in: p.in,
     description: p.description ?? "",
     required: p.required ?? false,
-    schema: p.schema as (Record<string, unknown> | undefined) ?? {},
+    schema: (p.schema ?? {}) as JSONSchema,
     example: undefined,
   }));
 }
@@ -174,49 +175,3 @@ function extractResponses(responses: ResponsesObject | undefined): Record<string
   return result;
 }
 
-function generateExampleValue(schema: Record<string, unknown> | undefined): string | number | boolean | null {
-  if (schema === undefined)
-    return "";
-  switch (schema.type) {
-    case "string":
-      return (schema as {example?: string}).example ?? (schema as {enum?: string[]}).enum?.[0] ?? "string";
-    case "integer":
-    case "number":
-      return (schema as {example?: number}).example ?? 0;
-    case "boolean":
-      return (schema as {example?: boolean}).example ?? false;
-    default:
-      return "";
-  }
-}
-
-function generateExampleFromSchema(schema: SchemaObject | undefined): unknown {
-  if (schema === undefined)
-    return null;
-
-  if (schema.example !== undefined)
-    return schema.example;
-
-  switch (schema.type) {
-    case "object": {
-      const obj: Record<string, unknown> = {};
-      if (schema.properties !== undefined) {
-        for (const [key, prop] of Object.entries(schema.properties)) {
-          obj[key] = generateExampleFromSchema(prop as Record<string, unknown>);
-        }
-      }
-      return obj;
-    }
-    case "array":
-      return schema.items !== undefined ? [generateExampleFromSchema(schema.items)] : [];
-    case "string":
-      return (schema as {enum?: unknown[]}).enum?.[0] ?? "string";
-    case "integer":
-    case "number":
-      return 0;
-    case "boolean":
-      return false;
-    default:
-      return null;
-  }
-}

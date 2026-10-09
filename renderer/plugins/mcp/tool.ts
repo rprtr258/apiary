@@ -1,3 +1,4 @@
+import {generateExampleFromSchema} from "@/example.ts";
 import {api} from "../../api.ts";
 import {m} from "../../lib/utils.ts";
 import EditorJSON from "../../components/EditorJSON.ts";
@@ -19,7 +20,7 @@ export default function ToolViewer(
   el.style.overflow = "hidden";
   const unmounts: (() => void)[] = [];
 
-  let args = "{}";
+  let args = JSON.stringify(generateExampleFromSchema(tool.inputSchema), null, 2);
 
   const editor = EditorJSON({
     value: args,
