@@ -2,7 +2,7 @@ import {RequestID} from "@/types.ts";
 import {describe, test, expect} from "bun:test";
 import type {Result} from "@/result.ts";
 import {ok, err} from "@/result.ts";
-import {STALE_AFTER, createSourceCache, isStale} from "./cache.ts";
+import {STALE_AFTER, createSourceCache, isStale, listChildren} from "./cache.ts";
 
 function testCache(fetcher: (id: RequestID) => Promise<Result<string[]>>) {
   return createSourceCache(fetcher, "test");
@@ -81,5 +81,48 @@ describe("createSourceCache", () => {
     expect(entry?.items).toEqual([]);
     expect(entry?.loading).toBe(true);
     expect(entry?.lastFetch).toBe(0);
+  });
+});
+
+describe("listChildren", () => {
+  test("maps fresh entries to nodes without refetching", () => {
+    let calls = 0;
+    const cache = testCache(() => {
+      calls += 1;
+      return Promise.resolve(ok([String(calls)]));
+    });
+    cache.seed("a", ok(["x", "y"]));
+    const nodes = listChildren(cache, "a", entry => ({key: entry, label: entry}));
+    expect(nodes).toEqual([{key: "x", label: "x"}, {key: "y", label: "y"}]);
+    expect(calls).toBe(0);
+  });
+
+  test("fires a staleness-guarded fetch and serves the current items", async () => {
+    let calls = 0;
+    const cache = testCache(() => {
+      calls += 1;
+      return Promise.resolve(ok([String(calls)]));
+    });
+    cache.seed("a", ok(["x"]));
+    const entry = cache.get("a");
+    entry!.lastFetch = Date.now() - STALE_AFTER - 1; // backdate past the window
+    const nodes = listChildren(cache, "a", entry => ({key: entry, label: entry}));
+    expect(nodes).toEqual([{key: "x", label: "x"}]); // stale items served immediately
+    await new Promise(resolve => setTimeout(resolve, 0)); // fetch starts on the next microtask
+    expect(calls).toBe(1); // refresh fired in the background
+    expect(cache.get("a")?.items).toEqual(["1"]);
+  });
+
+  test("missing entries fetch and yield no nodes", async () => {
+    let calls = 0;
+    const cache = testCache(() => {
+      calls += 1;
+      return Promise.resolve(ok(["x"]));
+    });
+    const nodes = listChildren(cache, "a", entry => ({key: entry, label: entry}));
+    expect(nodes).toEqual([]);
+    await new Promise(resolve => setTimeout(resolve, 0)); // fetch starts on the next microtask
+    expect(calls).toBe(1);
+    expect(cache.get("a")?.items).toEqual(["x"]);
   });
 });

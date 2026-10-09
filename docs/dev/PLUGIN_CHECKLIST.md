@@ -45,7 +45,7 @@
 
 ## Plugin (`renderer/plugins/`, every kind)
 
-- [ ] Create `plugins/<name>/index.ts` exporting a `Plugin` (the UI factory lives in the sibling `viewer.ts`): `kind` + `kindTag` for every kind; optional `menuEntries` for per-kind context-menu entries
+- [ ] Create `plugins/<name>/index.ts` exporting a `Plugin` (the UI factory lives in the sibling `viewer.ts`): `kind` + `frame` + `root` (invisible `RootItem` carrying the kind badge) for every kind; optional `menuEntries` for per-kind context-menu entries
 - [ ] Source kinds: add `cache` (via `createSourceCache({fetcher, errorTitle})`), `itemKey`, `label`, `tag`, optional `onOpen` (called as `(id, item, itemKey)`, opens the pane via `store.openViewer`) and `childrenOf` (`(item) => Promise<Item[]>` for group items); add `viewer` (`{componentType, factory}`) when items have a viewer pane
 - [ ] `itemKey`/`label`/`tag` are sync mappings over cached data — async work belongs to the fetcher
 - [ ] Add one line to `plugins` in `renderer/plugins/index.ts`

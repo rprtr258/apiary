@@ -22,7 +22,7 @@ apiary/
 │   ├── store.ts            # Central state (requests, layoutConfig, activeComponentID)
 │   ├── Sidebar.ts          # Sidebar shell
 │   ├── sidebar/            # tree.ts, contextMenu.ts, shared.ts (pure view modules)
-│   ├── plugins/            # Frontend plugin registry: index.ts (registry), cache.ts (source cache engine + Plugin contract types), one <kind>/ dir per kind (index.ts registration + viewer.ts frame UI)
+│   ├── plugins/            # Frontend plugin registry: index.ts (registry), source.ts (source Item tree, virtual keys, listing facade), cache.ts (source cache engine), one <kind>/ dir per kind (index.ts registration + viewer.ts frame UI)
 │   ├── layout/             # Custom layout manager (panes/stacks/tabs/splitters)
 │   ├── components/         # Reusable N* components (CommandPalette, TableView, ViewJSON, ...)
 │   ├── lib/                # utils.ts (signal, m), styles.ts (css/css.raw), localStorage.ts, notification.ts
@@ -82,21 +82,22 @@ function Request<Kind>(
 
 The deletion test: these are pass-throughs but that's OK - they're UI adapters, not shallow logic.
 
-`panelkaFactory` in `renderer/App.ts` dispatches kind -> module via the plugin registry's `frame` hooks and is registered as the layout component factory for request panes. Source panes get their viewer components (shared ones from `renderer/components/`, kind-specific ones colocated in the plugin dir) from the plugin registry's `viewer` hooks, which `App.ts` turns into layout factories.
+`panelkaFactory` in `renderer/App.ts` dispatches kind -> module via the plugin registry's `frame` hooks and is registered as the layout component factory for request panes. Source panes get their viewer components (shared ones from `renderer/components/`, kind-specific ones colocated in the plugin dir) from the plugin registry's `viewers` lists, which `App.ts` turns into layout factories.
 
-### Frontend: Sidebar + Source Cache
+### Frontend: Sidebar + Source Items
 
 - `renderer/Sidebar.ts` - sidebar shell
-- `renderer/sidebar/tree.ts` - tree rendering of request paths (persists expanded keys via `lib/localStorage.ts`); renders generic rows from plugin data (kindTag badge for requests, tag/label hooks for source items, whose itemKey "/"-paths nest into virtual folder nodes the same way request ids nest into directories, e.g. MCP tools and prompts under "Tools"/"Prompts")
-- `renderer/sidebar/contextMenu.ts`, `shared.ts` (pure view modules; menu entries and refresh come from the plugin registry)
+- `renderer/sidebar/tree.ts` - tree rendering of request paths (persists expanded keys via `lib/localStorage.ts`); renders generic rows (root-item badge via the facade's `sourceBadge` + loading pulse for requests, baked tag/label for source items) and delegates all source data to the `renderer/plugins/source.ts` facade
+- `renderer/sidebar/contextMenu.ts`, `shared.ts` (pure view modules; menu entries come from the plugin registry, "Refresh" from the facade's `sourceRefreshable`/`sourceRefresh`)
 
 ### Frontend: Plugins (`renderer/plugins/`)
 
 Every request kind is also a frontend plugin. The registry drives everything that is "data about a kind" in the sidebar, context menu and command palette:
 
-- `renderer/plugins/cache.ts` - shared engine, no registry/store imports: `createSourceCache<Item>({fetcher, errorTitle})` (flat `Item[]` cache with a staleness window `STALE_AFTER`, a `changed` version signal, `fetch`/`ensureFresh`/`invalidate`/`seed`/`get`), plus the `Plugin`/`SourceCache`/`TagData`/`MenuOption`/`Frame` contract types
-- `renderer/plugins/index.ts` - explicit central registry: `plugins` array (one `Plugin` per kind), `pluginsByKind` map, `kindTag(kind)` helper, and `ensureFresh(ids)` (filters to real request ids, dispatches each id to its kind's cache - staleness and in-flight guards live inside the caches)
-- `renderer/plugins/<kind>/index.ts` - one module per kind: always `{kind, kindTag, frame}` (`frame` mounts the kind's `viewer.ts` UI factory into a pane; source kinds hide the eye there and pass only `update`); optionally `menuEntries` (context-menu entries, e.g. "Copy as curl"), `cache` (source listing), `itemKey`/`label`/`tag`/`onOpen` (sidebar item identity, display, badge, open action), `viewer` (`{componentType, factory}` for the item's viewer pane, deduped and titled via `store.openViewer`), `childrenOf` (for future nested item groups). The dir holds the registration plus the kind's UI: `viewer.ts` (the frame factory), optionally extra viewer components (e.g. `mcp/tool.ts`) and colocated tests (`viewer.test.ts`)
+- `renderer/plugins/cache.ts` - shared engine, no registry/store imports: `createSourceCache<Entry>({fetcher, errorTitle})` (flat `Entry[]` cache with a staleness window `STALE_AFTER`, a `changed` version signal, `fetch`/`ensureFresh`/`invalidate`/`seed`/`get`) plus `listChildren` (listing-thunk body: serves current entries as `Item`s, fetches fire-and-forget when stale) and `isStale`
+- `renderer/plugins/source.ts` - the source-item seam in one module, and the single one the sidebar consumes. Item side: the `Item` node type, the virtual-key codec (`composeVirtualKey`/`parseVirtualKey` with `:` escaping, so item keys like HTTP `GET /user/:id` round-trip), materialization of a root `Item` into `TreeOption`s gated by the expanded-key set (collapsed folders are never fetched; empty listings become disabled "Loading..."/"(None)" placeholders; "/"-containing item keys nest into virtual folder chains), and click resolution (`resolveIn`). Facade side: `sourceBadge(id)` (the kind badge, carried by the kind's root item), `sourceChildren(id, expanded)`, `sourceResolve(sourceID, segments)`, `sourceRefreshable`/`sourceRefresh`/`sourceIsLoading`, resolving the kind's `Plugin.root(id)` via the registry and store
+- `renderer/plugins/index.ts` - explicit central registry: `plugins` array (one `Plugin` per kind) and the `pluginsByKind` map
+- `renderer/plugins/<kind>/index.ts` - one module per kind: always `{kind, frame, root}` (`frame` mounts the kind's `viewer.ts` UI factory into a pane; source kinds hide the eye there and pass only `update`; `root(id): RootItem` returns the kind's invisible root carrying the kind badge — the facade renders it on sidebar request rows and the command palette; kinds with sidebar source listings give the root pure-factory `children` thunks serving items from kind-private caches (fire staleness-guarded fetches; MCP eagerly fetches both listings on row expansion, tools and prompts in two separate caches fed by one deduped IPC call), other kinds a badge-only root); optionally `menuEntries` (context-menu entries, e.g. "Copy as curl") and `viewers` (`{componentType, factory}` lists for item viewer panes, deduped and titled via `store.openViewer`). The dir holds the registration plus the kind's UI: `viewer.ts` (the frame factory), optionally extra viewer components (e.g. `mcp/tool.ts`), kind-private source caches (e.g. `mcp/source.ts`) and colocated tests
 
 Adding a new kind means adding one `renderer/plugins/<kind>/` (an `index.ts` with the `Plugin` object plus a `viewer.ts` UI factory) and registering it in `renderer/plugins/index.ts`; no `switch (kind)` edits anywhere else.
 
@@ -167,13 +168,13 @@ Tests cross at the interface, not past it.
 3. `main/api.ts`: add a case in `emptyRequestForKind`, dispatch in `Perform` (performable kinds) or a dedicated sub-API (source kinds).
 4. `main.ts` + `preload.ts` + `global.d.ts`: expose new channels through the typed IPC surface.
 5. `renderer/plugins/<kind>/viewer.ts`: UI factory.
-6. `renderer/plugins/<kind>/index.ts`: `{kind, kindTag, frame}` plus any `menuEntries` / `cache` / `itemKey` / `label` / `tag` / `onOpen` / `viewer` hooks; register the plugin in `renderer/plugins/index.ts` (kind badge, context-menu entries, source listings, pane factories and viewer panes then come from the registry - no further `switch (kind)` edits).
+6. `renderer/plugins/<kind>/index.ts`: `{kind, frame, root}` (root returns the invisible `RootItem` carrying the kind badge) plus any `menuEntries` / `viewers` hooks; register the plugin in `renderer/plugins/index.ts` (kind badge, context-menu entries, source listings, pane factories and viewer panes then come from the registry - no further `switch (kind)` edits). Source listings give the root `children` serving `Item` nodes from a kind-private `createSourceCache`; sidebar projection, virtual keys, placeholders and click resolution come from the facade (`renderer/plugins/source.ts`).
 
 ## Architecture Decisions (ADRs)
 
 - **Plugin per request type**: Each request kind is a separate backend module (`main/database/`) and a separate frontend plugin directory (`renderer/plugins/<kind>/`, `index.ts` + `viewer.ts`). Adding a new kind touches both sides plus the typed IPC surface.
 - **All performable kinds persist response history**: `Perform` calls `createResponse` for every dispatched kind (including MD and DIFF).
-- **Source kinds are queried on demand**: SQLSource/HTTPSource/MCP have dedicated IPC endpoints instead of `Perform`; listings are cached client-side through a generic `createSourceCache` engine in `renderer/plugins/cache.ts`, one cache per source plugin.
+- **Source kinds are queried on demand**: SQLSource/HTTPSource/MCP have dedicated IPC endpoints instead of `Perform`; listings are cached client-side through a generic `createSourceCache` engine in `renderer/plugins/cache.ts`, one private cache (or two, for MCP's tools/prompts) per source kind. The sidebar never sees the caches: it consumes the `renderer/plugins/source.ts` facade over each kind's `root(id): Item` tree, materialized lazily along expanded paths.
 - **Frontend plugin registry**: kind-specific sidebar/context-menu/command-palette data (badges, menu entries, source item rendering, staleness caching) lives in `renderer/plugins/` as an explicit registry instead of scattered `switch (kind)` statements.
 - **Custom layout manager**: `renderer/layout/` implements panes/stacks/tabs/splitters directly instead of depending on a layout library.
 - **Typed IPC contract**: the `Api` interface in `global.d.ts` is the single seam between preload and renderer.

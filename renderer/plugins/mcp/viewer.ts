@@ -4,7 +4,7 @@ import ParamsList from "../../components/ParamsList.ts";
 import {NInput, NInputGroup, NSelect} from "../../components/input.ts";
 import {get_request} from "../../store.ts";
 import {api} from "../../api.ts";
-import {mcpPlugin} from "./index.ts";
+import {invalidateMCP, seedMCP} from "./item.ts";
 import {m} from "../../lib/utils.ts";
 
 type Request = t.MCPRequest;
@@ -35,10 +35,7 @@ export default function(
       // sync with the current server params.
       async function updateConnectionStatus(): Promise<void> {
         const res = await api.mcpListItems(requestID);
-        mcpPlugin.cache?.seed(requestID, res.map(items => [
-          ...items.tools,
-          ...items.prompts,
-        ]));
+        seedMCP(requestID, res);
         statusLabel.setStatus(res.map_or_else(
           items => `Connected! ${items.tools.length} tools, ${items.prompts.length} prompts available.`,
           err => `Connection failed: ${err}`,
@@ -48,7 +45,7 @@ export default function(
       async function update_request(patch: Partial<Request>): Promise<void> {
         Object.assign(request, patch);
         await on.update(patch);
-        mcpPlugin.cache?.invalidate(requestID);
+        invalidateMCP(requestID);
         await updateConnectionStatus();
       };
 

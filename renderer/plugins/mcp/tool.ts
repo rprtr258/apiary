@@ -14,7 +14,7 @@ import {Modal, NSplit} from "../../components/layout.ts";
 import {ComponentContainer} from "../../layout/types.ts";
 import {NIcon} from "../../components/dataview.ts";
 import {QuestionCircleOutlined} from "../../components/icons.ts";
-import {type StateMCPItem} from "./index.ts";
+import {type StateMCPItem} from "./item.ts";
 
 // Prompt arguments as a synthetic JSON schema so the editor gets the same
 // hints and example generation as tool input schemas
