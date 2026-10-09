@@ -31,10 +31,10 @@ export function isStale<Item>(cache: SourceCache<Item>, id: RequestID): boolean 
   return entry === undefined || (Date.now() - entry.lastFetch > STALE_AFTER && !(entry.loading ?? false));
 }
 
-export function createSourceCache<Item>({fetcher, errorTitle}: {
+export function createSourceCache<Item>(
   fetcher: (id: RequestID) => Promise<Result<Item[]>>,
   errorTitle: string,
-}): SourceCache<Item> {
+): SourceCache<Item> {
   const cache: Record<string, SourceCacheEntry<Item>> = {};
 
   const fetch = async (id: RequestID): Promise<void> => {

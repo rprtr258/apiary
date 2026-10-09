@@ -21,13 +21,13 @@ export const mcpPlugin: Plugin<t.MCPTool | t.MCPPrompt> = {
     setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
     return RequestMCP(args.el, {update: args.on.update});
   },
-  cache: createSourceCache<t.MCPTool | t.MCPPrompt>({
-    fetcher: async id => (await api.mcpListItems(id)).map(items => [
+  cache: createSourceCache<t.MCPTool | t.MCPPrompt>(
+    async id => (await api.mcpListItems(id)).map(items => [
       ...items.tools,
       ...items.prompts,
     ]),
-    errorTitle: "Could not fetch tools and prompts",
-  }),
+    "Could not fetch tools and prompts",
+  ),
   itemKey: item => `${item.kind === "prompt" ? "Prompts" : "Tools"}/${item.name}`,
   label: item => item.name,
   viewer: {
