@@ -47,17 +47,17 @@ function formatEndpointLabel(endpoint: t.EndpointInfo): string {
 export const httpSourcePlugin: Plugin<t.EndpointInfo> = {
   kind: t.Kind.HTTPSource,
   kindTag: {text: "HTTP*", color: "lime"},
-  frame: (args) => {
+  frame: args => {
     setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
     return RequestHTTPSource(args.el, {update: args.on.update});
   },
   cache: createSourceCache<t.EndpointInfo>({
-    fetcher: (id: string) => api.requestListEndpointsHTTPSource(id),
+    fetcher: id => api.requestListEndpointsHTTPSource(id),
     errorTitle: "Could not fetch endpoints",
   }),
-  itemKey: (endpoint: t.EndpointInfo) => `${endpoint.method} ${endpoint.path}`,
+  itemKey: endpoint => `${endpoint.method} ${endpoint.path}`,
   label: formatEndpointLabel,
-  tag: (endpoint: t.EndpointInfo) => {
+  tag: endpoint => {
     const {bg, color, type} = httpMethodProps(endpoint.method);
     return {
       text: endpoint.method,
@@ -69,7 +69,7 @@ export const httpSourcePlugin: Plugin<t.EndpointInfo> = {
     componentType,
     factory: (container, state) => EndpointViewer(container, state as StateHTTPSourceEndpoint),
   },
-  onOpen: (id: string, endpoint: t.EndpointInfo, itemKey: string) =>
+  onOpen: (id, endpoint, itemKey) =>
     store.openViewer(componentType, `${endpoint.method} ${endpoint.path}`,
       {sourceID: id, itemKey, endpointInfo: endpoint}),
 };

@@ -1,10 +1,11 @@
+import {RequestID} from "@/types.ts";
 import {describe, test, expect} from "bun:test";
 import type {Result} from "@/result.ts";
 import {ok, err} from "@/result.ts";
 import {STALE_AFTER, createSourceCache, isStale} from "./cache.ts";
 
-function testCache(fetcher: (id: string) => Promise<Result<string[]>>) {
-  return createSourceCache<string>({fetcher, errorTitle: "test"});
+function testCache(fetcher: (id: RequestID) => Promise<Result<string[]>>) {
+  return createSourceCache({fetcher, errorTitle: "test"});
 }
 
 describe("createSourceCache", () => {

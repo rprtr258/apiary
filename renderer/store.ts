@@ -8,7 +8,7 @@ import {ComponentItem, Stack} from "./layout/manager.ts";
 import notification from "./lib/notification.ts";
 
 export type StateRequest = {
-  id: string,
+  id: t.RequestID,
 };
 
 // Identity part of persisted source-item viewer states ({sourceID, itemKey},
@@ -99,12 +99,12 @@ export type Store = {
   get activeComponentID(): string | null,
   set activeComponentID(value: string | null),
   requestID(): string | null,
-  selectRequest(id: string): void,
+  selectRequest(id: t.RequestID): void,
   fetch(): Promise<void>,
-  createRequest(id: string, kind: t.RequestData["kind"]): Promise<void>,
-  duplicate(id: string): Promise<void>,
-  deleteRequest(id: string): Promise<void>,
-  rename(id: string, newID: string): Promise<void>,
+  createRequest(id: t.RequestID, kind: t.RequestData["kind"]): Promise<void>,
+  duplicate(id: t.RequestID): Promise<void>,
+  deleteRequest(id: t.RequestID): Promise<void>,
+  rename(id: t.RequestID, newName: string): Promise<void>,
   openViewer<S extends ViewerState>(componentType: string, titlePart: string, state: S): void,
   // Tab navigation methods
   navigateToTab(direction: "next" | "prev"): void,
@@ -116,7 +116,7 @@ export type Store = {
 
 export const store = ((): Store => {
   let activeComponentID: string | null = null;
-  type RequestTab = {id: string, item: ComponentItem};
+  type RequestTab = {id: t.RequestID, item: ComponentItem};
   function activateTab({id, item}: RequestTab): void {
     layout.instance?.focus(item);
     activeComponentID = id;
@@ -147,7 +147,7 @@ export const store = ((): Store => {
       const c = findExistingTab("MyComponent")?.toConfig().componentState;
       return (c as StateRequest | undefined)?.id ?? null;
     },
-    selectRequest(id: string): void {
+    selectRequest(id: t.RequestID): void {
       const tab = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
       if (tab !== undefined) {
         activateTab({id, item: tab});
@@ -178,7 +178,7 @@ export const store = ((): Store => {
       // so tree subscribers must be notified on every fetch
       this.requestsTree.update(() => res.Tree, true);
     },
-    async createRequest(id: string, kind: t.RequestData["kind"]): Promise<void> {
+    async createRequest(id: t.RequestID, kind: t.RequestData["kind"]): Promise<void> {
       const res = await api.requestCreate(id, kind);
       if (res.kind === "err") {
         notification("error", "Could not create request", {error: res.value});
@@ -187,7 +187,7 @@ export const store = ((): Store => {
 
       await this.fetch();
     },
-    async duplicate(id: string): Promise<void> {
+    async duplicate(id: t.RequestID): Promise<void> {
       const res = await api.requestDuplicate(id);
       if (res.kind === "err") {
         notification("error", "Could not duplicate", {error: res.value});
@@ -196,7 +196,7 @@ export const store = ((): Store => {
 
       await this.fetch();
     },
-    async deleteRequest(id: string): Promise<void> {
+    async deleteRequest(id: t.RequestID): Promise<void> {
       const res = await api.requestDelete(id);
       if (res.kind === "err") {
         notification("error", "Could not delete request", {error: res.value});
@@ -210,7 +210,7 @@ export const store = ((): Store => {
       }
       await this.fetch();
     },
-    async rename(id: string, newName: string): Promise<void> {
+    async rename(id: t.RequestID, newName: string): Promise<void> {
       const res = await api.rename(id, newName);
       if (res.kind === "err") {
         notification("error", "Could not rename request", {error: res.value});
@@ -306,7 +306,7 @@ export const store = ((): Store => {
   };
 })();
 
-export async function send(id: string): Promise<void> {
+export async function send(id: t.RequestID): Promise<void> {
   const res = await api.requestPerform(id);
   if (res.kind === "err") {
     notification("error", "Could not perform request", {id, error: res.value});
@@ -316,7 +316,7 @@ export async function send(id: string): Promise<void> {
   store.requests2[id].history.push(res.value);
 }
 
-export async function update_request(id: string, patch: Partial<t.Request>): Promise<void> {
+export async function update_request(id: t.RequestID, patch: Partial<t.Request>): Promise<void> {
   const old_request = store.requests2[id].request;
   const {id: _id, path: _path, kind: _kind, ...old_data} = old_request;
   const new_data = {...old_data, ...patch} as t.Request; // Data-only, sent to backend
@@ -329,7 +329,7 @@ export async function update_request(id: string, patch: Partial<t.Request>): Pro
   }
 }
 
-export async function get_request(request_id: string): Promise<get_request | null> {
+export async function get_request(request_id: t.RequestID): Promise<get_request | null> {
   if (request_id in store.requests2) {
     return store.requests2[request_id];
   }

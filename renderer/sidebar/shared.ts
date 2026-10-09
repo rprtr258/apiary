@@ -4,9 +4,9 @@ import {clamp, m, setDisplay, signal} from "../lib/utils.ts";
 type Kind = typeof t.Kinds[number];
 export const newRequestKind = signal<Kind | undefined>(undefined);
 export const newRequestName = signal<string | undefined>(undefined);
-export const renameID = signal<string | undefined>(undefined);
+export const renameID = signal<t.RequestID | undefined>(undefined);
 export const renameValue = signal<string | undefined>(undefined);
-export function renameInit(id: string) {
+export function renameInit(id: t.RequestID) {
   renameID.update(() => id);
   renameValue.update(() => id);
 }

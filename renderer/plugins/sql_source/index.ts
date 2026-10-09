@@ -22,15 +22,15 @@ function formatTableLabel(table: t.TableInfo): string {
 export const sqlSourcePlugin: Plugin<t.TableInfo> = {
   kind: t.Kind.SQLSource,
   kindTag: {text: "SQL*", color: "#70a0e8"},
-  frame: (args) => {
+  frame: args => {
     setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
     return RequestSQLSource(args.el, {update: args.on.update});
   },
   cache: createSourceCache<t.TableInfo>({
-    fetcher: (id: string) => api.requestListTablesSQLSource(id),
+    fetcher: id => api.requestListTablesSQLSource(id),
     errorTitle: "Could not fetch tables",
   }),
-  itemKey: (table: t.TableInfo) => table.name,
+  itemKey: table => table.name,
   label: formatTableLabel,
   tag: _ => ({
     text: "TBL",
@@ -41,6 +41,6 @@ export const sqlSourcePlugin: Plugin<t.TableInfo> = {
     componentType,
     factory: (container, state) => RequestTableViewer(container, state as StateSQLSourceTable),
   },
-  onOpen: (id: string, table: t.TableInfo, itemKey: string) =>
+  onOpen: (id, table, itemKey) =>
     store.openViewer(componentType, itemKey, {sourceID: id, itemKey, tableName: itemKey, tableInfo: table}),
 };
