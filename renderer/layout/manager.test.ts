@@ -74,7 +74,7 @@ describe("LayoutManager", () => {
   test("dragging the sole tab onto its own tab line keeps it open", () => {
     const manager = makeManager();
 
-    manager.addItem(OPEN, "req-1", {id: "req-1"});
+    manager.addItem("req-1", OPEN, {id: "req-1"});
     const stack = stacksOf(manager)[0];
     const tab = stack.children[0].tab.element;
 
@@ -90,8 +90,8 @@ describe("LayoutManager", () => {
 
   test("dragging a tab onto the empty tab line moves it after the last tab", () => {
     const manager = makeManager();
-    manager.addItem(OPEN, "req-1", {id: "req-1"});
-    manager.addItem(OPEN, "req-2", {id: "req-2"});
+    manager.addItem("req-1", OPEN, {id: "req-1"});
+    manager.addItem("req-2", OPEN, {id: "req-2"});
     const stack = stacksOf(manager)[0];
 
     dragTab(stack.children[0], stack.header); // drop past the last tab
@@ -102,9 +102,9 @@ describe("LayoutManager", () => {
 
   test("dropping a tab onto itself keeps its position", () => {
     const manager = makeManager();
-    manager.addItem(OPEN, "req-1", {id: "req-1"});
-    manager.addItem(OPEN, "req-2", {id: "req-2"});
-    manager.addItem(OPEN, "req-3", {id: "req-3"});
+    manager.addItem("req-1", OPEN, {id: "req-1"});
+    manager.addItem("req-2", OPEN, {id: "req-2"});
+    manager.addItem("req-3", OPEN, {id: "req-3"});
     const stack = stacksOf(manager)[0];
 
     dragTab(stack.children[0], stack.children[0].tab.element);
@@ -117,7 +117,7 @@ describe("LayoutManager", () => {
 
     // 1. open first request → single group with one tab
     {
-      manager.addItem(OPEN, "req-1", {id: "req-1"});
+      manager.addItem("req-1", OPEN, {id: "req-1"});
       expect(stacksOf(manager)).toHaveLength(1);
       const first = stacksOf(manager)[0];
       expect(titles(first)).toEqual([["req-1"], "req-1"]);
@@ -125,7 +125,7 @@ describe("LayoutManager", () => {
 
     // 2. open second request → opens as a tab in the same group
     {
-      manager.addItem(OPEN, "req-2", {id: "req-2"});
+      manager.addItem("req-2", OPEN, {id: "req-2"});
       expect(stacksOf(manager)).toHaveLength(1);
       const first = stacksOf(manager)[0];
       expect(titles(first)).toEqual([["req-1", "req-2"], "req-2"]);
@@ -150,7 +150,7 @@ describe("LayoutManager", () => {
 
     // 4. open third request → lands in the group holding the focused tab (req-2) and becomes active
     {
-      manager.addItem(OPEN, "req-3", {id: "req-3"});
+      manager.addItem("req-3", OPEN, {id: "req-3"});
       expect(stacksOf(manager)).toHaveLength(2);
       const stacks = stacksOf(manager);
       expect(stacks.map(titles)).toEqual([

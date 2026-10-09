@@ -71,6 +71,5 @@ export const httpSourcePlugin: Plugin<t.EndpointInfo> = {
     [componentType]: (container, state) => EndpointViewer(container, state as StateHTTPSourceEndpoint),
   },
   onOpen: (id, endpoint, itemKey) =>
-    store.openViewer(componentType, `${endpoint.method} ${endpoint.path}`,
-      {sourceID: id, itemKey, endpointInfo: endpoint}),
+    store.openViewer(`${endpoint.method} ${endpoint.path}`, componentType, {sourceID: id, itemKey, endpointInfo: endpoint}),
 };
