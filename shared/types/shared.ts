@@ -1,10 +1,14 @@
+import {JSONValue} from "@/types.ts";
+
 export type KV = {
   key: string,
   value: string,
 };
 
 // JSONSchema represents the structure of a JSON schema
-export type JSONSchema = { // TODO: reuse from lib
+export type JSONSchema = {
+  example?: JSONValue,
+} & ({ // TODO: reuse from lib
   "$schema"?: "http://json-schema.org/draft-07/schema#",
   type: "object",
   properties: Record<string, JSONSchema>,
@@ -14,5 +18,8 @@ export type JSONSchema = { // TODO: reuse from lib
   type: "array",
   items: JSONSchema,
 } | {
-  type: "number" | "integer" | "string",
-};
+  type: "number" | "integer" | "boolean",
+} | {
+  type: "string",
+  enum?: string[],
+});

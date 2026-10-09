@@ -150,7 +150,7 @@ export type ParameterInfo = {
   in: string,
   description: string,
   required: boolean,
-  schema: Record<string, unknown>,
+  schema: JSONSchema,
   example?: unknown,
 };
 
