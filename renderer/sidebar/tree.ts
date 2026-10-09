@@ -8,6 +8,7 @@ import {useLocalStorage} from "../lib/localStorage.ts";
 import {css} from "../lib/styles.ts";
 import {changed} from "../plugins/cache.ts";
 import {ensureFresh, kindTag, pluginsByKind} from "../plugins/index.ts";
+import type {Plugin} from "../plugins/types.ts";
 import {showContextMenu} from "./contextMenu.ts";
 
 function basename(id: string): string {
@@ -20,9 +21,44 @@ function dirname(id: string): string {
 
 const byLabel = (a: TreeOption, b: TreeOption): number => a.label.localeCompare(b.label);
 
+// Source items as virtual options (`virtual:<Kind>:<sourceID>:<itemKey>`),
+// nested by "/" in itemKey the same way directories nest request id paths:
+// each intermediate path component becomes a virtual folder node
+// (e.g. MCP item keys "Tools/<name>" group tools under a "Tools" node)
+function itemTree(
+  plugin: Plugin,
+  id: string,
+  items: unknown[],
+  prefix: string[] = [],
+): TreeOption[] {
+  const dirs = new Map<string, unknown[]>();
+  const leaves: TreeOption[] = [];
+  for (const item of items) {
+    const key = plugin.itemKey?.(item) ?? "";
+    const parts = key.split("/");
+    if (parts.length === prefix.length + 1)
+      leaves.push({
+        key: `virtual:${plugin.kind}:${id}:${key}`,
+        label: plugin.label?.(item) ?? "",
+      });
+    else {
+      const segment = parts[prefix.length];
+      dirs.set(segment, [...(dirs.get(segment) ?? []), item]);
+    }
+  }
+  return [
+    ...dirs.entries().map(([segment, children]) => ({
+      key: `virtual:${plugin.kind}:${id}:${[...prefix, segment].join("/")}`,
+      label: segment,
+      children: itemTree(plugin, id, children, [...prefix, segment]),
+    })),
+    ...leaves,
+  ].sort(byLabel);
+}
+
 // Virtual children of source requests: "loading"/"empty" placeholders or real
-// items addressed as `virtual:<Kind value>:<sourceID>:<itemKey...>` with
-// path-joined segments for nested items.
+// items addressed as `virtual:<Kind value>:<sourceID>:<itemKey>`; item keys are
+// "/"-paths, nested into virtual folder nodes like request id directories.
 type VirtualKey = {
   kind: string,
   sourceID: string,
@@ -122,20 +158,19 @@ export function createTreeView(): {el: HTMLElement} {
               if (plugin.cache === undefined || plugin.itemKey === undefined)
                 return undefined;
               const entry = plugin.cache.get(id);
-              if (entry !== undefined && entry.items.length > 0) {
-                return entry.items.map((item) => ({
-                  key: `virtual:${plugin.kind}:${id}:${plugin.itemKey?.(item) ?? ""}`,
-                  label: plugin.label?.(item) ?? "",
-                })).sort(byLabel);
+              if (entry === undefined || entry.items.length === 0) {
+                // Show "Loading..." or "(None)" based on loading state, kept
+                // disabled so it is not clickable. Node stays expandable (folder).
+                const isLoading = entry?.loading ?? false;
+                return [{
+                  key: `virtual:${isLoading ? "loading" : "empty"}:${id}:${plugin.kind}`,
+                  label: isLoading ? "Loading..." : "(None)",
+                  disabled: true,
+                }];
               }
-              // Show "Loading..." or "(None)" based on loading state, kept
-              // disabled so it is not clickable. Node stays expandable (folder).
-              const isLoading = entry?.loading ?? false;
-              return [{
-                key: `virtual:${isLoading ? "loading" : "empty"}:${id}:${plugin.kind}`,
-                label: isLoading ? "Loading..." : "(None)",
-                disabled: true,
-              }];
+              // Items as virtual options, nested by "/" in itemKey the same way
+              // directories nest request id paths
+              return itemTree(plugin, id, entry.items);
             })();
 
             return {

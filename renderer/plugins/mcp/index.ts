@@ -25,13 +25,8 @@ export const mcpPlugin: Plugin<t.MCPTool> = {
     fetcher: (id: string) => api.mcpListTools(id),
     errorTitle: "Could not fetch tools",
   }),
-  itemKey: (tool: t.MCPTool) => tool.name,
+  itemKey: (tool: t.MCPTool) => `Tools/${tool.name}`,
   label: (tool: t.MCPTool) => tool.name,
-  tag: () => ({
-    text: "TOOL",
-    type: "info",
-    style: {backgroundColor: "#000000", color: "#FFFFFF"},
-  }),
   viewer: {
     componentType,
     factory: (container, state) => ToolViewer(container, state as StateMCPTool),

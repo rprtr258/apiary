@@ -63,6 +63,8 @@ export type Plugin<Item = unknown> = {
   frame(args: FrameArgs): Frame,
   menuEntries?(id: string): MenuOption[],
   cache?: SourceCache<Item>,
+  // Sidebar tree key; "/" nests items into virtual folder nodes the same way
+  // request id paths nest into directories (e.g. MCP: "Tools/<tool name>")
   itemKey?(item: Item): string,
   label?(item: Item): string,
   tag?(item: Item): TagData,

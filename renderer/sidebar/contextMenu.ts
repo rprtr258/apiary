@@ -6,6 +6,10 @@ import {globalDropdown, renameInit} from "./shared.ts";
 import {pluginsByKind} from "../plugins/index.ts";
 
 export function showContextMenu(id: string, event: MouseEvent): void {
+  // Only real requests have a context menu (virtual items and group folders
+  // like "Tools" have no request entry and would crash the lookup below)
+  if (!(id in store.requests))
+    return;
   const kind = store.requests[id].kind;
   const preOptions: {
     label: string,
