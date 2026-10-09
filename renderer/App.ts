@@ -427,9 +427,9 @@ function preApp(root: HTMLElement, store: Store) {
   layout.init(el_layout, store.layoutConfig, {
     "MyComponent": (container, state) => panelkaFactory(container, state as StateRequest),
     ...Object.fromEntries(plugins
-      .map(plugin => plugin.viewer)
-      .filter(viewer => viewer !== undefined)
-      .map(viewer => [viewer.componentType, viewer.factory] as const)),
+      .map(plugin => plugin.viewers)
+      .filter(viewers => viewers !== undefined)
+      .flatMap(viewers => Object.entries(viewers))),
   }, () => {
     update_empty_state();
     updateLocalstorage();
