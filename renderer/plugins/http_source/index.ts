@@ -51,10 +51,10 @@ export const httpSourcePlugin: Plugin<t.EndpointInfo> = {
     setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
     return RequestHTTPSource(args.el, {update: args.on.update});
   },
-  cache: createSourceCache<t.EndpointInfo>({
-    fetcher: id => api.requestListEndpointsHTTPSource(id),
-    errorTitle: "Could not fetch endpoints",
-  }),
+  cache: createSourceCache<t.EndpointInfo>(
+    id => api.requestListEndpointsHTTPSource(id),
+    "Could not fetch endpoints",
+  ),
   itemKey: endpoint => `${endpoint.method} ${endpoint.path}`,
   label: formatEndpointLabel,
   tag: endpoint => {

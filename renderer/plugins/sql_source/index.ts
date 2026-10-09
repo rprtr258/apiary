@@ -26,10 +26,10 @@ export const sqlSourcePlugin: Plugin<t.TableInfo> = {
     setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
     return RequestSQLSource(args.el, {update: args.on.update});
   },
-  cache: createSourceCache<t.TableInfo>({
-    fetcher: id => api.requestListTablesSQLSource(id),
-    errorTitle: "Could not fetch tables",
-  }),
+  cache: createSourceCache<t.TableInfo>(
+    id => api.requestListTablesSQLSource(id),
+    "Could not fetch tables",
+  ),
   itemKey: table => table.name,
   label: formatTableLabel,
   tag: _ => ({

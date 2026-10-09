@@ -5,7 +5,7 @@ import {ok, err} from "@/result.ts";
 import {STALE_AFTER, createSourceCache, isStale} from "./cache.ts";
 
 function testCache(fetcher: (id: RequestID) => Promise<Result<string[]>>) {
-  return createSourceCache({fetcher, errorTitle: "test"});
+  return createSourceCache(fetcher, "test");
 }
 
 describe("createSourceCache", () => {
