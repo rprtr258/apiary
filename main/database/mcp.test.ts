@@ -1,25 +1,25 @@
 import {describe, test, expect} from "bun:test";
 import {MCPRequest, MCPTool} from "@/types.ts";
-import {mapTools, listTools, callTool} from "./mcp.ts";
+import {mapTool, listTools, callTool} from "./mcp.ts";
 
 describe("mapTools", () => test.each([
   [
     "maps name, description, and inputSchema",
-    [{name: "echo", description: "echoes", inputSchema: {type: "object", properties: {}}}],
-    [{name: "echo", description: "echoes", inputSchema: {type: "object", properties: {}}}],
+    {name: "echo", description: "echoes", inputSchema: {type: "object", properties: {}}},
+    {name: "echo", description: "echoes", inputSchema: {type: "object", properties: {}}},
   ],
   [
     "defaults missing description to empty string",
-    [{name: "t", inputSchema: {type: "string"}}],
-    [{name: "t", description: "", inputSchema: {type: "string"}}],
+    {name: "t", inputSchema: {type: "string"}},
+    {name: "t", description: "", inputSchema: {type: "string"}},
   ],
   [
     "defaults missing inputSchema to a permissive object schema",
-    [{name: "t", description: "d"}],
-    [{name: "t", description: "d", inputSchema: {type: "object", properties: {}}}],
+    {name: "t", description: "d"},
+    {name: "t", description: "d", inputSchema: {type: "object", properties: {}}},
   ],
-] as [string, MCPTool[], MCPTool[]][])("%s", (_name, input, output) =>
-  expect(mapTools(input)).toEqual(output)));
+] as [string, MCPTool, MCPTool][])("%s", (_name, input, output) =>
+  expect(mapTool(input)).toEqual(output)));
 
 const mockServerPath = import.meta.dir + "/mock_mcp_server.ts";
 const stdioReq: MCPRequest = {

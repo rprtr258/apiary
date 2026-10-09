@@ -37,8 +37,8 @@ export type Api = {
     Test:                   (_1: string                               ) => Promise<void>,
   },
   MCP: {
-    ListTools: (_1: string                         ) => Promise<t.MCPTool[]>,
-    CallTool:  (_1: string, _2: string, _3: unknown) => Promise<unknown>,
+    ListTools: (_1: string                             ) => Promise<t.MCPTool[]>,
+    CallTool:  (_1: string, _2: string, _3: t.JSONValue) => Promise<unknown>,
   },
 };
 

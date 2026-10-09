@@ -351,7 +351,7 @@ export const MCP = {
     return await mcp.listTools(req.Data);
   },
 
-  async CallTool(id: t.RequestID, toolName: string, args: unknown): Promise<unknown> {
+  async CallTool(id: t.RequestID, toolName: string, args: t.JSONValue): Promise<unknown> {
     const req = await get(id);
     if (req.Kind !== t.Kind.MCP)
       throw new Error(`request ${id} is not MCP`);
