@@ -102,12 +102,11 @@ const pulseClass = css.raw(` {
 
 export function createTreeView(): {el: HTMLElement} {
   const treeContainer = m("div", {style: {minHeight: "0"}});
+  const scrollContainer = NScrollbar();
+  treeContainer.replaceChildren(scrollContainer);
 
   function updateTree() {
     const requestsTree = store.requestsTree.value;
-    // Save scroll position before update
-    const scrollContainer = treeContainer.querySelector(".n-scrollbar-container");
-    const scrollTop = scrollContainer?.scrollTop ?? 0;
 
     const data = (() => {
       const mapper = (tree: t.Tree): TreeOption[] => [
@@ -149,189 +148,177 @@ export function createTreeView(): {el: HTMLElement} {
       return mapper(requestsTree);
     })();
 
-    treeContainer.replaceChildren(NScrollbar(
-      NTree({
-        defaultExpandedKeys: expandedKeysSignal.value,
-        data,
-        on: {
-          "update:expanded-keys": async (keys: string[]) => {
-            const oldKeys = expandedKeysSignal.value;
-            expandedKeysSignal.update(() => keys);
+    scrollContainer.replaceChildren(NTree({
+      defaultExpandedKeys: expandedKeysSignal.value,
+      data,
+      on: {
+        "update:expanded-keys": async (keys: string[]) => {
+          const oldKeys = expandedKeysSignal.value;
+          expandedKeysSignal.update(() => keys);
 
-            // Fetch data for sources that were just expanded (staleness/loading guarded inside ensureFresh)
-            await ensureFresh(keys.filter(key => !oldKeys.includes(key)));
-          },
-          drop: drag,
-          context_menu: (option: TreeOption, event: MouseEvent) => {
-            showContextMenu(option.key, event);
-          },
-          click: (v: TreeOption) => {
-            const id = v.key;
-
-            // Skip disabled items like "(None)" and "loading" items
-            if (v.disabled ?? false) return;
-
-            const virtual = parseVirtualKey(id);
-            if (virtual.isSome()) {
-              const {kind, sourceID, segments} = virtual.value;
-              // Skip "loading" and "empty" placeholders (also disabled above)
-              if (kind === "loading" || kind === "empty")
-                return;
-              resolveVirtual(kind, sourceID, segments);
-            } else {
-              store.selectRequest(id);
-            }
-          },
+          // Fetch data for sources that were just expanded (staleness/loading guarded inside ensureFresh)
+          await ensureFresh(keys.filter(key => !oldKeys.includes(key)));
         },
-        render: (option: TreeOption, _level: number, _expanded: boolean): DOMNode => {
-          const virtual = parseVirtualKey(option.key);
+        drop: drag,
+        context_menu: (option: TreeOption, event: MouseEvent) => {
+          showContextMenu(option.key, event);
+        },
+        click: (v: TreeOption) => {
+          const id = v.key;
+
+          // Skip disabled items like "(None)" and "loading" items
+          if (v.disabled ?? false) return;
+
+          const virtual = parseVirtualKey(id);
           if (virtual.isSome()) {
             const {kind, sourceID, segments} = virtual.value;
-            switch (kind) {
-            case "empty":
-              // "(None)" item - simple text, disabled, no badge, no hover effects
-              return m("span", {
-                style: {
-                  display: "flex",
-                  alignItems: "center",
-                  width: "100%",
-                  opacity: "0.6",
-                  color: "#808080",
-                  fontStyle: "italic",
-                  pointerEvents: "none", // TODO: move into parent element
-                },
-              }, "(None)");
-            case "loading":
-              // "Loading..." item - not disabled, shows loading state
-              return m("span", {
-                class: pulseClass,
-                style: {
-                  display: "flex",
-                  alignItems: "center",
-                  width: "100%",
-                  color: "#a0a0a0",
-                  fontStyle: "italic",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  overflow: "clip",
-                },
-                title: "Loading...",
-              }, "Loading...");
-            }
-            const plugin = pluginsByKind[kind as t.Kind];
-            if (plugin.cache !== undefined && plugin.itemKey !== undefined) {
-              // Generic item row: tag from the plugin's tag hook + shared ellipsized label
-              const leaf = segments[segments.length - 1];
-              const item = plugin.cache.get(sourceID)?.items.find((candidate) => plugin.itemKey?.(candidate) === leaf);
-              const tagData = item !== undefined && plugin.tag !== undefined ? plugin.tag(item) : undefined;
-              return m("span", {
-                style: {
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  width: "100%",
-                },
-              },
-              ...(tagData !== undefined ? [NTag({
-                type: tagData.type,
-                style: {
-                  minWidth: "2em",
-                  justifyContent: "center",
-                  display: "flex",
-                  alignItems: "center",
-                  fontWeight: "bold",
-                  padding: "2px 4px",
-                  ...tagData.style,
-                },
-              }, tagData.text)] : []),
-              m("span", {
-                style: {
-                  flex: "1",
-                  minWidth: "0",
-                  color: "#e0e0e0",
-                  overflow: "clip",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                },
-                title: option.label,
-              }, option.label));
-            }
+            // Skip "loading" and "empty" placeholders (also disabled above)
+            if (kind === "loading" || kind === "empty")
+              return;
+            resolveVirtual(kind, sourceID, segments);
+          } else {
+            store.selectRequest(id);
           }
-
-          // Handle requests (including sources)
-          if (option.key in store.requests) {
-            const req = store.requests[option.key];
-            const tag = kindTag(req.kind);
-
-            // Check if this source is currently loading
-            const isLoading = pluginsByKind[req.kind].cache?.get(option.key)?.loading ?? false;
-
-            // The tree component automatically adds folder icon for items with children
-            // We just need to render the badge and label
-
-            return [
-              NTag({
-                type: tag.type ?? "info",
-                class: isLoading ? pulseClass : undefined,
-                style: {
-                  minWidth: "4em",
-                  justifyContent: "center",
-                  display: "flex",
-                  alignItems: "center",
-                  color: tag.color,
-                  fontWeight: "bold",
-                  padding: "2px 4px",
-                  backgroundColor: "#202020",
-                },
-              }, tag.text),
-              m("span", {
-                style: {
-                  flex: "1",
-                  minWidth: "0",
-                  color: "#e0e0e0",
-                  overflow: "clip",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  cursor: "pointer",
-                  alignContent: "center",
-                  paddingLeft: "4px",
-                },
-                onclick: (e: MouseEvent) => {
-                  e.stopPropagation();
-                  store.selectRequest(option.key);
-                },
-                title: option.label,
-              }, option.label),
-            ];
-          }
-
-          // Handle directories (regular folders) - fallback
-          if (option.children !== undefined) {
+        },
+      },
+      render: (option: TreeOption, _level: number, _expanded: boolean): DOMNode => {
+        const virtual = parseVirtualKey(option.key);
+        if (virtual.isSome()) {
+          const {kind, sourceID, segments} = virtual.value;
+          switch (kind) {
+          case "empty":
+            // "(None)" item - simple text, disabled, no badge, no hover effects
             return m("span", {
-              class: treeLabelClass,
               style: {
+                display: "flex",
+                alignItems: "center",
+                width: "100%",
+                opacity: "0.6",
+                color: "#808080",
+                fontStyle: "italic",
+                pointerEvents: "none", // TODO: move into parent element
+              },
+            }, "(None)");
+          case "loading":
+            // "Loading..." item - not disabled, shows loading state
+            return m("span", {
+              class: pulseClass,
+              style: {
+                display: "flex",
+                alignItems: "center",
+                width: "100%",
+                color: "#a0a0a0",
+                fontStyle: "italic",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                overflow: "clip",
+              },
+              title: "Loading...",
+            }, "Loading...");
+          }
+          const plugin = pluginsByKind[kind as t.Kind];
+          if (plugin.cache !== undefined && plugin.itemKey !== undefined) {
+            // Generic item row: tag from the plugin's tag hook + shared ellipsized label
+            const leaf = segments[segments.length - 1];
+            const item = plugin.cache.get(sourceID)?.items.find((candidate) => plugin.itemKey?.(candidate) === leaf);
+            const tagData = item !== undefined && plugin.tag !== undefined ? plugin.tag(item) : undefined;
+            return m("span", {
+              style: {
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                width: "100%",
+              },
+            },
+            ...(tagData !== undefined ? [NTag({
+              type: tagData.type,
+              style: {
+                minWidth: "2em",
+                justifyContent: "center",
+                display: "flex",
+                alignItems: "center",
+                fontWeight: "bold",
+                padding: "2px 4px",
+                ...tagData.style,
+              },
+            }, tagData.text)] : []),
+            m("span", {
+              style: {
+                flex: "1",
+                minWidth: "0",
+                color: "#e0e0e0",
                 overflow: "clip",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               },
               title: option.label,
-            }, option.label);
+            }, option.label));
           }
-
-          return null;
-        },
-      }),
-    ));
-
-    // Restore scroll position after DOM update
-    if (scrollTop > 0) {
-      setTimeout(() => {
-        const newScrollContainer = treeContainer.querySelector(".n-scrollbar-container");
-        if (newScrollContainer !== null) {
-          newScrollContainer.scrollTop = scrollTop;
         }
-      }, 0);
-    }
+
+        // Handle requests (including sources)
+        if (option.key in store.requests) {
+          const req = store.requests[option.key];
+          const tag = kindTag(req.kind);
+
+          // Check if this source is currently loading
+          const isLoading = pluginsByKind[req.kind].cache?.get(option.key)?.loading ?? false;
+
+          // The tree component automatically adds folder icon for items with children
+          // We just need to render the badge and label
+
+          return [
+            NTag({
+              type: tag.type ?? "info",
+              class: isLoading ? pulseClass : undefined,
+              style: {
+                minWidth: "4em",
+                justifyContent: "center",
+                display: "flex",
+                alignItems: "center",
+                color: tag.color,
+                fontWeight: "bold",
+                padding: "2px 4px",
+                backgroundColor: "#202020",
+              },
+            }, tag.text),
+            m("span", {
+              style: {
+                flex: "1",
+                minWidth: "0",
+                color: "#e0e0e0",
+                overflow: "clip",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+                alignContent: "center",
+                paddingLeft: "4px",
+              },
+              onclick: (e: MouseEvent) => {
+                e.stopPropagation();
+                store.selectRequest(option.key);
+              },
+              title: option.label,
+            }, option.label),
+          ];
+        }
+
+        // Handle directories (regular folders) - fallback
+        if (option.children !== undefined) {
+          return m("span", {
+            class: treeLabelClass,
+            style: {
+              overflow: "clip",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            },
+            title: option.label,
+          }, option.label);
+        }
+
+        return null;
+      },
+    }));
   }
 
   changed.sub(function*() {while (true) { yield; updateTree(); }}());
