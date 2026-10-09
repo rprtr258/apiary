@@ -8,29 +8,32 @@ import ToolViewer from "./tool.ts";
 import RequestMCP from "./viewer.ts";
 
 const componentType = "ToolViewer";
-export type StateMCPTool = {
+export type StateMCPItem = {
   sourceID: string,
   itemKey: string,
-  tool: t.MCPTool,
+  item: t.MCPTool | t.MCPPrompt,
 };
 
-export const mcpPlugin: Plugin<t.MCPTool> = {
+export const mcpPlugin: Plugin<t.MCPTool | t.MCPPrompt> = {
   kind: t.Kind.MCP,
   kindTag: {text: "MCP", color: "white"},
   frame: (args) => {
     setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
     return RequestMCP(args.el, {update: args.on.update});
   },
-  cache: createSourceCache<t.MCPTool>({
-    fetcher: (id: string) => api.mcpListTools(id),
-    errorTitle: "Could not fetch tools",
+  cache: createSourceCache<t.MCPTool | t.MCPPrompt>({
+    fetcher: async (id: string) => (await api.mcpListItems(id)).map(items => [
+      ...items.tools,
+      ...items.prompts,
+    ]),
+    errorTitle: "Could not fetch tools and prompts",
   }),
-  itemKey: (tool: t.MCPTool) => `Tools/${tool.name}`,
-  label: (tool: t.MCPTool) => tool.name,
+  itemKey: (item: t.MCPTool | t.MCPPrompt) => `${item.kind === "prompt" ? "Prompts" : "Tools"}/${item.name}`,
+  label: (item: t.MCPTool | t.MCPPrompt) => item.name,
   viewer: {
     componentType,
-    factory: (container, state) => ToolViewer(container, state as StateMCPTool),
+    factory: (container, state) => ToolViewer(container, state as StateMCPItem),
   },
-  onOpen: (id: string, tool: t.MCPTool, itemKey: string) =>
-    store.openViewer(componentType, tool.name, {sourceID: id, itemKey, tool}),
+  onOpen: (id: string, item: t.MCPTool | t.MCPPrompt, itemKey: string) =>
+    store.openViewer(componentType, item.name, {sourceID: id, itemKey, item}),
 };

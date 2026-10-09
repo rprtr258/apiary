@@ -88,5 +88,6 @@ ipcMain.handle("HTTPSource.ListEndpoints", (_, id: string) => api.HTTPSource.Lis
 ipcMain.handle("HTTPSource.GenerateExampleRequest", (_, id: string, key: t.EndpointKey) => api.HTTPSource.GenerateExampleRequest(id, key));
 ipcMain.handle("HTTPSource.PerformVirtualEndpoint", (_, sourceID: string, key: t.EndpointKey, request: t.HTTPRequest) => api.HTTPSource.PerformVirtualEndpoint(sourceID, key, request));
 ipcMain.handle("HTTPSource.Test", (_, id: string) => api.HTTPSource.Test(id));
-ipcMain.handle("MCP.ListTools", (_, id: string) => api.MCP.ListTools(id));
+ipcMain.handle("MCP.ListItems", (_, id: string) => api.MCP.ListItems(id));
 ipcMain.handle("MCP.CallTool", (_, id: string, toolName: string, args: t.JSONValue) => api.MCP.CallTool(id, toolName, args));
+ipcMain.handle("MCP.CallPrompt", (_, id: string, promptName: string, args: t.JSONValue) => api.MCP.CallPrompt(id, promptName, args));

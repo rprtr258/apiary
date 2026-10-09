@@ -39,8 +39,9 @@ const api: Api = {
     Test:                   (a1: string                               ): Promise<void>                    => ipcRenderer.invoke("HTTPSource.Test",                   a1        ),
   },
   MCP: {
-    ListTools: (a1: string                         ): Promise<t.MCPTool[]>   => ipcRenderer.invoke("MCP.ListTools", a1        ),
-    CallTool:  (a1: string, a2: string, a3: unknown): Promise<unknown>       => ipcRenderer.invoke("MCP.CallTool",  a1, a2, a3),
+    ListItems:  (a1: string                             ): Promise<t.MCPListItems> => ipcRenderer.invoke("MCP.ListItems", a1        ),
+    CallTool:   (a1: string, a2: string, a3: t.JSONValue): Promise<unknown>        => ipcRenderer.invoke("MCP.CallTool",  a1, a2, a3),
+    CallPrompt: (a1: string, a2: string, a3: t.JSONValue): Promise<unknown>        => ipcRenderer.invoke("MCP.GetPrompt", a1, a2, a3),
   },
 };
 contextBridge.exposeInMainWorld("api", api);

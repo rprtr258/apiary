@@ -165,10 +165,10 @@ export const api = {
     return await wrap(() => Api.HTTPSource.Test(id), {reqId: id});
   },
 
-  async mcpListTools(
+  async mcpListItems(
     id: string,
-  ): Promise<Result<t.MCPTool[]>> {
-    return await wrap(() => Api.MCP.ListTools(id), {reqId: id});
+  ): Promise<Result<t.MCPListItems>> {
+    return await wrap(() => Api.MCP.ListItems(id), {reqId: id});
   },
 
   async mcpCallTool(
@@ -177,5 +177,13 @@ export const api = {
     args: t.JSONValue,
   ): Promise<Result<unknown>> {
     return await wrap(() => Api.MCP.CallTool(id, toolName, args), {reqId: id, toolName, args});
+  },
+
+  async mcpCallPrompt(
+    id: string,
+    promptName: string,
+    args: t.JSONValue,
+  ): Promise<Result<unknown>> {
+    return await wrap(() => Api.MCP.CallPrompt(id, promptName, args), {reqId: id, promptName, args});
   },
 };
