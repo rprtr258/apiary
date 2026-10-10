@@ -239,16 +239,16 @@ const getOpenRequestItems = (): Item[] => Object
     label: preview.path, // TODO: preload store.requests2, fix ebanij rot kazino
     group: preview.kind,
     prefix: NTag({
-      type: tag.type ?? "info",
+      label: tag.text,
+      color: tag.color,
       style: {
         minWidth: "4em",
         justifyContent: "center",
         display: "flex",
         alignItems: "center",
-        color: tag.color,
         fontWeight: "bold",
       },
-    }, tag.text),
+    }),
     perform: () => store.selectRequest(id),
   }));
 

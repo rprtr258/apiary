@@ -8,7 +8,6 @@ import type {TagType} from "../components/dataview.ts";
 export type KindTag = {
   text: string,
   color: string,
-  type?: TagType,
 };
 
 export type TagData = {

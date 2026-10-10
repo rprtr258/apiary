@@ -4,7 +4,7 @@ import {m, setDisplay, Signal, signal} from "../lib/utils.ts";
 import notification from "../lib/notification.ts";
 import {NInputGroup, NInput, NSelect, NButton} from "./input.ts";
 import {NTabs, NSplit} from "./layout.ts";
-import {NTag, NTable, NEmpty} from "./dataview.ts";
+import {NTag, NTable, NEmpty, tagColors} from "./dataview.ts";
 import EditorJSON from "./EditorJSON.ts";
 import type {JSONSchema7} from "json-schema";
 import ViewJSON from "./ViewJSON.ts";
@@ -29,14 +29,15 @@ function responseBadge(response: t.HTTPResponse): HTMLElement {
   const statusName = code in HTTPCodes ? HTTPCodes[code as keyof typeof HTTPCodes] : undefined;
   const tooltip = statusName !== undefined ? `${code} ${statusName}` : `${code}`;
 
+  const tagType = 
+    code < 300 ? "success" :
+    code < 500 ? "warning" :
+                 "error";
   return NTag({
-    type: (
-      code < 300 ? "success" :
-      code < 500 ? "warning" :
-                   "error"
-    ),
+    label: `${code}`,
+    color: tagColors[tagType],
     tooltip: tooltip,
-  }, `${code}`);
+  });
 }
 
 export type HTTPRequestViewResult = {
