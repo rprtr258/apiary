@@ -1,10 +1,10 @@
 import {spawn} from "bun";
 import {styleText} from "util";
 
-async function runCommand(command: string[]) {
+async function runCommand(command: string[], env: Record<string, string> = {}) {
   const proc = spawn(command, {
     cwd: ".",
-    env: process.env,
+    env: {...process.env, ...env},
     stdout: "inherit",
     stderr: "inherit",
     timeout: 300*1000,
@@ -60,7 +60,14 @@ async function main() {
     runCommand(["bun", "run", "build"]),
     runDesignLint(),
   ]);
-  await runCommand(["bun", "run", "test"]);
+  const testEnvs: Record<string, Record<string, string>> = {
+    "default": {},
+    "CI": {CI: "true"},
+  };
+  for (const [label, env] of Object.entries(testEnvs)) {
+    console.log(styleText("cyanBright", `Running unit tests [${label}]...`));
+    await runCommand(["bun", "run", "test"], env);
+  }
   console.log(styleText("greenBright", "CI checks completed successfully!"));
 }
 
