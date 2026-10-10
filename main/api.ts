@@ -55,17 +55,14 @@ export async function Get(id: t.RequestID): Promise<t.GetResponse> {
     .map(h => ({
       sent_at: h.SentAt,
       received_at: h.ReceivedAt,
-      kind: entry.Kind,
-      request: entry.Data,
       response: h.Response,
-    } as t.HistoryEntry))
+    }))
     .toSorted((a, b) => a.sent_at.getTime() - b.sent_at.getTime());
   return {
     Request: {
       ID: id,
       Path: entry.Path,
       Data: entry.Data,
-      Responses: entry.Responses as t.Response[],
     },
     History: history as unknown as t.Response[], // TODO: remove type casts
   };
