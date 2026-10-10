@@ -16,7 +16,7 @@
     "lint": "eslint '**/*.{ts,json}'",
     "lint:fix": "eslint --fix '**/*.{ts,json}'",
     "ci": "bun run scripts/ci.ts",
-    "test": "bun run test:unit && bun run test:go",
+    "test": "bun scripts/test.ts",
     "test:go": "bun scripts/test-go.ts",
     "test:unit": "bun test --parallel --preload ./renderer/test.setup.ts --path-ignore-patterns=renderer/e2e/* ''",
     "test:integration": "INTEGRATION=1 bun test integration.test.ts",

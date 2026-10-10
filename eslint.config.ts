@@ -42,6 +42,9 @@ export default defineConfig([
       "no-restricted-syntax": ["error", {
         selector: "CallExpression[callee.property.name='forEach']",
         message: "forEach is prohibited. Use for..of or functional methods with value return.",
+      }, {
+        selector: "AssignmentExpression:not(ExpressionStatement > AssignmentExpression):not(ForStatement > AssignmentExpression)",
+        message: "Assignment inside an expression is prohibited.",
       }],
       "local/no-boolean-literal-compare": "error",
       "@stylistic/semi": ["error", "always"],
