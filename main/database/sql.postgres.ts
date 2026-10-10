@@ -1,5 +1,6 @@
 import pg from "pg";
 import {TypeId, builtins as typeIDs} from "pg-types";
+import {createClientPool} from "./connection_pool.ts";
 import {TableSchema, ColumnInfo, SQLRequest, ColumnType, SQLResponse, ConstraintInfo, IndexInfo, ForeignKey, TableInfo} from "@/types.ts";
 
 // JS Date holds only millisecond precision, so pg's default parsing of date /
@@ -44,16 +45,20 @@ const pg_typenames: Partial<Record<TypeId, string>> = {
   [typeIDs.TIMESTAMPTZ]: "timestamptz",
 };
 
-export async function send(request: SQLRequest): Promise<SQLResponse> {
-  let {dsn} = request;
-  if (!dsn.startsWith("postgres://"))
-    dsn = `postgres://${dsn}`;
+// Normalized connection string used as the pool key: schema-prefixed and
+// carrying the libpq sslmode compatibility flag, so sslmode=require/prefer
+// accept self-signed certs instead of pg's non-standard default that treats
+// them as verify-full.
+// TODO: parse dsn like host=localhost user=postgres password=password port=5432 dbname=postgres sslmode=disable
+function dsnOf(dsn: string): string {
+  const out = dsn.startsWith("postgres://") ? dsn : `postgres://${dsn}`;
+  return out + (out.includes("?") ? "&" : "?") + "uselibpqcompat=true";
+}
 
-  // Use libpq sslmode semantics so sslmode=require/prefer accept self-signed
-  // certs instead of pg's non-standard default that treats them as verify-full.
-  dsn += (dsn.includes("?") ? "&" : "?") + "uselibpqcompat=true";
-
-  // TODO: parse dsn like host=localhost user=postgres password=password port=5432 dbname=postgres sslmode=disable
+// Opens a fresh connection; shared by the pool and by sendBatch, which
+// deliberately does not ride the pool: concurrent batches on one pooled
+// connection could interleave statements inside a single transaction.
+async function freshClient(dsn: string): Promise<pg.Client> {
   const client = new pg.Client({connectionString: dsn});
   try {
     await client.connect();
@@ -62,7 +67,21 @@ export async function send(request: SQLRequest): Promise<SQLResponse> {
     const e = err as Error & {code?: string};
     throw new Error(`postgres connection failed${e.code === undefined ? "" : ` (${e.code})`}: ${e.message}`);
   }
-  try {
+  return client;
+}
+
+const pool = createClientPool<pg.Client, string>({
+  keyOf: dsn => dsn,
+  connect: async dsn => {
+    const client = await freshClient(dsn);
+    client.on("error", () => pool.evict(dsn, client)); // dropped connection: drop the client, next request reconnects
+    return client;
+  },
+  close: client => client.end(),
+});
+
+export async function send(request: SQLRequest): Promise<SQLResponse> {
+  return await pool.run(dsnOf(request.dsn), async client => {
     if (request.readOnly ?? false)
       await client.query("BEGIN READ ONLY");
     let result;
@@ -79,25 +98,11 @@ export async function send(request: SQLRequest): Promise<SQLResponse> {
       types: fields.map((f): TypeId => f.dataTypeID).map(f => pg_types[f] ?? ColumnType.UNKNOWN), // "unknown ${f}" string breaks frontend icon lookup; TODO: use lib enum
       rows: result.rows.map(r => Object.values(r as Record<string, unknown>)),
     };
-  } finally {
-    await client.end();
-  }
+  });
 }
 
 export async function sendBatch(request: Omit<SQLRequest, "query">, statements: string[]): Promise<SQLResponse> {
-  let {dsn} = request;
-  if (!dsn.startsWith("postgres://"))
-    dsn = `postgres://${dsn}`;
-  dsn += (dsn.includes("?") ? "&" : "?") + "uselibpqcompat=true";
-
-  const client = new pg.Client({connectionString: dsn});
-  try {
-    await client.connect();
-  } catch (err) {
-    await client.end().catch(() => undefined); // release socket even if connection never established
-    const e = err as Error & {code?: string};
-    throw new Error(`postgres connection failed${e.code === undefined ? "" : ` (${e.code})`}: ${e.message}`);
-  }
+  const client = await freshClient(dsnOf(request.dsn));
   try {
     await client.query(request.readOnly ?? false ? "BEGIN READ ONLY" : "BEGIN");
     try {

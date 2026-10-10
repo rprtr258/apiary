@@ -17,7 +17,7 @@ apiary/
 │   └── database/           # Plugin modules, one file per request kind (+ *_test.ts unit tests)
 │       ├── http.ts, sql.ts, grpc.ts, redis.ts, jq.ts, md.ts, diff.ts
 │       ├── sql_source.ts, http_source.ts, mcp.ts
-│       └── connection_pool.ts # generic connection pool engine (used by mcp.ts)
+│       └── connection_pool.ts # generic connection pool engine (shared by mcp.ts, redis.ts and the sql.*.ts backends)
 ├── renderer/               # Frontend (vanilla TypeScript, no framework)
 │   ├── App.ts              # Layout mount, command palette, keyboard shortcuts, panelkaFactory
 │   ├── store.ts            # Central state (requests, layoutConfig, activeComponentID)
@@ -176,7 +176,7 @@ Tests cross at the interface, not past it.
 - **Plugin per request type**: Each request kind is a separate backend module (`main/database/`) and a separate frontend plugin directory (`renderer/plugins/<kind>/`, `index.ts` + `viewer.ts`). Adding a new kind touches both sides plus the typed IPC surface.
 - **All performable kinds persist response history**: `Perform` calls `createResponse` for every dispatched kind (including MD and DIFF).
 - **Source kinds are queried on demand**: SQLSource/HTTPSource/MCP have dedicated IPC endpoints instead of `Perform`; listings are cached client-side through a generic `createSourceCache` engine in `renderer/plugins/cache.ts`, one private cache (or three, for MCP's tools/prompts/resources) per source kind. The sidebar never sees the caches: it consumes the `renderer/plugins/source.ts` facade over each kind's `root(id): Item` tree, materialized lazily along expanded paths.
-- **MCP connections are pooled process-wide**: `main/database/mcp.ts` routes every request through a `createClientPool` engine (`main/database/connection_pool.ts`, generic over the client and key types) keyed by the canonical connection config (`connectionKey`: transport + command/args/env or url/headers) - concurrent list calls share one handshake, and clients idle for more than 5 minutes are closed. Broken connections evict themselves (transport `onclose` and per-operation errors), so the next request reconnects.
+- **Backend connections are pooled process-wide**: `main/database/connection_pool.ts` provides a `createClientPool` engine (generic over the client and key types) that caches clients by connection config, dedupes concurrent connects and closes clients idle for more than 5 minutes (`DEFAULT_TTL`); broken connections evict themselves (death events and per-operation errors), so the next request reconnects. `main/database/mcp.ts` keys it by the canonical MCP connection config (`connectionKey`: transport + command/args/env or url/headers); `redis.ts` by the normalized DSN URL; the SQL backends by DSN (postgres normalized + libpq-compat flag, sqlite plus its readonly flag). Transactional SQL batches (`sendBatch` in sql.postgres.ts / sql.mysql.ts) deliberately keep dedicated connections so concurrent batches cannot interleave inside one transaction.
 - **Frontend plugin registry**: kind-specific sidebar/context-menu/command-palette data (badges, menu entries, source item rendering, staleness caching) lives in `renderer/plugins/` as an explicit registry instead of scattered `switch (kind)` statements.
 - **Custom layout manager**: `renderer/layout/` implements panes/stacks/tabs/splitters directly instead of depending on a layout library.
 - **Typed IPC contract**: the `Api` interface in `global.d.ts` is the single seam between preload and renderer.

@@ -1,4 +1,5 @@
-import mysql, {type ResultSetHeader} from "mysql2/promise.js";
+import mysql, {type Connection, type ResultSetHeader} from "mysql2/promise.js";
+import {createClientPool} from "./connection_pool.ts";
 import {ColumnInfo, ColumnType, ConstraintInfo, ForeignKey, SQLRequest, SQLResponse, TableInfo, TableSchema} from "@/types.ts";
 
 // dateStrings: keep DATETIME/TIMESTAMP as raw server text (µs precision) —
@@ -7,29 +8,43 @@ function connect(dsn: string) {
   return mysql.createConnection({uri: dsn, dateStrings: true});
 }
 
+const pool = createClientPool<Connection, string>({
+  keyOf: dsn => dsn,
+  connect: async dsn => {
+    const connection = await connect(dsn);
+    // The session's transaction read-only mode is reset in every op's finally;
+    // a dropped connection errors the next op, which evicts the client.
+    connection.on("error", () => pool.evict(dsn, connection)); // dropped connection: drop the client, next request reconnects
+    return connection;
+  },
+  close: connection => connection.end(),
+});
+
 export async function send(request: SQLRequest): Promise<SQLResponse> {
-  const connection = await connect(request.dsn);
-  try {
-    if (request.readOnly ?? false)
-      await connection.execute("SET SESSION TRANSACTION READ ONLY");
-    const [rows, fields] = await connection.execute(request.query) as [Record<string, unknown>[], {name: string, type?: number}[]];
-    if (rows.length === 0) {
-      return {columns: fields.map(f => f.name), typenames: [], types: [], rows: []}; // TODO: get column metadata
+  return await pool.run(request.dsn, async connection => {
+    try {
+      if (request.readOnly ?? false)
+        await connection.execute("SET SESSION TRANSACTION READ ONLY");
+      const [rows, fields] = await connection.execute(request.query) as [Record<string, unknown>[], {name: string, type?: number}[]];
+      if (rows.length === 0) {
+        return {columns: fields.map(f => f.name), typenames: [], types: [], rows: []}; // TODO: get column metadata
+      }
+      return {
+        columns: fields.map(f => f.name),
+        typenames: fields.map(f => f.type === undefined ? "???" : String(f.type)),
+        types: fields.map(f => f.type === undefined ? ColumnType.UNKNOWN : String(f.type) as ColumnType),
+        rows: rows.map(r => Object.values(r)),
+      };
+    } finally {
+      if (request.readOnly ?? false)
+        await connection.execute("SET SESSION TRANSACTION READ WRITE").catch(() => undefined); // keep the original error
     }
-    return {
-      columns: fields.map(f => f.name),
-      typenames: fields.map(f => f.type === undefined ? "???" : String(f.type)),
-      types: fields.map(f => f.type === undefined ? ColumnType.UNKNOWN : String(f.type) as ColumnType),
-      rows: rows.map(r => Object.values(r)),
-    };
-  } finally {
-    if (request.readOnly ?? false)
-      await connection.execute("SET SESSION TRANSACTION READ WRITE").catch(() => undefined); // keep the original error
-    await connection.end();
-  }
+  });
 }
 
 export async function sendBatch(request: Omit<SQLRequest, "query">, statements: string[]): Promise<SQLResponse> {
+  // Deliberately not pooled: concurrent batches sharing one connection could
+  // interleave statements inside a single transaction.
   const connection = await connect(request.dsn);
   try {
     if (request.readOnly ?? false)
