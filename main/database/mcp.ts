@@ -4,7 +4,7 @@ import {StreamableHTTPClientTransport} from "@modelcontextprotocol/sdk/client/st
 import {SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js";
 import {Agent} from "undici";
 import type {Transport} from "@modelcontextprotocol/sdk/shared/transport.js";
-import type {MCPRequest, MCPTool, MCPPrompt, JSONSchema, JSONValue, MCPCompleteParams, MCPCompletion} from "@/types.ts";
+import type {MCPRequest, MCPTool, MCPPrompt, MCPResource, MCPReadResource, JSONSchema, JSONValue, MCPCompleteParams, MCPCompletion} from "@/types.ts";
 
 export const EmptyRequest: MCPRequest = {
   transport: "stdio",
@@ -138,6 +138,39 @@ export async function listPrompts(req: MCPRequest, client?: Client): Promise<MCP
       return [];
     const {prompts} = await client.listPrompts();
     return prompts.map(mapPrompt);
+  }, client);
+}
+
+export function mapResource(resource: {uri: string, name: string, description?: string, mimeType?: string}): MCPResource {
+  return {
+    kind: "resource",
+    uri: resource.uri,
+    name: resource.name,
+    description: resource.description ?? "",
+    mimeType: resource.mimeType ?? "",
+  };
+}
+
+export async function listResources(req: MCPRequest, client?: Client): Promise<MCPResource[]> {
+  return await withClient(req, async (client) => {
+    if (client.getServerCapabilities()?.resources === undefined)
+      return [];
+    const {resources} = await client.listResources();
+    return resources.map(mapResource);
+  }, client);
+}
+
+export async function readResource(req: MCPRequest, uri: string, client?: Client): Promise<MCPReadResource> {
+  return await withClient(req, async (client) => {
+    const {contents} = await client.readResource({uri});
+    return {
+      contents: contents.map(c => ({
+        uri: c.uri,
+        mimeType: c.mimeType ?? "",
+        text: "text" in c ? c.text : "",
+        blob: "blob" in c ? c.blob : "",
+      })),
+    };
   }, client);
 }
 

@@ -37,7 +37,7 @@ export default function(
         const res = await api.mcpListItems(requestID);
         seedMCP(requestID, res);
         statusLabel.setStatus(res.map_or_else(
-          items => `Connected! ${items.tools.length} tools, ${items.prompts.length} prompts available.`,
+          items => `Connected! ${items.tools.length} tools, ${items.prompts.length} prompts, ${items.resources.length} resources available.`,
           err => `Connection failed: ${err}`,
         ), res.kind === "ok");
       };

@@ -1,8 +1,8 @@
 import {afterAll, beforeAll, describe, test, expect} from "bun:test";
-import {MCPRequest, MCPTool, MCPPrompt} from "@/types.ts";
+import {MCPRequest, MCPTool, MCPPrompt, MCPResource} from "@/types.ts";
 import {Client} from "@modelcontextprotocol/sdk/client/index.js";
 import {StdioClientTransport} from "@modelcontextprotocol/sdk/client/stdio.js";
-import {mapTool, listTools, callTool, mapPrompt, listPrompts, callPrompt, complete} from "./mcp.ts";
+import {mapTool, listTools, callTool, mapPrompt, listPrompts, callPrompt, complete, mapResource, listResources, readResource} from "./mcp.ts";
 
 describe("mapTools", () => test.each([
   [
@@ -41,6 +41,20 @@ describe("mapPrompts", () => test.each([
   ],
 ] as [string, MCPPrompt, MCPPrompt][])("%s", (_name, input, output) =>
   expect(mapPrompt(input)).toEqual(output)));
+
+describe("mapResources", () => test.each([
+  [
+    "maps uri, name, description, and mimeType",
+    {kind: "resource", uri: "file:///r.txt", name: "r", description: "a resource", mimeType: "text/plain"},
+    {kind: "resource", uri: "file:///r.txt", name: "r", description: "a resource", mimeType: "text/plain"},
+  ],
+  [
+    "defaults missing description and mimeType",
+    {kind: "resource", uri: "file:///r.txt", name: "r"},
+    {kind: "resource", uri: "file:///r.txt", name: "r", description: "", mimeType: ""},
+  ],
+] as [string, MCPResource, MCPResource][])("%s", (_name, input, output) =>
+  expect(mapResource(input)).toEqual(output)));
 
 const mockServerPath = import.meta.dir + "/mock_mcp_server.ts";
 const stdioReq: MCPRequest = {
@@ -87,6 +101,31 @@ describe("listPrompts", () => {
   }, 15000);
 });
 
+describe("listResources", () => {
+  test("discovers resources from a stdio server", async () => {
+    const resources = await listResources(stdioReq, client);
+    expect(resources).toEqual([{
+      kind: "resource",
+      uri: "file:///greeting.txt",
+      name: "greeting",
+      description: "a static greeting",
+      mimeType: "text/plain",
+    }]);
+  }, 15000);
+});
+
+describe("readResource", () => {
+  test("reads resource contents from a stdio server", async () => {
+    const result = await readResource(stdioReq, "file:///greeting.txt", client);
+    expect(result).toEqual({contents: [{
+      uri: "file:///greeting.txt",
+      mimeType: "text/plain",
+      text: "Hello from the apiary mock MCP server",
+      blob: "",
+    }]});
+  }, 15000);
+});
+
 describe("callTool", () => {
   test("invokes a tool and returns the result", async () => {
     const result = await callTool(stdioReq, "echo", {msg: "hi"}, client);
@@ -94,7 +133,7 @@ describe("callTool", () => {
   }, 15000);
 });
 
-describe("getPrompt", () => {
+describe("callPrompt", () => {
   test("reads a prompt with arguments", async () => {
     const result = await callPrompt(stdioReq, "greet", {name: "world"}, client);
     expect(result).toEqual({messages: [

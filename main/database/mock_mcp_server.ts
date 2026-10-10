@@ -1,6 +1,5 @@
 // Minimal in-process MCP stdio server used only by mcp.test.ts.
-// Registers one "echo" tool and one "greet" prompt, handles CallTool and
-// GetPrompt over stdio transport.
+// Registers one "echo" tool, one "greet" prompt and one static resource.
 import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js";
 import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js";
 import {completable} from "@modelcontextprotocol/sdk/server/completable.js";
@@ -30,6 +29,17 @@ server.registerPrompt("greet", {
   messages: [{
     role: "user" as const,
     content: {type: "text", text: "Say hello to " + name},
+  }],
+}));
+
+server.registerResource("greeting", "file:///greeting.txt", {
+  description: "a static greeting",
+  mimeType: "text/plain",
+}, async uri => ({
+  contents: [{
+    uri: uri.href,
+    mimeType: "text/plain",
+    text: "Hello from the apiary mock MCP server",
   }],
 }));
 

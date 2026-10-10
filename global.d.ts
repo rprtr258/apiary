@@ -38,6 +38,7 @@ export type Api = {
   },
   MCP: {
     ListItems:  (_1: string                             ) => Promise<t.MCPListItems>,
+    ReadResource: (_1: string, _2: string) => Promise<t.MCPReadResource>,
     CallTool:   (_1: string, _2: string, _3: t.JSONValue) => Promise<unknown>,
     CallPrompt: (_1: string, _2: string, _3: t.JSONValue) => Promise<unknown>,
     Complete:   (_1: string, _2: t.MCPCompleteParams) => Promise<t.MCPCompletion>,

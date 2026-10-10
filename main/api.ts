@@ -344,16 +344,23 @@ export const HTTPSource = {
 };
 
 export const MCP = {
-  // Tools and prompts in one listing: the sidebar cache holds both as subitems
   async ListItems(id: t.RequestID): Promise<t.MCPListItems> {
     const req = await get(id);
     if (req.Kind !== t.Kind.MCP)
       throw new Error(`request ${id} is not MCP`);
-    const [tools, prompts] = await Promise.all([
+    const [tools, prompts, resources] = await Promise.all([
       mcp.listTools(req.Data),
       mcp.listPrompts(req.Data),
+      mcp.listResources(req.Data),
     ]);
-    return {tools, prompts};
+    return {tools, prompts, resources};
+  },
+
+  async ReadResource(id: t.RequestID, uri: string): Promise<t.MCPReadResource> {
+    const req = await get(id);
+    if (req.Kind !== t.Kind.MCP)
+      throw new Error(`request ${id} is not MCP`);
+    return await mcp.readResource(req.Data, uri);
   },
 
   async CallTool(id: t.RequestID, toolName: string, args: t.JSONValue): Promise<unknown> {

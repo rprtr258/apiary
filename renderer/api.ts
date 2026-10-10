@@ -171,6 +171,13 @@ export const api = {
     return await wrap(() => Api.MCP.ListItems(id), {reqId: id});
   },
 
+  async mcpReadResource(
+    id: t.RequestID,
+    uri: string,
+  ): Promise<Result<t.MCPReadResource>> {
+    return await wrap(() => Api.MCP.ReadResource(id, uri), {reqId: id, uri});
+  },
+
   async mcpCallTool(
     id: t.RequestID,
     toolName: string,
