@@ -61,7 +61,6 @@ export type Request2 = {
   ID: RequestID,
   Path: string,
   Data: unknown,
-  Responses: Response[],
 };
 
 export type RequestData =
