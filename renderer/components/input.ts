@@ -46,7 +46,10 @@ type NSelectProps<T> = {
   disabled?: boolean,
   on: {update: (value: T) => void},
 };
-export function NSelect<T>(props: NSelectProps<T>): {el: HTMLElement, reset: () => void} {
+export function NSelect<T>(props: NSelectProps<T>): {
+  el: HTMLElement,
+  reset: () => void,
+} {
   let current: number | null = props.options.findIndex(opt => opt.label === props.label);
   if (current === -1) {
     if (props.placeholder === undefined) {
@@ -141,7 +144,9 @@ const selectInputStyles = {
 type SelectInputItem = {label: string, disabled: boolean};
 
 let selectInputCounter = 0;
-export function NSelectInput(props: NSelectInputProps): {el: HTMLDivElement} {
+export function NSelectInput(props: NSelectInputProps): {
+  el: HTMLDivElement,
+} {
   const popupID = `nselect-input-popup-${selectInputCounter++}`;
 
   let byLabel = new Map<string, SelectOption<string>>();
