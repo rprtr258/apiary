@@ -45,7 +45,13 @@ function buildTransport(req: MCPRequest): Transport {
 }
 
 // ponytail: per-op reconnect; pool clients if latency matters
-async function withClient<T>(req: MCPRequest, fn: (client: Client) => Promise<T>): Promise<T> {
+// `existing` hands in an already-connected client (used by tests sharing one
+// subprocess); the caller then owns its lifecycle, so no transport is built
+// and the client is not closed here.
+async function withClient<T>(req: MCPRequest, fn: (client: Client) => Promise<T>, existing?: Client): Promise<T> {
+  if (existing !== undefined) 
+    return await fn(existing);
+
   const client = new Client({name: "apiary", version: "1.0.0"}, {capabilities: {
     elicitation: {
       form: {},
@@ -102,7 +108,7 @@ export function mapTool(tool: {name: string, description?: string, inputSchema?:
   };
 }
 
-export async function listTools(req: MCPRequest): Promise<MCPTool[]> {
+export async function listTools(req: MCPRequest, client?: Client): Promise<MCPTool[]> {
   return await withClient(req, async (client) => {
     // Servers may support only a subset of tools/prompts/resources; listing is
     // merged by ListItems, so an unsupported listing is just empty
@@ -110,7 +116,7 @@ export async function listTools(req: MCPRequest): Promise<MCPTool[]> {
       return [];
     const {tools} = await client.listTools();
     return tools.map(mapTool);
-  });
+  }, client);
 }
 
 export function mapPrompt(prompt: {name: string, description?: string, arguments?: {name: string, description?: string, required?: boolean}[]}): MCPPrompt {
@@ -126,34 +132,34 @@ export function mapPrompt(prompt: {name: string, description?: string, arguments
   };
 }
 
-export async function listPrompts(req: MCPRequest): Promise<MCPPrompt[]> {
+export async function listPrompts(req: MCPRequest, client?: Client): Promise<MCPPrompt[]> {
   return await withClient(req, async (client) => {
     if (client.getServerCapabilities()?.prompts === undefined)
       return [];
     const {prompts} = await client.listPrompts();
     return prompts.map(mapPrompt);
-  });
+  }, client);
 }
 
-export async function callTool(req: MCPRequest, toolName: string, args: JSONValue): Promise<unknown> {
+export async function callTool(req: MCPRequest, toolName: string, args: JSONValue, client?: Client): Promise<unknown> {
   return await withClient(req, async (client) => {
     return await client.callTool({ // TODO: is result always is content[] ? render nicely if so
       name: toolName,
       arguments: args as Record<string, unknown> | undefined,
     });
-  });
+  }, client);
 }
 
-export async function callPrompt(req: MCPRequest, promptName: string, args: JSONValue): Promise<unknown> {
+export async function callPrompt(req: MCPRequest, promptName: string, args: JSONValue, client?: Client): Promise<unknown> {
   return await withClient(req, async (client) => {
     return await client.getPrompt({
       name: promptName,
       arguments: args as Record<string, string> | undefined,
     });
-  });
+  }, client);
 }
 
-export async function complete(req: MCPRequest, params: MCPCompleteParams): Promise<MCPCompletion> {
+export async function complete(req: MCPRequest, params: MCPCompleteParams, client?: Client): Promise<MCPCompletion> {
   console.log("[mcp] complete", req.transport, params.ref.name, params.argument.name);
   return await withClient(req, async (client) => {
     // A server without the capability would error; empty is the protocol's
@@ -161,5 +167,5 @@ export async function complete(req: MCPRequest, params: MCPCompleteParams): Prom
     if (client.getServerCapabilities()?.completions === undefined)
       return {completion: {values: []}};
     return await client.complete(params);
-  });
+  }, client);
 }
