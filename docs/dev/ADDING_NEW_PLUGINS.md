@@ -247,7 +247,7 @@ Contract:
 | `kind` | all kinds | yes | Registry key (the `t.Kind` value); also the virtual-key segment: `virtual:<kind>:<sourceID>:<itemKey>` |
 | `kindTag` | all kinds | yes | Request-node badge data `{text, color, type?}` (replaces the old `badge()` switch) |
 | `menuEntries` | all kinds | no | Per-kind context-menu entries (e.g. HTTP → Copy as curl) |
-| `cache` | source kinds | no | `SourceCache<Item>` built by `createSourceCache(fetcher, errorTitle)`; its presence enables tree children and the Refresh entry |
+| `cache` | source kinds | no | `SourceCache<T>` built by `createSourceCache(fetcher, errorTitle)`; its presence enables tree children and the Refresh entry |
 | `fetcher` / `errorTitle` | source kinds | via `createSourceCache` | IPC call returning `Result<Item[]>`; notification title on fetch failure |
 | `itemKey` | source kinds | with cache | Unique key per item among its siblings (name; or index when items are unkeyed) |
 | `label` | source kinds | with cache | Display label (plain string, no DOM) |

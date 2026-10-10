@@ -9,33 +9,33 @@ export const STALE_AFTER = 1000*60*5; // 5 minutes
 // Bumped on every cache mutation so subscribers (e.g. tree view) can re-render.
 export const changed = signal(0);
 
-export type SourceCacheEntry<Item> = {
+export type SourceCacheEntry<T> = {
   lastFetch: number,
   loading?: boolean,
-  items: Item[],
+  items: T[],
 };
 
 // Methods are declared with shorthand syntax on purpose: it keeps parameter
 // checking bivariant, which lets concrete plugins (e.g. SourceCache<TableInfo>)
 // sit in one heterogeneous registry typed as SourceCache<unknown>.
-export type SourceCache<Item> = {
+export type SourceCache<T> = {
   fetch(id: RequestID): Promise<void>,
   ensureFresh(ids: RequestID[]): Promise<void>,
   invalidate(id: RequestID): void,
-  seed(id: RequestID, res: Result<Item[]>): void,
-  get(id: RequestID): SourceCacheEntry<Item> | undefined,
+  seed(id: RequestID, res: Result<T[]>): void,
+  get(id: RequestID): SourceCacheEntry<T> | undefined,
 };
 
-export function isStale<Item>(cache: SourceCache<Item>, id: RequestID): boolean {
+export function isStale<T>(cache: SourceCache<T>, id: RequestID): boolean {
   const entry = cache.get(id);
   return entry === undefined || (Date.now() - entry.lastFetch > STALE_AFTER && !(entry.loading ?? false));
 }
 
-export function createSourceCache<Item>(
-  fetcher: (id: RequestID) => Promise<Result<Item[]>>,
+export function createSourceCache<T>(
+  fetcher: (id: RequestID) => Promise<Result<T[]>>,
   errorTitle: string,
-): SourceCache<Item> {
-  const cache: Record<string, SourceCacheEntry<Item>> = {};
+): SourceCache<T> {
+  const cache: Record<string, SourceCacheEntry<T>> = {};
 
   const fetch = async (id: RequestID): Promise<void> => {
     if (!(id in cache)) {
@@ -59,16 +59,16 @@ export function createSourceCache<Item>(
     changed.update(v => v + 1);
   };
 
-  const seed = (id: RequestID, res: Result<Item[]>): void => {
+  const seed = (id: RequestID, res: Result<T[]>): void => {
     cache[id] = res.kind === "ok"
       ? {lastFetch: Date.now(), loading: false, items: res.value}
       : {lastFetch: 0, loading: false, items: []};
     changed.update(v => v + 1);
   };
 
-  const get = (id: RequestID): SourceCacheEntry<Item> | undefined => cache[id];
+  const get = (id: RequestID): SourceCacheEntry<T> | undefined => cache[id];
 
-  const self: SourceCache<Item> = {
+  const self: SourceCache<T> = {
     fetch,
     ensureFresh: async (ids: string[]): Promise<void> => {
       await Promise.all(ids.filter(id => isStale(self, id)).map(id => fetch(id)));
