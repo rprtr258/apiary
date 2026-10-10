@@ -19,13 +19,25 @@ describe("createSourceCache", () => {
     expect(isStale(cache, "a")).toBe(false);
   });
 
-  test("fetch error shows loading=false and empty items, entry stays stale", async () => {
+  test("fetch error marks the entry recently attempted and not stale", async () => {
     const cache = testCache(() => Promise.resolve(err("boom")));
     await cache.fetch("a");
     const entry = cache.get("a");
     expect(entry?.items).toEqual([]);
     expect(entry?.loading).toBe(false);
-    expect(isStale(cache, "a")).toBe(true);
+    expect(isStale(cache, "a")).toBe(false);
+  });
+
+  test("failed refresh keeps previously fetched items", async () => {
+    let fail = false;
+    const cache = testCache(() => Promise.resolve(fail ? err("boom") : ok(["x"])));
+    await cache.fetch("a");
+    fail = true;
+    const entry = cache.get("a");
+    entry!.lastFetch = Date.now() - STALE_AFTER - 1; // backdate past the window
+    await cache.fetch("a");
+    expect(cache.get("a")?.items).toEqual(["x"]);
+    expect(isStale(cache, "a")).toBe(false);
   });
 
   test("ensureFresh skips fresh entries and refetches stale ones", async () => {
@@ -69,8 +81,8 @@ describe("createSourceCache", () => {
     expect(isStale(cache, "a")).toBe(false);
     cache.seed("a", err("bad"));
     expect(cache.get("a")?.items).toEqual([]);
-    expect(cache.get("a")?.lastFetch).toBe(0);
-    expect(isStale(cache, "a")).toBe(true);
+    expect(cache.get("a")?.lastFetch).toBeGreaterThan(0);
+    expect(isStale(cache, "a")).toBe(false);
   });
 
   test("invalidate drops items and marks the entry in-flight", () => {
@@ -124,5 +136,19 @@ describe("listChildren", () => {
     await new Promise(resolve => setTimeout(resolve, 0)); // fetch starts on the next microtask
     expect(calls).toBe(1);
     expect(cache.get("a")?.items).toEqual(["x"]);
+  });
+
+  test("failed fetch does not refetch on repeated tree materialization", async () => {
+    let calls = 0;
+    const cache = testCache(() => {
+      calls += 1;
+      return Promise.resolve(err("boom"));
+    });
+    listChildren(cache, "a", entry => ({key: entry, label: entry})); // first materialization fires the fetch
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(calls).toBe(1);
+    listChildren(cache, "a", entry => ({key: entry, label: entry})); // failure bumps the changed signal
+    listChildren(cache, "a", entry => ({key: entry, label: entry}));
+    expect(calls).toBe(1); // no refetch storm
   });
 });

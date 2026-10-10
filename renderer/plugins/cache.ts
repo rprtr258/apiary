@@ -52,13 +52,13 @@ export function createSourceCache<T>(
     await Promise.resolve();
     changed.update(v => v + 1);
     const res = await fetcher(id);
-    if (res.kind === "err") {
+    if (res.kind === "err")
       notification("error", errorTitle, {error: res.value});
-      cache[id].loading = false;
-      changed.update(v => v + 1);
-      return;
-    }
-    cache[id] = {lastFetch: Date.now(), loading: false, items: res.value};
+    // Failed listings count as recently attempted: if they stayed stale, every
+    // changed-signal re-render of the tree would refire the fetch - an unbounded
+    // retry storm. The next attempt happens after STALE_AFTER or via refresh.
+    // A failed refresh keeps the previously fetched items (stale-while-error).
+    cache[id] = {lastFetch: Date.now(), loading: false, items: res.kind === "ok" ? res.value : cache[id].items};
     changed.update(v => v + 1);
   };
 
@@ -68,9 +68,9 @@ export function createSourceCache<T>(
   };
 
   const seed = (id: RequestID, res: Result<T[]>): void => {
-    cache[id] = res.kind === "ok"
-      ? {lastFetch: Date.now(), loading: false, items: res.value}
-      : {lastFetch: 0, loading: false, items: []};
+    // Same attempted-now semantics as fetch errors: a seeded error must not
+    // look stale, or the next tree materialization refires the fetch.
+    cache[id] = {lastFetch: Date.now(), loading: false, items: res.kind === "ok" ? res.value : []};
     changed.update(v => v + 1);
   };
 
