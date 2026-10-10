@@ -19,6 +19,11 @@ function formatTableLabel(table: t.TableInfo): string {
   return `${table.name} (${table.rowCount.toLocaleString()} rows, ${formatSize(table.sizeBytes)})`;
 }
 
+const tablesCache = createSourceCache<t.TableInfo>(
+  id => api.requestListTablesSQLSource(id),
+  "Could not fetch tables",
+);
+
 export const sqlSourcePlugin: Plugin<t.TableInfo> = {
   kind: t.Kind.SQLSource,
   kindTag: {text: "SQL*", color: "#70a0e8"},
@@ -26,10 +31,7 @@ export const sqlSourcePlugin: Plugin<t.TableInfo> = {
     setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
     return RequestSQLSource(args.el, {update: args.on.update});
   },
-  cache: createSourceCache<t.TableInfo>(
-    id => api.requestListTablesSQLSource(id),
-    "Could not fetch tables",
-  ),
+  cache: tablesCache,
   itemKey: table => table.name,
   label: formatTableLabel,
   tag: _ => ({

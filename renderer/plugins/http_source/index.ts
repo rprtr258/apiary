@@ -44,6 +44,11 @@ function formatEndpointLabel(endpoint: t.EndpointInfo): string {
   return pathWithTrailingSlash;
 }
 
+const endpointsCache = createSourceCache<t.EndpointInfo>(
+  id => api.requestListEndpointsHTTPSource(id),
+  "Could not fetch endpoints",
+);
+
 export const httpSourcePlugin: Plugin<t.EndpointInfo> = {
   kind: t.Kind.HTTPSource,
   kindTag: {text: "HTTP*", color: "lime"},
@@ -51,10 +56,7 @@ export const httpSourcePlugin: Plugin<t.EndpointInfo> = {
     setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
     return RequestHTTPSource(args.el, {update: args.on.update});
   },
-  cache: createSourceCache<t.EndpointInfo>(
-    id => api.requestListEndpointsHTTPSource(id),
-    "Could not fetch endpoints",
-  ),
+  cache: endpointsCache,
   itemKey: endpoint => `${endpoint.method} ${endpoint.path}`,
   label: formatEndpointLabel,
   tag: endpoint => {
