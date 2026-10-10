@@ -106,6 +106,14 @@ jobs:
       - name: Install deps
         run: bun install
 
+      - name: Install Electron binary
+        # Electron 42 no longer ships a postinstall, so the binary is not
+        # fetched at install time; playwright then downloads it lazily per
+        # worker on the first electron.launch, and parallel launches race on
+        # the same dist/electron file ("spawn ETXTBSY"). install.js is a
+        # no-op when the binary is already present.
+        run: node node_modules/electron/install.js
+
       - name: Install Electron system dependencies
         run: |
           sudo apt-get update
