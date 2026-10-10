@@ -215,9 +215,6 @@ export async function load(): Promise<DB> {
           Data: raw[r.kind][r.id],
           Responses: [],
         };
-      default:
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        throw new Error(`unknown kind ${r.kind}`);
       }
     })();
 
