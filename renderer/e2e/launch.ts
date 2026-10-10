@@ -1,4 +1,4 @@
-import {mkdtemp, rm} from "fs/promises";
+import {mkdtemp, rm, writeFile} from "fs/promises";
 import {tmpdir} from "os";
 import path from "path";
 import {_electron as electron} from "playwright";
@@ -9,49 +9,65 @@ import {test as base} from "@playwright/test";
 // `bun run test:e2e` rebuilds first, so these artifacts are always fresh here.
 const main = path.join(process.cwd(), "dist-electron", "main.js");
 
-export async function launchApp(seed?: (dir: string) => Promise<void>): Promise<{app: ElectronApplication, dir: string}> {
-  // Fresh cwd per test: db.json lives in the process working directory.
-  const dir = await mkdtemp(path.join(tmpdir(), "apiary-e2e-"));
-  if (seed !== undefined) {
-    await seed(dir);
-  }
-  const app = await electron.launch({
-    args: [main, "--no-sandbox"],
-    cwd: dir,
-    env: {
-      ...process.env,
-      // Main process points db.json at the per-user app data dir unless overridden —
-      // send it to this test's temp dir where the seed writes db.json.
-      APIARY_DB_PATH: path.join(dir, "db.json"),
-      // Silence the CSP warning so console-message assertions stay clean.
-      ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
-    },
-  });
-  return {app, dir};
-}
-
-// Shared app/page fixtures for every spec that launches a plain app. Specs
-// with a different setup (e.g. seeded db.json) extend `base` themselves.
+// One Electron app per worker instead of per test: launching dominates the
+// suite's runtime. Each test still starts pristine because seedDB rewrites
+// db.json (the app re-reads it on every IPC call, nothing is cached) and the
+// page fixture clears the profile's localStorage and reloads before the body.
 export type Fixtures = {
-  app: ElectronApplication,
   page: Page,
+  // Per-test db.json contents; override to start a test with pre-seeded data.
+  seedDB: (dir: string) => Promise<void>,
 };
 
-export const test = base.extend<Fixtures>({
-  app: async ({}, use) => {
-    const {app, dir} = await launchApp();
+export type WorkerFixtures = {
+  dir: string,
+  app: ElectronApplication,
+};
+
+export const test = base.extend<Fixtures, WorkerFixtures>({
+  dir: [async ({}, use) => {
+    // Fresh cwd per worker: db.json lives in the process working directory.
+    const dir = await mkdtemp(path.join(tmpdir(), "apiary-e2e-"));
+    await use(dir);
+    await rm(dir, {recursive: true, force: true}).catch(() => {});
+  }, {scope: "worker"}],
+  app: [async ({dir}, use) => {
+    const app = await electron.launch({
+      args: [main, "--no-sandbox"],
+      cwd: dir,
+      env: {
+        ...process.env,
+        // Main process points db.json at the per-user app data dir unless overridden —
+        // send it to this worker's temp dir where seedDB writes db.json.
+        APIARY_DB_PATH: path.join(dir, "db.json"),
+        // Silence the CSP warning so console-message assertions stay clean.
+        ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
+      },
+    });
     await use(app);
     await app.close();
-    await rm(dir, {recursive: true, force: true}).catch(() => {});
+  }, {scope: "worker"}],
+  seedDB: async ({dir}, use) => {
+    // Same shape load() produces for a missing db.json.
+    await use(async () => {
+      await writeFile(path.join(dir, "db.json"), JSON.stringify({}));
+    });
   },
-  page: async ({app}, use) => {
+  page: async ({app, dir, seedDB}, use) => {
     const page = await app.firstWindow();
     // Wait for the app to mount, not just body: App.ts mounts asynchronously
     // (store.fetch().then(preApp)) and attaches the global keydown listener in
     // the same synchronous step that appends the app DOM — an app element being
     // present guarantees keyboard handlers are live. Without this, keys
     // dispatched right after launch race the mount and get dropped (flaky
-    // under xvfb/CI where startup timing differs).
+    // under xvfb/CI where startup timing differs). The same race applies after
+    // the per-test reload below.
+    await page.waitForSelector("select");
+    // Reset to a pristine per-test state: fresh db.json plus clean localStorage
+    // (expanded keys, layout tabs persist in the shared Electron profile).
+    await seedDB(dir);
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
     await page.waitForSelector("select");
     await use(page);
   },

@@ -1,9 +1,8 @@
 import {execFileSync} from "child_process";
-import {rm, writeFile} from "fs/promises";
+import {writeFile} from "fs/promises";
 import path from "path";
-import {test as base, expect} from "@playwright/test";
-import type {ElectronApplication, Page} from "@playwright/test";
-import {launchApp} from "./launch.ts";
+import {expect} from "@playwright/test";
+import {test as base, type Fixtures} from "./launch.ts";
 
 // SQLite fixture can't use better-sqlite3: node_modules was rebuilt for the
 // Electron ABI, so it only loads inside the app. bun:sqlite runs under bun.
@@ -19,13 +18,14 @@ db.close();
   execFileSync("bun", ["-e", script], {stdio: "pipe"});
 }
 
-// SQL source created before app launch: db.json is seeded before the app
-// starts, so the request was never opened in this session.
+// SQL source created before the test's app session: seedDB writes db.json while
+// the app is running and the page fixture reloads, so the request was never
+// opened in this session.
 const sourceID = "e2e-sql-source-1";
 
-const test = base.extend<{app: ElectronApplication, page: Page}>({
-  app: async ({}, use) => {
-    const {app, dir} = await launchApp(async dir => {
+const test = base.extend<Pick<Fixtures, "seedDB">>({
+  seedDB: async ({dir}, use) => {
+    await use(async () => {
       const sqlitePath = path.join(dir, "source.db");
       createSqliteDatabase(sqlitePath);
       await writeFile(path.join(dir, "db.json"), JSON.stringify({
@@ -34,24 +34,11 @@ const test = base.extend<{app: ElectronApplication, page: Page}>({
         "sql-source": {[sourceID]: {database: "sqlite", dsn: sqlitePath, readOnly: false}},
       }));
     });
-    await use(app);
-    await app.close();
-    await rm(dir, {recursive: true, force: true}).catch(() => {});
-  },
-  page: async ({app}, use) => {
-    const page = await app.firstWindow();
-    await use(page);
   },
 });
 
 test("SQL source created before launch: expand and open table viewer", async ({page}) => {
-  // localStorage persists in the Electron profile between runs (expanded-keys, layout tabs).
-  // Reset it and reload so the app starts in a pristine state.
-  await page.waitForSelector("body");
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-
-  // 1. The source exists in the sidebar (created before app launch, not yet opened).
+  // 1. The source exists in the sidebar (created before this session, not yet opened).
   const sourceLabel = page.getByText("mydb", {exact: true});
   await expect(sourceLabel).toBeVisible();
   const sourceBadge = page.getByText("SQL*", {exact: true});
