@@ -103,19 +103,11 @@ test("creates HTTP request via command palette", async ({page}) => {
   expect(responseText).toContain("200");
 });
 
-test("handles invalid URL error", async ({page}) => {
+test("handles invalid URL error", async ({page, createRequest}) => {
   const errors = useErrors(page);
 
   // Create and open a request
-  await pressWith(page, ["Control"], "KeyN");
-  await page.waitForSelector("text=HTTP");
-  await page.click("text=HTTP");
-  await page.waitForSelector("input");
-  const input = page.locator("input").first();
-  await input.fill("error-request");
-  await page.keyboard.press("Enter");
-  await page.waitForSelector("text=error-request");
-  await page.click("text=error-request");
+  await createRequest("HTTP", "error-request");
 
   // Enter invalid URL
   const urlInput = page.locator("input[placeholder='URL']");
@@ -131,46 +123,14 @@ test("handles invalid URL error", async ({page}) => {
   expect(errors).toEqual([]); // fails if any console.error occurred
 });
 
-test("tab closes when request is deleted via sidebar menu", async ({page}) => {
+test("tab closes when request is deleted via sidebar menu", async ({page, createRequest, deleteRequest}) => {
   const errors = useErrors(page);
 
-  // Find the select element for new request kind in sidebar
-  const kindSelect = page.locator("select").first();
+  await createRequest("HTTP", "test-delete-request");
 
-  // Select HTTP from dropdown
-  await kindSelect.selectOption({label: "HTTP"});
-
-  // Wait for create modal to appear
-  await page.waitForSelector("input");
-
-  // Enter request name
-  const input = page.locator("input").first();
-  await input.fill("test-delete-request");
-
-  // Click Create button
-  const createButton = page.getByRole("button", {name: "Create", exact: true});
-  await createButton.click();
-
-  // Wait for request to appear in sidebar
-  await page.waitForSelector("text=test-delete-request");
-
-  // Click on request to open it
-  await page.click("text=test-delete-request");
-
-  // Wait for tab to open (check for tab title or content)
-  await page.waitForSelector(".lm_header .lm_tab", {timeout: 5000}); // GoldenLayout tab
-
-  // Find request row by name
-  const treeRow = page.getByText("HTTPtest-delete-request");
-  await treeRow.click({button: "right"});
-
-  // Wait for dropdown menu to appear
-  await page.waitForSelector("text=Delete");
-
-  // Click Delete
-  await page.click("text=Delete");
-
-  // Wait for tab to close - check that tab with title "test-delete-request" is detached
+  // Delete via the sidebar context menu; this test asserts the visible
+  // effect: the GoldenLayout tab detaches.
+  await deleteRequest("HTTP", "test-delete-request");
   await page.locator(".lm_tab").filter({hasText: "test-delete-request"}).waitFor({state: "detached"});
 
   expect(errors).toEqual([]); // fails if any console.error occurred
