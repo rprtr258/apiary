@@ -5,7 +5,7 @@ import {mock, describe, test, expect} from "bun:test";
 import {SQLRequest, TableFilter, TableRead} from "@/types.ts";
 import {describeTable, send, listTables} from "./sql.ts";
 import {buildReadTableQuery, buildFilterCondition, countRowsSQLSource, testSQLSource, updateTableRows} from "./sql_source.ts";
-import {BetterLikeDB} from "./sql.test.ts";
+import {BetterLikeDB} from "./mock_better_sqlite3.ts";
 
 mock.module("better-sqlite3", () => ({
   default: BetterLikeDB,

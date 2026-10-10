@@ -2,32 +2,9 @@ import {mkdtemp} from "fs/promises";
 import {tmpdir} from "os";
 import {join} from "path";
 import {mock, describe, test, expect} from "bun:test";
-import {Database as BunDB} from "bun:sqlite";
 import {SQLRequest, ColumnType} from "@/types.ts";
 import {send} from "./sql.ts";
-
-// better-sqlite3 is not supported in Bun (native addon).
-// Mock it with a thin adapter wrapping bun:sqlite.
-// TODO: remove after https://github.com/oven-sh/bun/issues/4290 is fixed
-export class BetterLikeDB {
-  #db: BunDB;
-  constructor(path: string) {
-    this.#db = new BunDB(path);
-  }
-  prepare(sql: string) {
-    const stmt = this.#db.query(sql);
-    return {
-      all: () => stmt.all() as Record<string, unknown>[],
-      run: () => stmt.run() as {changes: number | bigint, lastInsertRowid: number | bigint},
-    };
-  }
-  transaction<T>(fn: () => T): () => T {
-    return fn; // bun:sqlite autocommits; matches better-sqlite3 semantics closely enough for tests
-  }
-  close() {
-    this.#db.close();
-  }
-}
+import {BetterLikeDB} from "./mock_better_sqlite3.ts";
 
 mock.module("better-sqlite3", () => ({
   default: BetterLikeDB,
