@@ -40,8 +40,9 @@ const api: Api = {
   },
   MCP: {
     ListItems:  (a1: string                             ): Promise<t.MCPListItems> => ipcRenderer.invoke("MCP.ListItems", a1        ),
+    ReadResource: (a1: string, a2: string): Promise<t.MCPReadResource> => ipcRenderer.invoke("MCP.ReadResource", a1, a2),
     CallTool:   (a1: string, a2: string, a3: t.JSONValue): Promise<unknown>        => ipcRenderer.invoke("MCP.CallTool",  a1, a2, a3),
-    CallPrompt: (a1: string, a2: string, a3: t.JSONValue): Promise<unknown>        => ipcRenderer.invoke("MCP.GetPrompt", a1, a2, a3),
+    CallPrompt: (a1: string, a2: string, a3: t.JSONValue): Promise<unknown>        => ipcRenderer.invoke("MCP.CallPrompt", a1, a2, a3),
     Complete:   (a1: string, a2: t.MCPCompleteParams): Promise<t.MCPCompletion>    => ipcRenderer.invoke("MCP.Complete",  a1, a2),
   },
 };

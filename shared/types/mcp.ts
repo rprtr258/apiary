@@ -43,6 +43,28 @@ export type MCPPrompt = {
 export type MCPListItems = {
   tools: MCPTool[],
   prompts: MCPPrompt[],
+  resources: MCPResource[],
+};
+
+// A resource subitem: an addressable data object exposed via resources/list.
+export type MCPResource = {
+  kind: "resource",
+  uri: string,
+  name: string,
+  description: string,
+  mimeType: string,
+};
+
+// One content entry of resources/read: text inline or blob as base64.
+export type MCPResourceContents = {
+  uri: string,
+  mimeType: string,
+  text: string,
+  blob: string,
+};
+
+export type MCPReadResource = {
+  contents: MCPResourceContents[],
 };
 
 // Parameters of the completion/complete request (prompt reference only;

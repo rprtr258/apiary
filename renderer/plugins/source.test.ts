@@ -1,5 +1,5 @@
 import {describe, test, expect, mock} from "bun:test";
-import {Kind, type TableInfo, type MCPTool, type MCPPrompt, type MCPListItems} from "@/types.ts";
+import {Kind, type TableInfo, type MCPTool, type MCPPrompt, type MCPResource, type MCPListItems} from "@/types.ts";
 import {ok, type Result} from "@/result.ts";
 import type {Item} from "./source.ts";
 
@@ -12,6 +12,7 @@ const apiCalls = {tables: [] as string[], mcp: [] as string[]};
 const tableInfo: TableInfo = {name: "users", rowCount: 3, sizeBytes: 128};
 const mcpTool = {kind: "tool", name: "my-tool", description: "", inputSchema: {}} as unknown as MCPTool;
 const mcpPrompt = {kind: "prompt", name: "my-prompt", description: "", arguments: []} as unknown as MCPPrompt;
+const mcpResource = {kind: "resource", uri: "file:///r.txt", name: "my-resource", description: "", mimeType: ""} as unknown as MCPResource;
 mock.module("../api.ts", () => ({
   api: {
     async requestListTablesSQLSource(id: string): Promise<Result<TableInfo[]>> {
@@ -20,7 +21,7 @@ mock.module("../api.ts", () => ({
     },
     async mcpListItems(id: string): Promise<Result<MCPListItems>> {
       apiCalls.mcp.push(id);
-      return ok({tools: [mcpTool], prompts: [mcpPrompt]});
+      return ok({tools: [mcpTool], prompts: [mcpPrompt], resources: [mcpResource]});
     },
   },
 }));
@@ -274,23 +275,26 @@ describe("source listing load (row expanded on start)", () => {
     }
   });
 
-  test("expanded mcp row eagerly loads tools and prompts with one IPC call", async () => {
+  test("expanded mcp row eagerly loads tools, prompts and resources with one IPC call", async () => {
     const id = "test-mcp-source";
     seedRequest(id, Kind.MCP);
     const expanded = new Set([
       id,
       composeVirtualKey(Kind.MCP, id, ["Tools"]),
       composeVirtualKey(Kind.MCP, id, ["Prompts"]),
+      composeVirtualKey(Kind.MCP, id, ["Resources"]),
     ]);
     const unmount = withTreeMirror(id, expanded);
     try {
       await tick();
-      expect(apiCalls.mcp).toEqual([id]); // tools and prompts share one deduped call
+      expect(apiCalls.mcp).toEqual([id]); // tools, prompts and resources share one deduped call
       const options = sourceChildren(id, expanded) ?? [];
       const tools = options.find(option => option.label === "Tools")?.children ?? [];
       const prompts = options.find(option => option.label === "Prompts")?.children ?? [];
+      const resources = options.find(option => option.label === "Resources")?.children ?? [];
       expect(tools.map(option => option.label)).toEqual(["my-tool"]);
       expect(prompts.map(option => option.label)).toEqual(["my-prompt"]);
+      expect(resources.map(option => option.label)).toEqual(["my-resource"]);
     } finally {
       unmount();
       delete store.requests[id];
