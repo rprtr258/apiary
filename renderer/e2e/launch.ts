@@ -17,6 +17,13 @@ export type Fixtures = {
   page: Page,
   // Per-test db.json contents; override to start a test with pre-seeded data.
   seedDB: (dir: string) => Promise<void>,
+  // UI-driven request create/delete for tests that need a request as setup
+  // rather than as the thing under test (the two creation-flow tests in
+  // app.spec.ts keep their explicit steps). `kind` is both the sidebar
+  // dropdown label and the sidebar row badge prefix (they coincide for the
+  // kinds used here, e.g. "HTTP", "MD").
+  createRequest: (kind: string, name: string) => Promise<void>,
+  deleteRequest: (kind: string, name: string) => Promise<void>,
 };
 
 export type WorkerFixtures = {
@@ -51,6 +58,25 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     // Same shape load() produces for a missing db.json.
     await use(async () => {
       await writeFile(path.join(dir, "db.json"), JSON.stringify({}));
+    });
+  },
+  createRequest: async ({page}, use) => {
+    await use(async (kind, name) => {
+      await page.locator("select").first().selectOption({label: kind});
+      await page.waitForSelector("input");
+      await page.locator("input").first().fill(name);
+      await page.getByRole("button", {name: "Create", exact: true}).click();
+      await page.waitForSelector(`text=${name}`);
+      await page.click(`text=${name}`);
+      await page.waitForSelector(".lm_header .lm_tab");
+    });
+  },
+  deleteRequest: async ({page}, use) => {
+    await use(async (kind, name) => {
+      // Sidebar rows render as kind badge + name, e.g. "HTTPmy-request".
+      await page.getByText(`${kind}${name}`).click({button: "right"});
+      await page.waitForSelector("text=Delete");
+      await page.click("text=Delete");
     });
   },
   page: async ({app, dir, seedDB}, use) => {

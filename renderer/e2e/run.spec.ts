@@ -9,6 +9,10 @@ type Fixtures = {
   // the main process, so Playwright routing cannot intercept it, and an
   // external host would make these tests flaky.
   url: string,
+  // HTTP request pointed at the local server, opened with focus back on the
+  // tab header so global shortcuts reach App.ts (they are ignored when
+  // targeted at an input).
+  openRequest: (name: string) => Promise<void>,
 };
 
 const test = base.extend<Fixtures>({
@@ -21,24 +25,14 @@ const test = base.extend<Fixtures>({
     await use(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`);
     await new Promise<void>(resolve => server.close(() => resolve()));
   },
+  openRequest: async ({page, url, createRequest}, use) => {
+    await use(async (name: string) => {
+      await createRequest("HTTP", name);
+      await page.locator("input[placeholder='URL']").fill(url);
+      await page.locator(".lm_header .lm_tab", {hasText: name}).click();
+    });
+  },
 });
-
-// Create an HTTP request, open it in the workspace and point it at the local
-// server, leaving focus on the tab header so global shortcuts reach App.ts
-// (they are ignored when targeted at an input).
-async function openRequestReadyToRun(page: Page, url: string, name: string): Promise<void> {
-  const kindSelect = page.locator("select").first();
-  await kindSelect.selectOption({label: "HTTP"});
-  await page.waitForSelector("input");
-  const nameInput = page.locator("input").first();
-  await nameInput.fill(name);
-  await page.getByRole("button", {name: "Create", exact: true}).click();
-  await page.waitForSelector(`text=${name}`);
-  await page.click(`text=${name}`);
-  await page.waitForSelector(".lm_header .lm_tab");
-  await page.locator("input[placeholder='URL']").fill(url);
-  await page.locator(".lm_header .lm_tab", {hasText: name}).click();
-}
 
 function useErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -50,10 +44,10 @@ function useErrors(page: Page): string[] {
   return errors;
 }
 
-test("ctrl+enter performs the current request", async ({page, url}) => {
+test("ctrl+enter performs the current request", async ({page, openRequest}) => {
   const errors = useErrors(page);
 
-  await openRequestReadyToRun(page, url, "ctrl-enter-request");
+  await openRequest("ctrl-enter-request");
 
   await pressWith(page, ["Control"], "Enter");
 
@@ -61,10 +55,10 @@ test("ctrl+enter performs the current request", async ({page, url}) => {
   expect(errors).toEqual([]);
 });
 
-test("command palette Run performs the current request", async ({page, url}) => {
+test("command palette Run performs the current request", async ({page, openRequest}) => {
   const errors = useErrors(page);
 
-  await openRequestReadyToRun(page, url, "palette-run-request");
+  await openRequest("palette-run-request");
 
   await pressWith(page, ["Control", "Shift"], "KeyP");
 
