@@ -118,7 +118,7 @@ describe("TableFilter", () => {
   test("missing column means no apply; empty value means no filter", async () => {
     const {el, applied} = makeFilter();
     setValue(inputByTestId(el, "filter-value"), "5"); // no column picked yet
-    await sleep(50); // past the debounce
+    await sleep(5); // past the debounce
     expect(applied).toEqual([]); // value edits without a column do not apply at all
     setColumn(el, "id");
     await waitFor(() => expect(applied).toEqual([{kind: "simple", column: "id", op: "=", value: "5"}]));

@@ -616,6 +616,7 @@ type Props = {
   sourceID: string,
   tableName: string,
   tableInfo: t.TableInfo,
+  filterDebounceMs?: number,
 };
 
 type SortColumn = {
@@ -626,7 +627,7 @@ type SortColumn = {
 
 export default function(
   container: ComponentContainer,
-  {sourceID, tableName, tableInfo}: Props,
+  {sourceID, tableName, tableInfo, filterDebounceMs}: Props,
 ) {
   const el: HTMLElement = container.element;
   el.replaceChildren(m("div", {class: "h100"}, "Loading table viewer..."));
@@ -911,7 +912,7 @@ export default function(
     await loadData(0);
   };
 
-  const el_filter = TableFilter(() => schemaColumns.value,{apply: applyFilter});
+  const el_filter = TableFilter(() => schemaColumns.value,{apply: applyFilter}, {debounceMs: filterDebounceMs});
 
   // Initial load
   loadData(0);
