@@ -1,5 +1,5 @@
 import type {CompletionContext, CompletionResult, CompletionSource} from "@codemirror/autocomplete";
-import {syntaxTree} from "@codemirror/language";
+import {ensureSyntaxTree, syntaxTree} from "@codemirror/language";
 import type {EditorState} from "@codemirror/state";
 import type {SyntaxNode} from "@lezer/common";
 import * as t from "@/types.ts";
@@ -55,7 +55,10 @@ export function promptArgAt(state: EditorState, pos: number): Option<{
   from: number,
   to: number,
 }> {
-  const node = syntaxTree(state).resolveInner(pos, -1);
+  // ensureSyntaxTree: the initial parse has a 20ms wall-clock budget and may
+  // be cut short under load (partial tree => wrong node at the caret)
+  const tree = ensureSyntaxTree(state, pos) ?? syntaxTree(state);
+  const node = tree.resolveInner(pos, -1);
   // The caret must sit inside a string value whose key names the argument
   if (node.name !== "String" || node.parent?.name !== "Property")
     return none;
