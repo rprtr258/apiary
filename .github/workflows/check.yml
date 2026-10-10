@@ -97,6 +97,11 @@ jobs:
       - name: Start integration services
         # Same services the tests use locally (see README); --wait blocks until
         # healthchecked services are ready and the rest are running.
+        # COMPOSE_DISABLE_ENV_FILE=1: the tracked .env is a shell-source file
+        # (aliases), not a compose env file; parsing it fails. The compose
+        # file uses no ${} interpolation, so skipping it is safe.
+        env:
+          COMPOSE_DISABLE_ENV_FILE: "1"
         run: docker compose up -d --wait postgres redis grpc-server
 
       - name: Wait for gRPC server
