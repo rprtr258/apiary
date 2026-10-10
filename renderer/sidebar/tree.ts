@@ -1,6 +1,6 @@
 import * as t from "@/types.ts";
 import {none, Option, some} from "@/option.ts";
-import {NTag, NTree, TreeOption, treeLabelClass} from "../components/dataview.ts";
+import {NTag, NTree, TreeOption, tagColors, treeLabelClass} from "../components/dataview.ts";
 import {NScrollbar} from "../components/layout.ts";
 import {store} from "../store.ts";
 import {DOMNode, m, signal} from "../lib/utils.ts";
@@ -266,7 +266,7 @@ export function createTreeView(): {el: HTMLElement} {
               },
             },
             ...(tagData !== undefined ? [NTag({
-              type: tagData.type,
+              label: tagData.text,
               style: {
                 minWidth: "2em",
                 justifyContent: "center",
@@ -274,9 +274,10 @@ export function createTreeView(): {el: HTMLElement} {
                 alignItems: "center",
                 fontWeight: "bold",
                 padding: "2px 4px",
+                color: tagColors[tagData.type],
                 ...tagData.style,
               },
-            }, tagData.text)] : []),
+            })] : []),
             m("span", {
               style: {
                 flex: "1",
@@ -304,19 +305,19 @@ export function createTreeView(): {el: HTMLElement} {
 
           return [
             NTag({
-              type: tag.type ?? "info",
+              label: tag.text,
+              color: tag.color,
+              background: "#202020",
               class: isLoading ? pulseClass : undefined,
               style: {
                 minWidth: "4em",
                 justifyContent: "center",
                 display: "flex",
                 alignItems: "center",
-                color: tag.color,
                 fontWeight: "bold",
                 padding: "2px 4px",
-                backgroundColor: "#202020",
               },
-            }, tag.text),
+            }),
             m("span", {
               style: {
                 flex: "1",

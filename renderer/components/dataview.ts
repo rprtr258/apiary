@@ -7,26 +7,37 @@ export function Json<T>(data: T) {
 };
 
 export type TagType = "success" | "info" | "warning" | "error";
-type NTagProps = {
-  type: TagType, // TODO: replace with color, use?
-  style?: Partial<CSSStyleDeclaration>,
-  tooltip?: string,
-  class?: string,
+export const tagColors: Record<TagType, string> = {
+  success: "lime",
+  info: "blue",
+  warning: "yellow",
+  error: "red",
 };
-export function NTag(props: NTagProps, label: string) {
+type NTagProps = {
+  label: string,
+  tooltip?: string,
+  color?: string,
+  background?: string,
+  bordered?: boolean,
+  class?: string,
+  style?: Partial<Omit<CSSStyleDeclaration, "color" | "backgroundColor">>,
+};
+export function NTag(props: NTagProps) {
   return m("span", {
     class: props.class,
     style: {
-      color: {
-        success: "lime",
-        info: "blue",
-        warning: "yellow",
-        error: "red",
-      }[props.type],
+      color: props.color,
+      backgroundColor: props.background,
+      ...(props.bordered ? {
+        borderColor: props.color,
+        borderWidth: props.bordered ?? false ? undefined : "1px",
+        borderStyle: "solid",
+        borderRadius: "2px",
+      } : {}),
       ...props.style,
     },
     title: props.tooltip,
-  }, label);
+  }, props.label);
 };
 
 type NIconProps = {

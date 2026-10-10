@@ -1,6 +1,6 @@
 import {describe, test, expect} from "bun:test";
 import {m} from "../lib/utils.ts";
-import {NTag, NResult, NEmpty, NList, NListItem, Json, TagType} from "./dataview.ts";
+import {NTag, NResult, NEmpty, NList, NListItem, Json, TagType, tagColors} from "./dataview.ts";
 
 describe("Json component", () => {
   test.each([
@@ -29,7 +29,7 @@ describe("NTag component", () => {
     ["warning", "Warning", "yellow"],
     ["info", "Info", "blue"],
   ] as [TagType, string, string][])("%s", (type, label, color) => {
-    const component = NTag({type}, label);
+    const component = NTag({label, color: tagColors[type]});
     expect(component.tagName).toBe("SPAN");
     expect(component.textContent).toBe(label);
     expect(component.style.color).toBe(color);
@@ -37,9 +37,10 @@ describe("NTag component", () => {
 
   test("applies custom styles", () => {
     const tag = NTag({
-      type: "success",
+      label: "Styled",
+      color: tagColors["success"],
       style: {fontSize: "14px", margin: "5px"},
-    }, "Styled");
+    });
 
     expect(tag.style.fontSize).toBe("14px");
     expect(tag.style.margin).toBe("5px");
@@ -47,13 +48,17 @@ describe("NTag component", () => {
   });
 
   test("handles round prop", () => {
-    const tag = NTag({type: "success"}, "Rounded");
+    const tag = NTag({label: "Rounded", color: tagColors["success"]});
     expect(tag.tagName).toBe("SPAN");
     expect(tag.textContent).toBe("Rounded");
   });
 
   test("includes title attribute when provided", () => {
-    const tag = NTag({type: "success", tooltip: "Success tooltip"}, "Success");
+    const tag = NTag({
+      label: "Success",
+      color: tagColors["success"],
+      tooltip: "Success tooltip",
+    });
     expect(tag.tagName).toBe("SPAN");
     expect(tag.textContent).toBe("Success");
     expect(tag.title).toBe("Success tooltip");

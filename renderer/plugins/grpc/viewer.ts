@@ -4,7 +4,7 @@ import {m, setDisplay, Signal} from "../../lib/utils.ts";
 import ParamsList from "../../components/ParamsList.ts";
 import {NInput, NButton, NInputGroup, NSelect} from "../../components/input.ts";
 import {NTabs, NSplit} from "../../components/layout.ts";
-import {NTag, NTable, NEmpty} from "../../components/dataview.ts";
+import {NTag, NTable, NEmpty, tagColors} from "../../components/dataview.ts";
 import ViewJSON from "../../components/ViewJSON.ts";
 import {api} from "../../api.ts";
 
@@ -15,9 +15,10 @@ function responseBadge(response: {code: number}) {
   const tooltip = code in t.GRPCCodes ? `${code} ${t.GRPCCodes[code as keyof typeof t.GRPCCodes]}` : `${code}`;
 
   return NTag({
-    type: code === 0 ? "success" : "error",
+    label: tooltip,
+    color: tagColors[code === 0 ? "success" : "error"],
     tooltip,
-  }, tooltip);
+  });
 }
 
 export default function(
