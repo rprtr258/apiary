@@ -1,8 +1,6 @@
-import {afterAll, beforeAll, describe, test, expect} from "bun:test";
+import {describe, test, expect} from "bun:test";
 import {MCPRequest, MCPTool, MCPPrompt, MCPResource} from "@/types.ts";
-import {Client} from "@modelcontextprotocol/sdk/client/index.js";
-import {StdioClientTransport} from "@modelcontextprotocol/sdk/client/stdio.js";
-import {mapTool, listTools, callTool, mapPrompt, listPrompts, callPrompt, complete, mapResource, listResources, readResource} from "./mcp.ts";
+import {mapTool, listTools, callTool, mapPrompt, listPrompts, callPrompt, complete, mapResource, listResources, readResource, connectionKey} from "./mcp.ts";
 
 describe("mapTools", () => test.each([
   [
@@ -64,22 +62,57 @@ const stdioReq: MCPRequest = {
   env: [],
 };
 
-// One shared subprocess+client for all server round-trip tests: spawning and
-// connecting per test dominated the runtime (~70-86ms each). The shared client
-// is passed as the trailing `client` argument, so mcp.ts skips transport
-// setup/teardown per call; afterAll's close shuts the subprocess down.
-const client: Client = new Client({name: "apiary-test", version: "1.0.0"}, {capabilities: {}});
-beforeAll(async () => {
-  const transport = new StdioClientTransport({command: process.execPath, args: [mockServerPath], env: {}});
-  await client.connect(transport);
+describe("connectionKey", () => {
+  const stdio = (over: Partial<Extract<MCPRequest, {transport: "stdio"}>> = {}): MCPRequest => ({
+    transport: "stdio",
+    command: "bun",
+    args: ["server.ts"],
+    env: [],
+    ...over,
+  });
+  const remote = (transport: "http" | "sse", over: Partial<Extract<MCPRequest, {transport: "http"}>> = {}): MCPRequest => ({
+    transport,
+    url: "http://localhost:3000/mcp",
+    headers: [],
+    ...over,
+  });
+
+  test("same connection struct maps to the same key", () => {
+    expect(connectionKey(stdioReq)).toBe(connectionKey({
+      transport: "stdio",
+      command: process.execPath,
+      args: [mockServerPath],
+      env: [],
+    }));
+  });
+
+  test("any connection field difference maps to a different key", () => {
+    const base = connectionKey(stdio());
+    expect(connectionKey(stdio({command: "node"}))).not.toBe(base);
+    expect(connectionKey(stdio({args: ["server.ts", "-v"]}))).not.toBe(base);
+    expect(connectionKey(stdio({env: [{key: "FOO", value: "1"}]}))).not.toBe(base);
+    expect(connectionKey(remote("http"))).not.toBe(connectionKey(remote("http", {url: "http://localhost:3001/mcp"})));
+    expect(connectionKey(remote("http"))).not.toBe(connectionKey(remote("http", {headers: [{key: "Authorization", value: "Bearer t"}]})));
+  });
+
+  test("env and header order is insignificant", () => {
+    expect(connectionKey(stdio({env: [{key: "A", value: "1"}, {key: "B", value: "2"}]})))
+      .toBe(connectionKey(stdio({env: [{key: "B", value: "2"}, {key: "A", value: "1"}]})));
+    expect(connectionKey(remote("http", {headers: [{key: "A", value: "1"}, {key: "B", value: "2"}]})))
+      .toBe(connectionKey(remote("http", {headers: [{key: "B", value: "2"}, {key: "A", value: "1"}]})));
+  });
+
+  test("stdio and remote transports never collide on url/args", () => {
+    expect(connectionKey(remote("http"))).not.toBe(connectionKey(stdio({args: ["http://localhost:3000/mcp"]})));
+  });
 });
-afterAll(async () => {
-  await client.close();
-});
+
+// Round-trip tests share the pooled connection from mcp.ts: the first call
+// spawns and connects the mock stdio server, later calls reuse it.
 
 describe("listTools", () => {
   test("discovers tools from a stdio server", async () => {
-    const tools = await listTools(stdioReq, client);
+    const tools = await listTools(stdioReq);
     expect(tools).toEqual([{kind: "tool", name: "echo", description: "echoes the message", inputSchema: {
       "$schema": "http://json-schema.org/draft-07/schema#",
       type: "object",
@@ -91,7 +124,7 @@ describe("listTools", () => {
 
 describe("listPrompts", () => {
   test("discovers prompts from a stdio server", async () => {
-    const prompts = await listPrompts(stdioReq, client);
+    const prompts = await listPrompts(stdioReq);
     expect(prompts).toEqual([{
       kind: "prompt",
       name: "greet",
@@ -103,7 +136,7 @@ describe("listPrompts", () => {
 
 describe("listResources", () => {
   test("discovers resources from a stdio server", async () => {
-    const resources = await listResources(stdioReq, client);
+    const resources = await listResources(stdioReq);
     expect(resources).toEqual([{
       kind: "resource",
       uri: "file:///greeting.txt",
@@ -116,7 +149,7 @@ describe("listResources", () => {
 
 describe("readResource", () => {
   test("reads resource contents from a stdio server", async () => {
-    const result = await readResource(stdioReq, "file:///greeting.txt", client);
+    const result = await readResource(stdioReq, "file:///greeting.txt");
     expect(result).toEqual({contents: [{
       uri: "file:///greeting.txt",
       mimeType: "text/plain",
@@ -128,14 +161,14 @@ describe("readResource", () => {
 
 describe("callTool", () => {
   test("invokes a tool and returns the result", async () => {
-    const result = await callTool(stdioReq, "echo", {msg: "hi"}, client);
+    const result = await callTool(stdioReq, "echo", {msg: "hi"});
     expect(result).toEqual({content: [{type: "text", text: "echo: hi"}]});
   }, 15000);
 });
 
 describe("callPrompt", () => {
   test("reads a prompt with arguments", async () => {
-    const result = await callPrompt(stdioReq, "greet", {name: "world"}, client);
+    const result = await callPrompt(stdioReq, "greet", {name: "world"});
     expect(result).toEqual({messages: [
       {role: "user", content: {type: "text", text: "Say hello to world"}},
     ]});
@@ -148,7 +181,7 @@ describe("complete", () => {
       ref: {type: "ref/prompt", name: "greet"},
       argument: {name: "name", value: "w"},
       context: {arguments: {}},
-    }, client);
+    });
     expect(result).toEqual({completion: {values: ["world", "wonderland"], total: 2, hasMore: false}});
   }, 15000);
 
@@ -156,7 +189,7 @@ describe("complete", () => {
     const result = await complete(stdioReq, {
       ref: {type: "ref/prompt", name: "greet"},
       argument: {name: "nope", value: ""},
-    }, client);
+    });
     expect(result).toEqual({completion: {values: [], hasMore: false}});
   }, 15000);
 });

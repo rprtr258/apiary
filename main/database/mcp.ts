@@ -4,6 +4,8 @@ import {StreamableHTTPClientTransport} from "@modelcontextprotocol/sdk/client/st
 import {SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js";
 import {Agent} from "undici";
 import type {Transport} from "@modelcontextprotocol/sdk/shared/transport.js";
+
+import {createClientPool} from "./connection_pool.ts";
 import type {MCPRequest, MCPTool, MCPPrompt, MCPResource, MCPReadResource, JSONSchema, JSONValue, MCPCompleteParams, MCPCompletion} from "@/types.ts";
 
 export const EmptyRequest: MCPRequest = {
@@ -44,14 +46,56 @@ function buildTransport(req: MCPRequest): Transport {
   }
 }
 
-// ponytail: per-op reconnect; pool clients if latency matters
-// `existing` hands in an already-connected client (used by tests sharing one
-// subprocess); the caller then owns its lifecycle, so no transport is built
-// and the client is not closed here.
-async function withClient<T>(req: MCPRequest, fn: (client: Client) => Promise<T>, existing?: Client): Promise<T> {
-  if (existing !== undefined) 
-    return await fn(existing);
+const CLIENT_TTL = 1000*60*5; // 5 minutes, matching the source-listing staleness window
+const pool = createClientPool<Client, MCPRequest>({
+  ttl: CLIENT_TTL,
+  keyOf: connectionKey,
+  // The evict wiring lives here (not per call): when the transport dies
+  // (stdio subprocess exits, socket drops) the cached entry must not be
+  // served again (identity-guarded, so it cannot evict a newer same-key
+  // client). `pool` is only dereferenced once connections are live.
+  connect: req => connectClient(req, client => pool.evict(req, client)),
+  close: client => client.close(),
+});
 
+// Per-client stderr buffer (stdio servers), kept for op-error messages. Capped
+// so a chatty server cannot grow it unboundedly over a pooled client's life.
+const STDERR_CAP = 16*1024;
+const stderrOf = new WeakMap<Client, {text: string}>();
+
+// Cache key derived from the connection struct: identical configs share a
+// client, any difference (command, args, url, headers) gets its own. Env and
+// header order is insignificant, so pairs are canonicalized by sorting their
+// JSON encodings.
+export function connectionKey(req: MCPRequest): string {
+  const canonical = (kvs: {key: string, value: string}[]): string[] =>
+    kvs.map(kv => JSON.stringify([kv.key, kv.value])).sort();
+  switch (req.transport) {
+  case "stdio":
+    return JSON.stringify(["stdio", req.command, req.args, canonical(req.env)]);
+  case "http":
+  case "sse":
+    return JSON.stringify([req.transport, req.url, canonical(req.headers)]);
+  }
+}
+
+function decorateError(e: unknown, stderr: string): unknown {
+  const msg = e instanceof Error ? e.message : String(e);
+  // undici wraps the real failure (ECONNREFUSED, ENOTFOUND, TLS, ...) in
+  // `TypeError: fetch failed` with the reason on .cause; surface it so
+  // http/sse connection errors are actionable instead of opaque.
+  const cause = e instanceof Error && e.cause instanceof Error ? e.cause.message : undefined;
+  const parts = [msg];
+  if (cause !== undefined && cause !== msg) {
+    parts.push(`cause: ${cause}`);
+  }
+  if (stderr !== "") {
+    parts.push(`stderr:\n${stderr}`);
+  }
+  return parts.length > 1 ? new Error(parts.join("\n")) : e;
+}
+
+async function connectClient(req: MCPRequest, onClose: (client: Client) => void): Promise<Client> {
   const client = new Client({name: "apiary", version: "1.0.0"}, {capabilities: {
     elicitation: {
       form: {},
@@ -65,35 +109,36 @@ async function withClient<T>(req: MCPRequest, fn: (client: Client) => Promise<T>
     sampling: {},
     tasks: {},
   }});
+  client.onclose = () => onClose(client);
   const transport = buildTransport(req);
   // Collect subprocess stderr so connection failures can surface a useful message.
-  let stderr = "";
+  const stderr = {text: ""};
   if (transport instanceof StdioClientTransport) {
     const stream = transport.stderr;
     if (stream !== null) {
-      stream.on("data", (chunk: Buffer) => {stderr += chunk.toString();});
+      stream.on("data", (chunk: Buffer) => {
+        stderr.text = (stderr.text + chunk.toString()).slice(-STDERR_CAP);
+      });
     }
   }
+  stderrOf.set(client, stderr);
   try {
     await client.connect(transport);
-    return await fn(client);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    // undici wraps the real failure (ECONNREFUSED, ENOTFOUND, TLS, ...) in
-    // `TypeError: fetch failed` with the reason on .cause; surface it so
-    // http/sse connection errors are actionable instead of opaque.
-    const cause = e instanceof Error && e.cause instanceof Error ? e.cause.message : undefined;
-    const parts = [msg];
-    if (cause !== undefined && cause !== msg) {
-      parts.push(`cause: ${cause}`);
-    }
-    if (stderr !== "") {
-      parts.push(`stderr:\n${stderr}`);
-    }
-    throw parts.length > 1 ? new Error(parts.join("\n")) : e;
-  } finally {
     await client.close();
+    throw decorateError(e, stderr.text);
   }
+  return client;
+}
+
+async function withClient<T>(req: MCPRequest, fn: (client: Client) => Promise<T>): Promise<T> {
+  return await pool.run(req, async client => {
+    try {
+      return await fn(client);
+    } catch (e) {
+      throw decorateError(e, stderrOf.get(client)?.text ?? "");
+    }
+  });
 }
 
 const permissive: JSONSchema = {type: "object", properties: {}};
@@ -108,7 +153,7 @@ export function mapTool(tool: {name: string, description?: string, inputSchema?:
   };
 }
 
-export async function listTools(req: MCPRequest, client?: Client): Promise<MCPTool[]> {
+export async function listTools(req: MCPRequest): Promise<MCPTool[]> {
   return await withClient(req, async (client) => {
     // Servers may support only a subset of tools/prompts/resources; listing is
     // merged by ListItems, so an unsupported listing is just empty
@@ -116,7 +161,7 @@ export async function listTools(req: MCPRequest, client?: Client): Promise<MCPTo
       return [];
     const {tools} = await client.listTools();
     return tools.map(mapTool);
-  }, client);
+  });
 }
 
 export function mapPrompt(prompt: {name: string, description?: string, arguments?: {name: string, description?: string, required?: boolean}[]}): MCPPrompt {
@@ -132,13 +177,13 @@ export function mapPrompt(prompt: {name: string, description?: string, arguments
   };
 }
 
-export async function listPrompts(req: MCPRequest, client?: Client): Promise<MCPPrompt[]> {
+export async function listPrompts(req: MCPRequest): Promise<MCPPrompt[]> {
   return await withClient(req, async (client) => {
     if (client.getServerCapabilities()?.prompts === undefined)
       return [];
     const {prompts} = await client.listPrompts();
     return prompts.map(mapPrompt);
-  }, client);
+  });
 }
 
 export function mapResource(resource: {uri: string, name: string, description?: string, mimeType?: string}): MCPResource {
@@ -151,16 +196,16 @@ export function mapResource(resource: {uri: string, name: string, description?: 
   };
 }
 
-export async function listResources(req: MCPRequest, client?: Client): Promise<MCPResource[]> {
+export async function listResources(req: MCPRequest): Promise<MCPResource[]> {
   return await withClient(req, async (client) => {
     if (client.getServerCapabilities()?.resources === undefined)
       return [];
     const {resources} = await client.listResources();
     return resources.map(mapResource);
-  }, client);
+  });
 }
 
-export async function readResource(req: MCPRequest, uri: string, client?: Client): Promise<MCPReadResource> {
+export async function readResource(req: MCPRequest, uri: string): Promise<MCPReadResource> {
   return await withClient(req, async (client) => {
     const {contents} = await client.readResource({uri});
     return {
@@ -171,28 +216,28 @@ export async function readResource(req: MCPRequest, uri: string, client?: Client
         blob: "blob" in c ? c.blob : "",
       })),
     };
-  }, client);
+  });
 }
 
-export async function callTool(req: MCPRequest, toolName: string, args: JSONValue, client?: Client): Promise<unknown> {
+export async function callTool(req: MCPRequest, toolName: string, args: JSONValue): Promise<unknown> {
   return await withClient(req, async (client) => {
     return await client.callTool({ // TODO: is result always is content[] ? render nicely if so
       name: toolName,
       arguments: args as Record<string, unknown> | undefined,
     });
-  }, client);
+  });
 }
 
-export async function callPrompt(req: MCPRequest, promptName: string, args: JSONValue, client?: Client): Promise<unknown> {
+export async function callPrompt(req: MCPRequest, promptName: string, args: JSONValue): Promise<unknown> {
   return await withClient(req, async (client) => {
     return await client.getPrompt({
       name: promptName,
       arguments: args as Record<string, string> | undefined,
     });
-  }, client);
+  });
 }
 
-export async function complete(req: MCPRequest, params: MCPCompleteParams, client?: Client): Promise<MCPCompletion> {
+export async function complete(req: MCPRequest, params: MCPCompleteParams): Promise<MCPCompletion> {
   console.log("[mcp] complete", req.transport, params.ref.name, params.argument.name);
   return await withClient(req, async (client) => {
     // A server without the capability would error; empty is the protocol's
@@ -200,5 +245,5 @@ export async function complete(req: MCPRequest, params: MCPCompleteParams, clien
     if (client.getServerCapabilities()?.completions === undefined)
       return {completion: {values: []}};
     return await client.complete(params);
-  }, client);
+  });
 }
