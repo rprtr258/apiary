@@ -35,7 +35,7 @@ apiary is a cross-platform desktop application for managing various API requests
 
 - **Tech Stack**: TypeScript, Electron, Vite, CodeMirror, JSON DB.
 - **Directories**:
-  - `main/`: Electron main process - `api.ts` (API facade), `db.ts` (JSON DB), `database/`: plugin implementations (HTTP, SQL, gRPC, Redis, etc.) plus `connection_pool.ts` (generic connection-pool engine, currently used by the MCP plugin).
+  - `main/`: Electron main process - `api.ts` (API facade), `db.ts` (JSON DB), `database/`: plugin implementations (HTTP, SQL, gRPC, Redis, etc.) plus `connection_pool.ts` (generic connection-pool engine, used by the MCP, Redis and SQL plugins).
   - `renderer/`: Vanilla TypeScript UI components and logic
     - `plugins/`: frontend plugin registry (`index.ts` registry, `source.ts` source Item tree + virtual keys + listing facade, `cache.ts` source-cache engine, one `<kind>/` directory per kind: `index.ts` registration (root item carrying the kind badge) + `viewer.ts` frame UI for pane factories/menu entries/source listings).
   - `shared/`: Shared types and utilities (`types.ts` with the `Kind` enum, imported as `@/types.ts`).

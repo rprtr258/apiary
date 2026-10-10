@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import {createClientPool} from "./connection_pool.ts";
 import {ColumnInfo, ColumnType, ConstraintInfo, ForeignKey, IndexInfo, SQLRequest, SQLResponse, TableInfo, TableSchema} from "@/types.ts";
 
 // TODO: fix get types
@@ -21,9 +22,16 @@ function convertTypes(columns: number, rows: unknown[][]): ColumnType[] {
   });
 }
 
+// The readonly flag is part of connection identity: a read-only request must
+// not ride a read-write connection (or vice versa).
+const pool = createClientPool<Database.Database, {dsn: string, readonly: boolean}>({
+  keyOf: t => `${t.readonly ? "ro:" : "rw:"}${t.dsn}`,
+  connect: async t => new Database(t.dsn, {readonly: t.readonly}),
+  close: async db => void db.close(), // better-sqlite3's close() returns `this`, discard it
+});
+
 export async function send(request: SQLRequest): Promise<SQLResponse> {
-  const db = new Database(request.dsn, {readonly: request.readOnly ?? false});
-  try {
+  return await pool.run({dsn: request.dsn, readonly: request.readOnly ?? false}, async db => {
     const rows = db.prepare(request.query).all() as Record<string, unknown>[];
     if (rows.length === 0) {
       return {columns: [], typenames: [], types: [], rows: []}; // TODO: get column metadata
@@ -36,24 +44,21 @@ export async function send(request: SQLRequest): Promise<SQLResponse> {
       types: typenames,
       rows: rows.map(r => Object.values(r)),
     };
-  } finally {
-    db.close();
-  }
+  });
 }
 
-export function sendBatch(request: Omit<SQLRequest, "query">, statements: string[]): SQLResponse {
-  const db = new Database(request.dsn, {readonly: request.readOnly ?? false});
-  try {
+export async function sendBatch(request: Omit<SQLRequest, "query">, statements: string[]): Promise<SQLResponse> {
+  return await pool.run({dsn: request.dsn, readonly: request.readOnly ?? false}, async db => {
     const affectedRows: number[] = [];
+    // Synchronous body: better-sqlite3 ops never yield, so concurrent pool
+    // callers cannot interleave inside the transaction.
     db.transaction(() => {
       // prepare().run() (not exec) so per-statement affected counts are available.
       for (const statement of statements)
         affectedRows.push(Number(db.prepare(statement).run().changes));
     })();
     return {columns: [], typenames: [], types: [], rows: [], affectedRows};
-  } finally {
-    db.close();
-  }
+  });
 }
 
 export async function describe(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {

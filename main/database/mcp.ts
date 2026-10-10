@@ -46,9 +46,7 @@ function buildTransport(req: MCPRequest): Transport {
   }
 }
 
-const CLIENT_TTL = 1000*60*5; // 5 minutes, matching the source-listing staleness window
 const pool = createClientPool<Client, MCPRequest>({
-  ttl: CLIENT_TTL,
   keyOf: connectionKey,
   // The evict wiring lives here (not per call): when the transport dies
   // (stdio subprocess exits, socket drops) the cached entry must not be

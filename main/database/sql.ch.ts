@@ -1,4 +1,5 @@
-import {createClient} from "@clickhouse/client";
+import {createClient, type ClickHouseClient} from "@clickhouse/client";
+import {createClientPool} from "./connection_pool.ts";
 import {ColumnInfo, ColumnType, SQLRequest, SQLResponse, TableInfo, TableSchema} from "@/types.ts";
 
 // TODO: fix get types
@@ -21,14 +22,21 @@ function convertTypes(columns: number, rows: unknown[][]): ColumnType[] {
   });
 }
 
-export async function send(request: SQLRequest): Promise<SQLResponse> {
-  const client = createClient({url: request.dsn, max_open_connections: 10});
-  const ping = await client.ping();
-  if (!ping.success) {
-    throw new Error(`ClickHouse ping failed: ${ping.error}`);
-  }
+// Stateless HTTP client (readonly is a per-query setting), so every entry
+// point rides the pool.
+const pool = createClientPool<ClickHouseClient, string>({
+  keyOf: dsn => dsn,
+  connect: async dsn => createClient({url: dsn, max_open_connections: 10}),
+  close: client => client.close(),
+});
 
-  try {
+export async function send(request: SQLRequest): Promise<SQLResponse> {
+  return await pool.run(request.dsn, async client => {
+    const ping = await client.ping();
+    if (!ping.success) {
+      throw new Error(`ClickHouse ping failed: ${ping.error}`);
+    }
+
     const resultSet = await client.query({query: request.query, format: "JSONEachRow", clickhouse_settings: request.readOnly ?? false ? {readonly: "1"} : {}});
     const rows: Record<string, unknown>[] = await resultSet.json();
     if (rows.length === 0) {
@@ -42,22 +50,17 @@ export async function send(request: SQLRequest): Promise<SQLResponse> {
       types: typenames,
       rows: rows.map(r => Object.values(r)),
     };
-  } finally {
-    await client.close();
-  }
+  });
 }
 
 export async function sendBatch(request: Omit<SQLRequest, "query">, statements: string[]): Promise<SQLResponse> {
   // ClickHouse has no transactions; statements run sequentially. Table editing
   // is unreachable for ClickHouse (no PK introspection), this is a safety net.
-  const client = createClient({url: request.dsn, max_open_connections: 10});
-  try {
+  return await pool.run(request.dsn, async client => {
     for (const statement of statements)
       await client.exec({query: statement, clickhouse_settings: request.readOnly ?? false ? {readonly: "1"} : {}});
     return {columns: [], typenames: [], types: [], rows: []};
-  } finally {
-    await client.close();
-  }
+  });
 }
 
 export async function describe(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
