@@ -58,19 +58,11 @@ function fireMouse(el: Element, type: string, x = 10, y = 10): void {
   el.dispatchEvent(new window.MouseEvent(type, {bubbles: true, cancelable: true, clientX: x, clientY: y}));
 }
 
-// Polls until the assertion callback passes (stops throwing) or times out.
-async function waitFor(assert: () => void, timeoutMs = 1000): Promise<void> {
-  const start = Date.now();
-  for (;;) {
-    try {
-      assert();
-      return;
-    } catch (error) {
-      if (Date.now() - start > timeoutMs)
-        throw error;
-      await new Promise(resolve => setTimeout(resolve, 5));
-    }
-  }
+// All api mocks resolve in microtasks (no timers inside the mocks), so any
+// chain of component awaits settles before the next macrotask: waiting one
+// timer tick is a deterministic wait for the DOM to be updated.
+async function flush(): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, 0));
 }
 
 describe("primaryKeyColumns", () => {
@@ -326,6 +318,7 @@ function makeViewer(): HTMLElement {
     sourceID: "s1",
     tableName: "users",
     tableInfo: {name: "users", rowCount: 2, sizeBytes: 10},
+    filterDebounceMs: 0, // debounce still schedules a timer, which settles on the next flush tick
   });
   return el;
 }
@@ -379,31 +372,28 @@ describe("TableViewer toolbar", () => {
 
     // edit a cell (initial load populates the table asynchronously)
     const container = el.querySelector("[data-testid=\"data-container\"]")!;
-    await waitFor(() => expect(container.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]").length).toBeGreaterThan(0));
+    await flush();
     const nameCell = container.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
     fire(nameCell, "dblclick");
     const input = nameCell.querySelector<HTMLInputElement>("input")!;
     input.value = "x";
     fireKey(input, "Enter");
-    await waitFor(() => expect(apply.closest("div")!.style.display).not.toBe("none"));
+    expect(apply.closest("div")!.style.display).not.toBe("none"); // sync via the edits signal
 
     apply.click();
-    await waitFor(() => {
-      expect(updateCalls).toEqual([["s1", "users", ["id"], [{pkValues: [1], column: "name", value: "x"}]]]);
-      // edits cleared + page reloaded
-      const after = el.querySelector("[data-testid=\"data-container\"]")!.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
-      expect(after.textContent).toBe("a");
-    });
+    await flush();
+    expect(updateCalls).toEqual([["s1", "users", ["id"], [{pkValues: [1], column: "name", value: "x"}]]]);
+    // edits cleared + page reloaded
+    const after = el.querySelector("[data-testid=\"data-container\"]")!.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
+    expect(after.textContent).toBe("a");
   });
 
   test("no primary key shows the disabled banner and blocks editing", async () => {
     state.schema = schemaWithPk([col("id", t.ColumnType.NUMBER), col("name", t.ColumnType.STRING, true)], null);
     const el = makeViewer();
-    let banner: HTMLElement | undefined;
-    await waitFor(() => {
-      banner = [...el.querySelectorAll("span")].find(s => s.textContent === "No primary key — editing disabled");
-      expect(banner).toBeDefined();
-    });
+    await flush();
+    const banner = [...el.querySelectorAll("span")].find(s => s.textContent === "No primary key — editing disabled");
+    expect(banner).toBeDefined();
     expect(banner!.style.display).not.toBe("none");
     // double-click does nothing
     const cell = el.querySelector("[data-testid=\"data-container\"]")!.querySelectorAll("[data-testid=\"data-cell\"]")[1];
@@ -414,26 +404,24 @@ describe("TableViewer toolbar", () => {
   test("read-only source shows the banner and blocks editing", async () => {
     state.readOnly = true;
     const el = makeViewer();
-    let banner: HTMLElement | undefined;
-    await waitFor(() => {
-      banner = [...el.querySelectorAll("span")].find(s => s.textContent === "Read-only source — editing disabled");
-      expect(banner).toBeDefined();
-    });
+    await flush();
+    const banner = [...el.querySelectorAll("span")].find(s => s.textContent === "Read-only source — editing disabled");
+    expect(banner).toBeDefined();
     expect(banner!.style.display).not.toBe("none");
   });
 
   test("copy requests the script from the main process", async () => {
     const el = makeViewer();
     const container = el.querySelector("[data-testid=\"data-container\"]")!;
-    await waitFor(() => expect(container.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]").length).toBeGreaterThan(0));
+    await flush();
     const nameCell = container.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
     fire(nameCell, "dblclick");
     const input = nameCell.querySelector<HTMLInputElement>("input")!;
     input.value = "x";
     fireKey(input, "Enter");
-    await waitFor(() => expect(buttonByText(el, "Apply").closest("div")!.style.display).not.toBe("none"));
-    buttonByText(el, "Copy").click();
-    await waitFor(() => expect(buildCalls).toEqual([["s1", "users", ["id"], [{pkValues: [1], column: "name", value: "x"}]]]));
+    expect(buttonByText(el, "Apply").closest("div")!.style.display).not.toBe("none");
+    buttonByText(el, "Copy").click(); // the mock logs the request synchronously
+    expect(buildCalls).toEqual([["s1", "users", ["id"], [{pkValues: [1], column: "name", value: "x"}]]]);
   });
 
   test("foreign keys render in the Relations tab and are excluded from Constraints", async () => {
@@ -452,7 +440,8 @@ describe("TableViewer toolbar", () => {
     const contents = el.children[0].children;
     const relations = contents[5] as HTMLElement;
     const constraintsTab = contents[4] as HTMLElement;
-    await waitFor(() => expect(relations.textContent).toContain("fk_user"));
+    await flush();
+    expect(relations.textContent).toContain("fk_user");
     expect(relations.textContent).toContain("user_id");
     expect(relations.textContent).toContain("public");
     expect(relations.textContent).toContain("CASCADE");
@@ -466,30 +455,31 @@ describe("TableViewer toolbar", () => {
   test("cancel clears edits", async () => {
     const el = makeViewer();
     const container = el.querySelector("[data-testid=\"data-container\"]")!;
-    await waitFor(() => expect(container.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]").length).toBeGreaterThan(0));
+    await flush();
     const nameCell = container.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
     fire(nameCell, "dblclick");
     const input = nameCell.querySelector<HTMLInputElement>("input")!;
     input.value = "x";
     fireKey(input, "Enter");
-    await waitFor(() => expect(buttonByText(el, "Apply").closest("div")!.style.display).not.toBe("none"));
-    buttonByText(el, "Cancel").click();
-    await waitFor(() => {
-      const after = el.querySelector("[data-testid=\"data-container\"]")!.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
-      expect(after.textContent).toBe("a");
-    });
     const apply = buttonByText(el, "Apply");
+    expect(apply.closest("div")!.style.display).not.toBe("none");
+
+    // Cancel is a synchronous clearEdits: restores the cell text and hides the bar
+    buttonByText(el, "Cancel").click();
+    const after = el.querySelector("[data-testid=\"data-container\"]")!.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
+    expect(after.textContent).toBe("a");
     expect(apply.closest("div")!.style.display).toBe("none");
   });
 
   test("filter applies debounced with the value, refreshes the filtered count, and paginates", async () => {
     state.countRows = 250;
     const el = makeViewer();
-    await waitFor(() => expect(performCalls.length).toBe(1)); // initial load
+    await flush(); // initial load
+    expect(performCalls.length).toBe(1);
 
     setColumn(el, "id");
     setInput(filterValue(el), "5");
-    await waitFor(() => expect(performCalls.length).toBe(2), 3500);
+    await flush(); // the 0ms debounce applies on the next timer tick
     const read = performCalls[1][1] as t.TableRead;
     expect(read.filter).toEqual({kind: "simple", column: "id", op: "=", value: "5"});
     expect(read.offset).toBe(0); // filter change reloads the first page
@@ -498,14 +488,14 @@ describe("TableViewer toolbar", () => {
 
     // paging keeps the active filter and moves the offset
     buttonByText(el, "Next").click();
-    await waitFor(() => expect(performCalls.length).toBe(3));
+    await flush();
     const nextRead = performCalls[2][1] as t.TableRead;
     expect(nextRead.filter).toEqual({kind: "simple", column: "id", op: "=", value: "5"});
     expect(nextRead.offset).toBe(100);
 
     // clearing the value removes the filter and restores the full row count
     setInput(filterValue(el), "");
-    await waitFor(() => expect(performCalls.length).toBe(4), 3500);
+    await flush();
     expect((performCalls[3][1] as t.TableRead).filter).toBeNull();
     expect(countCalls.length).toBe(1); // no extra count for the unfiltered view
     expect(el.textContent).toContain("of 2");
@@ -513,17 +503,17 @@ describe("TableViewer toolbar", () => {
 
   test("invalid manual filter shows an error notification and keeps the view", async () => {
     const el = makeViewer();
-    await waitFor(() => {
-      const container = el.querySelector("[data-testid=\"data-container\"]")!;
-      expect(container.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]").length).toBeGreaterThan(0);
-    });
+    const container = el.querySelector("[data-testid=\"data-container\"]")!;
+    await flush();
+    expect(container.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]").length).toBeGreaterThan(0);
     state.performError = "syntax error at or near \"==\"";
 
     buttonByText(el, "Manual").click();
     const builderRow: HTMLElement | null = el.querySelector("[data-testid=\"filter-builder-row\"]");
     expect(builderRow?.style.display).toBe("none");
     setInput(filterExpr(el), "id ==");
-    await waitFor(() => expect(performCalls.length).toBe(2), 3500);
+    await flush();
+    expect(performCalls.length).toBe(2);
     const read = performCalls[1][1] as t.TableRead;
     expect(read.filter).toEqual({kind: "manual", expr: "id =="});
     // error notification carries the engine error
@@ -536,11 +526,13 @@ describe("TableViewer toolbar", () => {
 
   test("cell editing still works while a filter is active", async () => {
     const el = makeViewer();
-    await waitFor(() => expect(el.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]").length).toBeGreaterThan(0));
+    await flush(); // initial load
+    expect(el.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]").length).toBeGreaterThan(0);
 
     setColumn(el, "id");
     setInput(filterValue(el), "1");
-    await waitFor(() => expect(performCalls.length).toBe(2), 3500);
+    await flush();
+    expect(performCalls.length).toBe(2);
     // re-query after the filtered reload replaced the table content
     const nameCell = el.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
     fire(nameCell, "dblclick");
@@ -548,13 +540,12 @@ describe("TableViewer toolbar", () => {
     input.value = "x";
     fireKey(input, "Enter");
     const apply = buttonByText(el, "Apply");
-    await waitFor(() => expect(apply.closest("div")!.style.display).not.toBe("none"));
+    expect(apply.closest("div")!.style.display).not.toBe("none");
     apply.click();
-    await waitFor(() => {
-      // updates go through by pk while the filter is active, and the reload
-      // that follows still carries the active filter
-      expect(updateCalls).toEqual([["s1", "users", ["id"], [{pkValues: [1], column: "name", value: "x"}]]]);
-      expect((performCalls.at(-1)![1] as t.TableRead).filter).toEqual({kind: "simple", column: "id", op: "=", value: "1"});
-    });
+    await flush();
+    // updates go through by pk while the filter is active, and the reload
+    // that follows still carries the active filter
+    expect(updateCalls).toEqual([["s1", "users", ["id"], [{pkValues: [1], column: "name", value: "x"}]]]);
+    expect((performCalls.at(-1)![1] as t.TableRead).filter).toEqual({kind: "simple", column: "id", op: "=", value: "1"});
   });
 });
