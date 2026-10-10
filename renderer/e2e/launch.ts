@@ -46,24 +46,30 @@ export const test = base.extend<Fixtures>({
   },
   page: async ({app}, use) => {
     const page = await app.firstWindow();
-    await page.waitForSelector("body"); // wait for the app to render
+    // Wait for the app to mount, not just body: App.ts mounts asynchronously
+    // (store.fetch().then(preApp)) and attaches the global keydown listener in
+    // the same synchronous step that appends the app DOM — an app element being
+    // present guarantees keyboard handlers are live. Without this, keys
+    // dispatched right after launch race the mount and get dropped (flaky
+    // under xvfb/CI where startup timing differs).
+    await page.waitForSelector("select");
     await use(page);
   },
 });
 
-// The Electron window isn't focused under Playwright, so a single
-// `page.keyboard.press("Control+N")` is dropped and never reaches the renderer
-// (handleKeyDown in App.ts never fires). Bring the window to front and send the
-// modifiers+key as separate events so the keydown is delivered.
+// Keyboard shortcuts (App.ts handleKeyDown) are dispatched as synthetic
+// KeyboardEvents on `document` — the app's contract is that document-level
+// handler, and this triggers it deterministically regardless of window focus
+// state (relevant under xvfb/CI, where there is no window manager to grant
+// focus).
 export async function pressWith(page: Page, modifiers: string[], key: string): Promise<void> {
-  await page.bringToFront();
-  // Let the focused window settle before sending keys, else they get dropped.
-  await page.waitForTimeout(500);
-  for (const modifier of modifiers) {
-    await page.keyboard.down(modifier);
-  }
-  await page.keyboard.press(key);
-  for (const modifier of modifiers.reverse()) {
-    await page.keyboard.up(modifier);
-  }
+  const ctrl = modifiers.includes("Control");
+  const shift = modifiers.includes("Shift");
+  const alt = modifiers.includes("Alt");
+  const meta = modifiers.includes("Meta");
+  const base = key.startsWith("Key") ? key.slice(3).toLowerCase() : key;
+  const keyName = shift && base.length === 1 ? base.toUpperCase() : base;
+  await page.evaluate(({key, code, ctrl, shift, alt, meta}) => {
+    document.dispatchEvent(new KeyboardEvent("keydown", {key, code, ctrlKey: ctrl, shiftKey: shift, altKey: alt, metaKey: meta, bubbles: true, cancelable: true}));
+  }, {key: keyName, code: key, ctrl, shift, alt, meta});
 }
