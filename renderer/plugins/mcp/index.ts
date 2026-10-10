@@ -14,6 +14,14 @@ export type StateMCPItem = {
   item: t.MCPTool | t.MCPPrompt,
 };
 
+const cache = createSourceCache<t.MCPTool | t.MCPPrompt>(
+  async id => (await api.mcpListItems(id)).map(items => [
+    ...items.tools,
+    ...items.prompts,
+  ]),
+  "Could not fetch tools and prompts",
+);
+
 export const mcpPlugin: Plugin<t.MCPTool | t.MCPPrompt> = {
   kind: t.Kind.MCP,
   kindTag: {text: "MCP", color: "white"},
@@ -21,13 +29,7 @@ export const mcpPlugin: Plugin<t.MCPTool | t.MCPPrompt> = {
     setDisplay(args.eye, false); // TODO: dont draw eye in the first place?
     return RequestMCP(args.el, {update: args.on.update});
   },
-  cache: createSourceCache<t.MCPTool | t.MCPPrompt>(
-    async id => (await api.mcpListItems(id)).map(items => [
-      ...items.tools,
-      ...items.prompts,
-    ]),
-    "Could not fetch tools and prompts",
-  ),
+  cache,
   itemKey: item => `${item.kind === "prompt" ? "Prompts" : "Tools"}/${item.name}`,
   label: item => item.name,
   viewers: {
