@@ -47,19 +47,19 @@ func (i *rkeyRowIter) Next(ctx *sql.Context) (sql.Row, error) {
 			return nil, err
 		}
 
-		expMs, err := i.rdb.ExpireTime(ctx, key)
+		exp, err := i.rdb.ExpireTime(ctx, key)
 		if err != nil {
 			return nil, err
 		}
-		exp := any(nil)
-		if expMs != -1 {
-			exp = time.Unix(0, 0).Add(expMs)
+		expAt := any(nil)
+		if exp != -1 {
+			expAt = time.Unix(0, 0).Add(exp)
 		}
 
 		return sql.Row{
 			key,
 			typ,
-			exp,
+			expAt,
 			// 0,   // TODO: fill?
 			// 0,   // TODO: fill?
 			// nil, // TODO: fill?
