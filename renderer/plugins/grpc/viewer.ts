@@ -7,6 +7,7 @@ import {NTabs, NSplit} from "../../components/layout.ts";
 import {NTag, NTable, NEmpty, tagColors} from "../../components/dataview.ts";
 import ViewJSON from "../../components/ViewJSON.ts";
 import {api} from "../../api.ts";
+import notification from "../../lib/notification.ts";
 
 type Request = {kind: t.Kind.GRPC} & t.GRPCRequest;
 
@@ -91,65 +92,63 @@ export default function(
 
   let methods: {[service: string]: string[]} = {};
   let loading_methods = false;
+  const el_send = NButton({
+    primary: true,
+    on: {click: on.send},
+    disabled: true,
+  }, "Send");
+  const method_select = NSelect({
+    options: [],
+    placeholder: "Method",
+    disabled: loading_methods,
+    on: {update: (method: string) => update_request({method})},
+  });
+  const targetInput = NInput({
+    placeholder: "Addr",
+    value: "",
+    on: {update: (target: string) => update_request({target})},
+  });
+  const el_input_group = NInputGroup({style: {
+    gridColumn: "span 2",
+    display: "grid",
+    gridTemplateColumns: "1fr 10fr 1fr",
+  }}, method_select.el, targetInput, el_send.el);
+
+
+  function update_request(patch: Partial<t.GRPCRequest>): void {
+    loading_methods = true;
+    el_send.disabled = true;
+    on.update(patch).then(() => {
+      loading_methods = false;
+      el_send.disabled = false;
+    });
+  }
+
   return {
     loaded: (r: get_request): void => {
-      // const notification = useNotification();
-
-      // watch(() => request.value?.target, async () => {
-        loading_methods = true;
-        api.grpcMethods(r.request.id).then(res => {
-          loading_methods = false;
-          if (res.kind === "err") {
-            // notification.error({title: "Error fetching GRPC methods", content: res.value});
-            return;
-          }
-          methods = res.value;
-        });
-
-      const el_send = NButton({
-        primary: true,
-        on: {click: on.send},
-        disabled: true,
-      }, "Send");
-
-      // TODO: group by service
-      const selectOptions = Object.entries(methods).sort(([s1], [s2]) => s1.localeCompare(s2)).flatMap(([service, methods]) => [{
-        label: service,
-      }, ...methods.map(method => ({
-        label: method,
-        value: service + "." + method,
-      }))]);
-
       const request = r.request as Request;
-      const update_request = (patch: Partial<t.GRPCRequest>): void => {
-        loading_methods = true;
-        el_send.disabled = true;
-        on.update(patch).then(() => {
-          loading_methods = false;
-          el_send.disabled = false;
-        });
-      };
-      update_response(last_history_entry(r)?.response as t.GRPCResponse | undefined);
+      method_select.set(request.method);
+      targetInput.value = request.target;
 
-      const el_input_group = NInputGroup({style: {
-        gridColumn: "span 2",
-        display: "grid",
-        gridTemplateColumns: "1fr 10fr 1fr",
-      }},
-        NSelect({
-          label: request.method,
-          options: selectOptions,
-          placeholder: "Method",
-          disabled: loading_methods,
-          on: {update: (method: string) => update_request({method})},
-        }).el,
-        NInput({
-          placeholder: "Addr",
-          value: request.target,
-          on: {update: (target: string) => update_request({target})},
-        }),
-        el_send.el,
-      );
+      loading_methods = true;
+      api.grpcMethods(r.request.id).then(res => {
+        loading_methods = false;
+        if (res.kind === "err") {
+          notification("error", "Error fetching GRPC methods", {content: res.value});
+          return;
+        }
+        methods = res.value;
+        method_select.setOptions(Object.entries(methods)
+          .sort(([s1], [s2]) => s1.localeCompare(s2))
+          .flatMap(([service, methods]) => [{
+            label: service,
+          }, ...methods.map(method => ({
+            label: method,
+            value: service + "." + method,
+          }))]));
+      });
+
+      update_response(last_history_entry(r)?.response as t.GRPCResponse | undefined);
 
       const el_req_tabs = NTabs({
         class: "h100",

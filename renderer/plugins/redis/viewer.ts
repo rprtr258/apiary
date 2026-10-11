@@ -30,14 +30,22 @@ export default function(
     disabled: false,
   }, "Send");
   const response = signal<t.RedisResponse | undefined>(undefined);
+  const dsnInput = NInput({
+    style: {
+      flexGrow: "1",
+    },
+    placeholder: "DSN: redis[s]://[[username][:password]@][host][:port][/db-number]",
+    value: "",
+    on: {update: (dsn: string) => update_request({dsn})},
+  });
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
-  const update_request = (patch: Partial<t.RedisRequest>): void => {
+  function update_request(patch: Partial<t.RedisRequest>): void {
     el_send.disabled = true;
     on.update(patch).then(() => {
       el_send.disabled = false;
     });
-  };
+  }
   const el_response = m("div", {class: "h100"});
   unmounts.push(response.sub(function*() {
     let is_empty = false; // NOTE: to trigger first call to set it to true
@@ -59,25 +67,16 @@ export default function(
     }
   }()));
 
+  const el_input_group = NInputGroup({style: {
+    display: "grid",
+    gridTemplateColumns: "11fr 1fr",
+  }}, dsnInput, el_send.el);
+
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
       response.value = last_history_entry(r)?.response as t.RedisResponse | undefined;
-
-      const el_input_group = NInputGroup({style: {
-        display: "grid",
-        gridTemplateColumns: "11fr 1fr",
-      }}, [
-        NInput({
-          style: {
-            flexGrow: "1",
-          },
-          placeholder: "DSN: redis[s]://[[username][:password]@][host][:port][/db-number]",
-          value: request.dsn,
-          on: {update: (dsn: string) => update_request({dsn})},
-        }),
-        el_send.el,
-      ]);
+      dsnInput.value = request.dsn;
 
       const el_editor_json = EditorJSON({
         class: "h100",
