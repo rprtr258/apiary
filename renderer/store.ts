@@ -7,6 +7,22 @@ import {ItemConfig, LayoutConfig} from "./layout/types.ts";
 import {ComponentItem, Stack} from "./layout/manager.ts";
 import notification from "./lib/notification.ts";
 
+/**
+ * Thrown by the persistence layer when a persist failed and it already reverted its own state;
+ * carries the state it reverted to. The hook rolls back to it instead of its own pre-patch
+ * state, so both layers agree even when an older in-flight persist's optimistic state sits
+ * between them (that state was never persisted).
+ */
+export class PersistRevertedError extends Error {
+  readonly revertedRequest: unknown;
+
+  constructor(message: string, revertedRequest: unknown) {
+    super(message);
+    this.name = "PersistRevertedError";
+    this.revertedRequest = revertedRequest;
+  }
+}
+
 export type StateRequest = {
   id: t.RequestID,
 };

@@ -1,14 +1,12 @@
 import * as t from "@/types.ts";
-import {HistoryEntry, Method as Methods, HTTPCodes} from "@/types.ts";
+import {HistoryEntry, HTTPCodes} from "@/types.ts";
 import {m, setDisplay, Signal, signal} from "../lib/utils.ts";
 import notification from "../lib/notification.ts";
-import {NInputGroup, NInput, NSelect, NButton} from "./input.ts";
 import {NTabs, NSplit} from "./layout.ts";
 import {NTag, NTable, NEmpty, tagColors} from "./dataview.ts";
-import EditorJSON from "./EditorJSON.ts";
+import NRequestForm from "./NRequestForm.ts";
 import type {JSONSchema7} from "json-schema";
 import ViewJSON from "./ViewJSON.ts";
-import ParamsList from "./ParamsList.ts";
 
 type Request = t.HTTPRequest;
 
@@ -49,7 +47,6 @@ export type HTTPRequestViewResult = {
 export default function HTTPRequestView(
   el: HTMLElement,
   {
-    initialRequest,
     showRequest = signal(true),
     schema,
     on: {
@@ -57,7 +54,6 @@ export default function HTTPRequestView(
       update: onUpdate = async () => {},
     },
   }: {
-    initialRequest: t.HTTPRequest,
     showRequest?: Signal<boolean>,
     schema?: JSONSchema7,
     on: {
@@ -67,32 +63,6 @@ export default function HTTPRequestView(
   },
 ): HTTPRequestViewResult {
   el.append(NEmpty({description: "Loading request..."}));
-
-  const el_send = NButton({
-    primary: true,
-    on: {click: async () => {
-      try {
-        await onSend(currentRequest);
-      } catch (e) {
-        notification("error", "Send failed", {error: e});
-      }
-    }},
-  }, "Send");
-
-  let currentRequest = initialRequest;
-
-  const updateRequest = (patch: Partial<t.HTTPRequest>): void => {
-    el_send.disabled = true;
-    const newRequest = currentRequest;
-    Object.assign(newRequest, patch);
-    currentRequest = newRequest;
-
-    onUpdate(currentRequest).then(() => {
-      el_send.disabled = false;
-    }).catch(() => {
-      el_send.disabled = false;
-    });
-  };
 
   const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
@@ -163,59 +133,31 @@ export default function HTTPRequestView(
   return {
     loaded(r: {request: Request, history: HistoryEntry[]}) {
       const request = r.request;
-      currentRequest = request;
 
       if (r.history.length > 0) {
         const lastHistory = r.history[r.history.length - 1];
         update_response(lastHistory.response as t.HTTPResponse);
       }
 
-      const el_input_group = NInputGroup({style: {
-        display: "grid",
-        gridTemplateColumns: "1fr 10fr 1fr",
-      }},
-        NSelect({
-          options: Object.keys(Methods).map(method => ({label: method, value: method})),
-          placeholder: request.method,
-          on: {update: (method: string) => updateRequest({method})},
-        }).el,
-        NInput({
-          placeholder: "URL",
-          value: request.url,
-          on: {update: (url: string) => updateRequest({url})},
-        }),
-        el_send.el,
-      );
-
-      const el_req_tabs = NTabs({
-        class: "h100",
-        tabs: [
-          {
-            name: "Request",
-            class: "h100",
-            elem: EditorJSON({
-              class: "h100",
-              value: request.body,
-              schema: schema,
-              on: {update: (body: string) => updateRequest({body})},
-            }),
+      const requestForm = NRequestForm({
+        initialRequest: request,
+        schema: schema,
+        on: {
+          send: async (request: t.HTTPRequest) => {
+            try {
+              await onSend(request);
+            } catch (e) {
+              notification("error", "Send failed", {error: e});
+            }
           },
-          {
-            name: "Headers",
-            style: {
-              display: "flex",
-              flexDirection: "column",
-              flexGrow: "1",
-            },
-            elem: ParamsList({
-              value: request.headers,
-              on: {update: (value: t.KV[]): void => updateRequest({headers: value})},
-            }),
+          update: async (request: t.HTTPRequest) => {
+            await onUpdate(request);
           },
-        ],
+        },
       });
+      unmounts.push(() => requestForm.unmount());
 
-      const split = NSplit(el_req_tabs, el_response, {direction: "horizontal", style: {minHeight: "0"}});
+      const split = NSplit(requestForm.el, el_response, {direction: "horizontal", style: {minHeight: "0"}});
       unmounts.push(() => split.unmount());
       const el_container = m("div", {
         class: "h100",
@@ -224,12 +166,12 @@ export default function HTTPRequestView(
           flexDirection: "column",
           width: "100%",
         },
-      }, el_input_group, split.element);
+      }, split.element);
       unmounts.push(showRequest.sub(function*() {
         while (true) {
           const show_request = yield;
           split.leftVisible = show_request;
-          setDisplay(el_input_group, show_request);
+          setDisplay(requestForm.el, show_request);
         }
       }()));
       el.replaceChildren(el_container);
