@@ -140,7 +140,7 @@ describe("NSelect", () => {
     });
 
     // Simulate selecting option 2
-    (el as HTMLSelectElement).value = "1";
+    el.value = "1";
     el.dispatchEvent(new Event("change", {bubbles: true}));
 
     expect(updateMock).toHaveBeenCalledTimes(1);

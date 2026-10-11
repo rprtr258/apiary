@@ -88,24 +88,17 @@ export default function(
         ), res.kind === "ok");
       };
 
-      const update_request = async (patch: Partial<Request>): Promise<void> => {
-        // Update local request object properties
+      async function update_request(patch: Partial<Request>): Promise<void> {
         Object.assign(request, patch);
-        // Update backend
         await on.update(patch);
         await updateConnectionStatus();
 
-        // Update UI if auth changed
-        if (patch.auth !== undefined) {
+        if (patch.auth !== undefined)
           updateAuthFields();
-        }
-        // Update spec input UI if spec source or data changed
-        if (patch.specSource !== undefined || patch.specData !== undefined) {
+        if (patch.specSource !== undefined || patch.specData !== undefined)
           updateSpecInputUI();
-        }
-      };
+      }
 
-      // Create input components
       const serverUrlInput = NInput({
         placeholder: "https://api.example.com",
         value: request.serverUrl,
@@ -114,7 +107,7 @@ export default function(
 
       const specInput = m("div", {style: {display: "flex", width: "100%"}});
 
-      const updateSpecInputUI = () => {
+      function updateSpecInputUI(): void {
         specInput.replaceChildren();
         switch (request.specSource) {
         case "file": {
@@ -178,7 +171,7 @@ export default function(
           break;
         }
         }
-      };
+      }
 
       updateSpecInputUI();
 
@@ -194,9 +187,11 @@ export default function(
       });
 
       const authFieldsContainer = m("div");
-      const updateAuthFields = () => authFieldsContainer.replaceChildren(AuthFields(request.auth, patch => {
-        update_request({auth: {...request.auth, ...patch} as t.AuthConfig});
-      }));
+      function updateAuthFields(): void {
+        authFieldsContainer.replaceChildren(AuthFields(request.auth, patch => update_request({
+          auth: {...request.auth, ...patch} as t.AuthConfig,
+        })));
+      }
       updateAuthFields();
 
       const el_connection_tab = NInputGroup({

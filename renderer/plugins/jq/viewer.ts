@@ -29,17 +29,23 @@ export default function(
     on: {click: on.send},
     disabled: true,
   }, "Send");
-  const update_request = (patch: Partial<t.JQRequest>): void => {
+  const el_query_input = NInput({
+    placeholder: "JQ query",
+    status: jqerror !== undefined ? "error" : "success",
+    value: "",
+    on: {update: (query: string) => update_request({query})},
+  });
+  function update_request(patch: Partial<t.JQRequest>): void {
     el_send.disabled = true;
     on.update(patch).then(() => {
       el_send.disabled = false;
     });
-  };
+  }
 
   const el_response = NEmpty({description: "Send request or choose one from history."});
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
-  const update_response = (response: t.JQResponse | undefined) => {
+  function update_response(response: t.JQResponse | undefined): void {
     if (response === undefined)
       return;
 
@@ -50,25 +56,18 @@ export default function(
 
     el_response.replaceChildren(el_view_response_body.el);
     el_view_response_body.update(response.response.join("\n"));
-  };
+  }
+
+  const el_input_group = NInputGroup({style: {
+    display: "grid",
+    gridTemplateColumns: "11fr 1fr",
+  }}, el_query_input, el_send.el);
 
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
       update_response(last_history_entry(r)?.response as t.JQResponse | undefined);
-
-      const el_input_group = NInputGroup({style: {
-        display: "grid",
-        gridTemplateColumns: "11fr 1fr",
-      }}, [
-        NInput({
-          placeholder: "JQ query",
-          status: jqerror !== undefined ? "error" : "success",
-          value: request.query,
-          on: {update: (query: string) => update_request({query})},
-        }),
-        el_send.el,
-      ]);
+      el_query_input.value = request.query;
 
       const el_editor_json = EditorJSON({
         class: "h100",

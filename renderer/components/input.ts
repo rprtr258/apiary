@@ -58,7 +58,7 @@ type NSelectProps<T> = {
   on: {update: (value: T) => void},
 };
 export function NSelect<T>(props: NSelectProps<T>): {
-  el: HTMLElement,
+  el: HTMLSelectElement,
   reset: () => void,
   set: (value: T) => void,
   setOptions: (options: SelectOption<T>[]) => void,
