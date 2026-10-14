@@ -56,11 +56,13 @@ func (i *rowIter) Next(*sql.Context) (sql.Row, error) {
 	return row, nil
 }
 
+const scanCount = 1000
+
 // scanAllKeys runs a full TYPE-filtered SCAN and returns every matching key.
 func scanAllKeys(ctx *sql.Context, rdb Client, keyType string) ([]string, error) {
 	keys := []string{}
 	for cursor := uint64(0); ; {
-		page, next, err := rdb.ScanType(ctx, cursor, "*", 0, keyType)
+		page, next, err := rdb.ScanType(ctx, cursor, "*", scanCount, keyType)
 		if err != nil {
 			return nil, err
 		}

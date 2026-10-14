@@ -1,7 +1,7 @@
 // Package engine exposes redis data as SQL tables consumable by
 // go-mysql-server (rkey, rstring, rlist, rset, rhash, rzset). Redis access
-// goes through the Client interface so the package compiles both natively
-// (go-redis) and for js/wasm (bridge to node-redis, see the parent package).
+// goes through the Client interface; the js/wasm bridge to node-redis in the
+// parent package is the only implementation (tests fake it).
 package engine
 
 import (

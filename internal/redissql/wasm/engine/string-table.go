@@ -30,7 +30,7 @@ func (i *rstringRowIter) Next(ctx *sql.Context) (sql.Row, error) {
 			if i.started && i.cursor == 0 {
 				return nil, io.EOF
 			}
-			keys, cursor, err := i.rdb.ScanType(ctx, i.cursor, "*", 0, "string")
+			keys, cursor, err := i.rdb.ScanType(ctx, i.cursor, "*", scanCount, "string")
 			if err != nil {
 				return nil, err
 			}
