@@ -1,12 +1,23 @@
 import {describe, test, expect, mock} from "bun:test";
 import * as t from "@/types.ts";
-import {ok, err} from "@/result.ts";
+import {Result, ok, err} from "@/result.ts";
 import {signal} from "../../lib/utils.ts";
 import {get_request} from "../../store.ts";
 
 // Hoisted by bun to run before the viewer import below.
 const explainCalls: string[] = [];
-let explainResult = ok({raw: "Project\n  -> Seq Scan on users"});
+const mockPlan: t.SQLPlan = {
+  root: {
+    title: "Project",
+    kind: "project",
+    details: [],
+    metrics: {},
+    children: [
+      {title: "Seq Scan on users", kind: "scan", table: "users", details: ["Filter: id = 1"], metrics: {"rows": "10"}, children: []},
+    ],
+  },
+};
+let explainResult: Result<t.SQLExplain> = ok({raw: "Project\n  -> Seq Scan on users", plan: mockPlan});
 mock.module("../../api.ts", () => ({
   api: {
     requestExplainSQL: async (id: string) => {
@@ -87,9 +98,9 @@ describe("RequestSQL", () => {
     expect(on.send).toHaveBeenCalledTimes(0);
   });
 
-  test("explain tab fetches the plan on open and renders it as text", async () => {
+  test("plan tabs fetch the plan once and render diagram + raw text", async () => {
     explainCalls.length = 0;
-    explainResult = ok({raw: "SCAN users\nFILTER id = 1"});
+    explainResult = ok({raw: "SCAN users\nFILTER id = 1", plan: mockPlan});
     const el = document.createElement("div");
     const show_request = signal(true);
     const component = RequestSQL(el, show_request, {
@@ -98,17 +109,52 @@ describe("RequestSQL", () => {
     });
     component.loaded({...mockRequest, request: {...mockRequest.request, kind: t.Kind.SQL, database: "sqlite"} as t.Request});
 
-    const explainButton = [...el.querySelectorAll("button")].find(b => b.textContent === "Plan");
-    expect(explainButton).toBeDefined();
-    explainButton!.click();
+    const tabButton = (name: string) => [...el.querySelectorAll("button")].find(b => b.textContent === name)!;
+    expect(tabButton("Plan")).toBeDefined();
+    expect(tabButton("Plan (raw)")).toBeDefined();
+
+    tabButton("Plan").click();
     await new Promise(resolve => setTimeout(resolve, 0));
 
     expect(explainCalls).toEqual(["test-id"]);
+    // The diagram draws the parsed tree into its SVG node group.
+    const nodes = el.querySelector("#plan-nodes");
+    expect(nodes).not.toBeNull();
+    expect(nodes!.textContent).toContain("Seq Scan on users");
+
+    // The raw tab shows the backend text without refetching.
+    tabButton("Plan (raw)").click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(explainCalls).toEqual(["test-id"]);
     const pre = el.querySelector("pre");
     expect(pre?.textContent).toContain("SCAN users");
+
+    // A successful fetch stays cached across hide/show: no new round trip.
+    tabButton("Data").click();
+    tabButton("Plan").click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(explainCalls).toEqual(["test-id"]);
   });
 
-  test("explain tab keeps the plan while the request is unchanged and shows errors", async () => {
+  test("plan tab falls back to a hint when the plan does not parse", async () => {
+    explainCalls.length = 0;
+    explainResult = ok({raw: "unparseable"});
+    const el = document.createElement("div");
+    const show_request = signal(true);
+    const component = RequestSQL(el, show_request, {
+      update: mock(() => Promise.resolve()),
+      send: mock(() => Promise.resolve()),
+    });
+    component.loaded({...mockRequest, request: {...mockRequest.request, kind: t.Kind.SQL, database: "sqlite"} as t.Request});
+
+    const tabButton = (name: string) => [...el.querySelectorAll("button")].find(b => b.textContent === name)!;
+    tabButton("Plan").click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(el.querySelector("#plan-nodes")).toBeNull();
+    expect(el.textContent).toContain("Could not parse the plan");
+  });
+
+  test("plan tab retries a failed fetch when shown again", async () => {
     explainCalls.length = 0;
     explainResult = err("postgres connection failed");
     const el = document.createElement("div");
@@ -125,14 +171,17 @@ describe("RequestSQL", () => {
     expect(explainCalls).toEqual(["test-id"]);
     expect(el.querySelector("pre")?.textContent).toContain("postgres connection failed");
 
+    // Hiding the tab ("Data") and showing it again retries the failed EXPLAIN.
+    explainResult = ok({raw: "SCAN users", plan: mockPlan});
     tabButton("Data").click();
     tabButton("Plan").click();
     await new Promise(resolve => setTimeout(resolve, 0));
-    expect(explainCalls).toEqual(["test-id"]);
+    expect(explainCalls).toEqual(["test-id", "test-id"]);
+    expect(el.querySelector("#plan-nodes")?.textContent).toContain("Seq Scan on users");
 
+    // Switching to a different request fetches its own plan.
     component.loaded({...mockRequest, request: {...mockRequest.request, id: "other-id", kind: t.Kind.SQL, database: "sqlite"} as t.Request});
-    tabButton("Plan").click();
     await new Promise(resolve => setTimeout(resolve, 0));
-    expect(explainCalls).toEqual(["test-id", "other-id"]);
+    expect(explainCalls).toEqual(["test-id", "test-id", "other-id"]);
   });
 });

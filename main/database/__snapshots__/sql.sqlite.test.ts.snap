@@ -1,0 +1,96 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`parseSqlitePlan wraps the flat join forest under a synthetic root 1`] = `
+{
+  "root": {
+    "children": [
+      {
+        "children": [],
+        "details": [],
+        "kind": "scan",
+        "metrics": {},
+        "table": "s",
+        "title": "SCAN s",
+      },
+      {
+        "children": [],
+        "details": [],
+        "kind": "scan",
+        "metrics": {},
+        "table": "h",
+        "title": "SCAN h LEFT-JOIN",
+      },
+    ],
+    "details": [],
+    "kind": "other",
+    "metrics": {},
+    "title": "Query plan",
+  },
+}
+`;
+
+exports[`parseSqlitePlan rebuilds subquery trees from parent links 1`] = `
+{
+  "root": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [],
+            "details": [],
+            "kind": "scan",
+            "metrics": {},
+            "table": "t1",
+            "title": "SCAN t1",
+          },
+        ],
+        "details": [],
+        "kind": "other",
+        "metrics": {},
+        "title": "CO-ROUTINE s",
+      },
+      {
+        "children": [],
+        "details": [],
+        "kind": "scan",
+        "metrics": {},
+        "table": "s",
+        "title": "SCAN s",
+      },
+    ],
+    "details": [],
+    "kind": "other",
+    "metrics": {},
+    "title": "Query plan",
+  },
+}
+`;
+
+exports[`parseSqlitePlan classifies scans, index searches and order-by b-trees 1`] = `
+{
+  "root": {
+    "children": [
+      {
+        "children": [],
+        "details": [],
+        "index": "INTEGER PRIMARY KEY",
+        "kind": "index",
+        "metrics": {},
+        "table": "users",
+        "title": "SEARCH (rowid=?)",
+      },
+      {
+        "children": [],
+        "details": [],
+        "kind": "sort",
+        "metrics": {},
+        "title": "USE TEMP B-TREE FOR ORDER BY",
+      },
+    ],
+    "details": [],
+    "kind": "other",
+    "metrics": {},
+    "title": "Query plan",
+  },
+}
+`;

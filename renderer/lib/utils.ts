@@ -179,7 +179,7 @@ type SVGAttrs = {
 export function s<K extends keyof SVGAttrs>(
   tag: K,
   props: Partial<SVGAttrs[K]>,
-  ...children: (SVGElement | string)[]
+  ...children: (SVGElement | string | null)[]
 ): SVGElementTagNameMap[K] {
   const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
   for (const [key, value] of Object.entries(props)) {
@@ -189,10 +189,21 @@ export function s<K extends keyof SVGAttrs>(
       el.setAttribute(key, String(value));
     }
   }
-  for (const child of children) {
+  for (const child of children.filter(c => c !== null)) {
     el.append(child instanceof Node ? child : document.createTextNode(child));
   }
   return el;
+}
+
+// s() children are SVG elements, so HTML content inside SVG needs this helper.
+export function foreignObject(x: number, y: number, w: number, h: number, child: HTMLElement): SVGForeignObjectElement {
+  const fo = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
+  fo.setAttribute("x", String(x));
+  fo.setAttribute("y", String(y));
+  fo.setAttribute("width", String(w));
+  fo.setAttribute("height", String(h));
+  fo.append(child);
+  return fo;
 }
 
 export function deepEquals<T>(a: T, b: T): boolean {

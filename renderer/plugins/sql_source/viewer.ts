@@ -102,6 +102,7 @@ export default function(
 
       const el_schema_tab = m("div", {class: "h100"});
       const schema = SchemaCanvas(el_schema_tab);
+      unmounts.push(() => schema.unmount());
 
       const el_container = NTabs({
         tabs: [

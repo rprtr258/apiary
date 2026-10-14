@@ -37,8 +37,9 @@ export function quoteIdent(db: t.Database, s: string): string {
   return router[db].quoteIdent(s);
 }
 
-// EXPLAIN output of the query, as plain text, for every database. Not saved to
-// history; the Explain tab fetches it on open.
+// EXPLAIN of the query: raw text plus the plan parsed into the unified
+// operator-tree format (null when parsing fails). Not saved to history; the
+// Plan/Plan (raw) tabs fetch it on open.
 export async function explain(request: t.SQLRequest): Promise<t.SQLExplain> {
   return router[request.database].explain(request);
 }

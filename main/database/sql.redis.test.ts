@@ -1,6 +1,6 @@
 import {describe, test, expect, mock} from "bun:test";
 import {SQLSourceRequest, ColumnType} from "@/types.ts";
-import {send, sendBatch, explain, describe as describeTable, listTables} from "./sql.redis.ts";
+import {send, sendBatch, explain, describe as describeTable, listTables, parsePlan} from "./sql.redis.ts";
 import {countRowsSQLSource, testSQLSource} from "./sql_source.ts";
 
 // Fake wasm engine behind querySqlOverRedis; replies keyed by query shape.
@@ -85,7 +85,7 @@ describe("sql.redis sendBatch", () => {
 });
 
 describe("sql.redis explain", () => {
-  test("wraps the query in EXPLAIN ANALYZE and joins plan lines", async () => {
+  test("wraps the query in EXPLAIN ANALYZE and returns raw + parsed plan", async () => {
     queryCalls.length = 0;
     const plan = await explain({dsn: "localhost:6379", database: "redis", query: "SELECT 1"});
     expect(queryCalls).toEqual(["EXPLAIN ANALYZE SELECT 1"]);
@@ -126,5 +126,37 @@ describe("sql_source redis", () => {
 
   test("connection test passes", async () => {
     expect(testSQLSource(source)).resolves.toBeUndefined();
+  });
+});
+
+const GMS_FIXTURE = `Limit(5)
+ └─ Project
+     ├─ columns: [s.key, h.field]
+     └─ Sort(h.field ASC)
+         └─ HashJoin
+             ├─ (s.key = h.key)
+             ├─ TableAlias(h)
+             │   └─ Table
+             │       └─ name: rhash
+             └─ HashLookup
+                 ├─ left-key: (h.key)
+                 ├─ right-key: (s.key)
+                 └─ Filter
+                     ├─ (NOT((s.value = 'x')))
+                     └─ TableAlias(s)
+                         └─ Table
+                             └─ name: rstring`;
+
+describe("parseGmsPlan", () => {
+  test("builds the operator tree with details", () => {
+    expect(parsePlan(GMS_FIXTURE)).toMatchSnapshot();
+  });
+
+  test("parses the plain indented variant", () => {
+    expect(parsePlan("Project\n  Projection: 1\n  Analyze: true\n  Sequence")).toMatchSnapshot();
+  });
+
+  test("returns null for garbage", () => {
+    expect(parsePlan("")).toBeUndefined();
   });
 });

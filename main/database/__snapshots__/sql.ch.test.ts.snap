@@ -1,0 +1,117 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`parseClickhousePlan builds the operator tree 1`] = `
+{
+  "root": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "details": [],
+                        "kind": "scan",
+                        "metrics": {},
+                        "title": "ReadFromSystemOne",
+                      },
+                    ],
+                    "details": [
+                      "Filter column: materialize(1) != 0 AND RF1(materialize(k), 1)",
+                    ],
+                    "kind": "filter",
+                    "metrics": {},
+                    "title": "Filter",
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "details": [],
+                        "kind": "scan",
+                        "metrics": {},
+                        "title": "ReadFromSystemOne",
+                      },
+                    ],
+                    "details": [
+                      "Filter column: materialize(1) != 0 AND RF1(materialize(k), 1)",
+                    ],
+                    "kind": "filter",
+                    "metrics": {},
+                    "title": "Filter",
+                  },
+                ],
+                "details": [],
+                "kind": "setop",
+                "metrics": {},
+                "title": "Union",
+              },
+              {
+                "children": [
+                  {
+                    "children": [
+                      {
+                        "children": [],
+                        "details": [],
+                        "kind": "scan",
+                        "metrics": {},
+                        "title": "ReadFromSystemOne",
+                      },
+                    ],
+                    "details": [
+                      "(WHERE + (Change column names to column identifiers + (Project names + (Projection + Change column names to column identifiers))))",
+                      "Filter column: 1 != 0",
+                    ],
+                    "kind": "filter",
+                    "metrics": {},
+                    "title": "Filter",
+                  },
+                ],
+                "details": [
+                  "Build runtime join filter on k",
+                  "Filter id: RF1",
+                ],
+                "kind": "other",
+                "metrics": {},
+                "title": "BuildRuntimeFilter",
+              },
+            ],
+            "details": [
+              "JOIN FillRightFirst",
+              "s ⋈ h[1]",
+              "Type: inner | Strictness: all | Algorithm: SpillingHashJoin(HashJoin)",
+              "Join conditions: materialize(1) = 1",
+              "Output:",
+              "Left:  k",
+              "Right: Empty",
+            ],
+            "kind": "join",
+            "metrics": {},
+            "title": "Join",
+          },
+        ],
+        "details": [
+          "Sorting for ORDER BY",
+          "Sort description: materialize(1) ASC",
+          "Limit 5",
+        ],
+        "kind": "sort",
+        "metrics": {},
+        "title": "Sorting",
+      },
+    ],
+    "details": [
+      "preliminary LIMIT",
+      "Limit 5",
+      "Offset 0",
+    ],
+    "kind": "limit",
+    "metrics": {},
+    "title": "Limit",
+  },
+}
+`;
