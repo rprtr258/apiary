@@ -56,8 +56,12 @@ export function promptArgAt(state: EditorState, pos: number): Option<{
   to: number,
 }> {
   // ensureSyntaxTree: the initial parse has a 20ms wall-clock budget and may
-  // be cut short under load (partial tree => wrong node at the caret)
-  const tree = ensureSyntaxTree(state, pos) ?? syntaxTree(state);
+  // be cut short under load (descheduling/GC pause), leaving a partial tree.
+  // A caret-bounded ensure would accept that tree (isDone(caret) is already
+  // true) while properties after the caret are missing from it, so
+  // stringArgs would drop sibling arguments (flaky args={} in CI). Request
+  // the whole document instead so the parse is resumed to completion.
+  const tree = ensureSyntaxTree(state, state.doc.length) ?? syntaxTree(state);
   const node = tree.resolveInner(pos, -1);
   // The caret must sit inside a string value whose key names the argument
   if (node.name !== "String" || node.parent?.name !== "Property")

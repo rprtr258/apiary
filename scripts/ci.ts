@@ -68,6 +68,8 @@ async function main() {
     console.log(styleText("cyanBright", `Running unit tests [${label}]...`));
     await runCommand(["bun", "run", "test:unit"], env);
   }
+  console.log(styleText("cyanBright", "Running flake-detection tests..."));
+  await runCommand(["bun", "run", "test:flaky"]);
   console.log(styleText("cyanBright", "Running Go tests..."));
   await runCommand(["bun", "run", "test:go"]);
   console.log(styleText("greenBright", "CI checks completed successfully!"));
