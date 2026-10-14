@@ -1,0 +1,88 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`parseMysqlPlan builds the operator tree 1`] = `
+{
+  "root": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [],
+                    "details": [],
+                    "index": "idx_value",
+                    "kind": "index",
+                    "metrics": {
+                      "actual time": "0.02..0.25",
+                      "cost": "1.2",
+                      "loops": "1",
+                      "rows": "12",
+                      "rows (est)": "3",
+                    },
+                    "table": "s",
+                    "title": "Index lookup",
+                  },
+                ],
+                "details": [],
+                "kind": "filter",
+                "metrics": {
+                  "actual time": "0.03..0.3",
+                  "cost": "1.35",
+                  "loops": "1",
+                  "rows": "12",
+                  "rows (est)": "3",
+                },
+                "title": "Filter: (s.\`value\` <> 'x')",
+              },
+              {
+                "children": [],
+                "details": [],
+                "index": "PRIMARY",
+                "kind": "index",
+                "metrics": {
+                  "actual time": "0.008..0.01",
+                  "cost": "0.25",
+                  "loops": "12",
+                  "rows": "1",
+                  "rows (est)": "1",
+                },
+                "table": "h",
+                "title": "Index lookup (h.\`key\`=s.\`key\`)",
+              },
+            ],
+            "details": [],
+            "kind": "join",
+            "metrics": {
+              "actual time": "0.04..0.31",
+              "cost": "1.6",
+              "loops": "1",
+              "rows": "12",
+              "rows (est)": "3",
+            },
+            "title": "Nested loop inner join",
+          },
+        ],
+        "details": [],
+        "kind": "sort",
+        "metrics": {
+          "actual time": "0.34..0.34",
+          "loops": "1",
+          "rows": "5",
+        },
+        "title": "Sort: h.field",
+      },
+    ],
+    "details": [],
+    "kind": "limit",
+    "metrics": {
+      "actual time": "0.35..0.35",
+      "loops": "1",
+      "rows": "5",
+    },
+    "title": "Limit: 5 row(s)",
+  },
+}
+`;

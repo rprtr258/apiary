@@ -83,14 +83,20 @@ export type SQLPlanKind =
   | "scan" | "index" | "join" | "filter" | "sort" | "aggregate" | "limit"
   | "project" | "setop" | "write" | "subquery" | "other";
 
-/** One operator of the query plan. `table` is the table the operator
- * reads/writes, when any (drives table coloring); `details` holds
- * backend-specific lines (filters, conditions); `metrics` holds parsed
- * cost/rows/time pairs. Children flow data into this node. */
+/** One operator of the query plan.
+ * - `table` is the table the operator reads/writes, when any (drives table coloring);
+ * - `index` is the index the operator reads through, when any;
+ * - `alias` is the table alias the backend reports, when any;
+ * - `details` holds backend-specific lines (filters, conditions);
+ * - `metrics` holds parsed cost/rows/time pairs;
+ * - `title` is the bare operator name — qualifiers live in the fields above.
+ * - `children` flow data into this node; */
 export type SQLPlanNode = {
   title: string,
   kind: SQLPlanKind,
   table?: string,
+  alias?: string,
+  index?: string,
   details: string[],
   /** Metrics of a plan node (cost, rows, actual time...);
    * the value keeps the backend's own text form ("36.75..36.76", "0.123..0.124"). */

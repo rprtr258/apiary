@@ -2,6 +2,7 @@ import pg from "pg";
 import {TypeId, builtins as typeIDs} from "pg-types";
 import {createClientPool} from "./connection_pool.ts";
 import * as t from "@/types.ts";
+import {buildTree, metricsFromGroups, node, PlanLine, splitMetricGroups} from "./sql_plan.ts";
 
 // JS Date holds only millisecond precision, so pg's default parsing of date /
 // timestamp columns into Date objects loses microseconds and shifts DATE across
@@ -136,7 +137,7 @@ export async function explain(request: t.SQLRequest): Promise<t.SQLExplain> {
       const raw = result.rows.map(row => String(Object.values(row as Record<string, unknown>)[0])).join("\n");
       if (raw === "")
         throw new Error("postgres explain returned no plan");
-      return {raw};
+      return {raw, plan: parsePlan(raw)};
     } finally {
       await client.query("ROLLBACK").catch(() => undefined); // keep the original error
     }
@@ -275,4 +276,94 @@ WHERE schemaname NOT IN ('pg_catalog', 'information_schema')`});
 
 export function quoteIdent(s: string): string {
   return `"${s}"`;
+}
+
+// `EXPLAIN ANALYZE` text: the root line is bare, every other operator is
+// marked with `->` and indented by 2 spaces per level; non-arrow lines are
+// details of the preceding operator. Trailing "Planning Time"/"Execution
+// Time"/JIT/Trigger lines are collected as root details.
+export function parsePlan(raw: string): t.SQLPlan | undefined {
+  const lines: PlanLine[] = [];
+  const tail: string[] = [];
+  let sawRoot = false;
+  for (const line of raw.split("\n")) {
+    if (line.trim() === "")
+      continue;
+    const arrow = /^(\s*)->\s+(.*)$/.exec(line);
+    if (arrow !== null && tail.length === 0) {
+      const {title, groups} = splitMetricGroups(arrow[2]);
+      // Postgres indents the `->` markers in a 2/8/14/20... staircase (6
+      // columns per level after the first).
+      lines.push({operator: true, depth: Math.round((arrow[1].length + 4) / 6), n: toNode(title, groups)});
+      sawRoot = true;
+    } else if (!sawRoot) {
+      // The root line is bare (no `->`); every other non-arrow line is a detail
+      // of the preceding operator, until the trailing timing block.
+      const {title, groups} = splitMetricGroups(line.trim());
+      lines.push({operator: true, depth: 0, n: toNode(title, groups)});
+      sawRoot = true;
+    } else if (tail.length > 0 || /^(Planning Time|Execution Time|JIT|Trigger)/.test(line.trim()))
+      tail.push(line.trim());
+    else
+      lines.push({operator: false, text: line.trim()});
+  }
+  const plan = buildTree(lines);
+  if (plan === undefined)
+    return undefined;
+  plan.root.details.push(...tail);
+  return plan;
+}
+
+function toNode(title: string, groups: string[]): t.SQLPlanNode {
+  const parts = splitTitle(title);
+  const n = node(parts.label);
+  n.metrics = metricsFromGroups(groups);
+  // Kind is classified from the full title, before qualifiers are stripped
+  // (e.g. the write kinds are keyed on the trailing "on <table>").
+  n.kind = postgresKind(title);
+  if (parts.table !== undefined)
+    n.table = parts.table;
+  if (parts.index !== undefined)
+    n.index = parts.index;
+  if (parts.alias !== undefined)
+    n.alias = parts.alias;
+  return n;
+}
+
+// Operator titles carry the scan qualifiers inline:
+// "<head>[ using <index>] on <table>[ <alias>]" — metrics and detail lines
+// are already split off, so a single trailing word after the table is always
+// the alias. "Bitmap Index Scan on <x>" points at an index, not a table.
+function splitTitle(title: string): {label: string, table?: string, index?: string, alias?: string} {
+  const m = /^(?<head>.+?)(?:\s+using\s+(?<index>"[^"]*"|\S+))?(?:\s+on\s+(?<table>"[^"]*"|\S+))(?:\s+(?<alias>"[^"]*"|\S+))?$/.exec(title);
+  if (m === null)
+    return {label: title};
+  const {head, index, table, alias} = m.groups!;
+  if (head === "Bitmap Index Scan")
+    return {label: head, index: table};
+  return {label: head, table, index, alias};
+}
+
+function postgresKind(title: string): t.SQLPlanKind {
+  if (/Index (Scan|Only Scan)|Bitmap Index Scan|Tid Scan/.test(title))
+    return "index";
+  if (/^(Seq Scan|Bitmap Heap Scan|Sample Scan)/.test(title))
+    return "scan";
+  if (/^(CTE Scan|WorkTable Scan|Subquery Scan|Named Tuplestore Scan)/.test(title))
+    return "subquery";
+  if (/Join|Nested Loop/.test(title))
+    return "join";
+  if (/Sort/.test(title))
+    return "sort";
+  if (/Aggregate/.test(title))
+    return "aggregate";
+  if (/^Limit/.test(title))
+    return "limit";
+  if (/^(Insert|Update|Delete|Merge) on/.test(title))
+    return "write";
+  if (/^(HashSetOp|SetOp|Recursive Union|Append|MergeAppend)/.test(title))
+    return "setop";
+  if (/^ProjectSet/.test(title))
+    return "project";
+  return "other";
 }

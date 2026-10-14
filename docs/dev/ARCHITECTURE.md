@@ -17,6 +17,7 @@ apiary/
 │   └── database/           # Plugin modules, one file per request kind (+ *_test.ts unit tests)
 │       ├── http.ts, sql.ts, grpc.ts, redis.ts, jq.ts, md.ts, diff.ts
 │       ├── sql_source.ts, http_source.ts, mcp.ts
+│       ├── sql_plan.ts     # EXPLAIN text -> unified SQLPlan operator-tree parsers (one per SQL backend)
 │       └── connection_pool.ts # generic connection pool engine (shared by mcp.ts, redis.ts and the sql.*.ts backends)
 ├── renderer/               # Frontend (vanilla TypeScript, no framework)
 │   ├── App.ts              # Layout mount, command palette, keyboard shortcuts, panelkaFactory
@@ -152,6 +153,10 @@ User -> renderer state (store/signals) -> `window.api` (IPC invoke) -> `main.ts`
 | Request UI (`renderer/plugins/<kind>/viewer.ts`) | Display format | 10 viewer modules |
 | IPC surface (`global.d.ts` `Api`) | main ↔ renderer contract | `window.api` (preload) |
 | Plugin registry (`renderer/plugins/`) | Kind-specific sidebar/menu metadata | 10 plugin files + `index.ts` registry |
+| Plan parsers (`main/database/sql_plan.ts`) | Per-backend EXPLAIN text format | one parser per SQL backend -> unified `SQLPlan` tree (`shared/types/sql.ts`); unparseable output falls back to raw text (`SQLExplain.plan: null`) |
+| Plan diagram (`renderer/plugins/sql/plan.ts`) | `SQLPlan` tree | top-down SVG (pan/zoom, click detail panel); consumes the unified format only, never backend-specific text |
+
+The SQL explain flow: `SQL.Explain` IPC returns one `SQLExplain = {raw, plan}` per request (EXPLAIN ANALYZE actually executes the query on postgres/mysql/redis, so it must not run twice); the sql viewer's "Plan" tab draws `plan` via the diagram component, "Plan (raw)" shows `raw` verbatim.
 
 ## Testing Strategy
 

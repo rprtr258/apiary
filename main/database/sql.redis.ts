@@ -1,5 +1,6 @@
 import * as t from "@/types.ts";
 import {querySqlOverRedis} from "../redissql.ts";
+import {buildTree, node, PlanLine} from "./sql_plan.ts";
 
 // go-mysql-server has no session read-only switch over the redis bridge, so
 // write statements are rejected by their leading keyword. This is a seatbelt,
@@ -76,7 +77,7 @@ export async function sendBatch(request: Omit<t.SQLRequest, "query">, statements
 export async function explain(request: t.SQLRequest): Promise<t.SQLExplain> {
   const result = await querySqlOverRedis(request.dsn, `EXPLAIN ANALYZE ${request.query}`);
   const raw = result.rows.map(row => row.map(String).join(" ")).join("\n");
-  return {raw};
+  return {raw, plan: parsePlan(raw)};
 }
 
 export async function describe(request: Omit<t.SQLRequest, "query">, tableName: string): Promise<t.TableSchema> {
@@ -120,4 +121,104 @@ WHERE table_schema = DATABASE()`})).rows.map(r => String(r[0]));
 
 export function quoteIdent(s: string): string {
   return "`" + s.replaceAll("`", "``") + "`";
+}
+
+// Box-drawing tree: operators like "Limit(5)" / "Project" with `├─`/`└─`
+// markers (4-column indent steps); detail lines ("name: x", bare "(expr)")
+// carry the same markers, so a content heuristic tells them apart. Without
+// box characters (plain indented variant) the same heuristic applies with
+// 2-space indents.
+const GMS_ARROW = /^([\s│]*)([├└])(.*)$/;
+const GMS_UNIT = 4;
+
+export function parsePlan(raw: string): t.SQLPlan | undefined {
+  const hasBox = /[│├└]/.test(raw);
+  const unit = hasBox ? GMS_UNIT : 2;
+  const lines: PlanLine[] = [];
+  for (const line of raw.split("\n")) {
+    if (line.trim() === "")
+      continue;
+    const arrow = GMS_ARROW.exec(line);
+    const leading = arrow === null ? line.length - line.trimStart().length : arrow[1].length + 3;
+    const text = arrow === null ? line.trim() : arrow[3].replace(/^─+/, "").trim();
+    if (text === "")
+      continue;
+    if (gmsIsDetail(text)) {
+      lines.push({operator: false, text});
+      continue;
+    }
+    const open = text.indexOf("(");
+    const title = open < 0 ? text : text.slice(0, open).trim();
+    const n = node(title);
+    if (open >= 0 && text.endsWith(")"))
+      n.details.push(text.slice(open + 1, text.length - 1));
+    n.kind = gmsKind(title);
+    lines.push({operator: true, depth: Math.floor(leading / unit), n});
+  }
+  const plan = buildTree(lines);
+  if (plan === undefined)
+    return undefined;
+  annotateGms(plan.root);
+  collapseTableAlias(plan.root);
+  return plan;
+}
+
+// Detail lines carry "key: value" info or bare parenthesized expressions;
+// operators are capitalized node names with optional "(args)".
+function gmsIsDetail(text: string): boolean {
+  if (text.startsWith("("))
+    return true;
+  const colon = text.indexOf(":");
+  const paren = text.indexOf("(");
+  return colon >= 0 && (paren < 0 || colon < paren);
+}
+
+// "Table" nodes carry their real name as a "name: x" detail line; details are
+// attached while building the tree, so tables are annotated afterwards.
+function annotateGms(n: t.SQLPlanNode): void {
+  n.table = gmsTableName(n);
+  for (const child of n.children)
+    annotateGms(child);
+}
+
+function gmsTableName(n: t.SQLPlanNode): string | undefined {
+  if (n.title !== "Table")
+    return undefined;
+  const name = n.details.map(d => /^name:\s*(.+)$/.exec(d)).find(m => m !== null);
+  return name === undefined ? undefined : name[1].trim();
+}
+
+function gmsKind(title: string): t.SQLPlanKind {
+  if (/^Table/.test(title))
+    return "scan";
+  if (/Join|Lookup/.test(title))
+    return "join";
+  if (/^Filter|^Where/.test(title))
+    return "filter";
+  if (/^Sort/.test(title))
+    return "sort";
+  if (/^Limit/.test(title))
+    return "limit";
+  if (/^Project/.test(title))
+    return "project";
+  if (/^Union|^Intersect|^Except/.test(title))
+    return "setop";
+  if (/Aggregat/.test(title))
+    return "aggregate";
+  return "other";
+}
+
+// "TableAlias(h)" with a single "Table" child is presentation noise: merge
+// into one scan node titled "Table h" carrying the real table name.
+function collapseTableAlias(n: t.SQLPlanNode): void {
+  for (const child of n.children)
+    collapseTableAlias(child);
+  if (n.title === "TableAlias" && n.children.length === 1 && n.children[0].title === "Table") {
+    const alias = n.details[0] ?? "";
+    const table = n.children[0];
+    n.title = `Table ${alias}`;
+    n.table = table.table ?? n.table;
+    n.details = table.details;
+    n.children = table.children;
+  }
 }

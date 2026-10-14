@@ -1,7 +1,18 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
-exports[`explainSQL sqlite returns EXPLAIN QUERY PLAN details as text 1`] = `
+exports[`explainSQL sqlite returns raw details and the parsed plan tree 1`] = `
 {
+  "plan": {
+    "root": {
+      "children": [],
+      "details": [],
+      "index": "INTEGER PRIMARY KEY",
+      "kind": "index",
+      "metrics": {},
+      "table": "users",
+      "title": "SEARCH (rowid=?)",
+    },
+  },
   "raw": "SEARCH users USING INTEGER PRIMARY KEY (rowid=?)",
 }
 `;

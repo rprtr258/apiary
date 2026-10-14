@@ -277,8 +277,9 @@ export const SQLSource = {
 };
 
 export const SQL = {
-  // Explain runs EXPLAIN on the request's query and returns the plan without
-  // saving anything to history; the Explain tab fetches it on open.
+  // Explain runs EXPLAIN on the request's query and returns the raw text plus
+  // the plan parsed into the unified format, without saving anything to
+  // history; the Plan / Plan (raw) tabs fetch it on open.
   async Explain(id: t.RequestID): Promise<t.SQLExplain> {
     const j = await load();
     if (!(id in j))

@@ -1,6 +1,7 @@
 import mysql, {type Connection, type ResultSetHeader} from "mysql2/promise.js";
 import {createClientPool} from "./connection_pool.ts";
 import * as t from "@/types.ts";
+import {buildTree, metricsFromGroups, node, PlanLine, splitMetricGroups} from "./sql_plan.ts";
 
 // dateStrings: keep DATETIME/TIMESTAMP as raw server text (µs precision) —
 // table editing identifies rows by these values, and JS Date would truncate them.
@@ -79,7 +80,7 @@ export async function explain(request: t.SQLRequest): Promise<t.SQLExplain> {
     // mysql2 prepared `execute` rejects EXPLAIN ANALYZE; use plain query.
     const [rows] = await connection.query(`EXPLAIN ANALYZE ${request.query}`) as [{[column: string]: string}[], unknown];
     const raw = rows.map(r => Object.values(r).join(" ")).join("\n");
-    return {raw};
+    return {raw, plan: parsePlan(raw)};
   });
 }
 
@@ -167,4 +168,74 @@ WHERE table_schema = '${dbName}'`}); // TODO: pass dbname as arg
 
 export function quoteIdent(s: string): string {
   return "`" + s + "`";
+}
+
+// `EXPLAIN ANALYZE` tree format: one `->` line per operator, indented a fixed
+// number of spaces per level (varies between mysql versions, detected as the
+// smallest nonzero indent). Everything sits on the operator line.
+export function parsePlan(raw: string): t.SQLPlan | undefined {
+  const lines = raw.split("\n").filter(l => l.trim() !== "");
+  const indents = lines
+    .map(l => /^(\s*)->\s+/.exec(l))
+    .filter(m => m !== null)
+    .map(m => m[1].length)
+    .filter(n => n > 0);
+  if (indents.length === 0 && !/^(\s*)->\s+/.test(lines[0] ?? ""))
+    return undefined; // traditional tabular format or garbage
+  const unit = indents.length === 0 ? 1 : Math.min(...indents);
+  const parsed: PlanLine[] = [];
+  for (const line of lines) {
+    const arrow = /^(\s*)->\s+(.*)$/.exec(line);
+    if (arrow === null) {
+      parsed.push({operator: false, text: line.trim()});
+      continue;
+    }
+    const {title, groups} = splitMetricGroups(arrow[2]);
+    const parts = splitTitle(title);
+    const n = node(parts.label);
+    n.metrics = metricsFromGroups(groups);
+    n.kind = mysqlKind(title);
+    if (parts.table !== undefined)
+      n.table = parts.table;
+    if (parts.index !== undefined)
+      n.index = parts.index;
+    parsed.push({operator: true, depth: Math.floor(arrow[1].length / unit), n});
+  }
+  return buildTree(parsed);
+}
+
+// Operator titles carry the scan qualifiers inline:
+// "<head> on <table>[ using <index>][ (<cond>)]". Conditions are not
+// qualifiers and stay in the label. MySQL prints the alias, when any, in
+// place of the table name, so it cannot be reported separately.
+function splitTitle(title: string): {label: string, table?: string, index?: string} {
+  const m = /^(?<head>.+?)\s+on\s+(?<table>\S+)(?:\s+using\s+(?<index>\S+))?(?<cond>\s*\(.*\))?$/.exec(title);
+  if (m === null)
+    return {label: title};
+  const g: Record<string, string | undefined> = m.groups!;
+  const head = g.head!;
+  const {index, table, cond} = g;
+  return {label: cond !== undefined ? `${head}${cond}` : head, table, index};
+}
+
+function mysqlKind(title: string): t.SQLPlanKind {
+  if (/join/i.test(title))
+    return "join";
+  if (/^Index (lookup|range scan|scan)|^(Primary|Secondary|Unique) (key|index)|^Covering index/.test(title))
+    return "index";
+  if (/^Table scan/.test(title))
+    return "scan";
+  if (/^Sort/.test(title))
+    return "sort";
+  if (/^Limit/.test(title))
+    return "limit";
+  if (/^Filter/.test(title))
+    return "filter";
+  if (/aggregate/i.test(title))
+    return "aggregate";
+  if (/^(Insert|Update|Delete)\b/.test(title))
+    return "write";
+  if (/^Union|^Duplicates elimination/.test(title))
+    return "setop";
+  return "other";
 }

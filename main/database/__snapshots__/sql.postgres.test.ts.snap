@@ -1,0 +1,111 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`parsePostgresPlan builds the operator tree 1`] = `
+{
+  "root": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "alias": "s",
+                "children": [],
+                "details": [
+                  "Filter: (value <> 'x'::text)",
+                  "Rows Removed by Filter: 3",
+                ],
+                "kind": "scan",
+                "metrics": {
+                  "actual time": "0.011..0.031",
+                  "cost": "0.00..17.95",
+                  "loops": "1",
+                  "rows": "120",
+                  "rows (est)": "120",
+                  "width": "8",
+                },
+                "table": "rstring",
+                "title": "Seq Scan",
+              },
+              {
+                "children": [
+                  {
+                    "alias": "h",
+                    "children": [],
+                    "details": [],
+                    "kind": "scan",
+                    "metrics": {
+                      "actual time": "0.008..0.022",
+                      "cost": "0.00..16.00",
+                      "loops": "1",
+                      "rows": "160",
+                      "rows (est)": "160",
+                      "width": "8",
+                    },
+                    "table": "rhash",
+                    "title": "Seq Scan",
+                  },
+                ],
+                "details": [
+                  "Buckets: 1024  Batches: 1  Memory Usage: 20kB",
+                ],
+                "kind": "other",
+                "metrics": {
+                  "actual time": "0.052..0.052",
+                  "cost": "16.00..16.00",
+                  "loops": "1",
+                  "rows": "160",
+                  "rows (est)": "160",
+                  "width": "8",
+                },
+                "title": "Hash",
+              },
+            ],
+            "details": [
+              "Hash Cond: (s.key = h.key)",
+            ],
+            "kind": "join",
+            "metrics": {
+              "actual time": "0.081..0.130",
+              "cost": "18.10..38.52",
+              "loops": "1",
+              "rows": "12",
+              "rows (est)": "20",
+              "width": "12",
+            },
+            "title": "Hash Join",
+          },
+        ],
+        "details": [
+          "Sort Key: h.field",
+          "Sort Method: top-N heapsort  Memory: 25kB",
+        ],
+        "kind": "sort",
+        "metrics": {
+          "actual time": "0.155..0.155",
+          "cost": "38.97..39.02",
+          "loops": "1",
+          "rows": "5",
+          "rows (est)": "20",
+          "width": "12",
+        },
+        "title": "Sort",
+      },
+    ],
+    "details": [
+      "Planning Time: 0.234 ms",
+      "Execution Time: 0.201 ms",
+    ],
+    "kind": "limit",
+    "metrics": {
+      "actual time": "0.156..0.157",
+      "cost": "38.98..39.00",
+      "loops": "1",
+      "rows": "5",
+      "rows (est)": "5",
+      "width": "12",
+    },
+    "title": "Limit",
+  },
+}
+`;

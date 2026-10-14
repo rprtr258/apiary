@@ -37,7 +37,7 @@ apiary is a cross-platform desktop application for managing various API requests
 
 - **Tech Stack**: TypeScript, Electron, Vite, CodeMirror, JSON DB.
 - **Directories**:
-  - `main/`: Electron main process - `api.ts` (API facade), `db.ts` (JSON DB), `database/`: plugin implementations (HTTP, SQL, gRPC, Redis, etc.) plus `connection_pool.ts` (generic connection-pool engine, used by the MCP, Redis and SQL plugins).
+  - `main/`: Electron main process - `api.ts` (API facade), `db.ts` (JSON DB), `database/`: plugin implementations (HTTP, SQL, gRPC, Redis, etc.) plus `connection_pool.ts` (generic connection-pool engine, used by the MCP, Redis and SQL plugins) and `sql_plan.ts` (per-backend EXPLAIN parsers building the unified `SQLExplain`/`SQLPlan` tree, used by the SQL plugin).
     - `api.ts`: API facade
     - `db.ts`: JSON DB
     - `database/`: plugin implementations (HTTP, SQL, gRPC, Redis, etc.)
@@ -168,6 +168,7 @@ numbers.forEach(n => console.log(n));
 - bun `mock.module` registrations are process-wide and leak across test files (e.g. `components/TableView.test.ts` mocks `api.ts` for everything loaded after it). Tests importing the api chain must register their own `mock.module` before dynamically importing the modules under test.
 - Renderer tests run under happy-dom without the Electron bridge; stubbed api methods must return real `ok()`/`err()` Results (`@/result.ts`), since fetchers call `.map`/`.unwrap` on them.
 - Tests must be independent: reset shared module/document state in `beforeEach`, never assert against state accumulated by other tests (e.g. clear the `#dynamic-styles` stylesheet element when testing `renderer/lib/styles.ts`).
+- Running a single renderer test file directly (`bun test <file>`) fails with "window is not defined" — happy-dom is loaded via preload; use `bun test --preload ./renderer/test.setup.ts <file>`.
 
 ## Post-Task Checks
 

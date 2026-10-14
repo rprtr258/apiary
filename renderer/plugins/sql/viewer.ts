@@ -7,6 +7,7 @@ import {NButton, NInputGroup, NSelect, NSelectInput} from "../../components/inpu
 import {NScrollbar, NSplit, NTabs} from "../../components/layout.ts";
 import {DataTable} from "../../components/TableView.ts";
 import EditorSQL from "../../EditorSQL.ts";
+import PlanDiagram from "./plan.ts";
 
 type Request = t.SQLRequest;
 
@@ -18,6 +19,16 @@ type PlanState =
 
 function requestKey(request: Request): string {
   return JSON.stringify([request.dsn, request.database, request.query]);
+}
+
+function pre(text: string): HTMLElement {
+  return m("pre", {style: {
+    margin: "8px",
+    whiteSpace: "pre-wrap",
+    overflow: "auto",
+    flex: "1",
+    minHeight: "0",
+  }}, text);
 }
 
 export default function(
@@ -46,29 +57,49 @@ export default function(
   };
   const unmounts: (() => void)[] = [];
 
-  // Plan tab: the plan is fetched for the current request when the tab is
-  // opened, kept while the query/dsn/database stay unchanged, and never stored
-  // in history. The plan renders as plain text for every database.
+  // Plan tabs: the plan is fetched for the current request when either tab is
+  // opened, kept while the query/dsn/database stay unchanged, and never
+  // stored in history. "Plan" draws the parsed unified-format tree;
+  // "Plan (raw)" shows the backend's own EXPLAIN text. One EXPLAIN round trip
+  // feeds both (EXPLAIN ANALYZE actually executes the query on some backends).
   let current: get_request | null = null;
   let plan_shown = false;
   let plan_key: string | null = null;
   let plan_state: PlanState = {kind: "idle"};
-  // Flex column with definite height: the plan pre (flex: 1) fills the pane and
-  // scrolls inside it instead of stretching the pane's parent.
-  const el_plan = m("div", {style: {height: "100%", display: "flex", flexDirection: "column", overflow: "hidden"}});
+  // Flex column with definite height: the panes (flex: 1) fill the tab and
+  // scroll inside it instead of stretching the pane's parent.
+  const paneStyle = {height: "100%", display: "flex", flexDirection: "column", overflow: "hidden"};
+  const el_plan = m("div", {style: paneStyle});
+  const el_plan_raw = m("div", {style: paneStyle});
+  const diagram = PlanDiagram(el_plan);
+  unmounts.push(diagram.unmount);
   function render_plan(): void {
+    if (plan_state.kind === "plan") {
+      if (plan_state.plan.plan !== undefined) {
+        el_plan.replaceChildren(diagram.el);
+        diagram.loaded(plan_state.plan.plan);
+      } else {
+        el_plan.replaceChildren(NEmpty({description: "Could not parse the plan — see the Plan (raw) tab."}));
+      }
+      el_plan_raw.replaceChildren(pre(plan_state.plan.raw));
+      return;
+    }
     const node =
-      plan_state.kind === "plan" ? m("pre", {style: {margin: "8px", whiteSpace: "pre-wrap", overflow: "auto", flex: "1", minHeight: "0"}}, plan_state.plan.raw) :
-      plan_state.kind === "error" ? m("pre", {style: {margin: "8px", whiteSpace: "pre-wrap", overflow: "auto", flex: "1", minHeight: "0"}}, plan_state.message) :
-      NEmpty({description: plan_state.kind === "loading" ? "Running EXPLAIN..." : "Open this tab to fetch the plan."});
+      plan_state.kind === "error" ? pre(plan_state.message) :
+      NEmpty({description:
+        plan_state.kind === "loading" ? "Running EXPLAIN..." :
+        "Open this tab to fetch the plan."});
     el_plan.replaceChildren(node);
+    el_plan_raw.replaceChildren(node.cloneNode(true));
   }
   async function fetch_plan(): Promise<void> {
     if (current === null)
       return;
     const request = current.request as Request;
     const key = requestKey(request);
-    if (key === plan_key)
+    // NTabs fires onSelect only on tab change, so reaching here after a
+    // failed fetch means the tab was hidden and shown again - retry it.
+    if (key === plan_key && plan_state.kind !== "error")
       return;
     plan_key = key;
     plan_state = {kind: "loading"};
@@ -88,6 +119,11 @@ export default function(
         plan_shown = false;
       }},
       {name: "Plan", elem: el_plan, onSelect: () => {
+        plan_shown = true;
+        diagram.fit();
+        fetch_plan();
+      }},
+      {name: "Plan (raw)", elem: el_plan_raw, onSelect: () => {
         plan_shown = true;
         fetch_plan();
       }},
