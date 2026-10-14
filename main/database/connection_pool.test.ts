@@ -1,8 +1,20 @@
 // Unit tests for the generic connection pool engine (mcp.ts wires it to MCP
 // clients; here it runs over fake clients with counted connect/close).
-import {describe, expect, test} from "bun:test";
+import {describe, expect, test, afterEach} from "bun:test";
 
 import {createClientPool, type ClientPool} from "./connection_pool.ts";
+
+// Every pool carries a periodic sweep timer; without disposal the timers of
+// finished tests (and of previous --rerun-each repetitions, which re-run the
+// file without resetting the module graph) accumulate and keep firing. Under
+// the flaky-test clock-drift shim each sweep read inflates the wall clock,
+// so a swarm of leaked sweeps makes idle-expiry margins untestable. Dispose
+// them after every test.
+const pools: {dispose(): void}[] = [];
+afterEach(() => {
+  for (const pool of pools.splice(0))
+    pool.dispose();
+});
 
 type FakeClient = {
   id: number,
@@ -30,6 +42,7 @@ function setup(ttl: number, connect?: (key: string) => Promise<FakeClient>): {
       closes.push(client.id);
     },
   });
+  pools.push(pool);
   return {
     pool,
     connects,
@@ -134,6 +147,7 @@ describe("createClientPool.run", () => {
       },
       close: async () => {},
     });
+    pools.push(pool);
     const first = await pool.run({name: "same"}, async c => c.id);
     const second = await pool.run({name: "same"}, async c => c.id); // distinct object, equal hash
     expect(first).toBe(1);

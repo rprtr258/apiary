@@ -1,4 +1,4 @@
-import {describe, test, expect, mock, expectTypeOf} from "bun:test";
+import {describe, test, expect, mock, expectTypeOf, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
 import {type DB, type Request, generateID, load, create, Delete, rename, update, createResponse, HistoryEntry} from "./db.ts";
 
@@ -6,6 +6,12 @@ import {type DB, type Request, generateID, load, create, Delete, rename, update,
 // Set mockReadFileErr to throw ENOENT for a specific test
 let mockReadFileErr: Error | null = null;
 const writeFile = mock(() => Promise.resolve());
+// The mock lives at module scope, so call counts would otherwise accumulate
+// across tests in file order (visible under --randomize); reset both per test.
+beforeEach(() => {
+  mockReadFileErr = null;
+  writeFile.mockClear();
+});
 mock.module("fs/promises", () => ({
   readFile: () => {
     if (mockReadFileErr !== null) {
