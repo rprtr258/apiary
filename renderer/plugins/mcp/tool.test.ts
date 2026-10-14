@@ -1,11 +1,19 @@
 import {describe, test, expect} from "bun:test";
 import {EditorState} from "@codemirror/state";
 import {json} from "@codemirror/lang-json";
+import {ensureSyntaxTree} from "@codemirror/language";
 import {none} from "@/option.ts";
 import {promptArgAt} from "./tool.ts";
 
 function argAt(text: string, pos: number): ReturnType<typeof promptArgAt> {
-  return promptArgAt(EditorState.create({doc: text, extensions: [json()]}), pos);
+  // The initial parse of a fresh EditorState has a small wall-clock budget and
+  // may be cut mid-document under load (visible under the flaky-test clock
+  // drift shim). Wait out the parse to completion, as a live editor would
+  // have by typing time, so the test exercises promptArgAt's logic rather
+  // than parse scheduling.
+  const state = EditorState.create({doc: text, extensions: [json()]});
+  ensureSyntaxTree(state, text.length, 1000);
+  return promptArgAt(state, pos);
 }
 
 const ARGS = `{"department": "Eng", "name": "Al"}`;

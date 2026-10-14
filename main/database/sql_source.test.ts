@@ -121,12 +121,11 @@ async function use_sqlite_table_filter(): Promise<string> {
 }
 
 describe("table reads with filter (sqlite)", () => {
-  const request = {dsn: "", database: "sqlite" as const};
   const read = (filter: TableFilter | null): TableRead => ({table: "t", orderBy: [], filter, limit: 10, offset: 0});
 
   test("read query filters rows", async () => {
     const dsn = await use_sqlite_table_filter();
-    request.dsn = dsn;
+    const request = {dsn, database: "sqlite" as const};
     const q = await buildReadTableQuery(request, read({kind: "simple", column: "score", op: ">", value: "1"}));
     const res = await send(req({dsn, query: q}));
     expect(res.rows.map(r => r[1])).toEqual(["banana", "Cherry", null]);
@@ -134,6 +133,7 @@ describe("table reads with filter (sqlite)", () => {
 
   test("manual condition filters rows and an invalid one fails the query", async () => {
     const dsn = await use_sqlite_table_filter();
+    const request = {dsn, database: "sqlite" as const};
     const q = await buildReadTableQuery(request, read({kind: "manual", expr: "score >= 2 AND name IS NOT NULL"}));
     expect((await send(req({dsn, query: q}))).rows.map(r => r[1])).toEqual(["banana", "Cherry"]);
     const bad = await buildReadTableQuery(request, read({kind: "manual", expr: "score >="}));
@@ -147,6 +147,8 @@ describe("table reads with filter (sqlite)", () => {
   });
 
   test("countRowsSQLSource respects the filter", async () => {
+    const dsn = await use_sqlite_table_filter();
+    const request = {dsn, database: "sqlite" as const};
     expect(await countRowsSQLSource(request, "t", null)).toBe(4);
     expect(await countRowsSQLSource(request, "t", {kind: "simple", column: "name", op: "is not null", value: null})).toBe(3);
     expect(await countRowsSQLSource(request, "t", {kind: "manual", expr: "score < 3"})).toBe(2);

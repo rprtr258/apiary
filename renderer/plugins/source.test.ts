@@ -257,8 +257,14 @@ describe("source listing load (row expanded on start)", () => {
       }
     }());
 
+// Module-level caches (keyed by request id) survive --rerun-each file
+// repetitions, so fixed ids would make repetitions 2+ skip the fetch the
+// regression is about. A fresh id per file run keeps every repetition on the
+// fresh-fetch path.
+const freshID = (name: string): string => `${name}-${crypto.randomUUID()}`;
+
   test("sql source subitems load when the row is expanded on start", async () => {
-    const id = "test-sql-source";
+    const id = freshID("test-sql-source");
     seedRequest(id, Kind.SQLSource);
     const expanded = new Set([id]);
     const unmount = withTreeMirror(id, expanded);
@@ -276,7 +282,7 @@ describe("source listing load (row expanded on start)", () => {
   });
 
   test("expanded mcp row eagerly loads tools, prompts and resources with one IPC call", async () => {
-    const id = "test-mcp-source";
+    const id = freshID("test-mcp-source");
     seedRequest(id, Kind.MCP);
     const expanded = new Set([
       id,

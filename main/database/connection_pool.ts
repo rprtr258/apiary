@@ -21,6 +21,9 @@ export type ClientPool<T, K> = {
   evict(key: K, client: T): void,
   sweep(): void,
   size(): number,
+  // Stops the periodic idle sweep. Cached entries are left untouched; run()
+  // keeps working (it sweeps on acquire anyway).
+  dispose(): void,
 };
 
 const DEFAULT_TTL = 1000*60*5;
@@ -120,5 +123,5 @@ export function createClientPool<T, K>(opts: {
   const timer = setInterval(sweep, Math.max(1, Math.round(ttl / 2)));
   (timer as {unref?: () => void}).unref?.();
 
-  return {run, evict, sweep, size: () => clients.size};
+  return {run, evict, sweep, size: () => clients.size, dispose: () => clearInterval(timer)};
 }
