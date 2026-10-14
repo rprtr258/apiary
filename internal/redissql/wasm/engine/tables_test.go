@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
+	sqle "github.com/dolthub/go-mysql-server"
 	"github.com/dolthub/go-mysql-server/sql"
 )
 
@@ -71,7 +73,7 @@ func (c *fakeClient) ZRangeWithScores(_ context.Context, key string, _, _ int64)
 }
 
 func TestPartitionRowsSkipsDeletedKeys(t *testing.T) {
-	ctx := sql.NewContext(context.Background())
+	ctx := sql.NewContext(t.Context())
 	c := &fakeClient{
 		keys:    []string{"gone", "live"},
 		strings: map[string]string{"live": "v"},
@@ -108,7 +110,7 @@ func TestPartitionRowsSkipsDeletedKeys(t *testing.T) {
 // the tail keys all have a different type; row iterators must not index that
 // page (regression: panic index out of range [0] with length 0).
 func TestRowIterEndsOnEmptyScanPage(t *testing.T) {
-	ctx := sql.NewContext(context.Background())
+	ctx := sql.NewContext(t.Context())
 	c := &fakeClient{
 		pages:   [][]string{{"a"}, {}},
 		strings: map[string]string{"a": "v"},
@@ -132,5 +134,46 @@ func TestRowIterEndsOnEmptyScanPage(t *testing.T) {
 		if rows != 1 {
 			t.Fatalf("%s: got %d rows, want 1", table.Name(), rows)
 		}
+	}
+}
+
+// EXPLAIN ANALYZE is handled natively by go-mysql-server (the mysql shim); the
+// explain driver in main/database/sql.redis.ts relies on that, so the engine
+// needs no redis-specific EXPLAIN code.
+func TestExplainAnalyzeThroughEngine(t *testing.T) {
+	c := &fakeClient{
+		strings: map[string]string{"a": "v"},
+	}
+
+	db := sqle.NewDefault(NewProvider(c))
+	session := sql.NewBaseSession()
+	session.SetCurrentDatabase(DBName(c.DBIndex()))
+	ctx := sql.NewContext(t.Context(), sql.WithSession(session))
+	_, iter, _, err := db.Query(ctx, "EXPLAIN ANALYZE SELECT `key` FROM rstring")
+	if err != nil {
+		t.Fatalf("explain: %v", err)
+	}
+	defer iter.Close(ctx)
+
+	var lines []string
+	for {
+		row, err := iter.Next(ctx)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("iterate: %v", err)
+		}
+		cells := make([]string, len(row))
+		for i, cell := range row {
+			cells[i] = fmt.Sprint(cell)
+		}
+		lines = append(lines, strings.Join(cells, " "))
+	}
+	if len(lines) == 0 {
+		t.Fatal("explain returned no rows")
+	}
+	if plan := strings.Join(lines, "\n"); !strings.Contains(plan, "Project") {
+		t.Fatalf("unexpected plan:\n%s", plan)
 	}
 }

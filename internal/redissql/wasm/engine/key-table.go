@@ -28,7 +28,7 @@ func (i *rkeyRowIter) Next(ctx *sql.Context) (sql.Row, error) {
 		}
 
 		if i.index == len(i.keys) {
-			keys, cursor, err := i.rdb.ScanType(ctx, i.cursor, "*", 0, "")
+			keys, cursor, err := i.rdb.ScanType(ctx, i.cursor, "*", scanCount, "")
 			if err != nil {
 				return nil, err
 			}
@@ -114,7 +114,7 @@ func (t *rkeyTable) Partitions(*sql.Context) (sql.PartitionIter, error) {
 	return &partitionIter{}, nil
 }
 func (t *rkeyTable) PartitionRows(ctx *sql.Context, _ sql.Partition) (sql.RowIter, error) {
-	keys, cursor, err := t.rdb.ScanType(ctx, 0, "*", 0, "")
+	keys, cursor, err := t.rdb.ScanType(ctx, 0, "*", scanCount, "")
 	if err != nil {
 		return nil, err
 	}
