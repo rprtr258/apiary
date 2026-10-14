@@ -42,7 +42,7 @@ export function buildFilterCondition(request: Omit<SQLRequest, "query">, filter:
   if (filter.kind === "manual")
     return `(${filter.expr})`;
 
-  const column = quoteIdent[request.database](filter.column);
+  const column = quoteIdent(request.database, filter.column);
 
   if (filter.op === "is null")
     return `${column} IS NULL`;
@@ -101,7 +101,7 @@ export function buildTableUpdateStatements(
     byRow.get(key)!.set(u.column, u.value);
   }
 
-  const q = quoteIdent[request.database];
+  const q = (s: string) => quoteIdent(request.database, s);
   return [...byRow.entries()].map(([key, changes]) => {
     const set = [...changes.entries()]
       .map(([col, value]) => `${q(col)} = ${sqlLiteral(value)}`)
@@ -151,7 +151,7 @@ export async function tablePrimaryKeyColumns(request: Omit<SQLRequest, "query">,
 // best-effort: on failure the table is paginated in engine order. No PK info is
 // available for ClickHouse, so it stays in engine order too.
 export async function buildReadTableQuery(request: Omit<SQLRequest, "query">, read: TableRead): Promise<string> {
-  const q = quoteIdent[request.database];
+  const q = (s: string) => quoteIdent(request.database, s);
   const orderTerms = read.orderBy.map(sc => `${q(sc.column)} ${sc.direction.toUpperCase()}`);
   try {
     orderTerms.push(...(await tablePrimaryKeyColumns(request, read.table)).map(c => `${q(c)} ASC`));
@@ -165,7 +165,7 @@ export async function buildReadTableQuery(request: Omit<SQLRequest, "query">, re
 
 export async function countRowsSQLSource(request: Omit<SQLRequest, "query">, tableName: string, filter: TableFilter | null): Promise<number> {
   // Quote each part of schema-qualified names separately
-  const q = quoteIdent[request.database];
+  const q = (s: string) => quoteIdent(request.database, s);
   const quoted = tableName.split(".").map(q).join(".");
   const where = filter !== null ? ` WHERE ${buildFilterCondition(request, filter)}` : "";
   const result = await send({...request, query: `SELECT COUNT(*) FROM ${quoted}${where}`});

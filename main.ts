@@ -77,6 +77,7 @@ ipcMain.handle("Perform", (_, id: string) => api.Perform(id));
 ipcMain.handle("GRPC.Methods", (_, target: string) => api.GRPC.Methods(target));
 ipcMain.handle("GRPC.QueryFake", (_, target: string, method: string) => api.GRPC.QueryFake(target, method));
 ipcMain.handle("GRPC.QueryValidate", (_, target: string, method: string, payload: string) => api.GRPC.QueryValidate(target, method, payload));
+ipcMain.handle("SQL.Explain", (_, id: string) => api.SQL.Explain(id));
 ipcMain.handle("SQLSource.Perform", (_, id: string, read: t.TableRead) => api.SQLSource.Perform(id, read));
 ipcMain.handle("SQLSource.Test", (_, id: string) => api.SQLSource.Test(id));
 ipcMain.handle("SQLSource.ListTables", (_, id: string) => api.SQLSource.ListTables(id));

@@ -3,7 +3,7 @@ import {tmpdir} from "os";
 import {join} from "path";
 import {mock, describe, test, expect} from "bun:test";
 import {SQLRequest, ColumnType} from "@/types.ts";
-import {send} from "./sql.ts";
+import {send, explain} from "./sql.ts";
 import {BetterLikeDB} from "./mock_better_sqlite3.ts";
 
 mock.module("better-sqlite3", () => ({
@@ -27,5 +27,26 @@ describe("sendSQL sqlite", () => {
 
     const result = await send(req({dsn: TEST_DB, query: "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"}));
     expect(result).toEqual({typenames: ["string"], types: [ColumnType.STRING], columns: ["name"], rows: [["posts"], ["users"]]});
+  });
+});
+
+describe("explainSQL sqlite", () => {
+  test("returns EXPLAIN QUERY PLAN details as text", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sqlite-explain"));
+    const TEST_DB = dir + "/apiary-sql-test.db";
+    await send(req({dsn: TEST_DB, query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"}));
+
+    const plan = await explain(req({dsn: TEST_DB, query: "SELECT name FROM users WHERE id = 1"}));
+    expect(plan).toContain("SEARCH users USING INTEGER PRIMARY KEY (rowid=?)");
+  });
+
+  test("explains write statements without executing them", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sqlite-explain-write"));
+    const TEST_DB = dir + "/apiary-sql-test.db";
+    await send(req({dsn: TEST_DB, query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"}));
+
+    await explain(req({dsn: TEST_DB, query: "INSERT INTO users (id, name) VALUES (1, 'a')"}));
+    const result = await send(req({dsn: TEST_DB, query: "SELECT COUNT(*) FROM users"}));
+    expect(result.rows).toEqual([[0]]);
   });
 });

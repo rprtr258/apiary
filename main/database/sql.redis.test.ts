@@ -1,6 +1,6 @@
 import {describe, test, expect, mock} from "bun:test";
 import {SQLSourceRequest, ColumnType} from "@/types.ts";
-import {send, sendBatch, describe as describeTable, listTables} from "./sql.redis.ts";
+import {send, sendBatch, explain, describe as describeTable, listTables} from "./sql.redis.ts";
 import {countRowsSQLSource, testSQLSource} from "./sql_source.ts";
 
 // Fake wasm engine behind querySqlOverRedis; replies keyed by query shape.
@@ -32,6 +32,9 @@ mock.module("../redissql.ts", () => ({
     }
     if (query === "SELECT 1") {
       return {columns: ["1"], typenames: ["int"], rows: [[1]]};
+    }
+    if (query.startsWith("EXPLAIN ANALYZE ")) {
+      return {columns: ["plan"], typenames: ["text"], rows: [["Project"], ["  Projection: 1"], ["  Analyze: true"], ["  Sequence"]]};
     }
     return {columns: ["a", "b", "c", "d", "e", "f", "g"], typenames: ["text", "bigint", "datetime", "boolean", "json", "double", "enum('x')"], rows: []};
   },
@@ -78,6 +81,15 @@ describe("sql.redis sendBatch", () => {
 
   test("rejects writes when read-only", async () => {
     expect(sendBatch({dsn: "localhost:6379", database: "redis", readOnly: true}, ["UPDATE rstring SET value = 'x'"])).rejects.toThrow("read-only");
+  });
+});
+
+describe("sql.redis explain", () => {
+  test("wraps the query in EXPLAIN ANALYZE and joins plan lines", async () => {
+    queryCalls.length = 0;
+    const plan = await explain({dsn: "localhost:6379", database: "redis", query: "SELECT 1"});
+    expect(queryCalls).toEqual(["EXPLAIN ANALYZE SELECT 1"]);
+    expect(plan).toBe("Project\n  Projection: 1\n  Analyze: true\n  Sequence");
   });
 });
 

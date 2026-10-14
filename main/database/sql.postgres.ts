@@ -122,6 +122,29 @@ export async function sendBatch(request: Omit<SQLRequest, "query">, statements: 
   }
 }
 
+// EXPLAIN ANALYZE executes the query, so it runs on a dedicated connection
+// inside an explicitly rolled-back transaction: effects of write queries are
+// discarded (statements that cannot run in a transaction, like VACUUM, error
+// out).
+export async function explain(request: SQLRequest): Promise<string> {
+  const client = await freshClient(dsnOf(request.dsn));
+  try {
+    await client.query("BEGIN");
+    try {
+      const result = await client.query(`EXPLAIN ANALYZE ${request.query}`);
+      // Text format returns one row per plan line.
+      const plan = result.rows.map(row => String(Object.values(row as Record<string, unknown>)[0])).join("\n");
+      if (plan === "")
+        throw new Error("postgres explain returned no plan");
+      return plan;
+    } finally {
+      await client.query("ROLLBACK").catch(() => undefined); // keep the original error
+    }
+  } finally {
+    await client.end();
+  }
+}
+
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -251,4 +274,8 @@ WHERE schemaname NOT IN ('pg_catalog', 'information_schema')`});
       rowCount: Number(rowCount),
       sizeBytes: Number(sizeBytes),
     }));
+}
+
+export function quoteIdent(s: string): string {
+  return `"${s}"`;
 }

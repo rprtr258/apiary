@@ -1,8 +1,8 @@
 import {Database, SQLRequest, SQLResponse, TableInfo, TableSchema} from "@/types.ts";
-import * as pg from "./sql.postgres.ts";
+import * as postgres from "./sql.postgres.ts";
 import * as mysql from "./sql.mysql.ts";
 import * as sqlite from "./sql.sqlite.ts";
-import * as ch from "./sql.ch.ts";
+import * as clickhouse from "./sql.ch.ts";
 import * as redis from "./sql.redis.ts";
 
 export const EmptyRequest: SQLRequest = {
@@ -11,54 +11,49 @@ export const EmptyRequest: SQLRequest = {
   query: "SELECT 1",
 };
 
+type SQLDatabase = {
+  send(request: SQLRequest): Promise<SQLResponse>,
+  explain(request: SQLRequest): Promise<string>,
+  sendBatch(request: Omit<SQLRequest, "query">, statements: string[]): Promise<SQLResponse>,
+  describe(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema>,
+  listTables(request: Omit<SQLRequest, "query">): Promise<TableInfo[]>,
+  quoteIdent(s: string): string,
+};
+
+const router: Record<Database, SQLDatabase> = {
+  postgres,
+  mysql,
+  sqlite,
+  clickhouse,
+  redis,
+};
+
 export async function send(request: SQLRequest): Promise<SQLResponse> {
-  return {
-    postgres:   pg.send,
-    mysql:      mysql.send,
-    sqlite:     sqlite.send,
-    clickhouse: ch.send,
-    redis:      redis.send,
-  }[request.database](request);
+  return router[request.database].send(request);
+}
+
+// Identifier quoting rules per database (mirrors the renderer's buildQuery).
+export function quoteIdent(db: Database, s: string): string {
+  return router[db].quoteIdent(s);
+}
+
+// EXPLAIN output of the query, as plain text, for every database. Not saved to
+// history; the Explain tab fetches it on open.
+export async function explain(request: SQLRequest): Promise<string> {
+  return router[request.database].explain(request);
 }
 
 // Run several statements on one connection inside one transaction. Used for
 // table cell edits: a failing statement rolls back the whole batch.
 export async function sendBatch(request: Omit<SQLRequest, "query">, statements: string[]): Promise<SQLResponse> {
-  return {
-    postgres:   pg.sendBatch,
-    mysql:      mysql.sendBatch,
-    sqlite:     sqlite.sendBatch,
-    clickhouse: ch.sendBatch,
-    redis:      redis.sendBatch,
-  }[request.database](request, statements);
+  return router[request.database].sendBatch(request, statements);
 }
 
-// Identifier quoting rules per database (mirrors the renderer's buildQuery).
-export const quoteIdent: Record<Database, (s: string) => string> = {
-  postgres:   (s: string) => `"${s}"`,
-  mysql:      (s: string) => "`" + s + "`",
-  sqlite:     (s: string) => "`" + s + "`",
-  clickhouse: (s: string) => "`" + s.replaceAll("`", "\\`") + "`",
-  redis:      (s: string) => "`" + s.replaceAll("`", "``") + "`",
-};
-
 export async function describeTable(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
-  return {
-    postgres:   pg.describe,
-    mysql:      mysql.describe,
-    sqlite:     sqlite.describe,
-    clickhouse: ch.describe,
-    redis:      redis.describe,
-  }[request.database](request, tableName);
+  return router[request.database].describe(request, tableName);
 }
 
 export async function listTables(request: Omit<SQLRequest, "query">): Promise<TableInfo[]> {
-  const tables = await {
-    postgres: pg.listTables,
-    mysql: mysql.listTables,
-    sqlite: sqlite.listTables,
-    clickhouse: ch.listTables,
-    redis: redis.listTables,
-  }[request.database](request);
+  const tables = await router[request.database].listTables(request);
   return tables.toSorted((a, b) => a.name.localeCompare(b.name));
 }

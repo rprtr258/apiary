@@ -63,6 +63,15 @@ export async function sendBatch(request: Omit<SQLRequest, "query">, statements: 
   });
 }
 
+// EXPLAIN PLAN does not execute the query; the plan prints as text lines, so
+// the raw TSV response is the text form (no JSON parsing round-trip).
+export async function explain(request: SQLRequest): Promise<string> {
+  return await pool.run(request.dsn, async client => {
+    const resultSet = await client.query({query: `EXPLAIN PLAN ${request.query}`, format: "TabSeparated"});
+    return (await resultSet.text()).trimEnd();
+  });
+}
+
 export async function describe(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   // Get columns
   const colResult = await send({...request, query: `SELECT
@@ -91,4 +100,8 @@ export async function listTables(request: Omit<SQLRequest, "query">): Promise<Ta
   total_bytes
 FROM system.tables
 WHERE database = currentDatabase()`})).rows.map(([name, rowCount, sizeBytes]): TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
+}
+
+export function quoteIdent(s: string): string {
+  return "`" + s.replaceAll("`", "\\`") + "`";
 }

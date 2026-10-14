@@ -22,6 +22,7 @@ type NTabsProps = {
     class?: string,
     disabled?: boolean,
     elem?: DOMNode,
+    onSelect?: () => void,
   }[],
 };
 export function NTabs(props: NTabsProps): HTMLElement {
@@ -58,6 +59,7 @@ export function NTabs(props: NTabsProps): HTMLElement {
     Object.assign(tab_buttons[new_tab_idx].style, tabStyles.tab.active); // TODO: classes
     tabs[new_tab_idx].style.display = props.tabs[new_tab_idx].style?.display ?? "block";
     tab_idx = new_tab_idx;
+    props.tabs[new_tab_idx].onSelect?.();
   };
   { // init
     const firstEnabledIndex = props.tabs.findIndex(v => !(v.disabled ?? false));
@@ -151,6 +153,7 @@ export function NSplit(left: HTMLElement, right: HTMLElement, props: NSplitProps
     style: {
       cursor: direction === "horizontal" ? "col-resize" : "row-resize",
       border: "none",
+      margin: "0", // keep the gutter inside its grid gap regardless of any stylesheet styling `hr`
       width: direction === "horizontal" ? `${gutterSize}px` : "100%",
       height: direction === "vertical" ? `${gutterSize}px` : "100%",
     },
