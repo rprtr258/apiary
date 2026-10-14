@@ -83,6 +83,10 @@ export const api = {
     return await wrap(() => Api.GRPC.Methods(target), {target});
   },
 
+  async requestExplainSQL(id: t.RequestID): Promise<Result<string>> {
+    return await wrap(() => Api.SQL.Explain(id), {reqId: id});
+  },
+
   async requestPerformSQLSource(
     id: t.RequestID,
     read: t.TableRead,

@@ -279,6 +279,21 @@ export const SQLSource = {
   },
 };
 
+export const SQL = {
+  // Explain runs EXPLAIN on the request's query and returns the plan without
+  // saving anything to history; the Explain tab fetches it on open.
+  async Explain(id: t.RequestID): Promise<string> {
+    const j = await load();
+    if (!(id in j))
+      throw new Error(`request ${id} not found`);
+    const req = j[id];
+    if (req.Kind !== t.Kind.SQL)
+      throw new Error(`request ${id} is not SQL`);
+    // SQL request's dsn can store a SQLSource request id; resolve it like Perform does.
+    return await sql.explain({...req.Data, dsn: resolveSQLRequest(j, req.Data)});
+  },
+};
+
 export const HTTPSource = {
   async ListEndpoints(id: t.RequestID): Promise<t.EndpointInfo[]> {
     const req = await get(id);

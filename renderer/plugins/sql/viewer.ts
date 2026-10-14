@@ -1,13 +1,20 @@
 import * as t from "@/types.ts";
 import {m, setDisplay, Signal} from "../../lib/utils.ts";
+import {api} from "../../api.ts";
 import {get_request, last_history_entry, store} from "../../store.ts";
 import {NEmpty} from "../../components/dataview.ts";
 import {NButton, NInputGroup, NSelect, NSelectInput} from "../../components/input.ts";
-import {NScrollbar, NSplit} from "../../components/layout.ts";
+import {NScrollbar, NSplit, NTabs} from "../../components/layout.ts";
 import {DataTable} from "../../components/TableView.ts";
 import EditorSQL from "../../EditorSQL.ts";
 
 type Request = t.SQLRequest;
+
+type ExplainState =
+  | {kind: "idle"}
+  | {kind: "loading"}
+  | {kind: "error", message: string}
+  | {kind: "plan", plan: string};
 
 export default function(
   el: HTMLElement,
@@ -35,10 +42,62 @@ export default function(
   };
   const unmounts: (() => void)[] = [];
 
+  // Explain tab: the plan is fetched for the current request when the tab is
+  // opened, kept while the query/dsn/database stay unchanged, and never stored
+  // in history. The plan renders as plain text for every database.
+  let current: get_request | null = null;
+  let explain_shown = false;
+  let explain_key: string | null = null;
+  let explain_state: ExplainState = {kind: "idle"};
+  // Flex column with definite height: the plan pre (flex: 1) fills the pane and
+  // scrolls inside it instead of stretching the pane's parent.
+  const el_explain = m("div", {style: {height: "100%", display: "flex", flexDirection: "column", overflow: "hidden"}});
+  const requestKey = (request: Request): string => JSON.stringify([request.dsn, request.database, request.query]);
+  const render_explain = (): void => {
+    const node = explain_state.kind === "plan" ? m("pre", {style: {margin: "8px", whiteSpace: "pre-wrap", overflow: "auto", flex: "1", minHeight: "0"}}, explain_state.plan)
+      : explain_state.kind === "error" ? m("pre", {style: {margin: "8px", whiteSpace: "pre-wrap", overflow: "auto", flex: "1", minHeight: "0"}}, explain_state.message)
+      : NEmpty({description: explain_state.kind === "loading" ? "Running EXPLAIN..." : "Open this tab to fetch the plan."});
+    el_explain.replaceChildren(node);
+  };
+  const fetch_explain = async (): Promise<void> => {
+    if (current === null)
+      return;
+    const request = current.request as Request;
+    const key = requestKey(request);
+    if (key === explain_key)
+      return;
+    explain_key = key;
+    explain_state = {kind: "loading"};
+    render_explain();
+    const fetched = current;
+    const res = await api.requestExplainSQL(current.request.id);
+    if (current !== fetched) // request switched while fetching
+      return;
+    explain_state = res.kind === "ok" ? {kind: "plan", plan: res.value} : {kind: "error", message: res.value};
+    render_explain();
+  };
+  const tabs = NTabs({
+    tabs: [
+      {name: "Data", elem: el_scrollable, onSelect: () => {
+        explain_shown = false;
+      }},
+      {name: "Explain", elem: el_explain, onSelect: () => {
+        explain_shown = true;
+        fetch_explain();
+      }},
+    ],
+  });
+
   return {
     loaded: (r: get_request): void => {
       push_response(last_history_entry(r)?.response as t.SQLResponse | undefined);
-      el_response.replaceChildren(el_scrollable);
+      current = r;
+      explain_key = null;
+      explain_state = {kind: "idle"};
+      render_explain();
+      if (explain_shown)
+        fetch_explain();
+      el_response.replaceChildren(tabs);
 
       const request = r.request as Request;
       const el_run = NButton({

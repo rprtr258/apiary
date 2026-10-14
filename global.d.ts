@@ -21,6 +21,9 @@ export type Api = {
     QueryFake:     (_1: string, _2: string            ) => Promise<string>,
     QueryValidate: (_1: string, _2: string, _3: string) => Promise<void>,
   },
+  SQL: {
+    Explain: (_1: string) => Promise<string>,
+  },
   SQLSource: {
     Perform:       (_1: string, _2: t.TableRead) => Promise<Record<string, unknown>>,
     Test:          (_1: string            ) => Promise<void>,

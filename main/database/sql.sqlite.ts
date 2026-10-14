@@ -61,6 +61,14 @@ export async function sendBatch(request: Omit<SQLRequest, "query">, statements: 
   });
 }
 
+// EXPLAIN QUERY PLAN never executes the statement, so it is safe for writes.
+export async function explain(request: SQLRequest): Promise<string> {
+  return await pool.run({dsn: request.dsn, readonly: request.readOnly ?? false}, async db => {
+    const rows = db.prepare(`EXPLAIN QUERY PLAN ${request.query}`).all() as {detail: string}[];
+    return rows.map(r => r.detail).join("\n");
+  });
+}
+
 export async function describe(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   const columns: ColumnInfo[] = [];
   const constraints: ConstraintInfo[] = [];
@@ -120,4 +128,8 @@ export async function listTables(request: Omit<SQLRequest, "query">): Promise<Ta
     tables.push({name: table, rowCount: rowCount as number, sizeBytes: sizeBytes as number});
   }
   return tables;
+}
+
+export function quoteIdent(s: string): string {
+  return "`" + s + "`";
 }

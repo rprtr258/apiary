@@ -1,7 +1,21 @@
 import {describe, test, expect, mock} from "bun:test";
 import * as t from "@/types.ts";
+import {ok, err} from "@/result.ts";
 import {signal} from "../../lib/utils.ts";
 import {get_request} from "../../store.ts";
+
+// Hoisted by bun to run before the viewer import below.
+const explainCalls: string[] = [];
+let explainResult = ok("Project\n  -> Seq Scan on users");
+mock.module("../../api.ts", () => ({
+  api: {
+    requestExplainSQL: async (id: string) => {
+      explainCalls.push(id);
+      return explainResult;
+    },
+  },
+}));
+
 import RequestSQL from "./viewer.ts";
 
 const mockRequest: get_request = {
@@ -98,5 +112,56 @@ describe("RequestSQL", () => {
     expect(el.children.length).toBeGreaterThan(0);
     expect(on.update).toHaveBeenCalledTimes(0);
     expect(on.send).toHaveBeenCalledTimes(0);
+  });
+
+  test("explain tab fetches the plan on open and renders it as text", async () => {
+    explainCalls.length = 0;
+    explainResult = ok("SCAN users\nFILTER id = 1");
+    const el = document.createElement("div");
+    const show_request = signal(true);
+    const component = RequestSQL(el, show_request, {
+      update: mock(() => Promise.resolve()),
+      send: mock(() => Promise.resolve()),
+    });
+    component.loaded({...mockRequest, request: {...mockRequest.request, kind: t.Kind.SQL, database: "sqlite"} as t.Request});
+
+    const explainButton = [...el.querySelectorAll("button")].find(b => b.textContent === "Explain");
+    expect(explainButton).toBeDefined();
+    explainButton!.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(explainCalls).toEqual(["test-id"]);
+    const pre = el.querySelector("pre");
+    expect(pre?.textContent).toContain("SCAN users");
+  });
+
+  test("explain tab keeps the plan while the request is unchanged and shows errors", async () => {
+    explainCalls.length = 0;
+    explainResult = err("postgres connection failed");
+    const el = document.createElement("div");
+    const show_request = signal(true);
+    const component = RequestSQL(el, show_request, {
+      update: mock(() => Promise.resolve()),
+      send: mock(() => Promise.resolve()),
+    });
+    component.loaded({...mockRequest, request: {...mockRequest.request, kind: t.Kind.SQL, database: "sqlite"} as t.Request});
+
+    const tabButton = (name: string) => [...el.querySelectorAll("button")].find(b => b.textContent === name)!;
+    tabButton("Explain").click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(explainCalls).toEqual(["test-id"]);
+    expect(el.querySelector("pre")?.textContent).toContain("postgres connection failed");
+
+    // Same request: cached, no refetch.
+    tabButton("Data").click();
+    tabButton("Explain").click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(explainCalls).toEqual(["test-id"]);
+
+    // Request switch resets the cache: the next open fetches again.
+    component.loaded({...mockRequest, request: {...mockRequest.request, id: "other-id", kind: t.Kind.SQL, database: "sqlite"} as t.Request});
+    tabButton("Explain").click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(explainCalls).toEqual(["test-id", "other-id"]);
   });
 });

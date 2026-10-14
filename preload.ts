@@ -23,6 +23,9 @@ const api: Api = {
     QueryFake:     (a1: string, a2: string            ): Promise<string>                   => ipcRenderer.invoke("GRPC.QueryFake",     a1, a2    ),
     QueryValidate: (a1: string, a2: string, a3: string): Promise<void>                     => ipcRenderer.invoke("GRPC.QueryValidate", a1, a2, a3),
   },
+  SQL: {
+    Explain: (a1: string): Promise<string> => ipcRenderer.invoke("SQL.Explain", a1),
+  },
   SQLSource: {
     Perform:       (a1: string, a2: t.TableRead): Promise<Record<string, unknown>> => ipcRenderer.invoke("SQLSource.Perform",       a1, a2),
     Test:          (a1: string            ): Promise<void>                    => ipcRenderer.invoke("SQLSource.Test",          a1    ),

@@ -71,6 +71,17 @@ export async function sendBatch(request: Omit<SQLRequest, "query">, statements: 
   }
 }
 
+// EXPLAIN ANALYZE executes the statement on the pooled session (mysql has no
+// read-only switch that composes with it), so effects of write queries persist
+// exactly as when running the query from the editor.
+export async function explain(request: SQLRequest): Promise<string> {
+  return await pool.run(request.dsn, async connection => {
+    // mysql2 prepared `execute` rejects EXPLAIN ANALYZE; use plain query.
+    const [rows] = await connection.query(`EXPLAIN ANALYZE ${request.query}`) as [{[column: string]: string}[], unknown];
+    return rows.map(r => Object.values(r).join(" ")).join("\n");
+  });
+}
+
 export async function describe(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   // Get columns
   const colResult = await send({...request, query: `SELECT
@@ -152,4 +163,8 @@ data_length + index_length
 FROM information_schema.TABLES
 WHERE table_schema = '${dbName}'`}); // TODO: pass dbname as arg
   return tablesResult.rows.map(([name, rowCount, sizeBytes]): TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
+}
+
+export function quoteIdent(s: string): string {
+  return "`" + s + "`";
 }

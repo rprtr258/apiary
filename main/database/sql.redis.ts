@@ -1,5 +1,4 @@
 import {TableSchema, ColumnInfo, SQLRequest, ColumnType, SQLResponse, TableInfo} from "@/types.ts";
-import {quoteIdent, send as sendSQL} from "./sql.ts";
 import {querySqlOverRedis} from "../redissql.ts";
 
 // go-mysql-server has no session read-only switch over the redis bridge, so
@@ -71,12 +70,20 @@ export async function sendBatch(request: Omit<SQLRequest, "query">, statements: 
   return {columns: [], typenames: [], types: [], rows: []};
 }
 
+// EXPLAIN ANALYZE rides go-mysql-server's native EXPLAIN support (the mysql
+// shim parses and plans it; no redis-specific engine code involved). The
+// instrumented execution is safe: the engine's tables reject writes anyway.
+export async function explain(request: SQLRequest): Promise<string> {
+  const result = await querySqlOverRedis(request.dsn, `EXPLAIN ANALYZE ${request.query}`);
+  return result.rows.map(row => row.map(String).join(" ")).join("\n");
+}
+
 export async function describe(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
   // Redis tables are read-only projections of live redis data. Columns come
   // from the engine's information_schema; constraints and indexes are not
   // reported — a primary key would make the table viewer offer cell editing,
   // which the engine rejects ("table doesn't support UPDATE").
-  const colResult = await sendSQL({...request, query: `SELECT
+  const colResult = await send({...request, query: `SELECT
   column_name,
   column_type,
   is_nullable = 'YES',
@@ -98,15 +105,18 @@ export async function listTables(request: Omit<SQLRequest, "query">): Promise<Ta
   // The engine's information_schema reports no row statistics for redis
   // tables, so counts are collected with one COUNT(*) per table; redis has
   // no per-table storage size.
-  const tableNames = (await sendSQL({...request, query: `SELECT
+  const tableNames = (await send({...request, query: `SELECT
   table_name
 FROM information_schema.TABLES
 WHERE table_schema = DATABASE()`})).rows.map(r => String(r[0]));
   const tables: TableInfo[] = [];
-  const q = quoteIdent.redis;
   for (const table of tableNames) {
-    const rows = (await sendSQL({...request, query: `SELECT COUNT(*) FROM ${q(table)}`})).rows;
+    const rows = (await send({...request, query: `SELECT COUNT(*) FROM ${quoteIdent(table)}`})).rows;
     tables.push({name: table, rowCount: Number(rows[0]?.[0] ?? 0), sizeBytes: 0});
   }
   return tables;
+}
+
+export function quoteIdent(s: string): string {
+  return "`" + s.replaceAll("`", "``") + "`";
 }

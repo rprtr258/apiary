@@ -136,7 +136,7 @@ Used by the sidebar tree for persisting expanded keys and by the store.
 
 ### Electron IPC (`main.ts` + `preload.ts` + `global.d.ts`)
 
-- `main.ts`: one `ipcMain.handle()` per channel - entry CRUD (`List`, `Get`, `Create`, `Duplicate`, `Read`, `Rename`, `Update`, `Delete`), `Perform`, and namespaced source channels (`GRPC.*`, `SQLSource.*`, `HTTPSource.*`, `MCP.*`)
+- `main.ts`: one `ipcMain.handle()` per channel - entry CRUD (`List`, `Get`, `Create`, `Duplicate`, `Read`, `Rename`, `Update`, `Delete`), `Perform`, and namespaced channels (`GRPC.*`, `SQL.*`, `SQLSource.*`, `HTTPSource.*`, `MCP.*`)
 - `preload.ts`: `contextBridge.exposeInMainWorld("api", api)` mirrors every channel (plus `versions`)
 - `global.d.ts`: the `Api` interface - the single source of truth for the IPC surface
 
