@@ -96,13 +96,10 @@ export default function(
         el_error.style.display = "none";
         const response = res.value.response as t.MDResponse;
 
-        // Save scroll position before update
         const lastScrollTop = el_response.scrollTop;
 
-        // Update innerHTML of existing container
         el_response.innerHTML = response.data;
 
-        // Restore scroll position after rendering
         requestAnimationFrame(() => {
           el_response.scrollTop = lastScrollTop;
         });

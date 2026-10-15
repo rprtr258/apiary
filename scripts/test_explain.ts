@@ -82,7 +82,6 @@ type Data = {
 
 const dsn = "postgres:password@localhost:5432/postgres?sslmode=disable";
 const analyze_prefix = "EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON) ";
-// const query = "SELECT 1";
 const query = "SELECT * FROM employees e JOIN departments d ON e.department_id = d.id";
 
 console.log(query);

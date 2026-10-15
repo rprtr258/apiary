@@ -65,7 +65,6 @@ test("command palette Run performs the current request", async ({page, openReque
   const paletteInput = page.locator("input[placeholder='Type a command or search...']");
   await expect(paletteInput).toBeVisible();
   await paletteInput.click();
-  // Filter to the "Run" item; it is the first match, Enter selects it.
   await page.keyboard.type("run");
   await page.keyboard.press("Enter");
 

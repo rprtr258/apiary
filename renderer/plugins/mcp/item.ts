@@ -40,7 +40,6 @@ const resourcesCache = createSourceCache<t.MCPResource>(
   "Could not fetch resources",
 );
 
-// Staleness-guarded fetch of all listings (one IPC call when any is stale)
 async function fetchAll(id: t.RequestID): Promise<void> {
   await Promise.all([
     toolsCache.ensureFresh([id]),

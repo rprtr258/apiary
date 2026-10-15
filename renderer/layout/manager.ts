@@ -596,7 +596,6 @@ export class LayoutManager {
     return this.moveOrSplit(item, source, prev, true, true);
   }
 
-  // Move `item` into the group spatially above; split a new group above if none.
   moveAbove(item: ComponentItem): boolean {
     const source = item.parent;
     if (source === undefined) {
@@ -605,7 +604,6 @@ export class LayoutManager {
     return this.moveOrSplit(item, source, this.neighbor(source, false, false), false, true);
   }
 
-  // Move `item` into the group spatially below; split a new group below if none.
   moveBelow(item: ComponentItem): boolean {
     const source = item.parent;
     if (source === undefined) {
@@ -902,7 +900,6 @@ export class LayoutManager {
       return;
     }
     case "rowcol": {
-      // rowcol: resolve the stack under the cursor and highlight its edge zone.
       const stack = this.stackUnderPoint(hit.value.rc);
       if (stack === undefined) {
         this.overlay.style.display = "none";
@@ -934,7 +931,6 @@ export class LayoutManager {
       height = r.height / 2;
       break;
     }
-    // center: highlight the full pane (drop into this stack).
     this.overlay.style.display = "";
     this.overlay.style.left = `${left - rootRect.left}px`;
     this.overlay.style.top = `${top - rootRect.top}px`;

@@ -41,7 +41,6 @@ describe.if(IS_INTEGRATION)("SQLSource (postgres)", () => {
   const tableName = "test_sql_source";
 
   beforeAll(async () => {
-    // Create a temp table for testing
     await sql.send(pgRequest(`DROP TABLE IF EXISTS ${tableName}`));
     await sql.send(pgRequest(`CREATE TABLE ${tableName} (id INT, name TEXT)`));
     await sql.send(pgRequest(`INSERT INTO ${tableName} VALUES (1, 'a'), (2, 'b')`));
@@ -149,7 +148,6 @@ async function pgValues(query: string): Promise<unknown[][]> {
   return result.rows;
 }
 
-// One table fixture.
 // Must be called at describe top level (during collection), like beforeAll itself — never inside a test.
 function useTable(
   name: string,

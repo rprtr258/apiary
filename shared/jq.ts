@@ -1,7 +1,6 @@
 import jqWasm from "jq-wasm";
 
 export async function jq(json: string, query: string): Promise<string[]> {
-  // try parse request as json
   try {
     JSON.parse(json);
   } catch (e) {

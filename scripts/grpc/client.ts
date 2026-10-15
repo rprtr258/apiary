@@ -8,7 +8,6 @@ console.log(await grpcMethods("localhost:50051"));
 // grpcurl -plaintext -d '{"name":"World"}' localhost:50051 helloworld.Greeter/SayHello
 
 const conn = new pb.helloworld.GreeterClient("localhost:50051", grpc.credentials.createInsecure());
-// defer conn.close()
 
 conn.SayHello(new pb.helloworld.HelloRequest({name: "World"}), (err, r) => {
   if (err !== null) {

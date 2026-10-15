@@ -29,7 +29,6 @@ export async function List(): Promise<t.ListResponse> {
 
   const tree: t.Tree = {IDs: [], Dirs: {}};
   for (const [id, req] of Object.entries(j)) {
-    // Build tree: split path by "/", create nested Dirs, put entry in IDs
     const parts = req.Path.split("/");
     const current = parts.slice(0, -1).filter(part => part !== "").reduce((current: t.Tree, part: string): t.Tree => {
       if (part in current.Dirs) {
@@ -68,7 +67,6 @@ export async function Get(id: t.RequestID): Promise<t.GetResponse> {
   };
 }
 
-// Empty request templates for each kind
 function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   switch (kind) {
   case t.Kind.HTTP:       return http.EmptyRequest;
@@ -140,7 +138,6 @@ export function resolveSQLRequest(j: Record<t.RequestID, Request>, data: t.SQLRe
   return source.Data.dsn;
 }
 
-// Perform create a handler that performs call and save result to history
 export async function Perform(id: t.RequestID): Promise<PerformResponse> {
   const j = await load();
   if (!(id in j))
@@ -319,11 +316,8 @@ export const HTTPSource = {
   },
 
   async PerformVirtualEndpoint(id: t.RequestID, key: t.EndpointKey, modifiedRequest?: Partial<t.HTTPRequest>): Promise<Record<string, unknown>> {
-    // Perform an HTTP request generated from the OpenAPI spec
     const finalRequest = await this.GenerateExampleRequest(id, key);
-    // Merge with modified request if provided
     if (modifiedRequest !== undefined) {
-      // Merge fields from modifiedRequest into exampleRequest
       finalRequest.method = modifiedRequest.method ?? finalRequest.method;
       finalRequest.url = modifiedRequest.url ?? finalRequest.url;
       finalRequest.body = modifiedRequest.body ?? finalRequest.body;
@@ -349,7 +343,6 @@ export const HTTPSource = {
     if (req.Kind !== t.Kind.HTTPSource)
       throw new Error(`request ${id} is not HTTPSource`);
     const sourceRequest = req.Data;
-    // Verify spec is parseable
     const specData = await http_source.fetchSpec(sourceRequest);
     void(await http_source.parseSpec(specData)); // TODO: use/return?
   },

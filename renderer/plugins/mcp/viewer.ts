@@ -76,7 +76,6 @@ export default function(
 
       const fieldsContainer = m("div", {style: {display: "flex", flexDirection: "column", gap: ".5em"}});
 
-      // Label and field on one row; labels share a fixed width, field fills the rest.
       function fieldRow(labelText: string, field: HTMLElement): HTMLElement {
         return m("div", {style: {display: "flex", alignItems: "center", gap: ".5em"}},
           m("label", {style: {width: "5em", flexShrink: "0", whiteSpace: "nowrap"}}, labelText),
@@ -153,7 +152,7 @@ export default function(
       ]);
 
       el.replaceChildren(el_connection);
-      updateConnectionStatus(); // Initial check
+      updateConnectionStatus();
     },
     unmount() {
       for (const unmount of unmounts) {

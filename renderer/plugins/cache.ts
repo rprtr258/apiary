@@ -4,8 +4,7 @@ import {signal} from "../lib/utils.ts";
 import notification from "../lib/notification.ts";
 import type {Item} from "./source.ts";
 
-// Time after which a cached listing is considered stale.
-export const STALE_AFTER = 1000*60*5; // 5 minutes
+export const STALE_AFTER = 1000*60*5;
 
 // Bumped on every cache mutation so subscribers (e.g. tree view) can re-render.
 export const changed = signal(0);

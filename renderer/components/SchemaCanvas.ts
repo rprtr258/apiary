@@ -2,6 +2,7 @@ import {getBoxToBoxArrow} from "perfect-arrows";
 import * as t from "@/types.ts";
 import {hashmod} from "@/shared.ts";
 import {m, s} from "../lib/utils.ts";
+import PanZoom from "./panzoom.ts";
 
 export function range(start: number, end: number): number[] {
   if (start >= end) return [];
@@ -34,7 +35,6 @@ if (document.getElementById("schema-canvas-defs") === null) {
     height: "0",
     style: {position: "absolute"},
   }, s("defs", {},
-    // Arrow marker
     s("marker", {
       id: "arrowhead",
       markerWidth: "10",
@@ -57,10 +57,6 @@ const TABLE_SPACING = 50;
 const TABLE_GRID_COLS = 7;
 const ARROW_PAD_END = 0;
 const ARROW_BOW = 3;
-const MIN_SCALE = 0.1;
-const MAX_SCALE = 5;
-const ZOOM_FACTOR_IN = 0.9;
-const ZOOM_FACTOR_OUT = 1.1;
 
 function calculateColumnWidths(table: {name: string, schema: t.TableSchema}): [number, number] {
   const columns = table.schema.columns;
@@ -87,13 +83,7 @@ function calculateTablePosition(index: number, width: number, height: number): {
   return {x, y};
 }
 
-export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaData) => void} {
-  let scale = 1;
-  let translateX = 0;
-  let translateY = 0;
-  let isDragging = false;
-  let lastX = 0;
-  let lastY = 0;
+export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaData) => void, unmount(): void} {
   let draggedNode: SVGGElement | null = null;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
@@ -101,36 +91,24 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
   let tablePositions: Record<string, {x: number, y: number, width: number, height: number}> = {};
   let tableIdMap: Record<string, string> = {};
   let currentData: SchemaData | null = null;
-  // Pointer-driven work is coalesced to one frame: listeners only record
-  // intent (pure math), the rAF callback reads layout once, then writes.
+  // Node-drag work is coalesced to one frame: listeners only record intent
+  // (pure math), the rAF callback writes. Pan/zoom live in the PanZoom
+  // controller; node drags read its live transform.
   const pending: {
     frame: boolean,
-    zoom: number,
-    wheel?: WheelEvent,
     move?: MouseEvent,
     dragSvgRect?: DOMRect,
   } = {
     frame: false,
-    zoom: 1,
   };
 
   const nodesGroup: SVGGElement = s("g", {id: "nodes"});
   const edgesGroup: SVGGElement = s("g", {id: "edges"});
   const mainGroup: SVGGElement = s("g", {id: "main"}, nodesGroup, edgesGroup);
 
-  // Dot grid: 40px tile, 2px dot. Offset -4px/-16px matches the old SVG
-  // pattern's rendering; panned on drag in applyUpdate.
-  const svg = s("svg", {
-    width: "100%",
-    height: "100%",
-    style: {
-      background: "#2a2a2a radial-gradient(#343434 2px, transparent 2.5px) -4px -16px / 40px 40px",
-    },
-  }, mainGroup);
-
-  function updateTransform() {
-    mainGroup.setAttribute("transform", `translate(${translateX},${translateY}) scale(${scale})`);
-  }
+  const svg = s("svg", {width: "100%", height: "100%"}, mainGroup);
+  // Dot grid background + pan/zoom transform (grid pans with the content).
+  const panzoom = PanZoom(svg, mainGroup, {});
 
   // Edge paths keyed by (source, target, columns) so node drags update the
   // existing path `d` in place instead of rebuilding every edge per frame.
@@ -192,76 +170,34 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
   }
 
   function applyUpdate() {
-    const wheel = pending.wheel;
     const move = pending.move;
-    pending.wheel = undefined;
     pending.move = undefined;
-    if (wheel !== undefined) {
-      // Single layout read per frame, before any writes.
-      const rect = svg.getBoundingClientRect();
-      const pointX = wheel.clientX - rect.left;
-      const pointY = wheel.clientY - rect.top;
-      const transformedX = (pointX - translateX) / scale;
-      const transformedY = (pointY - translateY) / scale;
-      scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * pending.zoom));
-      pending.zoom = 1;
-      translateX = pointX - transformedX * scale;
-      translateY = pointY - transformedY * scale;
-      updateTransform();
+    if (move === undefined || draggedNode === null) return;
+    if (!selectionDisabled) {
+      const texts = draggedNode.querySelectorAll("text");
+      for (const text of texts)
+        text.style.userSelect = "none";
+      selectionDisabled = true;
     }
-    if (move !== undefined) {
-      if (isDragging) {
-        translateX += move.clientX - lastX;
-        translateY += move.clientY - lastY;
-        lastX = move.clientX;
-        lastY = move.clientY;
-        updateTransform();
-        // Same coordinate space as the pan, so the dot grid moves by
-        // exactly the drag delta.
-        svg.style.backgroundPosition = `${translateX - 4}px ${translateY - 16}px`;
-      }
-      if (draggedNode !== null) {
-        if (!selectionDisabled) {
-          const texts = draggedNode.querySelectorAll("text");
-          for (const text of texts)
-            text.style.userSelect = "none";
-          selectionDisabled = true;
-        }
-        // mainGroup's transform is exactly translate(...) scale(...), so the
-        // client->user-space conversion has a closed form; dragSvgRect is
-        // cached at drag start (the svg itself does not move during a drag).
-        const rect = pending.dragSvgRect!;
-        const x = (move.clientX - rect.left - translateX) / scale - dragOffsetX;
-        const y = (move.clientY - rect.top - translateY) / scale - dragOffsetY;
-        draggedNode.setAttribute("transform", `translate(${x},${y})`);
-        // Update position for edge recalculation
-        const tableId = draggedNode.getAttribute("data-id")!;
-        tablePositions[tableId].x = x;
-        tablePositions[tableId].y = y;
-        if (currentData !== null) drawArrows(currentData);
-      }
-    }
+    // mainGroup's transform is exactly translate(...) scale(...), so the
+    // client->user-space conversion has a closed form; dragSvgRect is
+    // cached at drag start (the svg itself does not move during a drag).
+    const rect = pending.dragSvgRect!;
+    const x = (move.clientX - rect.left - panzoom.translate[0]) / panzoom.scale - dragOffsetX;
+    const y = (move.clientY - rect.top - panzoom.translate[0]) / panzoom.scale - dragOffsetY;
+    draggedNode.setAttribute("transform", `translate(${x},${y})`);
+    const tableId = draggedNode.getAttribute("data-id")!;
+    tablePositions[tableId].x = x;
+    tablePositions[tableId].y = y;
+    if (currentData !== null) drawArrows(currentData);
   }
 
-  svg.addEventListener("wheel", e => {
-    e.preventDefault();
-    pending.zoom *= e.deltaY > 0 ? ZOOM_FACTOR_IN : ZOOM_FACTOR_OUT;
-    pending.wheel = e;
-    scheduleUpdate();
-  });
-  svg.addEventListener("mousedown", e => {
-    if (e.target === svg || e.target === mainGroup) {
-      isDragging = true;
-      lastX = e.clientX;
-      lastY = e.clientY;
-    }
-  });
   svg.addEventListener("mousemove", e => {
+    if (draggedNode === null) return;
     pending.move = e;
     scheduleUpdate();
   });
   svg.addEventListener("mouseup", _e => {
-    isDragging = false;
     if (draggedNode !== null) {
       const texts = draggedNode.querySelectorAll("text");
       for (const text of texts)
@@ -282,8 +218,8 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
     draggedNode = node;
     selectionDisabled = false;
     pending.dragSvgRect = svg.getBoundingClientRect();
-    const ptX = (e.clientX - pending.dragSvgRect.left - translateX) / scale;
-    const ptY = (e.clientY - pending.dragSvgRect.top - translateY) / scale;
+    const ptX = (e.clientX - pending.dragSvgRect.left - panzoom.translate[0]) / panzoom.scale;
+    const ptY = (e.clientY - pending.dragSvgRect.top - panzoom.translate[1]) / panzoom.scale;
     const transformList = node.transform.baseVal;
     let currentX = 0;
     let currentY = 0;
@@ -309,10 +245,7 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
       cursor: "pointer",
     },
     onclick: () => {
-      scale = 1;
-      translateX = 0;
-      translateY = 0;
-      updateTransform();
+      panzoom.reset();
     },
   }, "Reset");
   el.append(svg, resetButton);
@@ -335,10 +268,8 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
 
         tablePositions[tableId] = {x, y, width, height};
 
-        // Prepare text without borders
         const tableText = table.name;
 
-        // Rect
         const nodeBg = hashColor(table.name);
         const rect = s("rect", {
           width: width.toString(),
@@ -349,9 +280,7 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
           rx: "5",
         });
 
-        // Draw table grid and text
         let yPos = PADDING;
-        // Header row background
         const headerBg = s("rect", {
           x: PADDING.toString(),
           y: yPos.toString(),
@@ -360,7 +289,6 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
           fill: nodeBg,
         });
 
-        // Header text
         const headerText = s("text", {
           x: (PADDING + colWidths.reduce((a, b) => a + b) / 2).toString(),
           y: (yPos + 15).toString(),
@@ -375,7 +303,6 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
         node.setAttribute("data-id", tableId);
         yPos += ROW_HEIGHT;
 
-        // Data rows
         for (const col of table.schema.columns) {
           const cons = colConstraints[col.name];
 
@@ -386,7 +313,6 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
           };
           const icon = Object.entries(iconsMap).find(([key]) => cons.includes(key))?.[1] ?? "  ";
 
-          // Row background
           node.appendChild(s("rect", {
             x: PADDING.toString(),
             y: yPos.toString(),
@@ -416,9 +342,7 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
         const y1 = PADDING + ROW_HEIGHT;
         const y2 = PADDING + numRows * ROW_HEIGHT;
         const xPositions = [PADDING, PADDING + colWidths[0], PADDING + colWidths[0] + colWidths[1]];
-        // Draw grid lines
         node.append(...[
-          // horizontal
           ...range(1, numRows+1).map(r => {
             const currentY = PADDING + r * ROW_HEIGHT;
             return s("line", {
@@ -430,7 +354,6 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
               "stroke-width": 1,
             });
           }),
-          // vertical
           ...xPositions.map(x => s("line", {
             x1: x,
             y1: y1,
@@ -445,6 +368,9 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
       }));
 
       drawArrows(tables);
+    },
+    unmount: () => {
+      panzoom.unmount();
     },
   };
 }

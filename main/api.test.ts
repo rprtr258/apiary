@@ -52,7 +52,6 @@ describe("Duplicate", () => {
     expect(dup.Path).toBe("itc-slon/prod (copy)");
     expect(dup.Kind).toBe(t.Kind.SQLSource);
 
-    // Payload fields are copied from the original.
     expect(dup.Data).toEqual({dsn: "clickhouse://localhost:8123/itc_slon", database: "clickhouse", readOnly: false});
   });
 
@@ -63,7 +62,6 @@ describe("Duplicate", () => {
     const orig = db["orig"];
     expect(orig).toBeDefined();
     expect(orig.Path).toBe("itc-slon/prod");
-    // The original's Data is untouched by the duplicate.
     expect(orig.Data).toEqual({dsn: "clickhouse://localhost:8123/itc_slon", database: "clickhouse", readOnly: false});
   });
 

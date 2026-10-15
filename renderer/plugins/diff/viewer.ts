@@ -10,7 +10,6 @@ import {api} from "../../api.ts";
 import {m, Signal} from "../../lib/utils.ts";
 import {css} from "../../lib/styles.ts";
 
-// Add diff highlighting CSS styles
 const diffAddedLineCl = css(`
   background-color: rgba(0, 255, 0, 0.1);
 `);
@@ -24,7 +23,6 @@ const diffContextLineCl = css(`
   background-color: transparent;
 `);
 
-// Diff highlighting decorations
 const diffAddedLine   = Decoration.line({attributes: {class: diffAddedLineCl}});
 const diffRemovedLine = Decoration.line({attributes: {class: diffRemovedLineCl}});
 const diffUpdatedLine = Decoration.line({attributes: {class: diffUpdatedLineCl}});
@@ -42,19 +40,18 @@ function diffHighlighting(view: EditorView) {
       const lineStart = pos;
       const lineEnd = lineStart + line.length;
 
-      // Check for diff markers
       builder.add(lineStart, lineStart, (() => { // TODO: structural diff
-        if (line.startsWith("+") && !line.startsWith("+++")) { // Added line (green)
+        if (line.startsWith("+") && !line.startsWith("+++")) {
           return diffAddedLine;
-        } else if (line.startsWith("-") && !line.startsWith("---")) { // Removed line (red)
+        } else if (line.startsWith("-") && !line.startsWith("---")) {
           return diffRemovedLine;
-        } else if (line.includes("→") || line.includes("~") || line.includes("*")) { // Updated line (yellow/orange)
+        } else if (line.includes("→") || line.includes("~") || line.includes("*")) {
           return diffUpdatedLine;
-        } else if (line.includes(": +") || (line.includes("+") && line.includes(":"))) { // Added property in JSON diff (green)
+        } else if (line.includes(": +") || (line.includes("+") && line.includes(":"))) {
           return diffAddedLine;
-        } else if (line.includes(": -") || (line.includes("-") && line.includes(":"))) { // Removed property in JSON diff (red)
+        } else if (line.includes(": -") || (line.includes("-") && line.includes(":"))) {
           return diffRemovedLine;
-        } else { // Context line (default)
+        } else {
           return diffContextLine;
         }
       })());
@@ -159,7 +156,6 @@ export default function(
           el_error.style.display = "none";
           const response = res.value.response as t.DiffResponse;
 
-          // Update diff editor
           if (diffEditor !== null) {
             diffEditor.dispatch({
               changes: {
@@ -179,7 +175,6 @@ export default function(
       const request = r.request as Request;
       id = r.request.id;
 
-      // Create left editor
       const {el: el_editor_left, editor: editor_left} = EditorDiff({
         value: request.left,
         on: {
@@ -193,7 +188,6 @@ export default function(
       });
       unmounts.push(() => editor_left.destroy());
 
-      // Create right editor
       const {el: el_editor_right, editor: editor_right} = EditorDiff({
         value: request.right,
         on: {
@@ -207,11 +201,9 @@ export default function(
       });
       unmounts.push(() => editor_right.destroy());
 
-      // Create vertical split for left editors
       const leftSplit = NSplit(el_editor_left, el_editor_right, {direction: "vertical"});
       unmounts.push(() => leftSplit.unmount());
 
-      // Create diff editor (readonly)
       const el_diff_container = m("div", {
         class: "h100",
         style: {minHeight: "0"},
@@ -233,7 +225,6 @@ export default function(
       });
       unmounts.push(() => diffEditor?.destroy());
 
-      // Create main split (editors left, diff output right)
       const mainSplit = NSplit(leftSplit.element, el_diff_container, {direction: "horizontal"});
       unmounts.push(() => mainSplit.unmount());
       unmounts.push(show_request.sub(function*() {
@@ -243,14 +234,13 @@ export default function(
         }
       }()));
 
-      // Create container with error message above split
       const container = m("div", {class: "h100", style: {display: "flex", flexDirection: "column", minHeight: "0"}},
         el_error,
         mainSplit.element,
       );
 
       el.replaceChildren(container);
-      update_diff(); // Initial diff
+      update_diff();
     },
 
     push_history_entry(_he: t.HistoryEntry) {

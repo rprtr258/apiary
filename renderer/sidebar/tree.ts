@@ -45,7 +45,6 @@ function drag({node, dragNode, dropPosition}: {
   }
 }
 
-// pulse keyframes + class for loading state
 const pulseClass = css.raw(` {
   animation: pulse 1.5s infinite;
   @media (prefers-reduced-motion: reduce) {
@@ -82,7 +81,7 @@ export function createTreeView(): {el: HTMLElement} {
             return {
               key: id,
               label: t.pathToName(store.requests[id].path),
-              ...(children !== undefined ? {children} : {}), // Only set children for requests with source items
+              ...(children !== undefined ? {children} : {}),
               loading: sourceIsLoading(id),
             };
         }),
@@ -106,13 +105,11 @@ export function createTreeView(): {el: HTMLElement} {
         click: (v: TreeOption) => {
           const id = v.key;
 
-          // Skip disabled items like "(None)" and "loading" items
           if (v.disabled ?? false) return;
 
           const virtual = parseVirtualKey(id);
           if (virtual.isSome()) {
             const {kind, sourceID, segments} = virtual.value;
-            // Skip "loading" and "empty" placeholders (also disabled above)
             if (kind === "loading" || kind === "empty")
               return;
             sourceResolve(sourceID, segments);
@@ -127,7 +124,6 @@ export function createTreeView(): {el: HTMLElement} {
           const {kind} = virtual.value;
           switch (kind) {
           case "empty":
-            // "(None)" item - simple text, disabled, no badge, no hover effects
             return m("span", {
               style: {
                 display: "flex",
@@ -140,7 +136,6 @@ export function createTreeView(): {el: HTMLElement} {
               },
             }, "(None)");
           case "loading":
-            // "Loading..." item - not disabled, shows loading state
             return m("span", {
               class: pulseClass,
               style: {
@@ -193,7 +188,6 @@ export function createTreeView(): {el: HTMLElement} {
           }));
         }
 
-        // Handle requests (including sources)
         if (option.key in store.requests) {
           const tag = sourceBadge(option.key);
 
@@ -239,7 +233,6 @@ export function createTreeView(): {el: HTMLElement} {
           ];
         }
 
-        // Handle directories (regular folders) - fallback
         if (option.children !== undefined) {
           return m("span", {
             class: treeLabelClass,

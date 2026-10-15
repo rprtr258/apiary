@@ -122,7 +122,6 @@ export type Store = {
   deleteRequest(id: t.RequestID): Promise<void>,
   rename(id: t.RequestID, newName: string): Promise<void>,
   openViewer<S extends ViewerState>(titlePart: string, componentType: string, state: S): void,
-  // Tab navigation methods
   navigateToTab(direction: "next" | "prev"): void,
   selectTabByIndex(index: number): void,
   selectPaneByIndex(index: number): void,
@@ -155,11 +154,9 @@ export const store = ((): Store => {
       activeComponentID = value;
     },
     requestID(): string | null {
-      // Return the tracked active component ID if available
       if (this.activeComponentID !== null)
         return this.activeComponentID;
 
-      // Fallback, find the first component if no active component is tracked
       const c = findExistingTab("MyComponent")?.toConfig().componentState;
       return (c as StateRequest | undefined)?.id ?? null;
     },
@@ -234,7 +231,6 @@ export const store = ((): Store => {
         return;
       }
 
-      // Update tab title for the renamed request
       const component = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
       component?.tab.setTitle(newName);
       await this.fetch();

@@ -54,6 +54,7 @@ apiary is a cross-platform desktop application for managing various API requests
 - **TypeScript**: Strict mode, double quotes, const over let, prefer functional style (e.g., `data.map(item => item.value)`), no frameworks, direct DOM APIs.
 - **Styles**: Define styles via the `css`/`css.raw` utilities from `renderer/lib/styles.ts` instead of hardcoding them (no manual `<style>` injection, inline `style` only for dynamic values).
 - **General**: Modular code, backend/frontend separation, immutable variables, pure functions where possible.
+- **Comments**: Write a comment only for something non-trivial and not obvious that cannot be inferred just by looking at the source file or its tests: non-local constraints, ordering/timing requirements, external-API quirks, workarounds and the reasons behind them. Explain "why", never "what" - no narration of code that already says it (bad: `// Get indexes` above a call to `getIndexes()`). Check every clause of a comment against what the code, tests, and other comments nearby already convey, and drop every clause that restates an inferable fact - a comment must not duplicate another comment either (bad: an inline comment restating "errors are not cached" under a `plan_state.kind !== "error"` guard that the block comment above the section already covers). When in doubt, omit the comment.
 
 ### TypeScript Coding Conventions (from ESLint config)
 - **Quotes**: Use double quotes (`"`) for strings, not single quotes

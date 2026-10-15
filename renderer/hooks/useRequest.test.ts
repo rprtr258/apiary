@@ -58,7 +58,6 @@ describe("useRequest", () => {
     const updatePromiseCall = request.update({method: "PUT"});
     expect(request.loadingSignal.value).toBe(true);
 
-    // Complete the update
     resolveUpdate!();
     await updatePromiseCall;
     expect(request.loadingSignal.value).toBe(false);
@@ -119,7 +118,7 @@ describe("useRequest", () => {
     await request.update({method: "PUT"});
 
     expect(requestSignalValue.method).toBe("PUT");
-    expect(loadingSignalValue).toBe(false); // Should be false after update completes
+    expect(loadingSignalValue).toBe(false);
   });
 
   test("handles partial updates correctly", async () => {
@@ -170,7 +169,7 @@ describe("useRequest", () => {
         Promise.reject(new Error("persist failed"))},
     });
 
-    const first = request.update({method: "POST"}); // fails, but a newer update supersedes it
+    const first = request.update({method: "POST"});
     ok = true;
     await request.update({method: "PUT"});
     await first.catch(() => {});
@@ -194,8 +193,8 @@ describe("useRequest", () => {
       }},
     });
 
-    const first = request.update({method: "POST"}); // older optimistic persist, still in flight
-    await request.update({method: "PUT"}).catch(() => {}); // newest persist fails
+    const first = request.update({method: "POST"});
+    await request.update({method: "PUT"}).catch(() => {});
     failOlder(new Error("persist failed"));
     await first.catch(() => {});
 

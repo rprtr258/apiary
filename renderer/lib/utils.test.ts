@@ -42,11 +42,9 @@ describe("setDisplay", () => {
     const el = document.createElement("div");
     expect(el.style.display).toBe("");
 
-    // Hide
     setDisplay(el, false);
     expect(el.style.display).toBe("none");
 
-    // Show
     setDisplay(el, true);
     expect(el.style.display).toBe("");
   });
@@ -55,16 +53,16 @@ describe("setDisplay", () => {
     const el = document.createElement("div");
     el.style.display = "flex";
 
-    setDisplay(el, false); // hide
+    setDisplay(el, false);
     expect(el.style.display).toBe("none");
 
-    setDisplay(el, true); // show
+    setDisplay(el, true);
     expect(el.style.display).toBe("flex");
 
-    setDisplay(el, false); // hide again
+    setDisplay(el, false);
     expect(el.style.display).toBe("none");
 
-    setDisplay(el, true); // show again
+    setDisplay(el, true);
     expect(el.style.display).toBe("flex");
   });
 });
@@ -141,7 +139,7 @@ describe("signal", () => {
         callback();
       }
     }());
-    sig.update(v => v); // same value
+    sig.update(v => v);
 
     expect(callback).toHaveBeenCalledTimes(0);
   });
@@ -197,7 +195,7 @@ describe("deepEquals", () => {
     [date1, date2],
     [regex1, regex2],
     [new Custom1(), new Custom1()],
-    [{[sym]: "value"}, {[sym]: "different"}], // symbol ignored
+    [{[sym]: "value"}, {[sym]: "different"}],
   ];
   test("positive tests", () => {
     for (const [a, b] of positiveTests) {
@@ -220,8 +218,8 @@ describe("deepEquals", () => {
     [obj1, obj3],
     [{}, []],
     [date1, date3],
-    [regex1, regex3], // different flags
-    [regex1, regex4], // different pattern
+    [regex1, regex3],
+    [regex1, regex4],
     [new Custom1(), new Custom2()],
   ];
   test("negative tests", () => {

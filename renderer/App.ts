@@ -1,7 +1,7 @@
 import {ComponentContainer, LayoutConfig, Tab} from "./layout/types.ts";
 import * as t from "@/types.ts";
 import {Kinds, Request} from "@/types.ts";
-import {m, setDisplay, signal} from "./lib/utils.ts";
+import {clamp, m, setDisplay, signal} from "./lib/utils.ts";
 import notification from "./lib/notification.ts";
 import {
   get_request, updateLocalstorage, update_request, send, last_history_entry,
@@ -208,7 +208,6 @@ function getCommandPaletteItems(): Item[] {
   );
 }
 
-// Create command palettes
 const mainCommandPalette = CommandPalette({
   items: getCommandPaletteItems,
   placeholder: "Type a command or search...",
@@ -232,7 +231,6 @@ command_bar_new_request_kind_visible.sub(function*() {
   while (true) newRequestKindPalette.visible = yield;
 }());
 
-// Function to compute open request items
 const getOpenRequestItems = (): Item[] => Object
   .entries(store.requests)
   .map(([id, preview]) => [id, preview, sourceBadge(id)] as const)
@@ -305,7 +303,6 @@ const panelkaFactory = (
 
     tab.element.prepend(eye);
 
-    // Track when this tab becomes active
     container.on("show", () => {
       store.activeComponentID = id;
       activeFrameSend = onSend;
@@ -313,7 +310,6 @@ const panelkaFactory = (
     container.on("destroy", () => {
       eye_unsub();
       frame_unsub();
-      // Clear active component ID if this was the active component
       if (store.activeComponentID === id) {
         store.activeComponentID = null;
         activeFrameSend = undefined;
@@ -387,7 +383,7 @@ function filterNode(node: LayoutConfigNode, validIds: Set<string>): boolean {
       return false;
     }
     const idx = node.activeItemIndex ?? 0;
-    node.activeItemIndex = Math.min(Math.max(idx, 0), node.content.length - 1);
+    node.activeItemIndex = clamp(idx, 0, node.content.length - 1);
   }
   return true;
 }
@@ -456,7 +452,6 @@ function preApp(root: HTMLElement, store: Store) {
       positive_click: create,
       negative_click: createCancel,
       show: () => {
-        // Focus the input when modal is shown
         inputCreate.focus();
       },
     },
@@ -474,7 +469,6 @@ function preApp(root: HTMLElement, store: Store) {
       negative_click: renameCancel,
       show: () => {
         inputRename.value = store.requests[renameID.value!].path;
-        // Focus the input when modal is shown
         inputRename.focus();
       },
     },
@@ -510,7 +504,6 @@ function preApp(root: HTMLElement, store: Store) {
 
   document.body.appendChild(globalDropdown.el);
 
-  // Check if any modal is open
   const anyModalIsOpen = () =>
     newRequestName.value !== undefined ||
     renameID.value !== undefined ||
@@ -518,14 +511,11 @@ function preApp(root: HTMLElement, store: Store) {
     command_bar_new_request_kind_visible.value ||
     command_bar_open_visible.value;
 
-  // Global keyboard event handling
   const handleKeyDown = (e: KeyboardEvent) => {
-    // Don't handle keyboard events if user is typing in an input or textarea
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
       return;
     }
 
-    // Check for Ctrl+Shift+P - Toggle command palette
     if (e.key === "P" && !e.altKey && e.ctrlKey && e.shiftKey && !e.metaKey) {
       e.preventDefault();
       if (anyModalIsOpen()) {
@@ -535,7 +525,6 @@ function preApp(root: HTMLElement, store: Store) {
       return;
     }
 
-    // Check for Ctrl+P - Open request palette
     if (e.key === "p" && !e.altKey && e.ctrlKey && !e.shiftKey && !e.metaKey) {
       e.preventDefault();
       if (anyModalIsOpen()) {
@@ -545,7 +534,6 @@ function preApp(root: HTMLElement, store: Store) {
       return;
     }
 
-    // Check for Ctrl+N - Create new request
     if (e.key === "n" && !e.altKey && e.ctrlKey && !e.shiftKey && !e.metaKey) {
       e.preventDefault();
       if (anyModalIsOpen()) {
@@ -555,7 +543,6 @@ function preApp(root: HTMLElement, store: Store) {
       return;
     }
 
-    // Check for Ctrl+R - Rename current request
     if (e.key === "r" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
       e.preventDefault();
       if (anyModalIsOpen()) {
@@ -568,16 +555,12 @@ function preApp(root: HTMLElement, store: Store) {
       renameInit(currentID);
     }
 
-    // Check for Escape - Close all modals
     if (e.key === "Escape") {
       e.preventDefault();
-      // Don't handle Escape if command palette is open - let it handle its own Escape
       if (commandBarVisible.value || command_bar_new_request_kind_visible.value || command_bar_open_visible.value) {
-        // Command palette will handle its own Escape key
         return;
       }
 
-      // Close other modals (rename, create)
       if (newRequestName.value === undefined && renameID.value === undefined) {
         return;
       }
@@ -585,7 +568,6 @@ function preApp(root: HTMLElement, store: Store) {
       createCancel();
     }
 
-    // Check for Ctrl+Enter - Run current request
     if (e.key === "Enter" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
       e.preventDefault();
       if (anyModalIsOpen()) {
@@ -598,7 +580,6 @@ function preApp(root: HTMLElement, store: Store) {
       activeFrameSend?.();
     }
 
-    // Check for Ctrl+<N> - Focus Nth pane's active tab
     if (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && e.key >= "1" && e.key <= "9") {
       e.preventDefault();
       if (anyModalIsOpen()) {
@@ -608,7 +589,6 @@ function preApp(root: HTMLElement, store: Store) {
       return;
     }
 
-    // Check for Ctrl+W - Close tab
     if (e.key === "w" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
       e.preventDefault();
       if (anyModalIsOpen()) {
@@ -617,7 +597,6 @@ function preApp(root: HTMLElement, store: Store) {
       layout.instance?.closeFocused();
     }
 
-    // Check for Ctrl+PgDown - Next tab
     if (e.key === "PageDown" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
       e.preventDefault();
       if (anyModalIsOpen()) {
@@ -627,7 +606,6 @@ function preApp(root: HTMLElement, store: Store) {
       return;
     }
 
-    // Check for Ctrl+PgUp - Previous tab
     if (e.key === "PageUp" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
       e.preventDefault();
       if (anyModalIsOpen()) {
@@ -637,7 +615,6 @@ function preApp(root: HTMLElement, store: Store) {
       return;
     }
 
-    // Check for Ctrl+Shift+PgDown - Move tab right
     if (e.key === "PageDown" && e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey) {
       e.preventDefault();
       if (anyModalIsOpen()) {
@@ -647,7 +624,6 @@ function preApp(root: HTMLElement, store: Store) {
       return;
     }
 
-    // Check for Ctrl+Shift+PgUp - Move tab left
     if (e.key === "PageUp" && e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey) {
       e.preventDefault();
       if (anyModalIsOpen()) {
@@ -658,7 +634,6 @@ function preApp(root: HTMLElement, store: Store) {
     }
 
     if (e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey) {
-      // Check for Alt+<N> - Select Nth tab in current stack
       if (e.key >= "1" && e.key <= "9") {
         e.preventDefault();
         if (anyModalIsOpen()) {
@@ -684,7 +659,6 @@ function preApp(root: HTMLElement, store: Store) {
     }
   };
 
-  // Add global keyboard event listener
   document.addEventListener("keydown", handleKeyDown);
 
   root.append(m("div", {class: "h100", style: {

@@ -83,7 +83,6 @@ describe("NResult component", () => {
     expect(h1).not.toBeNull();
     expect(h1!.textContent).toContain("Test Title");
 
-    // Find text node for description
     const textNodes = Array.from(result.childNodes).filter(n => n.nodeType === Node.TEXT_NODE);
     const descriptionNode = textNodes.find(n => n.textContent?.includes("Test Description") ?? false);
     expect(descriptionNode).not.toBeUndefined();

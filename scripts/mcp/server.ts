@@ -50,9 +50,7 @@ function buildServer(): McpServer {
     version: VERSION,
   });
 
-  // --- Tools: varied schemas + return shapes ---
 
-  // 1. Simple string input -> text output.
   server.registerTool("echo", {
     description: "Echo back the given message as text.",
     inputSchema: z.object({message: z.string().describe("The text to echo")}),
@@ -61,7 +59,6 @@ function buildServer(): McpServer {
     text: message,
   }]}));
 
-  // 2. Numbers -> text result.
   server.registerTool("add", {
     description: "Add two numbers and return the sum as text.",
     inputSchema: z.object({
@@ -73,7 +70,6 @@ function buildServer(): McpServer {
     text: String(a + b),
   }]}));
 
-  // 3. Object input with an optional field -> structured JSON as text.
   server.registerTool("user_lookup", {
     description: "Look up a user by id. Set detailed=true for the full record.",
     inputSchema: z.object({
@@ -89,7 +85,6 @@ function buildServer(): McpServer {
     return {content: [{type: "text", text: JSON.stringify(body)}]};
   });
 
-  // 4. Optional fields with defaults + randomness.
   server.registerTool("roll_dice", {
     description: "Roll dice. Defaults to one 6-sided die.",
     inputSchema: z.object({
@@ -103,7 +98,6 @@ function buildServer(): McpServer {
     return {content: [{type: "text", text: JSON.stringify({rolls, total: rolls.reduce((a, b) => a + b, 0)})}]};
   });
 
-  // 5. Array input.
   server.registerTool("sum_list", {
     description: "Sum a list of numbers.",
     inputSchema: z.object({
@@ -114,7 +108,6 @@ function buildServer(): McpServer {
     text: String(values.reduce((a, b) => a + b, 0)),
   }]}));
 
-  // 6. Enum input.
   server.registerTool( "choose", {
     description: "Pick a hardcoded response for an enum option.",
     inputSchema: z.object({
@@ -125,7 +118,6 @@ function buildServer(): McpServer {
     text: `you chose: ${option}`,
   }]}));
 
-  // 7. No input, always errors - for testing apiary's error rendering.
   server.registerTool("fail", {
     description: "Always returns an error result. Used to test error handling.",
   }, async () => ({content: [{
@@ -133,7 +125,6 @@ function buildServer(): McpServer {
     text: "intentional failure",
   }], isError: true}));
 
-  // --- Resources: direct + templated ---
 
   server.registerResource("info", "sample://info", {
     mimeType: "application/json",
@@ -150,7 +141,6 @@ function buildServer(): McpServer {
     async (uri, vars) => ({contents: [{uri: uri.href, mimeType: "text/plain", text: String(vars.text)}]}),
   );
 
-  // --- Prompts ---
 
   server.registerPrompt("review-code", {
     title: "Code review",

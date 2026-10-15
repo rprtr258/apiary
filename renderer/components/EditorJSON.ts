@@ -37,9 +37,7 @@ export default function(props: Props) {
       ...defaultExtensions,
       ...defaultEditorExtensions(props.on.update),
       json(),
-      // Add JSON Schema extension if schema is provided
       ...(props.schema !== undefined ? [jsonSchema(props.schema)] : []),
-      // Completion sources provided by the caller (merged with schema ones)
       ...(props.completions === undefined ? [] : [completionSources(props.completions)]),
     ],
   });

@@ -21,13 +21,11 @@ export type AuthConfig = {
 export type AuthType = AuthConfig["type"];
 
 export const HTTPCodes = {
-  // 1xx Informational
   100: "Continue",
   101: "Switching Protocols",
   102: "Processing",
   103: "Early Hints",
 
-  // 2xx Success
   200: "OK",
   201: "Created",
   202: "Accepted",
@@ -39,7 +37,6 @@ export const HTTPCodes = {
   208: "Already Reported",
   226: "IM Used",
 
-  // 3xx Redirection
   300: "Multiple Choices",
   301: "Moved Permanently",
   302: "Found",
@@ -49,7 +46,6 @@ export const HTTPCodes = {
   307: "Temporary Redirect",
   308: "Permanent Redirect",
 
-  // 4xx Client Error
   400: "Bad Request",
   401: "Unauthorized",
   402: "Payment Required",
@@ -80,7 +76,6 @@ export const HTTPCodes = {
   431: "Request Header Fields Too Large",
   451: "Unavailable For Legal Reasons",
 
-  // 5xx Server Error
   500: "Internal Server Error",
   501: "Not Implemented",
   502: "Bad Gateway",

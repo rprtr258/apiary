@@ -6,25 +6,23 @@ import {api} from "../../api.ts";
 import {store} from "../../store.ts";
 
 const httpMethodPropsMap: Record<string, ItemBadge> = {
-  "GET":     {label: "GET",     background: "#1a5f3a", color: "#70e888"}, // Green
-  "POST":    {label: "POST",    background: "#2a3a5f", color: "#85b4ee"},    // Blue
-  "PUT":     {label: "PUT",     background: "#5f4a1a", color: "#e8c070"}, // Orange/Yellow
-  "DELETE":  {label: "DELETE",  background: "#5f1a1a", color: "#e98a8a"},   // Red
-  "PATCH":   {label: "PATCH",   background: "#3a1a5f", color: "#a870e8"}, // Purple
-  "HEAD":    {label: "HEAD",    background: "#1a5f5f", color: "#70e8e8"},    // Cyan
-  "OPTIONS": {label: "OPTIONS", background: "#5f5f1a", color: "#e8e870"},    // Yellow
+  "GET":     {label: "GET",     background: "#1a5f3a", color: "#70e888"},
+  "POST":    {label: "POST",    background: "#2a3a5f", color: "#85b4ee"},
+  "PUT":     {label: "PUT",     background: "#5f4a1a", color: "#e8c070"},
+  "DELETE":  {label: "DELETE",  background: "#5f1a1a", color: "#e98a8a"},
+  "PATCH":   {label: "PATCH",   background: "#3a1a5f", color: "#a870e8"},
+  "HEAD":    {label: "HEAD",    background: "#1a5f5f", color: "#70e8e8"},
+  "OPTIONS": {label: "OPTIONS", background: "#5f5f1a", color: "#e8e870"},
 };
 function httpMethodProps(method: string): ItemBadge {
   const upperMethod = method.toUpperCase();
   if (upperMethod in httpMethodPropsMap)
     return httpMethodPropsMap[upperMethod];
-  return {label: method, background: "#3a3a3a", color: "#c0c0c0"}; // Grey
+  return {label: method, background: "#3a3a3a", color: "#c0c0c0"};
 }
 
 function formatEndpointLabel(endpoint: t.EndpointInfo): string {
   const {path} = endpoint;
-  // Format: /route/
-  // Ensure path starts with / and ends with / if not empty
   const formattedPath = path === "" ? "/" : path.startsWith("/") ? path : `/${path}`;
   const pathWithTrailingSlash = formattedPath.endsWith("/") ? formattedPath : `${formattedPath}/`;
   return pathWithTrailingSlash;
