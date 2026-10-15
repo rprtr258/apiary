@@ -32,10 +32,12 @@ function Dropdown() {
     minWidth: "120px",
   }});
   open.sub(function*() {while(true) setDisplay(el, yield);}());
-  document.addEventListener("click", e => {
+  // capture-phase pointerdown, not click: sidebar items stopPropagation() on
+  // click, and right-button clicks never produce a click event at all
+  document.addEventListener("pointerdown", e => {
     if (!el.contains(e.target as Node))
       open.value = false;
-  });
+  }, true);
 
   return {
     el,
