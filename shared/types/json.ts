@@ -5,7 +5,6 @@ export type KV = {
   value: string,
 };
 
-// JSONSchema represents the structure of a JSON schema
 export type JSONSchema = {
   example?: JSONValue,
 } & ({ // TODO: reuse from lib

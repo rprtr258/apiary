@@ -13,7 +13,6 @@ const specSourceOptions = specSources.map(source => ({label: source, value: sour
 const authTypes: t.AuthType[] = ["none", "basic", "bearer", "apikey", "oauth"];
 const authTypesOptions = authTypes.map(typ => ({label: typ, value: typ}));
 
-// Type declaration for showOpenFilePicker
 declare global {
   interface Window {
     showOpenFilePicker?: (options?: {
@@ -180,7 +179,6 @@ export default function(
         options: specSourceOptions,
           on: {update: specSource => {
             update_request({specSource});
-            // Update the UI to show file picker or URL input
             request.specSource = specSource;
             updateSpecInputUI();
           }},
@@ -211,8 +209,6 @@ export default function(
         statusLabel.el,
       ]);
 
-      // Remove tabs since we only have Connection tab now
-      // Just show the connection tab content directly
       el.replaceChildren(el_connection_tab);
       updateConnectionStatus();
     },

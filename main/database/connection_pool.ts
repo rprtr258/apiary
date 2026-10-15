@@ -29,14 +29,11 @@ export type ClientPool<T, K> = {
 const DEFAULT_TTL = 1000*60*5;
 
 export function createClientPool<T, K>(opts: {
-  // Idle time after which a cached client is closed.
   ttl?: number,
   // Cache key for a connection config: structurally equal configs MUST map to
   // the same string, so equal configs share one client.
   keyOf: (key: K) => string,
-  // Creates a client for a config never connected (or freshly evicted).
   connect: (key: K) => Promise<T>,
-  // Closes a client whose entry is dropped (idle expiry or eviction).
   close: (client: T) => Promise<void>,
 }): ClientPool<T, K> {
   const {keyOf, connect, close} = opts;
@@ -44,7 +41,7 @@ export function createClientPool<T, K>(opts: {
   type Entry = {
     client: T,
     busy: number, // operations currently running on the client
-    lastUsed: number, // Date.now() of the last acquire
+    lastUsed: number,
     closing: boolean, // evicted while busy; close as soon as busy drops to 0
   };
   const clients = new Map<string, Entry>();

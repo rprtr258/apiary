@@ -2,7 +2,6 @@ import {describe, test, expect, mock} from "bun:test";
 import {send} from "./http.ts";
 import type {HTTPRequest, KV} from "@/types.ts";
 
-// Mock global fetch
 const mockFetch = mock((_0: string, _1: RequestInit) => new Promise(resolve => resolve(new Response("OK", {
   status: 200,
   statusText: "OK",

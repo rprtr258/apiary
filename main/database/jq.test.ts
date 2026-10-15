@@ -3,7 +3,6 @@ import {raw} from "jq-wasm";
 import {send} from "./jq.ts";
 import type {JQRequest} from "@/types.ts";
 
-// Mock jq-wasm
 mock.module("jq-wasm", () => ({
   raw: mock(async (_json: string, _query: string, _flags?: string[]) => {
     return {stdout: "3\n", stderr: "", exitCode: 0};

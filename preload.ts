@@ -61,66 +61,53 @@ export const Log = {
     Log.Print(`[${level}] ${message}`);
   },
 
-  Print  (message: string): void {return todo(       message);}, // logs the given message as a raw message
-  Trace  (message: string): void {Log.log("trace",   message);}, // logs the given message at the `trace`   log level.
-  Debug  (message: string): void {Log.log("debug",   message);}, // logs the given message at the `debug`   log level.
-  Info   (message: string): void {Log.log("info",    message);}, // logs the given message at the `info`    log level.
-  Warning(message: string): void {Log.log("warning", message);}, // logs the given message at the `warning` log level.
-  Error  (message: string): void {Log.log("error",   message);}, // logs the given message at the `error`   log level.
-  Fatal  (message: string): void {Log.log("fatal",   message);}, // logs the given message at the `fatal`   log level. The application will quit after calling this method.
+  Print  (message: string): void {return todo(       message);},
+  Trace  (message: string): void {Log.log("trace",   message);},
+  Debug  (message: string): void {Log.log("debug",   message);},
+  Info   (message: string): void {Log.log("info",    message);},
+  Warning(message: string): void {Log.log("warning", message);},
+  Error  (message: string): void {Log.log("error",   message);},
+  Fatal  (message: string): void {Log.log("fatal",   message);}, // the application will quit after calling this method.
 };
 
 export const Events = {
   // sets up a listener for the given event name, but will only trigger a given number times.
   OnMultiple(eventName: string, callback: (...data: unknown[]) => void, maxCallbacks: number): () => void {return todo(eventName, callback, maxCallbacks);},
 
-  // sets up a listener for the given event name.
   On(eventName: string, callback: (...data: unknown[]) => void): () => void {return Events.OnMultiple(eventName, callback, -1);},
 
-  // unregisters the listener for the given event name.
   Off(eventName: string, ...additionalEventNames: string[]): void {return todo(eventName, ...additionalEventNames);},
 
-  // unregisters all listeners.
   OffAll(): void {return todo();},
 
-  // sets up a listener for the given event name, but will only trigger once.
   Once(eventName: string, callback: (...data: unknown[]) => void): () => void {return Events.OnMultiple(eventName, callback, 1);},
 
-  // emits the given event. Optional data may be passed with the event.
-  // This will trigger any event listeners.
   Emit(eventName: string, ...data: unknown[]): void {return todo(eventName, data);},
 };
 
 type Theme = "light" | "dark";
 
 export const Window = {
-  // Sets window theme to system default.
   get system_default_theme(): Theme {return todo();},
   set theme(v: Theme) {todo(v);},
 
   // Forces a reload by the main application as well as connected browsers.
   Reload(): void {return todo();},
 
-  // Reloads the application frontend.
   ReloadApp(): void {return todo();},
 
-  // Sets the window AlwaysOnTop or not on top.
   set always_on_top(b: boolean) {todo(b);},
 
-  // Centers the window on the monitor the window is currently on.
   Center(): void {return todo();},
 
-  // Sets the text in the window title bar.
   SetTitle(title: string): void {return todo(title);},
 
   set fullscreen(value: boolean) {
     if (value) todo(value); // Makes the window full screen
     else todo(value); // Restores the previous window dimensions and position prior to full screen
   },
-  // Returns the state of the window, i.e. whether the window is in full screen mode or not.
   get fullscreen(): Promise<boolean> {return todo();},
 
-  // width and height of the window
   get size(): Promise<{width: number, height: number}> {return todo();},
   set size({width, height}: {width: number, height: number}) {todo(width, height);},
 
@@ -138,44 +125,36 @@ export const Window = {
 
   set display(v: boolean) {
     if (v)
-      // Shows the window, if it is currently hidden.
       todo();
     else
-      // Hides the window.
       todo();
   },
 
-  // Toggles between Maximised and UnMaximised.
   async ToggleMaximise(): Promise<void> {
     this.maximised = !await this.maximised;
   },
 
   set maximised(b: boolean) {
     if (b)
-      // Maximises the window to fill the screen
       todo();
     else
       // Restores the window to the dimensions and position prior to maximising
       todo();
   },
-  // Returns the state of the window, i.e. whether the window is maximised or not
   get maximised(): Promise<boolean> {return todo();},
 
   set minimised(b: boolean) {
     if (b)
-      // Minimises the window
       todo();
     else
       // Restores the window to the dimensions and position prior to minimising
       todo();
   },
-  // Returns the state of the window, i.e. whether the window is minimised or not
   get minimised(): Promise<boolean> {return todo();},
 
   // Sets the background colour of the window to the given RGBA colour definition. This colour will show through for all transparent pixels.
   set background_color({R, G, B, A}: {R: number, G: number, B: number, A: number}) {todo(R, G, B, A);},
 
-  // Returns the state of the window, i.e. whether the window is normal or not.
   get is_normal(): Promise<boolean> {return todo();},
 };
 
@@ -189,30 +168,23 @@ export type Screen = {
 // Gets the all screens. Call this anew each time you want to refresh data from the underlying windowing system.
 export function ScreenGetAll(): Promise<Screen[]> {return todo();}
 
-// Opens the given URL in the system browser.
 export function BrowserOpenURL(_url: string): void {return todo();}
 
-// Environment information
 export type EnvironmentInfo = {
   buildType: string,
   platform: string,
   arch: string,
 };
 
-// Returns information about the environment
 export function Environment(): Promise<EnvironmentInfo> {return todo();}
 
-// Quits the application
 export function Quit(): void {return todo();}
 
-// Hides the application
 export function Hide(): void {return todo();}
 
-// Shows the application
 export function Show(): void {return todo();}
 
 export const Clipboard = {
-  // text stored on clipboard
   get text(): Promise<string> {return todo();},
   set text(text: string) {todo(text);},
 };
@@ -220,18 +192,15 @@ export const Clipboard = {
 // OnFileDrop listens to drag and drop events and calls the callback with the coordinates of the drop and an array of path strings.
 export function OnFileDrop(
   callback: ( // Callback for OnFileDrop returns a slice of file path strings when a drop is finished.
-    x: number, // x coordinate of the drop
-    y: number, // y coordinate of the drop
-    paths: string[], // A list of file paths
+    x: number,
+    y: number,
+    paths: string[],
   ) => void,
   useDropTarget: boolean, // Only call the callback when the drop finished on an element that has the drop target style (--wails-drop-target)
 ): void {return todo(callback, useDropTarget);}
 
-// OnFileDropOff removes the drag and drop listeners and handlers.
 export function OnFileDropOff(): void {return todo();}
 
-// Check if the file path resolver is available
 export function CanResolveFilePaths(): boolean {return todo();}
 
-// Resolves file paths for an array of files
 export function ResolveFilePaths(files: File[]): void {return todo(files);}

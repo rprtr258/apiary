@@ -111,9 +111,8 @@ export default function(
       });
 
       el.replaceChildren(el_container);
-      updateConnectionStatus(); // Initial check
+      updateConnectionStatus();
 
-      // Load schema
       (async () => {
         const tableInfos = await api.requestListTablesSQLSource(requestID);
         if (tableInfos.kind === "err") {

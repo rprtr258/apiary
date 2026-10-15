@@ -32,7 +32,6 @@ function globals(): RedissqlGlobals {
   return globalThis as unknown as RedissqlGlobals;
 }
 
-/** Normalize a dsn to a redis:// url and extract the logical db number. */
 export function parseRedisDsn(dsn: string): {url: string, db: number} {
   const normalized = dsn.startsWith("redis://") ? dsn : `redis://${dsn}`;
   const url = new URL(normalized);
@@ -41,7 +40,6 @@ export function parseRedisDsn(dsn: string): {url: string, db: number} {
   return {url: normalized, db: Number.isNaN(parsed) ? 0 : parsed};
 }
 
-/** Map a bridge op to the raw redis command argv. */
 export function commandFor(op: string, args: unknown[]): string[] {
   const key = args[0] as string;
   switch (op) {
@@ -86,7 +84,6 @@ function zRangeElem([member, score]: [string, unknown]): {member: string, score:
   return {member, score: Number.isFinite(num) ? num : String(score)};
 }
 
-/** Map a raw redis reply to the json shape the wasm engine expects. */
 export function normalizeReply(op: string, reply: unknown): unknown {
   switch (op) {
     case "scanType": {
@@ -214,7 +211,6 @@ function load(): Promise<RedissqlGlobals> {
   return loadPromise;
 }
 
-/** Run one MySQL-dialect SQL query against the redis instance at dsn. */
 export async function querySqlOverRedis(dsn: string, query: string): Promise<RedissqlResult> {
   const g = await load();
   const {db} = parseRedisDsn(dsn);

@@ -14,7 +14,7 @@ const pool = createClientPool<Connection, string>({
     const connection = await connect(dsn);
     // The session's transaction read-only mode is reset in every op's finally;
     // a dropped connection errors the next op, which evicts the client.
-    connection.on("error", () => pool.evict(dsn, connection)); // dropped connection: drop the client, next request reconnects
+    connection.on("error", () => pool.evict(dsn, connection));
     return connection;
   },
   close: connection => connection.end(),
@@ -84,7 +84,6 @@ export async function explain(request: t.SQLRequest): Promise<t.SQLExplain> {
 }
 
 export async function describe(request: Omit<t.SQLRequest, "query">, tableName: string): Promise<t.TableSchema> {
-  // Get columns
   const colResult = await send({...request, query: `SELECT
   column_name,
   column_type,

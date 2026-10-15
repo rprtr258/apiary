@@ -27,10 +27,8 @@ describe("RequestDIFF", () => {
     const component = RequestDIFF(el, show_request, on);
     component.loaded(mockRequest);
 
-    // Should create some structure
     expect(el.children.length).toBeGreaterThan(0);
 
-    // Clean up
     component.unmount();
   });
 
@@ -46,12 +44,9 @@ describe("RequestDIFF", () => {
     const component = RequestDIFF(el, show_request, on);
     component.loaded(mockRequest);
 
-    // Note: We can't directly test API calls in unit tests
-    // because they require mocking complex dependencies
 
     expect(updateMock).toHaveBeenCalledTimes(0); // No updates yet
 
-    // Clean up
     component.unmount();
   });
 
@@ -77,7 +72,6 @@ describe("RequestDIFF", () => {
     const component = RequestDIFF(el, show_request, on);
     component.loaded(emptyRequest);
 
-    // Should still render the component structure
     expect(el.children.length).toBeGreaterThan(0);
 
     component.unmount();
@@ -105,7 +99,6 @@ describe("RequestDIFF", () => {
     const component = RequestDIFF(el, show_request, on);
     component.loaded(jsonRequest);
 
-    // Should render with JSON editors
     expect(el.children.length).toBeGreaterThan(0);
 
     component.unmount();
@@ -122,10 +115,8 @@ describe("RequestDIFF", () => {
     const component = RequestDIFF(el, show_request, on);
     component.loaded(mockRequest);
 
-    // Should have created elements
     expect(el.children.length).toBeGreaterThan(0);
 
-    // Unmount should clean up
     component.unmount();
 
     // After unmount, the element might still have children (they might not be removed)
@@ -145,7 +136,6 @@ describe("RequestDIFF", () => {
     const component = RequestDIFF(el, show_request, on);
     component.loaded(mockRequest);
 
-    // push_history_entry should do nothing for DIFF plugin
     component.push_history_entry({
       sent_at: new Date(),
       received_at: new Date(),
@@ -159,7 +149,6 @@ describe("RequestDIFF", () => {
       },
     });
 
-    // No updates should be called
     expect(on.update).toHaveBeenCalledTimes(0);
     expect(on.send).toHaveBeenCalledTimes(0);
 

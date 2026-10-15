@@ -38,7 +38,6 @@ const test = base.extend<Pick<Fixtures, "seedDB">>({
 });
 
 test("SQL source created before launch: expand and open table viewer", async ({page}) => {
-  // 1. The source exists in the sidebar (created before this session, not yet opened).
   const sourceLabel = page.getByText("mydb", {exact: true});
   await expect(sourceLabel).toBeVisible();
   const sourceBadge = page.getByText("SQL*", {exact: true});
@@ -48,13 +47,12 @@ test("SQL source created before launch: expand and open table viewer", async ({p
   // request panel instead — it stops propagation; the badge bubbles up to the
   // tree node and toggles expansion.)
   await sourceBadge.click();
-  const tableRow = page.getByText(/^users \(\d+ rows?,/); // "users (2 rows, ...)"
+  const tableRow = page.getByText(/^users \(\d+ rows?,/);
   await expect(tableRow).toBeVisible();
 
-  // 3. Click the table: the table viewer must open.
   await tableRow.click();
   const tab = page.locator(".lm_tab").filter({hasText: "mydb/users"});
   await expect(tab).toBeVisible();
-  await expect(page.getByText("alice")).toBeVisible(); // table data loaded
+  await expect(page.getByText("alice")).toBeVisible();
   await expect(page.getByText("Could not open table viewer")).toHaveCount(0);
 });

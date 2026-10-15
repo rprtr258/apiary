@@ -1,5 +1,3 @@
-// localStorage persistence utilities
-// Provides a clean seam between in-memory state and browser localStorage
 
 export function useLocalStorage<T>(key: string, init: T): {
   get value(): T,

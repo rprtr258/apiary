@@ -93,7 +93,6 @@ export async function describe(request: Omit<t.SQLRequest, "query">, tableName: 
     constraints.push({name: "PRIMARY KEY", type: "PRIMARY KEY", definition: "PRIMARY KEY", columns: pkColumns});
   }
 
-  // Get indexes
   const idxResult = await send({...request, query: `SELECT name, sql
 FROM sqlite_master
 WHERE type = 'index' AND tbl_name = '${tableName}'
@@ -122,7 +121,6 @@ export async function listTables(request: Omit<t.SQLRequest, "query">): Promise<
   const tables: t.TableInfo[] = [];
   // TODO: async map
   for (const table of tableNames) {
-    // Approximate size (rough estimate)
     const colRows = (await send({...request, query: `PRAGMA table_info(${table})`})).rows.map(([_cid, name, _ctype, _notnull, _dflt, _pk]) => name as string);
     const lengthExpr = colRows.map(c => `COALESCE(LENGTH("${c}"),0)`).join(" + ");
     const [rowCount, sizeBytes] = (await send({...request, query: `SELECT COUNT(*) AS rows, COALESCE(SUM(${lengthExpr}), 0) AS payload FROM "${table}"`})).rows[0];

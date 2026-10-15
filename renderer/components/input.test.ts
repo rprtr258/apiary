@@ -24,7 +24,6 @@ describe("NInput", () => {
       value: "initial",
     });
 
-    // Simulate user input
     input.value = "new value";
     input.dispatchEvent(new Event("input", {bubbles: true}));
 
@@ -90,9 +89,9 @@ describe("NSelect", () => {
     });
 
     const options = Array.from(el.children) as HTMLOptionElement[];
-    expect(options[1].selected).toBe(false); // Option 1 not selected
-    expect(options[2].selected).toBe(true); // Option 2 selected
-    expect(options[3].selected).toBe(false); // Option 3 not selected
+    expect(options[1].selected).toBe(false);
+    expect(options[2].selected).toBe(true);
+    expect(options[3].selected).toBe(false);
   });
 
   test("uses placeholder when label not found", () => {
@@ -108,7 +107,7 @@ describe("NSelect", () => {
     });
 
     const options = Array.from(el.children) as HTMLOptionElement[];
-    expect(options[0].selected).toBe(true); // Placeholder selected
+    expect(options[0].selected).toBe(true);
     expect(options[0].textContent).toBe("Select an option");
     expect(options[1].selected).toBe(false);
     expect(options[2].selected).toBe(false);
@@ -139,7 +138,6 @@ describe("NSelect", () => {
       on: {update: updateMock},
     });
 
-    // Simulate selecting option 2
     el.value = "1";
     el.dispatchEvent(new Event("change", {bubbles: true}));
 
@@ -160,13 +158,13 @@ describe("NSelect", () => {
     });
 
     const options = Array.from(select.el.children) as HTMLOptionElement[];
-    expect(options[0].selected).toBe(false); // Placeholder not selected
-    expect(options[2].selected).toBe(true); // Option 2 selected
+    expect(options[0].selected).toBe(false);
+    expect(options[2].selected).toBe(true);
 
     select.reset();
 
-    expect(options[0].selected).toBe(true); // Placeholder now selected
-    expect(options[2].selected).toBe(false); // Option 2 no longer selected
+    expect(options[0].selected).toBe(true);
+    expect(options[2].selected).toBe(false);
   });
 
   test("applies custom styles", () => {
@@ -194,8 +192,8 @@ describe("NSelect", () => {
     });
 
     const options = Array.from(el.children);
-    expect(options[1].hasAttribute("disabled")).toBe(true); // Disabled option
-    expect(options[2].hasAttribute("disabled")).toBe(false); // Enabled option
+    expect(options[1].hasAttribute("disabled")).toBe(true);
+    expect(options[2].hasAttribute("disabled")).toBe(false);
   });
 });
 
@@ -242,7 +240,6 @@ describe("NButton", () => {
 
     expect(button.disabled).toBe(true);
 
-    // Click should not call callback when disabled
     button.click();
     expect(clickMock).toHaveBeenCalledTimes(0);
   });
@@ -305,7 +302,7 @@ describe("NSelectInput", () => {
     const input = el.querySelector("input") as HTMLInputElement;
     const el_popup = popup(el);
     expect(input.getAttribute("placeholder")).toBe("DSN");
-    expect(el_popup.style.display).toBe("none"); // closed
+    expect(el_popup.style.display).toBe("none");
 
     input.dispatchEvent(new Event("focus"));
     expect(el_popup.children.length).toBe(2);
@@ -378,7 +375,7 @@ describe("NSelectInput", () => {
     const input = el.querySelector("input") as HTMLInputElement;
 
     input.dispatchEvent(new Event("focus"));
-    expect(el_popup.style.display).toBe(""); // open
+    expect(el_popup.style.display).toBe("");
 
     // scrolling the popup list itself must not close the popup
     el_popup.dispatchEvent(new Event("scroll"));
@@ -415,7 +412,7 @@ describe("NSelectInput", () => {
     const input = el.querySelector("input") as HTMLInputElement;
 
     input.dispatchEvent(new Event("focus"));
-    expect(el_popup.children.length).toBe(2); // no none while options match
+    expect(el_popup.children.length).toBe(2);
 
     input.value = "no-match";
     input.dispatchEvent(new Event("input"));
@@ -425,7 +422,7 @@ describe("NSelectInput", () => {
     expect(noneOpt.getAttribute("aria-disabled")).toBe("true");
 
     noneOpt.dispatchEvent(mousedown());
-    expect(input.value).toBe("no-match"); // untouched, still reported as raw text
+    expect(input.value).toBe("no-match");
     expect(updateMock).toHaveBeenCalledWith("no-match");
   });
 

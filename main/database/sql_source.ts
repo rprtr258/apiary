@@ -164,7 +164,6 @@ export async function buildReadTableQuery(request: Omit<SQLRequest, "query">, re
 }
 
 export async function countRowsSQLSource(request: Omit<SQLRequest, "query">, tableName: string, filter: TableFilter | null): Promise<number> {
-  // Quote each part of schema-qualified names separately
   const q = (s: string) => quoteIdent(request.database, s);
   const quoted = tableName.split(".").map(q).join(".");
   const where = filter !== null ? ` WHERE ${buildFilterCondition(request, filter)}` : "";

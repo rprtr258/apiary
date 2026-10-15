@@ -41,7 +41,6 @@ export type LayoutConfig = {
   root?: ItemConfig,
 };
 
-// Simple interfaces safe to implement under strictFunctionTypes.
 export type ComponentContainer = {
   readonly element: HTMLElement,
   on(event: "tab", cb: (tab: Tab) => void): void,

@@ -6,13 +6,7 @@ import type {JSONValue} from "@/types.ts";
 import descriptorJson from "protobufjs/google/protobuf/descriptor.json" with {type: "json"};
 import reflectionProtoDefinition from "./reflection.proto?raw";
 
-// ---------------------------------------------------------------------------
-// Reflection protocol support
-// ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// Reflection message types (lazily initialized)
-// ---------------------------------------------------------------------------
 
 let reflectionReqType: protobuf.Type | undefined;
 let reflectionRespType: protobuf.Type | undefined;
@@ -26,9 +20,6 @@ function ensureReflectionTypes(): void {
   reflectionRespType = root.lookupType("grpc.reflection.v1alpha.ServerReflectionResponse");
 }
 
-// ---------------------------------------------------------------------------
-// gRPC reflection client helper
-// ---------------------------------------------------------------------------
 
 /**
  * Make a single request to the gRPC reflection service and return the response.
@@ -65,13 +56,7 @@ function makeReflectionCall(
   });
 }
 
-// ---------------------------------------------------------------------------
-// Reflection-style service discovery
-// ---------------------------------------------------------------------------
 
-/**
- * List all gRPC services available on the target server via reflection.
- */
 async function listServicesReflection(target: string, deadlineMs: number): Promise<string[]> {
   const client = new grpc.Client(target, grpc.credentials.createInsecure());
 
@@ -95,10 +80,6 @@ async function listServicesReflection(target: string, deadlineMs: number): Promi
   }
 }
 
-/**
- * Get the file descriptor for a symbol (fully qualified service or method name)
- * using gRPC reflection.
- */
 async function getFileDescriptorSetBytes(
   target: string,
   symbol: string,
@@ -126,16 +107,10 @@ async function getFileDescriptorSetBytes(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Protobuf descriptor -> JSONSchema conversion
-// ---------------------------------------------------------------------------
 
 const descriptorTypesRoot: protobuf.Root = protobuf.Root.fromJSON(descriptorJson);
 const FileDescriptorSetType = descriptorTypesRoot.lookupType("google.protobuf.FileDescriptorSet");
 
-/**
- * Load a FileDescriptorProto protobuf root from raw descriptor bytes.
- */
 function loadRootFromDescriptorByte(blob: Uint8Array): protobuf.Root {
   const fdp = descriptorTypesRoot.lookupType("google.protobuf.FileDescriptorProto").decode(blob);
   const set = FileDescriptorSetType.create({file: [fdp]});
@@ -145,9 +120,6 @@ function loadRootFromDescriptorByte(blob: Uint8Array): protobuf.Root {
   return RootCtor.fromDescriptor(setBytes);
 }
 
-/**
- * Convert a protobuf field type to a JSONSchema type string.
- */
 function fieldTypeToSchemaType(field: protobuf.Field): JSONSchema | null {
   switch (field.type) {
   case "double":
@@ -173,15 +145,12 @@ function fieldTypeToSchemaType(field: protobuf.Field): JSONSchema | null {
   case "enum":
     return {type: "string"};
   case "message":
-    return null; // Nested messages are handled separately
+    return null;
   default:
     return null;
   }
 }
 
-/**
- * Convert a protobufjs Type/Message to a JSONSchema.
- */
 function convertMessageToSchema(msgType: protobuf.Type): JSONSchema {
   const properties: Record<string, JSONSchema> = {};
 
@@ -206,9 +175,6 @@ function convertMessageToSchema(msgType: protobuf.Type): JSONSchema {
   return {type: "object", properties};
 }
 
-// ---------------------------------------------------------------------------
-// Fake payload generation (ported from Go implementation)
-// ---------------------------------------------------------------------------
 
 function newFake(js: JSONSchema): JSONValue {
   switch (js.type) {
@@ -235,9 +201,6 @@ function newFake(js: JSONSchema): JSONValue {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 /**
  * Send a gRPC request to the target server using reflection-based protobuf
@@ -251,7 +214,6 @@ function newFake(js: JSONSchema): JSONValue {
  *   - Captures response trailers (via status event) as metadata
  */
 export async function send(request: GRPCRequest): Promise<GRPCResponse> {
-  // Parse method: fully qualified "package.Service/Method"
   const [serviceFull, methodName] = splitMethodName(request.method);
   if (serviceFull === null || methodName === null) {
     return {
@@ -263,7 +225,6 @@ export async function send(request: GRPCRequest): Promise<GRPCResponse> {
 
   const deadlineMs = 10000;
 
-  // 1. Discover input/output types via reflection
   let inputType: protobuf.Type;
   let outputType: protobuf.Type;
   try {
@@ -273,14 +234,12 @@ export async function send(request: GRPCRequest): Promise<GRPCResponse> {
       deadlineMs,
     );
 
-    // Search all file descriptors for the service definition
     let inputTypeName: string | undefined;
     let outputTypeName: string | undefined;
 
     for (const blob of fdsBlobs) {
       const root = loadRootFromDescriptorByte(blob);
 
-      // Look up the service definition to find method types
       const svc = root.lookupService(serviceFull);
       const method = svc.methodsArray.find(m => m.name === methodName);
       if (method === undefined) {
@@ -293,19 +252,15 @@ export async function send(request: GRPCRequest): Promise<GRPCResponse> {
     }
 
     if (inputTypeName === undefined || outputTypeName === undefined) {
-      // Fallback: try the method path directly without reflection
       return await sendGRPCFallback(request);
     }
 
-    // Load the full file descriptors again to get the message types
     inputType = createTypeFromFds(fdsBlobs, inputTypeName);
     outputType = createTypeFromFds(fdsBlobs, outputTypeName);
   } catch {
-    // Fallback: try the method path directly without reflection
     return await sendGRPCFallback(request);
   }
 
-  // 2. Serialize request payload
   let parsedPayload: Record<string, unknown>;
   try {
     parsedPayload = JSON.parse(request.payload) as Record<string, unknown>;
@@ -326,7 +281,6 @@ export async function send(request: GRPCRequest): Promise<GRPCResponse> {
     };
   }
 
-  // 3. Make the RPC call
   const client = new grpc.Client(request.target, grpc.credentials.createInsecure());
 
   const grpcMetadata = new grpc.Metadata();
@@ -438,10 +392,6 @@ async function sendGRPCFallback(request: GRPCRequest): Promise<GRPCResponse> {
   });
 }
 
-/**
- * Split a fully qualified method name "package.Service/Method" into
- * [package.Service, Method].
- */
 function splitMethodName(method: string): [string | null, string | null] {
   const slashIdx = method.lastIndexOf("/");
   if (slashIdx === -1) {
@@ -450,10 +400,6 @@ function splitMethodName(method: string): [string | null, string | null] {
   return [method.substring(0, slashIdx), method.substring(slashIdx + 1)];
 }
 
-/**
- * Create a protobufjs Type from a list of FileDescriptorProto blobs
- * by searching for the named type across all descriptors.
- */
 function createTypeFromFds(fdsBlobs: Uint8Array[], typeName: string): protobuf.Type {
   for (const blob of fdsBlobs) {
     try {
@@ -476,13 +422,7 @@ function metadataToKV(md: grpc.Metadata): KV[] {
   return entries;
 }
 
-// ---------------------------------------------------------------------------
-// Service / Method discovery
-// ---------------------------------------------------------------------------
 
-/**
- * List gRPC service methods via reflection.
- */
 export async function grpcMethods(target: string): Promise<Record<string, string[]>> {
   const deadlineMs = 10000;
   const services = await listServicesReflection(target, deadlineMs);
@@ -491,7 +431,6 @@ export async function grpcMethods(target: string): Promise<Record<string, string
   return Object.fromEntries((await Promise.all(services.map(async service => {
     const fdsBlobs = await getFileDescriptorSetBytes(target, service, deadlineMs);
 
-    // Find the service definition and extract method names
     const methods = fdsBlobs.flatMap(blob => {
       const root = loadRootFromDescriptorByte(blob);
       const svc = root.lookupService(service);
@@ -502,9 +441,6 @@ export async function grpcMethods(target: string): Promise<Record<string, string
   }))).map(({service, methods}) => [service, methods.sort()]));
 }
 
-// ---------------------------------------------------------------------------
-// Fake payload generation (via reflection schema)
-// ---------------------------------------------------------------------------
 
 /**
  * Generate a fake JSON payload for a gRPC method.
@@ -557,9 +493,6 @@ export async function grpcQueryFake(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Payload validation (via reflection schema)
-// ---------------------------------------------------------------------------
 
 /**
  * Validate a JSON payload for a gRPC method.

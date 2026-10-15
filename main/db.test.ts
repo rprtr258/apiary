@@ -22,7 +22,6 @@ mock.module("fs/promises", () => ({
   writeFile,
 }));
 
-// Helper to create an empty DB
 function emptyDB(): DB {
   return {};
 }
@@ -186,7 +185,6 @@ describe("createResponse", () => {
 
 describe("load", () => {
   test("loads DB from JSON", async () => {
-    // readFile is mocked to return "{}" which is empty
     const db = await load();
     expect(db).toBeTruthy();
   });
@@ -198,7 +196,6 @@ describe("load", () => {
     try {
       const db = await load();
       expect(db).toEqual({});
-      // load() should write an empty DB to disk when file is missing
       expect(writeFile).toHaveBeenCalled();
     } finally {
       mockReadFileErr = null;

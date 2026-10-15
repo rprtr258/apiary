@@ -129,7 +129,6 @@ describe("DataTable editing", () => {
     input.value = "x";
     fireKey(input, "Enter");
     expect(edits.at(-1)).toEqual([{pkValues: [1], column: "name", value: "x"}]);
-    // cell shows the new value and is highlighted; untouched cells are not
     const after = cells(table);
     expect(after[1].textContent).toBe("x");
     expect(after[1].classList.length).toBeGreaterThan(0);
@@ -144,7 +143,7 @@ describe("DataTable editing", () => {
     fireKey(input, "Enter");
     fire(cells(table)[1], "dblclick");
     const input2 = cells(table)[1].querySelector<HTMLInputElement>("input")!;
-    input2.value = "a"; // original value
+    input2.value = "a";
     fireKey(input2, "Enter");
     expect(edits.at(-1)).toEqual([]);
     expect(cells(table)[1].classList.length).toBe(0);
@@ -173,7 +172,7 @@ describe("DataTable editing", () => {
 
   test("boolean cells get a true/false dropdown", () => {
     const {table, edits} = makeTable();
-    fire(cells(table)[2], "dblclick"); // row 0 active=false
+    fire(cells(table)[2], "dblclick");
     const select = cells(table)[2].querySelector<HTMLSelectElement>("[data-testid=\"cell-select\"]")!;
     expect(select).not.toBeNull();
     expect(select.value).toBe("false");
@@ -214,17 +213,14 @@ describe("DataTable editing", () => {
     const input = cells(table)[0].querySelector<HTMLInputElement>("input")!;
     input.value = "abc";
     fireKey(input, "Enter");
-    expect(edits.at(-1)).toEqual([]); // commit aborted
-    // the typed value is kept in a red input, not reverted
+    expect(edits.at(-1)).toEqual([]);
     const invalidInput = cells(table)[0].querySelector<HTMLInputElement>("input")!;
     expect(invalidInput).not.toBeNull();
     expect(invalidInput.value).toBe("abc");
     expect(cells(table)[0].classList.length).toBeGreaterThan(0);
-    // fixing the value commits
     invalidInput.value = "42";
     fireKey(invalidInput, "Enter");
     expect(edits.at(-1)).toEqual([{pkValues: [1], column: "id", value: 42}]);
-    // input gone (no longer invalid), cell shows the committed value
     expect(cells(table)[0].querySelector("input")).toBeNull();
     expect(cells(table)[0].textContent).toBe("42");
   });
@@ -235,7 +231,6 @@ describe("DataTable editing", () => {
     const input = cells(table)[1].querySelector<HTMLInputElement>("input")!;
     input.value = "x";
     fireKey(input, "Enter");
-    // page reload with the same data re-applies the highlight
     table.update({columns: DATA.columns, typenames: DATA.typenames, types: DATA.types, rows: DATA.rows as t.RowValue[][], on: {}});
     expect(cells(table)[1].textContent).toBe("x");
     expect(cells(table)[1].classList.length).toBeGreaterThan(0);
@@ -255,7 +250,6 @@ describe("DataTable editing", () => {
   });
 });
 
-// --- TableViewer toolbar (mocked api) ---
 
 const state: {
   data: t.SQLResponse,
@@ -368,9 +362,8 @@ describe("TableViewer toolbar", () => {
   test("apply runs updates by pk and changed columns, then clears and reloads", async () => {
     const el = makeViewer();
     const apply = buttonByText(el, "Apply");
-    expect(apply.closest("div")!.style.display).toBe("none"); // hidden with no edits
+    expect(apply.closest("div")!.style.display).toBe("none");
 
-    // edit a cell (initial load populates the table asynchronously)
     const container = el.querySelector("[data-testid=\"data-container\"]")!;
     await flush();
     const nameCell = container.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
@@ -378,12 +371,11 @@ describe("TableViewer toolbar", () => {
     const input = nameCell.querySelector<HTMLInputElement>("input")!;
     input.value = "x";
     fireKey(input, "Enter");
-    expect(apply.closest("div")!.style.display).not.toBe("none"); // sync via the edits signal
+    expect(apply.closest("div")!.style.display).not.toBe("none");
 
     apply.click();
     await flush();
     expect(updateCalls).toEqual([["s1", "users", ["id"], [{pkValues: [1], column: "name", value: "x"}]]]);
-    // edits cleared + page reloaded
     const after = el.querySelector("[data-testid=\"data-container\"]")!.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
     expect(after.textContent).toBe("a");
   });
@@ -395,7 +387,6 @@ describe("TableViewer toolbar", () => {
     const banner = [...el.querySelectorAll("span")].find(s => s.textContent === "No primary key — editing disabled");
     expect(banner).toBeDefined();
     expect(banner!.style.display).not.toBe("none");
-    // double-click does nothing
     const cell = el.querySelector("[data-testid=\"data-container\"]")!.querySelectorAll("[data-testid=\"data-cell\"]")[1];
     fire(cell, "dblclick");
     expect(cell.querySelector("input")).toBeNull();
@@ -464,7 +455,6 @@ describe("TableViewer toolbar", () => {
     const apply = buttonByText(el, "Apply");
     expect(apply.closest("div")!.style.display).not.toBe("none");
 
-    // Cancel is a synchronous clearEdits: restores the cell text and hides the bar
     buttonByText(el, "Cancel").click();
     const after = el.querySelector("[data-testid=\"data-container\"]")!.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
     expect(after.textContent).toBe("a");
@@ -474,7 +464,7 @@ describe("TableViewer toolbar", () => {
   test("filter applies debounced with the value, refreshes the filtered count, and paginates", async () => {
     state.countRows = 250;
     const el = makeViewer();
-    await flush(); // initial load
+    await flush();
     expect(performCalls.length).toBe(1);
 
     setColumn(el, "id");
@@ -482,22 +472,20 @@ describe("TableViewer toolbar", () => {
     await flush(); // the 0ms debounce applies on the next timer tick
     const read = performCalls[1][1] as t.TableRead;
     expect(read.filter).toEqual({kind: "simple", column: "id", op: "=", value: "5"});
-    expect(read.offset).toBe(0); // filter change reloads the first page
+    expect(read.offset).toBe(0);
     expect(countCalls).toEqual([["s1", "users", {kind: "simple", column: "id", op: "=", value: "5"}]]);
-    expect(el.textContent).toContain("of 250"); // pagination shows the filtered count
+    expect(el.textContent).toContain("of 250");
 
-    // paging keeps the active filter and moves the offset
     buttonByText(el, "Next").click();
     await flush();
     const nextRead = performCalls[2][1] as t.TableRead;
     expect(nextRead.filter).toEqual({kind: "simple", column: "id", op: "=", value: "5"});
     expect(nextRead.offset).toBe(100);
 
-    // clearing the value removes the filter and restores the full row count
     setInput(filterValue(el), "");
     await flush();
     expect((performCalls[3][1] as t.TableRead).filter).toBeNull();
-    expect(countCalls.length).toBe(1); // no extra count for the unfiltered view
+    expect(countCalls.length).toBe(1);
     expect(el.textContent).toContain("of 2");
   });
 
@@ -516,24 +504,21 @@ describe("TableViewer toolbar", () => {
     expect(performCalls.length).toBe(2);
     const read = performCalls[1][1] as t.TableRead;
     expect(read.filter).toEqual({kind: "manual", expr: "id =="});
-    // error notification carries the engine error
     expect(notifications.some(n => n[0] === "error" && n[1] === "Could not load data" &&
       (n[2] as {error: string}).error === "syntax error at or near \"==\"")).toBe(true);
-    // the view still shows the previous data (not blanked)
     const cell = el.querySelector("[data-testid=\"data-container\"]")!.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
     expect(cell.textContent).toBe("a");
   });
 
   test("cell editing still works while a filter is active", async () => {
     const el = makeViewer();
-    await flush(); // initial load
+    await flush();
     expect(el.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]").length).toBeGreaterThan(0);
 
     setColumn(el, "id");
     setInput(filterValue(el), "1");
     await flush();
     expect(performCalls.length).toBe(2);
-    // re-query after the filtered reload replaced the table content
     const nameCell = el.querySelectorAll<HTMLElement>("[data-testid=\"data-cell\"]")[1];
     fire(nameCell, "dblclick");
     const input = nameCell.querySelector<HTMLInputElement>("input")!;
@@ -543,8 +528,6 @@ describe("TableViewer toolbar", () => {
     expect(apply.closest("div")!.style.display).not.toBe("none");
     apply.click();
     await flush();
-    // updates go through by pk while the filter is active, and the reload
-    // that follows still carries the active filter
     expect(updateCalls).toEqual([["s1", "users", ["id"], [{pkValues: [1], column: "name", value: "x"}]]]);
     expect((performCalls.at(-1)![1] as t.TableRead).filter).toEqual({kind: "simple", column: "id", op: "=", value: "1"});
   });

@@ -142,11 +142,8 @@ function Item({item, on}: ItemProps) {
     onclick: on.select,
   },
     m("div", {class: styles.itemContent},
-      // prefix
       item.prefix !== undefined ? item.prefix : item.group !== undefined ? item.group+":" : null,
-      // label
       m("div", {class: styles.itemLabel}, item.label),
-      // postfix
       (item.shortcut ?? []).length > 0 ?
         m("div", {class: styles.itemShortcut},
           item.shortcut!.flatMap((key, i) => [
@@ -225,23 +222,19 @@ export function CommandPalette(props: Props) {
       if (!document.hasFocus())
         return;
 
-      // Check if focus is moving to an element inside the modal
       const relatedTarget = e.relatedTarget as HTMLElement | null;
       if (relatedTarget !== null && modalContent.contains(relatedTarget)) {
-        // Focus is moving to a modal item, don't close
         return;
       }
 
       props.on.close();
     },
   });
-  // Body with items list - will be updated dynamically
   const listContainer = m("div", {class: styles.body});
   const modalContent = m("div", {
     class: styles.modal,
     onkeydown: handleKeyDown,
   },
-    // Header with search input
     m("div", {class: styles.header}, input),
     elEmpty,
     listContainer,
@@ -269,7 +262,6 @@ export function CommandPalette(props: Props) {
       setDisplay(itemElements[i].el, matches);
     }
 
-    // Handle empty state
     setDisplay(elEmpty, filteredIndexes.length === 0);
   }
   function updateSelection(): void {
@@ -278,12 +270,10 @@ export function CommandPalette(props: Props) {
 
     selectedIndex = selectedIndex % filteredIndexes.length;
 
-    // update selection on existing elements
     for (const [i, element] of itemElements.entries()) {
       element.selected = i === filteredIndexes[selectedIndex];
     }
 
-    // Scroll selected item into view
     const selectedElement = itemElements[filteredIndexes[selectedIndex]].el;
     selectedElement.scrollIntoView({block: "nearest", behavior: "smooth"});
   }

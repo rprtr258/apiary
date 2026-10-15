@@ -175,7 +175,6 @@ function stripLeadingColumns(definition: string, type: string): string {
 }
 
 export async function describe(request: Omit<t.SQLRequest, "query">, tableName: string): Promise<t.TableSchema> {
-  // Get columns
   const colResult = await send({...request, query: `SELECT
   column_name,
   data_type,
@@ -193,7 +192,6 @@ ORDER BY ordinal_position`}); // TODO: pass tableName as arg
     defaultValue: JSON.stringify(defaultVal ?? ""),
   }));
 
-  // Get constraints
   const conResult = await send({...request, query: `SELECT
   con.conname,
   CASE con.contype
@@ -215,7 +213,6 @@ WHERE rel.relname = '${tableName}' AND nsp.nspname NOT IN ('pg_catalog', 'inform
     columns: parseConstraintColumns(def as string, typ as string, columns.map(c => c.name)),
   }));
 
-  // Get indexes
   const idxResult = await send({...request, query: `SELECT idx.indexname, idx.indexdef
 FROM pg_indexes idx
 WHERE idx.tablename = '${tableName}' AND idx.schemaname NOT IN ('pg_catalog', 'information_schema')`}); // TODO: pass tableName as arg

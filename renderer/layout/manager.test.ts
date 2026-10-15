@@ -78,7 +78,7 @@ describe("LayoutManager", () => {
     const stack = stacksOf(manager)[0];
     const tab = stack.children[0].tab.element;
 
-    dragTab(stack.children[0], tab); // release over the same tab line
+    dragTab(stack.children[0], tab);
 
     // The stack must survive: detach() destroys an emptied stack, and the
     // drop used to reinsert the tab into that destroyed stack.
@@ -94,7 +94,7 @@ describe("LayoutManager", () => {
     manager.addItem("req-2", OPEN, {id: "req-2"});
     const stack = stacksOf(manager)[0];
 
-    dragTab(stack.children[0], stack.header); // drop past the last tab
+    dragTab(stack.children[0], stack.header);
 
     expect(tabTitles(stack)).toEqual(["req-2", "req-1"]);
     expect(stack.children.map(c => c.title)).toEqual(["req-2", "req-1"]);
@@ -141,7 +141,6 @@ describe("LayoutManager", () => {
       expect(titles(left)).toEqual([["req-1"], "req-1"]);
       expect(titles(right)).toEqual([["req-2"], "req-2"]);
       expect(titleOf(manager.activeTab())).toBe("req-2");
-      // the new group sits to the right of the original one in the DOM
       expect(manager.rootItem?.element.contains(left.element)).toBe(true);
       expect(manager.rootItem?.element.contains(right.element)).toBe(true);
       expect([...manager.rootItem?.element.children ?? []].indexOf(left.element))
@@ -159,7 +158,6 @@ describe("LayoutManager", () => {
       ]);
       expect(titleOf(manager.activeTab())).toBe("req-3");
 
-      // tab DOM matches the tree; focused tab carries the current highlight
       expect(stacks.map(tabTitles)).toEqual([
         ["req-1"],
         ["req-2", "req-3"],

@@ -65,9 +65,9 @@ export function NResult(props: NResultProps) {
   return m("div", {
     class: "h100",
     style: {
-      justifyContent: "center",
       display: "flex",
       alignItems: "center",
+      justifyContent: "center",
       flexDirection: "column",
     },
   },
@@ -90,7 +90,7 @@ export function NEmpty(props: NEmptyProps) {
       justifyContent: "center",
       ...props.style,
     },
-  }, [props.description]);
+  }, props.description);
 };
 
 export function NList(...children: DOMNode[]) {

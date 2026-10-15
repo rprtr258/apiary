@@ -52,7 +52,6 @@ app.on("ready", async () => {
     },
   });
 
-  // In dev mode, load from Vite dev server for HMR; in prod, load built files
   if (process.env.VITE_DEV_SERVER_URL !== undefined) {
     await win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {

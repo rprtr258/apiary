@@ -55,11 +55,8 @@ describe("RequestSQL", () => {
     const component = RequestSQL(el, show_request, on);
     component.loaded(mockRequest);
 
-    // Check that data view is created (not a table, but a div with grid display)
-    // The component should render something with data
     expect(el.children.length).toBeGreaterThan(0);
 
-    // Get the initial data container
     const initialDataContainer = el.querySelector("[data-testid=\"data-container\"]");
     expect(initialDataContainer).not.toBeNull();
 
@@ -76,7 +73,6 @@ describe("RequestSQL", () => {
       },
     });
 
-    // Check that data is still displayed (component should handle new response)
     const updatedDataContainer = el.querySelector("[style*=\"display: grid\"]");
     expect(updatedDataContainer).not.toBeNull();
   });
@@ -92,7 +88,6 @@ describe("RequestSQL", () => {
     const component = RequestSQL(el, show_request, on);
     component.loaded(mockRequest);
 
-    // Component should render something
     expect(el.children.length).toBeGreaterThan(0);
 
     component.push_history_entry({
@@ -108,7 +103,6 @@ describe("RequestSQL", () => {
       },
     });
 
-    // Component should still be rendered (handle empty response gracefully)
     expect(el.children.length).toBeGreaterThan(0);
     expect(on.update).toHaveBeenCalledTimes(0);
     expect(on.send).toHaveBeenCalledTimes(0);
@@ -152,13 +146,11 @@ describe("RequestSQL", () => {
     expect(explainCalls).toEqual(["test-id"]);
     expect(el.querySelector("pre")?.textContent).toContain("postgres connection failed");
 
-    // Same request: cached, no refetch.
     tabButton("Data").click();
     tabButton("Plan").click();
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(explainCalls).toEqual(["test-id"]);
 
-    // Request switch resets the cache: the next open fetches again.
     component.loaded({...mockRequest, request: {...mockRequest.request, id: "other-id", kind: t.Kind.SQL, database: "sqlite"} as t.Request});
     tabButton("Plan").click();
     await new Promise(resolve => setTimeout(resolve, 0));

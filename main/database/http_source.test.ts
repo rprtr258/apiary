@@ -16,7 +16,6 @@ describe("parseSpec", () => {
   test("parses OpenAPI v2 endpoints", async () => {
     const endpoints = await parseSpec(petstoreV2);
     expect(endpoints.length).toBe(20);
-    // POST /pet and GET /pet/{petId}
     const postPet = endpoints.find(e => e.method === "POST" && e.path === "/pet")!;
     expect(postPet.summary).toBe("Add a new pet to the store");
     const getPet = endpoints.find(e => e.method === "GET" && e.path === "/pet/{petId}")!;

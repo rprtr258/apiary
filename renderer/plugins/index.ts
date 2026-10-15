@@ -11,7 +11,6 @@ import {mdPlugin} from "./md/index.ts";
 import {diffPlugin} from "./diff/index.ts";
 import {mcpPlugin} from "./mcp/index.ts";
 
-// Explicit central registry: one Plugin per request kind.
 export const plugins: Plugin[] = [
   httpPlugin,
   httpSourcePlugin,

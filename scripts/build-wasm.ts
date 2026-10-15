@@ -27,10 +27,8 @@ function main() {
     return;
   }
 
-  // 1. shimmed vitess copy for the wasm build (read-only module cache -> writable build dir)
   ensureVitessShim(true);
 
-  // 2. wasm build (tidy keeps go.sum in sync with go.mod)
   run("go", ["mod", "tidy"], {cwd: wasmModuleDir, env: {...process.env, GOFLAGS: "-mod=mod"}});
   mkdirSync(outDir, {recursive: true});
   run("go", ["build", "-ldflags", "-s -w", "-o", path.join(outDir, "redissql.wasm"), "."], {
@@ -38,7 +36,6 @@ function main() {
     env: {...process.env, GOOS: "js", GOARCH: "wasm"},
   });
 
-  // 3. wasm_exec glue from the same toolchain that built the module
   const goroot = run("go", ["env", "GOROOT"]).trim();
   const wasmExec = path.join(goroot, "lib", "wasm", "wasm_exec.js");
   if (!existsSync(wasmExec)) {

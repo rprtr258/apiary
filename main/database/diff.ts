@@ -113,7 +113,6 @@ function* diffValues(
     return;
   }
 
-  // Primitive mismatch
   yield indentt + `~ "${path}": ${JSON.stringify(left)} → ${JSON.stringify(right)},`;
   stats.changed++;
 }

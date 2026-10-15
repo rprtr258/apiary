@@ -16,6 +16,10 @@ type PlanState =
   | {kind: "error", message: string}
   | {kind: "plan", plan: t.SQLExplain};
 
+function requestKey(request: Request): string {
+  return JSON.stringify([request.dsn, request.database, request.query]);
+}
+
 export default function(
   el: HTMLElement,
   show_request: Signal<boolean>,
@@ -52,7 +56,6 @@ export default function(
   // Flex column with definite height: the plan pre (flex: 1) fills the pane and
   // scrolls inside it instead of stretching the pane's parent.
   const el_plan = m("div", {style: {height: "100%", display: "flex", flexDirection: "column", overflow: "hidden"}});
-  const requestKey = (request: Request): string => JSON.stringify([request.dsn, request.database, request.query]);
   function render_plan(): void {
     const node =
       plan_state.kind === "plan" ? m("pre", {style: {margin: "8px", whiteSpace: "pre-wrap", overflow: "auto", flex: "1", minHeight: "0"}}, plan_state.plan.raw) :
@@ -60,7 +63,7 @@ export default function(
       NEmpty({description: plan_state.kind === "loading" ? "Running EXPLAIN..." : "Open this tab to fetch the plan."});
     el_plan.replaceChildren(node);
   }
-  async function fetch_explain(): Promise<void> {
+  async function fetch_plan(): Promise<void> {
     if (current === null)
       return;
     const request = current.request as Request;
@@ -74,7 +77,9 @@ export default function(
     const res = await api.requestExplainSQL(current.request.id);
     if (current !== fetched) // request switched while fetching
       return;
-    plan_state = res.kind === "ok" ? {kind: "plan", plan: res.value} : {kind: "error", message: res.value};
+    plan_state = res.kind === "ok" ?
+      {kind: "plan", plan: res.value} :
+      {kind: "error", message: res.value};
     render_plan();
   }
   const tabs = NTabs({
@@ -84,7 +89,7 @@ export default function(
       }},
       {name: "Plan", elem: el_plan, onSelect: () => {
         plan_shown = true;
-        fetch_explain();
+        fetch_plan();
       }},
     ],
   });
@@ -97,7 +102,7 @@ export default function(
       plan_state = {kind: "idle"};
       render_plan();
       if (plan_shown)
-        fetch_explain();
+        fetch_plan();
       el_response.replaceChildren(tabs);
 
       const request = r.request as Request;

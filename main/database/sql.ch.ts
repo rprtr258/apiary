@@ -74,7 +74,6 @@ export async function explain(request: t.SQLRequest): Promise<t.SQLExplain> {
 }
 
 export async function describe(request: Omit<t.SQLRequest, "query">, tableName: string): Promise<t.TableSchema> {
-  // Get columns
   const colResult = await send({...request, query: `SELECT
   name,
   type,

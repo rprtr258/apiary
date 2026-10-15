@@ -202,7 +202,6 @@ describe("createClientPool idle expiry", () => {
       await gate;
       return "done";
     });
-    // Operation blocks past ttl; sweep must not close the busy client.
     await sleep(60);
     pool.sweep();
     await sleep(10);
@@ -241,7 +240,6 @@ describe("createClientPool idle expiry", () => {
     await sleep(5);
     releaseA();
     expect(await runA).toBe("a");
-    // A released, B still in flight and idle past ttl: client must survive.
     await sleep(60);
     pool.sweep();
     await sleep(10);
@@ -287,7 +285,6 @@ describe("createClientPool.evict", () => {
     await sleep(5);
     pool.evict("k", cached as FakeClient);
     expect(pool.size()).toBe(0);
-    // Op still in flight: client must not be closed under it.
     await sleep(10);
     expect(closes).toEqual([]);
     release();

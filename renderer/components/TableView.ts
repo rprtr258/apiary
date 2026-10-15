@@ -119,7 +119,6 @@ function render_column_with_sort(
         flexShrink: "0",
       },
     },
-      // Sort order badge (only show if sorted and order > 1)
       sortOrder !== undefined && sortOrder > 1 ? m("span", {
         style: {
           fontSize: "0.7em",
@@ -461,7 +460,7 @@ export function DataTable() {
         if (!closed) {
           closed = true;
           invalid.delete(cellKeyOf(j, column));
-          finish(); // discard the in-progress edit
+          finish();
         }
       }
     });
@@ -644,21 +643,16 @@ export default function(
   // Active table filter (from the filter bar); null means unfiltered.
   let currentFilter: t.TableFilter | null = null;
 
-  // Sorting state
   const sortColumns = signal<SortColumn[]>([]);
 
-  // Sorting management functions
   const addSort = (column: string, direction: "asc" | "desc"): void => {
     sortColumns.update(cols => {
-      // Check if column is already sorted
       const existingIndex = cols.findIndex(c => c.column === column);
       if (existingIndex >= 0) {
-        // Update existing sort direction
         const newCols = [...cols];
         newCols[existingIndex] = {...newCols[existingIndex], direction};
         return newCols;
       } else {
-        // Add new sort column
         return [...cols, {column, direction, order: cols.length + 1}];
       }
     });
@@ -667,7 +661,6 @@ export default function(
   const removeSort = (column: string): void => {
     sortColumns.update(cols => {
       const filtered = cols.filter(c => c.column !== column);
-      // Reorder remaining columns
       return filtered.map((c, i) => ({...c, order: i + 1}));
     });
   };
@@ -676,22 +669,15 @@ export default function(
     const existing = sortColumns.value.find(c => c.column === column);
     if (existing !== undefined) {
       if (existing.direction === "asc") {
-        // Change from asc to desc
         addSort(column, "desc");
       } else {
-        // Change from desc to remove
         removeSort(column);
       }
     } else {
-      // Add new sort with ascending
       addSort(column, "asc");
     }
   };
 
-  // clearAllSorts function is available but not currently used
-  // const clearAllSorts = (): void => {
-  //   sortColumns.value = [];
-  // };
 
   // Reload data when sorting changes. The subscription fires once immediately
   // with the initial (empty) sort — skip that to avoid a duplicate first load.
@@ -703,12 +689,10 @@ export default function(
         initial = false;
         continue;
       }
-      // Reload current page with new sorting
       loadData(currentPage.value);
     }
   }());
 
-  // Function to build query with sorting
   const prevDisabled = () => currentPage.value === 0;
   const nextDisabled = () => (currentPage.value + 1) * pageSize >= totalRows.value;
   const showingRows = () => {
@@ -731,7 +715,6 @@ export default function(
   }, "Next");
   const infoSpan = m("span", {}, showingRows());
 
-  // --- cell editing state ---
   const pkColumns = signal<string[]>([]);
   const schemaColumns = signal<t.ColumnInfo[]>([]);
   const readOnly = signal(false);
@@ -845,7 +828,6 @@ export default function(
         },
       });
     }
-    // Update UI elements
     prevButton.disabled = prevDisabled();
     nextButton.disabled = nextDisabled();
     infoSpan.textContent = showingRows();
@@ -859,7 +841,6 @@ export default function(
     }
 
     const {columns, indexes, constraints, foreign_keys} = res.value;
-    // Schema (columns)
     schemaTable.update({
       columns: ["Name", "Type", "Nullable", "Default"],
       typenames: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.BOOLEAN, t.ColumnType.STRING],
@@ -867,7 +848,6 @@ export default function(
       rows: columns.map(col => [col.name, col.typename, col.nullable, col.defaultValue]),
       on: {},
     });
-    // Indexes
     indexesTable.update({
       columns: ["Name", "Definition"],
       typenames: [t.ColumnType.STRING, t.ColumnType.STRING],
@@ -883,7 +863,6 @@ export default function(
       rows: constraints.filter(con => con.type !== "FOREIGN KEY").map(con => [con.name, con.type, con.columns.join(", "), con.definition]),
       on: {},
     });
-    // Relations (foreign keys)
     relationsTable.update({
       columns: ["Name", "Column", "FK Schema", "FK Table", "FK Column", "On Update", "On Delete"],
       typenames: [t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING, t.ColumnType.STRING],
@@ -914,7 +893,6 @@ export default function(
 
   const el_filter = TableFilter(() => schemaColumns.value,{apply: applyFilter}, {debounceMs: filterDebounceMs});
 
-  // Initial load
   loadData(0);
   loadSchema();
 
