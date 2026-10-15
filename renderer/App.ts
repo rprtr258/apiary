@@ -10,7 +10,7 @@ import {
 import layout from "./layout.ts";
 import {NInput} from "./components/input.ts";
 import {NModal, NSplit} from "./components/layout.ts";
-import {NIcon, NResult, NTag} from "./components/dataview.ts";
+import {NEmpty, NIcon, NTag} from "./components/dataview.ts";
 import {Eye, EyeClosed} from "./components/icons.ts";
 import {CommandPalette, Item} from "./components/CommandPalette.ts";
 import {sidebar, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./Sidebar.ts";
@@ -393,7 +393,7 @@ export default function(root: HTMLElement) {
 }
 
 function preApp(root: HTMLElement, store: Store) {
-  const el_empty_state = NResult({
+  const el_empty_state = NEmpty({
     status: "info",
     title: "Pick request",
     description: "Pick request to view it, edit, send and do other fun things.",
