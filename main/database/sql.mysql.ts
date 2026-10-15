@@ -1,6 +1,6 @@
 import mysql, {type Connection, type ResultSetHeader} from "mysql2/promise.js";
 import {createClientPool} from "./connection_pool.ts";
-import {ColumnInfo, ColumnType, ConstraintInfo, ForeignKey, SQLRequest, SQLResponse, TableInfo, TableSchema} from "@/types.ts";
+import * as t from "@/types.ts";
 
 // dateStrings: keep DATETIME/TIMESTAMP as raw server text (µs precision) —
 // table editing identifies rows by these values, and JS Date would truncate them.
@@ -20,7 +20,7 @@ const pool = createClientPool<Connection, string>({
   close: connection => connection.end(),
 });
 
-export async function send(request: SQLRequest): Promise<SQLResponse> {
+export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
   return await pool.run(request.dsn, async connection => {
     try {
       if (request.readOnly ?? false)
@@ -32,7 +32,7 @@ export async function send(request: SQLRequest): Promise<SQLResponse> {
       return {
         columns: fields.map(f => f.name),
         typenames: fields.map(f => f.type === undefined ? "???" : String(f.type)),
-        types: fields.map(f => f.type === undefined ? ColumnType.UNKNOWN : String(f.type) as ColumnType),
+        types: fields.map(f => f.type === undefined ? t.ColumnType.UNKNOWN : String(f.type) as t.ColumnType),
         rows: rows.map(r => Object.values(r)),
       };
     } finally {
@@ -42,7 +42,7 @@ export async function send(request: SQLRequest): Promise<SQLResponse> {
   });
 }
 
-export async function sendBatch(request: Omit<SQLRequest, "query">, statements: string[]): Promise<SQLResponse> {
+export async function sendBatch(request: Omit<t.SQLRequest, "query">, statements: string[]): Promise<t.SQLResponse> {
   // Deliberately not pooled: concurrent batches sharing one connection could
   // interleave statements inside a single transaction.
   const connection = await connect(request.dsn);
@@ -74,15 +74,16 @@ export async function sendBatch(request: Omit<SQLRequest, "query">, statements: 
 // EXPLAIN ANALYZE executes the statement on the pooled session (mysql has no
 // read-only switch that composes with it), so effects of write queries persist
 // exactly as when running the query from the editor.
-export async function explain(request: SQLRequest): Promise<string> {
+export async function explain(request: t.SQLRequest): Promise<t.SQLExplain> {
   return await pool.run(request.dsn, async connection => {
     // mysql2 prepared `execute` rejects EXPLAIN ANALYZE; use plain query.
     const [rows] = await connection.query(`EXPLAIN ANALYZE ${request.query}`) as [{[column: string]: string}[], unknown];
-    return rows.map(r => Object.values(r).join(" ")).join("\n");
+    const raw = rows.map(r => Object.values(r).join(" ")).join("\n");
+    return {raw};
   });
 }
 
-export async function describe(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
+export async function describe(request: Omit<t.SQLRequest, "query">, tableName: string): Promise<t.TableSchema> {
   // Get columns
   const colResult = await send({...request, query: `SELECT
   column_name,
@@ -92,10 +93,10 @@ export async function describe(request: Omit<SQLRequest, "query">, tableName: st
 FROM information_schema.columns
 WHERE table_name = '${tableName}' AND table_schema = DATABASE()
 ORDER BY ordinal_position`});
-  const columns: ColumnInfo[] = colResult.rows.map(([name, typ, nullable, defaultVal]) => ({
+  const columns: t.ColumnInfo[] = colResult.rows.map(([name, typ, nullable, defaultVal]) => ({
     name: name as string,
     typename: typ as string,
-    type: typ as ColumnType,
+    type: typ as t.ColumnType,
     nullable: nullable as boolean,
     defaultValue: JSON.stringify(defaultVal ?? ""),
   }));
@@ -103,7 +104,7 @@ ORDER BY ordinal_position`});
   // Get constraints (simplified - PRIMARY KEY only). key_column_usage has one
   // row per PK column; ordinal_position restores composite key order, so the
   // whole key is returned as a single ordered entry.
-  const constraints: ConstraintInfo[] = [];
+  const constraints: t.ConstraintInfo[] = [];
   try {
     const conResult = await send({...request, query: `SELECT
   column_name
@@ -120,7 +121,7 @@ ORDER BY ordinal_position`}); // TODO: pass tableName as arg
   // Get foreign keys (one row per column pair; ordinal_position keeps
   // composite keys ordered). rc carries the update/delete rules, kcu the
   // referenced table/schema/columns.
-  const foreign_keys: ForeignKey[] = [];
+  const foreign_keys: t.ForeignKey[] = [];
   try {
     const fkResult = await send({...request, query: `SELECT
   kcu.constraint_name,
@@ -154,7 +155,7 @@ ORDER BY kcu.constraint_name, kcu.ordinal_position`}); // TODO: pass tableName a
   return {columns, constraints, foreign_keys, indexes: []};
 }
 
-export async function listTables(request: Omit<SQLRequest, "query">): Promise<TableInfo[]> {
+export async function listTables(request: Omit<t.SQLRequest, "query">): Promise<t.TableInfo[]> {
   const dbName = (await send({...request, query: "SELECT DATABASE()"})).rows[0][0] as string;
   const tablesResult = await send({...request, query: `SELECT
 table_name,
@@ -162,7 +163,7 @@ table_rows,
 data_length + index_length
 FROM information_schema.TABLES
 WHERE table_schema = '${dbName}'`}); // TODO: pass dbname as arg
-  return tablesResult.rows.map(([name, rowCount, sizeBytes]): TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
+  return tablesResult.rows.map(([name, rowCount, sizeBytes]): t.TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
 }
 
 export function quoteIdent(s: string): string {

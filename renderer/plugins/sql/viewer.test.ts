@@ -6,7 +6,7 @@ import {get_request} from "../../store.ts";
 
 // Hoisted by bun to run before the viewer import below.
 const explainCalls: string[] = [];
-let explainResult = ok("Project\n  -> Seq Scan on users");
+let explainResult = ok({raw: "Project\n  -> Seq Scan on users"});
 mock.module("../../api.ts", () => ({
   api: {
     requestExplainSQL: async (id: string) => {
@@ -116,7 +116,7 @@ describe("RequestSQL", () => {
 
   test("explain tab fetches the plan on open and renders it as text", async () => {
     explainCalls.length = 0;
-    explainResult = ok("SCAN users\nFILTER id = 1");
+    explainResult = ok({raw: "SCAN users\nFILTER id = 1"});
     const el = document.createElement("div");
     const show_request = signal(true);
     const component = RequestSQL(el, show_request, {
@@ -125,7 +125,7 @@ describe("RequestSQL", () => {
     });
     component.loaded({...mockRequest, request: {...mockRequest.request, kind: t.Kind.SQL, database: "sqlite"} as t.Request});
 
-    const explainButton = [...el.querySelectorAll("button")].find(b => b.textContent === "Explain");
+    const explainButton = [...el.querySelectorAll("button")].find(b => b.textContent === "Plan");
     expect(explainButton).toBeDefined();
     explainButton!.click();
     await new Promise(resolve => setTimeout(resolve, 0));
@@ -147,20 +147,20 @@ describe("RequestSQL", () => {
     component.loaded({...mockRequest, request: {...mockRequest.request, kind: t.Kind.SQL, database: "sqlite"} as t.Request});
 
     const tabButton = (name: string) => [...el.querySelectorAll("button")].find(b => b.textContent === name)!;
-    tabButton("Explain").click();
+    tabButton("Plan").click();
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(explainCalls).toEqual(["test-id"]);
     expect(el.querySelector("pre")?.textContent).toContain("postgres connection failed");
 
     // Same request: cached, no refetch.
     tabButton("Data").click();
-    tabButton("Explain").click();
+    tabButton("Plan").click();
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(explainCalls).toEqual(["test-id"]);
 
     // Request switch resets the cache: the next open fetches again.
     component.loaded({...mockRequest, request: {...mockRequest.request, id: "other-id", kind: t.Kind.SQL, database: "sqlite"} as t.Request});
-    tabButton("Explain").click();
+    tabButton("Plan").click();
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(explainCalls).toEqual(["test-id", "other-id"]);
   });

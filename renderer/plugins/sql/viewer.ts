@@ -10,11 +10,11 @@ import EditorSQL from "../../EditorSQL.ts";
 
 type Request = t.SQLRequest;
 
-type ExplainState =
+type PlanState =
   | {kind: "idle"}
   | {kind: "loading"}
   | {kind: "error", message: string}
-  | {kind: "plan", plan: string};
+  | {kind: "plan", plan: t.SQLExplain};
 
 export default function(
   el: HTMLElement,
@@ -46,43 +46,44 @@ export default function(
   // opened, kept while the query/dsn/database stay unchanged, and never stored
   // in history. The plan renders as plain text for every database.
   let current: get_request | null = null;
-  let explain_shown = false;
-  let explain_key: string | null = null;
-  let explain_state: ExplainState = {kind: "idle"};
+  let plan_shown = false;
+  let plan_key: string | null = null;
+  let plan_state: PlanState = {kind: "idle"};
   // Flex column with definite height: the plan pre (flex: 1) fills the pane and
   // scrolls inside it instead of stretching the pane's parent.
   const el_explain = m("div", {style: {height: "100%", display: "flex", flexDirection: "column", overflow: "hidden"}});
   const requestKey = (request: Request): string => JSON.stringify([request.dsn, request.database, request.query]);
-  const render_explain = (): void => {
-    const node = explain_state.kind === "plan" ? m("pre", {style: {margin: "8px", whiteSpace: "pre-wrap", overflow: "auto", flex: "1", minHeight: "0"}}, explain_state.plan)
-      : explain_state.kind === "error" ? m("pre", {style: {margin: "8px", whiteSpace: "pre-wrap", overflow: "auto", flex: "1", minHeight: "0"}}, explain_state.message)
-      : NEmpty({description: explain_state.kind === "loading" ? "Running EXPLAIN..." : "Open this tab to fetch the plan."});
+  function render_plan(): void {
+    const node =
+      plan_state.kind === "plan" ? m("pre", {style: {margin: "8px", whiteSpace: "pre-wrap", overflow: "auto", flex: "1", minHeight: "0"}}, plan_state.plan.raw) :
+      plan_state.kind === "error" ? m("pre", {style: {margin: "8px", whiteSpace: "pre-wrap", overflow: "auto", flex: "1", minHeight: "0"}}, plan_state.message) :
+      NEmpty({description: plan_state.kind === "loading" ? "Running EXPLAIN..." : "Open this tab to fetch the plan."});
     el_explain.replaceChildren(node);
-  };
-  const fetch_explain = async (): Promise<void> => {
+  }
+  async function fetch_explain(): Promise<void> {
     if (current === null)
       return;
     const request = current.request as Request;
     const key = requestKey(request);
-    if (key === explain_key)
+    if (key === plan_key)
       return;
-    explain_key = key;
-    explain_state = {kind: "loading"};
-    render_explain();
+    plan_key = key;
+    plan_state = {kind: "loading"};
+    render_plan();
     const fetched = current;
     const res = await api.requestExplainSQL(current.request.id);
     if (current !== fetched) // request switched while fetching
       return;
-    explain_state = res.kind === "ok" ? {kind: "plan", plan: res.value} : {kind: "error", message: res.value};
-    render_explain();
-  };
+    plan_state = res.kind === "ok" ? {kind: "plan", plan: res.value} : {kind: "error", message: res.value};
+    render_plan();
+  }
   const tabs = NTabs({
     tabs: [
       {name: "Data", elem: el_scrollable, onSelect: () => {
-        explain_shown = false;
+        plan_shown = false;
       }},
-      {name: "Explain", elem: el_explain, onSelect: () => {
-        explain_shown = true;
+      {name: "Plan", elem: el_explain, onSelect: () => {
+        plan_shown = true;
         fetch_explain();
       }},
     ],
@@ -92,10 +93,10 @@ export default function(
     loaded: (r: get_request): void => {
       push_response(last_history_entry(r)?.response as t.SQLResponse | undefined);
       current = r;
-      explain_key = null;
-      explain_state = {kind: "idle"};
-      render_explain();
-      if (explain_shown)
+      plan_key = null;
+      plan_state = {kind: "idle"};
+      render_plan();
+      if (plan_shown)
         fetch_explain();
       el_response.replaceChildren(tabs);
 

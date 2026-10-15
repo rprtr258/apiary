@@ -1,4 +1,4 @@
-import {KV} from "./shared.ts";
+import {KV} from "./json.ts";
 
 export const GRPCCodes = {
   0: "OK",

@@ -1,0 +1,7 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`explainSQL sqlite returns EXPLAIN QUERY PLAN details as text 1`] = `
+{
+  "raw": "SEARCH users USING INTEGER PRIMARY KEY (rowid=?)",
+}
+`;

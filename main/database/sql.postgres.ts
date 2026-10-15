@@ -1,7 +1,7 @@
 import pg from "pg";
 import {TypeId, builtins as typeIDs} from "pg-types";
 import {createClientPool} from "./connection_pool.ts";
-import {TableSchema, ColumnInfo, SQLRequest, ColumnType, SQLResponse, ConstraintInfo, IndexInfo, ForeignKey, TableInfo} from "@/types.ts";
+import * as t from "@/types.ts";
 
 // JS Date holds only millisecond precision, so pg's default parsing of date /
 // timestamp columns into Date objects loses microseconds and shifts DATE across
@@ -18,18 +18,18 @@ LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
 WHERE n.nspname = 'pg_catalog'
 ORDER BY t.oid
 */
-const pg_types: Partial<Record<TypeId, ColumnType>> = {
-  [typeIDs.BOOL]: ColumnType.BOOLEAN,
-  [typeIDs.INT8]: ColumnType.NUMBER,
-  [typeIDs.INT4]: ColumnType.NUMBER,
-  [19 as TypeId]: ColumnType.STRING,
-  [typeIDs.TEXT]: ColumnType.STRING,
-  [typeIDs.JSON]: ColumnType.JSON,
-  [typeIDs.JSONB]: ColumnType.JSON,
-  [typeIDs.DATE]: ColumnType.TIME,
-  [typeIDs.TIME]: ColumnType.TIME,
-  [typeIDs.TIMESTAMP]: ColumnType.TIME,
-  [typeIDs.TIMESTAMPTZ]: ColumnType.TIME,
+const pg_types: Partial<Record<TypeId, t.ColumnType>> = {
+  [typeIDs.BOOL]: t.ColumnType.BOOLEAN,
+  [typeIDs.INT8]: t.ColumnType.NUMBER,
+  [typeIDs.INT4]: t.ColumnType.NUMBER,
+  [19 as TypeId]: t.ColumnType.STRING,
+  [typeIDs.TEXT]: t.ColumnType.STRING,
+  [typeIDs.JSON]: t.ColumnType.JSON,
+  [typeIDs.JSONB]: t.ColumnType.JSON,
+  [typeIDs.DATE]: t.ColumnType.TIME,
+  [typeIDs.TIME]: t.ColumnType.TIME,
+  [typeIDs.TIMESTAMP]: t.ColumnType.TIME,
+  [typeIDs.TIMESTAMPTZ]: t.ColumnType.TIME,
 };
 const pg_typenames: Partial<Record<TypeId, string>> = {
   [typeIDs.BOOL]: "bool",
@@ -80,7 +80,7 @@ const pool = createClientPool<pg.Client, string>({
   close: client => client.end(),
 });
 
-export async function send(request: SQLRequest): Promise<SQLResponse> {
+export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
   return await pool.run(dsnOf(request.dsn), async client => {
     if (request.readOnly ?? false)
       await client.query("BEGIN READ ONLY");
@@ -95,13 +95,13 @@ export async function send(request: SQLRequest): Promise<SQLResponse> {
     return {
       columns: fields.map(f => f.name),
       typenames: fields.map((f): TypeId => f.dataTypeID).map(f => pg_typenames[f] ?? `${f}`), // TODO: fix number shit casting // TODO: use lib enum
-      types: fields.map((f): TypeId => f.dataTypeID).map(f => pg_types[f] ?? ColumnType.UNKNOWN), // "unknown ${f}" string breaks frontend icon lookup; TODO: use lib enum
+      types: fields.map((f): TypeId => f.dataTypeID).map(f => pg_types[f] ?? t.ColumnType.UNKNOWN), // "unknown ${f}" string breaks frontend icon lookup; TODO: use lib enum
       rows: result.rows.map(r => Object.values(r as Record<string, unknown>)),
     };
   });
 }
 
-export async function sendBatch(request: Omit<SQLRequest, "query">, statements: string[]): Promise<SQLResponse> {
+export async function sendBatch(request: Omit<t.SQLRequest, "query">, statements: string[]): Promise<t.SQLResponse> {
   const client = await freshClient(dsnOf(request.dsn));
   try {
     await client.query(request.readOnly ?? false ? "BEGIN READ ONLY" : "BEGIN");
@@ -126,17 +126,17 @@ export async function sendBatch(request: Omit<SQLRequest, "query">, statements: 
 // inside an explicitly rolled-back transaction: effects of write queries are
 // discarded (statements that cannot run in a transaction, like VACUUM, error
 // out).
-export async function explain(request: SQLRequest): Promise<string> {
+export async function explain(request: t.SQLRequest): Promise<t.SQLExplain> {
   const client = await freshClient(dsnOf(request.dsn));
   try {
     await client.query("BEGIN");
     try {
       const result = await client.query(`EXPLAIN ANALYZE ${request.query}`);
       // Text format returns one row per plan line.
-      const plan = result.rows.map(row => String(Object.values(row as Record<string, unknown>)[0])).join("\n");
-      if (plan === "")
+      const raw = result.rows.map(row => String(Object.values(row as Record<string, unknown>)[0])).join("\n");
+      if (raw === "")
         throw new Error("postgres explain returned no plan");
-      return plan;
+      return {raw};
     } finally {
       await client.query("ROLLBACK").catch(() => undefined); // keep the original error
     }
@@ -174,7 +174,7 @@ function stripLeadingColumns(definition: string, type: string): string {
   return definition;
 }
 
-export async function describe(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
+export async function describe(request: Omit<t.SQLRequest, "query">, tableName: string): Promise<t.TableSchema> {
   // Get columns
   const colResult = await send({...request, query: `SELECT
   column_name,
@@ -185,10 +185,10 @@ export async function describe(request: Omit<SQLRequest, "query">, tableName: st
 FROM information_schema.columns
 WHERE table_name = '${tableName}' AND table_schema NOT IN ('pg_catalog', 'information_schema')
 ORDER BY ordinal_position`}); // TODO: pass tableName as arg
-  const columns: ColumnInfo[] = colResult.rows.map(([name, typ, typename, nullable, defaultVal]) => ({
+  const columns: t.ColumnInfo[] = colResult.rows.map(([name, typ, typename, nullable, defaultVal]) => ({
     name: name as string,
     typename: typename as string,
-    type: typ as ColumnType, // TODO: map
+    type: typ as t.ColumnType, // TODO: map
     nullable: nullable as boolean,
     defaultValue: JSON.stringify(defaultVal ?? ""),
   }));
@@ -208,7 +208,7 @@ FROM pg_constraint con
 JOIN pg_class rel ON rel.oid = con.conrelid
 JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
 WHERE rel.relname = '${tableName}' AND nsp.nspname NOT IN ('pg_catalog', 'information_schema')`}); // TODO: pass tableName as arg
-  const constraints: ConstraintInfo[] = conResult.rows.map(([name, typ, def]) => ({
+  const constraints: t.ConstraintInfo[] = conResult.rows.map(([name, typ, def]) => ({
     name: name as string,
     type: typ as string,
     definition: stripLeadingColumns(def as string, typ as string),
@@ -219,7 +219,7 @@ WHERE rel.relname = '${tableName}' AND nsp.nspname NOT IN ('pg_catalog', 'inform
   const idxResult = await send({...request, query: `SELECT idx.indexname, idx.indexdef
 FROM pg_indexes idx
 WHERE idx.tablename = '${tableName}' AND idx.schemaname NOT IN ('pg_catalog', 'information_schema')`}); // TODO: pass tableName as arg
-  const indexes: IndexInfo[] = idxResult.rows.map(([name, def]) => ({
+  const indexes: t.IndexInfo[] = idxResult.rows.map(([name, def]) => ({
     name: name as string,
     definition: def as string,
   }));
@@ -241,7 +241,7 @@ JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
 JOIN pg_class ref ON ref.oid = con.confrelid
 JOIN pg_namespace ref_ns ON ref_ns.oid = ref.relnamespace
 WHERE con.contype = 'f' AND rel.relname = '${tableName}' AND nsp.nspname NOT IN ('pg_catalog', 'information_schema')`}); // TODO: pass tableName as arg
-  const foreignKeys: ForeignKey[] = fkResult.rows.map(([name, upd, del, schema, table, def]) => {
+  const foreignKeys: t.ForeignKey[] = fkResult.rows.map(([name, upd, del, schema, table, def]) => {
     const refPart = String(def).split("REFERENCES")[1] ?? "";
     return {
       name: String(name),
@@ -257,7 +257,7 @@ WHERE con.contype = 'f' AND rel.relname = '${tableName}' AND nsp.nspname NOT IN 
   return {columns, constraints, foreign_keys: foreignKeys, indexes};
 }
 
-export async function listTables(request: Omit<SQLRequest, "query">): Promise<TableInfo[]> {
+export async function listTables(request: Omit<t.SQLRequest, "query">): Promise<t.TableInfo[]> {
   const tablesResult = await send({...request, query: `SELECT
   tablename,
   (xpath('/row/c/text()', query_to_xml(
@@ -269,7 +269,7 @@ FROM pg_catalog.pg_tables
 WHERE schemaname NOT IN ('pg_catalog', 'information_schema')`});
   return tablesResult
     .rows
-    .map(([name, rowCount, sizeBytes]): TableInfo => ({
+    .map(([name, rowCount, sizeBytes]): t.TableInfo => ({
       name: name as string,
       rowCount: Number(rowCount),
       sizeBytes: Number(sizeBytes),

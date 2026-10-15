@@ -89,7 +89,7 @@ describe("sql.redis explain", () => {
     queryCalls.length = 0;
     const plan = await explain({dsn: "localhost:6379", database: "redis", query: "SELECT 1"});
     expect(queryCalls).toEqual(["EXPLAIN ANALYZE SELECT 1"]);
-    expect(plan).toBe("Project\n  Projection: 1\n  Analyze: true\n  Sequence");
+    expect(plan).toMatchSnapshot();
   });
 });
 
