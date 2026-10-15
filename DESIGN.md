@@ -349,7 +349,7 @@ The typeface is **Avenir**, falling back to Helvetica/Arial, for all UI text; mo
 
 The default body size is the platform default (`body-md 16px`); dense secondary text is sized in `em` relative to it - `0.875em ≈ 14px` (`body-sm`) for request headers, `0.8em ≈ 13px` for labels, `0.7em ≈ 11px` (`caption`) for table cells and metadata. Keep this em-relative practice so text scales with the base.
 
-- **`display-lg`** (2em, bold) - large status/result codes (e.g. `NResult` headings).
+- **`display-lg`** (2em, bold) - large status/result codes (e.g. `NEmpty` headings).
 - **`label-sm`** (12px, bold) - kind badges, method chips, and all protocol labels. Protocol labels are always uppercase text set in `label-sm`; the casing is part of the identity and must not be lowered.
 - **`code`** (monospace, 13px) - code and JSON. All editor surfaces (CodeMirror) use the GitHub-Dark palette; plain `Json`/`pre` views keep the same mono discipline.
 - Plain prose in results/docs renders through github-markdown-css in dark mode.

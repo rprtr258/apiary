@@ -55,13 +55,16 @@ export function NIcon(props: NIconProps) {
   }}, [clone(props.component)]);
 };
 
-type NResultProps = {
-  status: "info" | "success" | "warning" | "error" | "404" | "403" | "500" | "418",
-  title: string,
+type NEmptyProps = {
+  status?: "info" | "success" | "warning" | "error" | "404" | "403" | "418" | "500",
+  title?: string,
   description: string,
 };
-export function NResult(props: NResultProps) {
-  const el_status = props.status === "info" ? ResultInfo : m("i", {}, props.status);
+export function NEmpty(props: NEmptyProps) {
+  const el_heading = props.title === undefined ? null : m("h1", {},
+    props.status === undefined || props.status === "info" ? ResultInfo : m("i", {}, props.status),
+    props.title,
+  );
   return m("div", {
     class: "h100",
     style: {
@@ -70,27 +73,7 @@ export function NResult(props: NResultProps) {
       justifyContent: "center",
       flexDirection: "column",
     },
-  },
-    m("h1", {}, el_status, props.title),
-    props.description,
-  );
-}
-
-type NEmptyProps = {
-  description: string,
-  class?: string[],
-  style?: Partial<CSSStyleDeclaration>,
-};
-export function NEmpty(props: NEmptyProps) {
-  return m("div", {
-    class: ["h100", ...(props.class ?? [])].join(" "),
-    style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      ...props.style,
-    },
-  }, props.description);
+  }, el_heading, props.description);
 };
 
 export function NList(...children: DOMNode[]) {

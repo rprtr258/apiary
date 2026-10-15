@@ -1,6 +1,6 @@
 import {describe, test, expect} from "bun:test";
 import {m} from "../lib/utils.ts";
-import {NTag, NResult, NEmpty, NList, NListItem, Json, TagType, tagColors} from "./dataview.ts";
+import {NTag, NEmpty, NList, NListItem, Json, TagType, tagColors} from "./dataview.ts";
 
 describe("Json component", () => {
   test.each([
@@ -65,43 +65,6 @@ describe("NTag component", () => {
   });
 });
 
-describe("NResult component", () => {
-  test("renders result with info status", () => {
-    const result = NResult({
-      status: "info",
-      title: "Test Title",
-      description: "Test Description",
-    });
-
-    expect(result.tagName).toBe("DIV");
-    expect(result.style.display).toBe("flex");
-    expect(result.style.justifyContent).toBe("center");
-    expect(result.style.alignItems).toBe("center");
-    expect(result.style.flexDirection).toBe("column");
-
-    const h1 = result.querySelector("h1");
-    expect(h1).not.toBeNull();
-    expect(h1!.textContent).toContain("Test Title");
-
-    const textNodes = Array.from(result.childNodes).filter(n => n.nodeType === Node.TEXT_NODE);
-    const descriptionNode = textNodes.find(n => n.textContent?.includes("Test Description") ?? false);
-    expect(descriptionNode).not.toBeUndefined();
-  });
-
-  test("renders result with string status", () => {
-    const result = NResult({
-      status: "404",
-      title: "Not Found",
-      description: "Page not found",
-    });
-
-    const h1 = result.querySelector("h1");
-    expect(h1).not.toBeNull();
-    expect(h1!.textContent).toContain("404");
-    expect(h1!.textContent).toContain("Not Found");
-  });
-});
-
 describe("NEmpty component", () => {
   test("renders empty state with description", () => {
     const empty = NEmpty({
@@ -116,17 +79,35 @@ describe("NEmpty component", () => {
     expect(empty.textContent).toBe("No data available");
   });
 
-  test("applies custom class and styles", () => {
+  test("renders heading with status and title", () => {
     const empty = NEmpty({
-      description: "Custom empty",
-      class: ["custom-class"],
-      style: {color: "red", fontSize: "16px"},
+      status: "info",
+      title: "Test Title",
+      description: "Test Description",
     });
 
-    expect(empty.className).toBe("h100 custom-class");
-    expect(empty.style.color).toBe("red");
-    expect(empty.style.fontSize).toBe("16px");
-    expect(empty.textContent).toBe("Custom empty");
+    expect(empty.style.flexDirection).toBe("column");
+
+    const h1 = empty.querySelector("h1");
+    expect(h1).not.toBeNull();
+    expect(h1!.textContent).toContain("Test Title");
+
+    const textNodes = Array.from(empty.childNodes).filter(n => n.nodeType === Node.TEXT_NODE);
+    const descriptionNode = textNodes.find(n => n.textContent?.includes("Test Description") ?? false);
+    expect(descriptionNode).not.toBeUndefined();
+  });
+
+  test("renders string status as text in heading", () => {
+    const empty = NEmpty({
+      status: "404",
+      title: "Not Found",
+      description: "Page not found",
+    });
+
+    const h1 = empty.querySelector("h1");
+    expect(h1).not.toBeNull();
+    expect(h1!.textContent).toContain("404");
+    expect(h1!.textContent).toContain("Not Found");
   });
 });
 
