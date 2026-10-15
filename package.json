@@ -16,6 +16,7 @@
     "preview": "vite preview",
     "lint": "eslint '**/*.{ts,json}'",
     "lint:fix": "eslint --fix '**/*.{ts,json}'",
+    "lint:design": "bun x @google/design.md@0.4.0 lint DESIGN.md --format=json",
     "check:deps": "bun scripts/check-runtime-deps.ts",
     "ci": "bun run scripts/ci.ts",
     "test": "bun scripts/test.ts",
