@@ -77,6 +77,41 @@ export type SQLSourceRequest = {
   readOnly: boolean,
 };
 
+/** Classification assigned by the plan parsers; the diagram colors nodes by
+ * kind, so backends with different operator names still render alike. */
+export type SQLPlanKind =
+  | "scan" | "index" | "join" | "filter" | "sort" | "aggregate" | "limit"
+  | "project" | "setop" | "write" | "subquery" | "other";
+
+/** One operator of the query plan. `table` is the table the operator
+ * reads/writes, when any (drives table coloring); `details` holds
+ * backend-specific lines (filters, conditions); `metrics` holds parsed
+ * cost/rows/time pairs. Children flow data into this node. */
+export type SQLPlanNode = {
+  title: string,
+  kind: SQLPlanKind,
+  table?: string,
+  details: string[],
+  /** Metrics of a plan node (cost, rows, actual time...);
+   * the value keeps the backend's own text form ("36.75..36.76", "0.123..0.124"). */
+  metrics: Record<string, string>,
+  children: SQLPlanNode[],
+};
+
+/** Query plan parsed into the unified operator-tree format; null when the
+ * backend's EXPLAIN output could not be parsed (renderer falls back to raw). */
+export type SQLPlan = {
+  root: SQLPlanNode,
+};
+
+/** EXPLAIN result: raw text for the "Plan (raw)" tab plus the plan parsed into
+ * the unified format for the diagram. Both come from one EXPLAIN round trip
+ * (EXPLAIN ANALYZE on postgres/mysql/redis actually executes the query). */
+export type SQLExplain = {
+  raw: string,
+  plan?: SQLPlan,
+};
+
 export type FilterOp =
   | "=" | "!=" | "<" | "<=" | ">" | ">=" | "in"
   | "like" | "not like"

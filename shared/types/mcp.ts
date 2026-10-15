@@ -1,4 +1,4 @@
-import type {JSONSchema, KV} from "./shared.ts";
+import type {JSONSchema, KV} from "./json.ts";
 
 // Connection config only (like HTTPSourceRequest). Discriminated union on "transport".
 export type MCPRequest = {

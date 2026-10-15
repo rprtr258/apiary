@@ -1,0 +1,12 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`sql.redis explain wraps the query in EXPLAIN ANALYZE and joins plan lines 1`] = `
+{
+  "raw": 
+"Project
+  Projection: 1
+  Analyze: true
+  Sequence"
+,
+}
+`;

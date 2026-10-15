@@ -153,7 +153,11 @@ func TestExplainAnalyzeThroughEngine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("explain: %v", err)
 	}
-	defer iter.Close(ctx)
+	defer func() {
+		if err := iter.Close(ctx); err != nil {
+			t.Fatalf("close: %v", err)
+		}
+	}()
 
 	var lines []string
 	for {

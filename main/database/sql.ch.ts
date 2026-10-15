@@ -1,23 +1,23 @@
 import {createClient, type ClickHouseClient} from "@clickhouse/client";
 import {createClientPool} from "./connection_pool.ts";
-import {ColumnInfo, ColumnType, SQLRequest, SQLResponse, TableInfo, TableSchema} from "@/types.ts";
+import * as t from "@/types.ts";
 
 // TODO: fix get types
-function convertTypes(columns: number, rows: unknown[][]): ColumnType[] {
+function convertTypes(columns: number, rows: unknown[][]): t.ColumnType[] {
   if (rows.length === 0) {
-    return new Array<ColumnType>(columns).fill(ColumnType.STRING); // TODO: unknown fallback
+    return new Array<t.ColumnType>(columns).fill(t.ColumnType.STRING); // TODO: unknown fallback
   }
 
   return Array.from({length: columns}).map((_, i) => {
     const row = rows.map(r => r[i]).filter(r => r !== null);
-    return ((): ColumnType => {
+    return ((): t.ColumnType => {
       switch (typeof row[0]) {
-      case "string": return ColumnType.STRING;
-      case "number": return ColumnType.NUMBER;
-      case "boolean": return ColumnType.BOOLEAN;
-      case "object": if (row[0] instanceof Date) return ColumnType.TIME;
+      case "string": return t.ColumnType.STRING;
+      case "number": return t.ColumnType.NUMBER;
+      case "boolean": return t.ColumnType.BOOLEAN;
+      case "object": if (row[0] instanceof Date) return t.ColumnType.TIME;
       }
-      return ColumnType.STRING; // TODO: unknown fallback
+      return t.ColumnType.STRING; // TODO: unknown fallback
     })();
   });
 }
@@ -30,7 +30,7 @@ const pool = createClientPool<ClickHouseClient, string>({
   close: client => client.close(),
 });
 
-export async function send(request: SQLRequest): Promise<SQLResponse> {
+export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
   return await pool.run(request.dsn, async client => {
     const ping = await client.ping();
     if (!ping.success) {
@@ -53,7 +53,7 @@ export async function send(request: SQLRequest): Promise<SQLResponse> {
   });
 }
 
-export async function sendBatch(request: Omit<SQLRequest, "query">, statements: string[]): Promise<SQLResponse> {
+export async function sendBatch(request: Omit<t.SQLRequest, "query">, statements: string[]): Promise<t.SQLResponse> {
   // ClickHouse has no transactions; statements run sequentially. Table editing
   // is unreachable for ClickHouse (no PK introspection), this is a safety net.
   return await pool.run(request.dsn, async client => {
@@ -65,14 +65,15 @@ export async function sendBatch(request: Omit<SQLRequest, "query">, statements: 
 
 // EXPLAIN PLAN does not execute the query; the plan prints as text lines, so
 // the raw TSV response is the text form (no JSON parsing round-trip).
-export async function explain(request: SQLRequest): Promise<string> {
+export async function explain(request: t.SQLRequest): Promise<t.SQLExplain> {
   return await pool.run(request.dsn, async client => {
     const resultSet = await client.query({query: `EXPLAIN PLAN ${request.query}`, format: "TabSeparated"});
-    return (await resultSet.text()).trimEnd();
+    const raw = (await resultSet.text()).trimEnd();
+    return {raw};
   });
 }
 
-export async function describe(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
+export async function describe(request: Omit<t.SQLRequest, "query">, tableName: string): Promise<t.TableSchema> {
   // Get columns
   const colResult = await send({...request, query: `SELECT
   name,
@@ -81,10 +82,10 @@ export async function describe(request: Omit<SQLRequest, "query">, tableName: st
   default_expression
 FROM system.columns
 WHERE database = currentDatabase() AND table = '${tableName}'`});
-  const columns: ColumnInfo[] = colResult.rows.map(r => ({
+  const columns: t.ColumnInfo[] = colResult.rows.map(r => ({
     name: String(r[0]),
     typename: String(r[1]),
-    type: String(r[1]) as ColumnType,
+    type: String(r[1]) as t.ColumnType,
     nullable: String(r[1]).includes("Nullable"),
     defaultValue: ["YES" as unknown, 1, true].includes(r[2]) ? JSON.stringify(r[3] ?? "") : "",
   }));
@@ -93,13 +94,13 @@ WHERE database = currentDatabase() AND table = '${tableName}'`});
   return {columns, constraints: [], foreign_keys: [], indexes: []};
 }
 
-export async function listTables(request: Omit<SQLRequest, "query">): Promise<TableInfo[]> {
+export async function listTables(request: Omit<t.SQLRequest, "query">): Promise<t.TableInfo[]> {
   return (await send({...request, query: `SELECT
   name,
   total_rows,
   total_bytes
 FROM system.tables
-WHERE database = currentDatabase()`})).rows.map(([name, rowCount, sizeBytes]): TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
+WHERE database = currentDatabase()`})).rows.map(([name, rowCount, sizeBytes]): t.TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
 }
 
 export function quoteIdent(s: string): string {

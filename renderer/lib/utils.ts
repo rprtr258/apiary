@@ -177,7 +177,7 @@ type SVGAttrs = {
 export function s<K extends keyof SVGAttrs>(
   tag: K,
   props: Partial<SVGAttrs[K]>,
-  ...children: SVGElement[]
+  ...children: (SVGElement | string)[]
 ): SVGElementTagNameMap[K] {
   const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
   for (const [key, value] of Object.entries(props)) {

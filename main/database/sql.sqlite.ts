@@ -1,23 +1,23 @@
 import Database from "better-sqlite3";
 import {createClientPool} from "./connection_pool.ts";
-import {ColumnInfo, ColumnType, ConstraintInfo, ForeignKey, IndexInfo, SQLRequest, SQLResponse, TableInfo, TableSchema} from "@/types.ts";
+import * as t from "@/types.ts";
 
 // TODO: fix get types
-function convertTypes(columns: number, rows: unknown[][]): ColumnType[] {
+function convertTypes(columns: number, rows: unknown[][]): t.ColumnType[] {
   if (rows.length === 0) {
-    return new Array<ColumnType>(columns).fill(ColumnType.STRING); // TODO: unknown fallback
+    return new Array<t.ColumnType>(columns).fill(t.ColumnType.STRING); // TODO: unknown fallback
   }
 
   return Array.from({length: columns}).map((_, i) => {
     const row = rows.map(r => r[i]).filter(r => r !== null);
-    return ((): ColumnType => {
+    return ((): t.ColumnType => {
       switch (typeof row[0]) {
-      case "string": return ColumnType.STRING;
-      case "number": return ColumnType.NUMBER;
-      case "boolean": return ColumnType.BOOLEAN;
-      case "object": if (row[0] instanceof Date) return ColumnType.TIME;
+      case "string": return t.ColumnType.STRING;
+      case "number": return t.ColumnType.NUMBER;
+      case "boolean": return t.ColumnType.BOOLEAN;
+      case "object": if (row[0] instanceof Date) return t.ColumnType.TIME;
       }
-      return ColumnType.STRING; // TODO: unknown fallback
+      return t.ColumnType.STRING; // TODO: unknown fallback
     })();
   });
 }
@@ -30,7 +30,7 @@ const pool = createClientPool<Database.Database, {dsn: string, readonly: boolean
   close: async db => void db.close(), // better-sqlite3's close() returns `this`, discard it
 });
 
-export async function send(request: SQLRequest): Promise<SQLResponse> {
+export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
   return await pool.run({dsn: request.dsn, readonly: request.readOnly ?? false}, async db => {
     const rows = db.prepare(request.query).all() as Record<string, unknown>[];
     if (rows.length === 0) {
@@ -47,7 +47,7 @@ export async function send(request: SQLRequest): Promise<SQLResponse> {
   });
 }
 
-export async function sendBatch(request: Omit<SQLRequest, "query">, statements: string[]): Promise<SQLResponse> {
+export async function sendBatch(request: Omit<t.SQLRequest, "query">, statements: string[]): Promise<t.SQLResponse> {
   return await pool.run({dsn: request.dsn, readonly: request.readOnly ?? false}, async db => {
     const affectedRows: number[] = [];
     // Synchronous body: better-sqlite3 ops never yield, so concurrent pool
@@ -62,16 +62,17 @@ export async function sendBatch(request: Omit<SQLRequest, "query">, statements: 
 }
 
 // EXPLAIN QUERY PLAN never executes the statement, so it is safe for writes.
-export async function explain(request: SQLRequest): Promise<string> {
+export async function explain(request: t.SQLRequest): Promise<t.SQLExplain> {
   return await pool.run({dsn: request.dsn, readonly: request.readOnly ?? false}, async db => {
     const rows = db.prepare(`EXPLAIN QUERY PLAN ${request.query}`).all() as {detail: string}[];
-    return rows.map(r => r.detail).join("\n");
+    const raw = rows.map(r => r.detail).join("\n");
+    return {raw};
   });
 }
 
-export async function describe(request: Omit<SQLRequest, "query">, tableName: string): Promise<TableSchema> {
-  const columns: ColumnInfo[] = [];
-  const constraints: ConstraintInfo[] = [];
+export async function describe(request: Omit<t.SQLRequest, "query">, tableName: string): Promise<t.TableSchema> {
+  const columns: t.ColumnInfo[] = [];
+  const constraints: t.ConstraintInfo[] = [];
 
   // Get columns via PRAGMA table_info (returns: cid, name, type, notnull, dflt, pk)
   const colResult = await send({...request, query: `PRAGMA table_info('${tableName}')`});
@@ -83,7 +84,7 @@ export async function describe(request: Omit<SQLRequest, "query">, tableName: st
     const defaultVal = JSON.stringify(r[4] ?? "");
     const pk = Number(r[5]); // 1-based position within a composite key
 
-    columns.push({name, typename: typ, type: typ as ColumnType, nullable: !notnull, defaultValue: defaultVal});
+    columns.push({name, typename: typ, type: typ as t.ColumnType, nullable: !notnull, defaultValue: defaultVal});
     if (pk > 0)
       pkRows.push({name, pos: pk});
   }
@@ -97,7 +98,7 @@ export async function describe(request: Omit<SQLRequest, "query">, tableName: st
 FROM sqlite_master
 WHERE type = 'index' AND tbl_name = '${tableName}'
 ORDER BY name`}); // TODO: pass tableName as arg
-  const indexes: IndexInfo[] = idxResult.rows.map(r => ({
+  const indexes: t.IndexInfo[] = idxResult.rows.map(r => ({
     name: String(r[0]),
     definition: JSON.stringify(r[1] ?? ""),
   }));
@@ -105,7 +106,7 @@ ORDER BY name`}); // TODO: pass tableName as arg
   // Get foreign keys via PRAGMA foreign_key_list (returns: id, seq, table, from, to, on_update, on_delete, match).
   // SQLite FKs are anonymous and resolve within the same database, so name
   // and schema are empty; `to` is null for implicit-PK references.
-  let foreign_keys: ForeignKey[] = [];
+  let foreign_keys: t.ForeignKey[] = [];
   try {
     const fkResult = await send({...request, query: `PRAGMA foreign_key_list('${tableName}')`});
     foreign_keys = fkResult.rows.map(r => ({name: "", column: String(r[3]), schema: "", table: String(r[2]), to: String((r[4] as string | null) ?? ""), onUpdate: String(r[5]), onDelete: String(r[6])}));
@@ -116,9 +117,9 @@ ORDER BY name`}); // TODO: pass tableName as arg
   return {columns, constraints, foreign_keys, indexes};
 }
 
-export async function listTables(request: Omit<SQLRequest, "query">): Promise<TableInfo[]> {
+export async function listTables(request: Omit<t.SQLRequest, "query">): Promise<t.TableInfo[]> {
   const tableNames = (await send({...request, query: `SELECT name FROM sqlite_master WHERE type='table'`})).rows.map(r => String(r[0]));
-  const tables: TableInfo[] = [];
+  const tables: t.TableInfo[] = [];
   // TODO: async map
   for (const table of tableNames) {
     // Approximate size (rough estimate)

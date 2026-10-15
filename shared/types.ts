@@ -1,4 +1,4 @@
-export * from "./types/shared.ts";
+export * from "./types/json.ts";
 import {HTTPRequest, HTTPResponse, HTTPSourceRequest} from "./types/http.ts"; export * from "./types/http.ts";
 import {SQLRequest, SQLResponse, SQLSourceRequest} from "./types/sql.ts"; export * from "./types/sql.ts";
 import {GRPCRequest, GRPCResponse} from "./types/grpc.ts"; export * from "./types/grpc.ts";

@@ -37,7 +37,7 @@ describe("explainSQL sqlite", () => {
     await send(req({dsn: TEST_DB, query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"}));
 
     const plan = await explain(req({dsn: TEST_DB, query: "SELECT name FROM users WHERE id = 1"}));
-    expect(plan).toContain("SEARCH users USING INTEGER PRIMARY KEY (rowid=?)");
+    expect(plan).toMatchSnapshot();
   });
 
   test("explains write statements without executing them", async () => {

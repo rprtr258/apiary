@@ -282,7 +282,7 @@ export const SQLSource = {
 export const SQL = {
   // Explain runs EXPLAIN on the request's query and returns the plan without
   // saving anything to history; the Explain tab fetches it on open.
-  async Explain(id: t.RequestID): Promise<string> {
+  async Explain(id: t.RequestID): Promise<t.SQLExplain> {
     const j = await load();
     if (!(id in j))
       throw new Error(`request ${id} not found`);

@@ -1,4 +1,4 @@
-import {KV, JSONSchema} from "./shared.ts";
+import {KV, JSONSchema} from "./json.ts";
 
 export type AuthConfig = {
   type: "none",

@@ -1,5 +1,6 @@
 import {getBoxToBoxArrow} from "perfect-arrows";
 import * as t from "@/types.ts";
+import {hashmod} from "@/shared.ts";
 import {m, s} from "../lib/utils.ts";
 
 export function range(start: number, end: number): number[] {
@@ -10,8 +11,7 @@ export function range(start: number, end: number): number[] {
 type SchemaData = {name: string, schema: t.TableSchema}[];
 
 function hashColor(str: string): string {
-  const hash = [...str].map(c => c.charCodeAt(0)).reduce((h, c) => c + (h << 5) - h, 0);
-  const hue = Math.abs(hash) % 360;
+  const hue = hashmod(str, 360);
   return `hsl(${hue}, 60%, 45%)`;
 }
 
