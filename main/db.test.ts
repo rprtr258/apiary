@@ -1,18 +1,23 @@
 import {describe, test, expect, mock, expectTypeOf, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {type DB, type Request, generateID, load, create, Delete, rename, update, createResponse, HistoryEntry, serialized} from "./db.ts";
+import {type DB, type Request, generateID, load, create, createDraft, Delete, rename, update, createResponse, HistoryEntry, serialized} from "./db.ts";
+
+// Shape of db.json as saved by main/db.ts, limited to the sections these tests assert on.
+type rawDB = {
+  drafts: {id: t.RequestID, n: number}[],
+};
 
 // Controllable mock: by default readFile succeeds with "{}"
 // Set mockReadFileErr to throw ENOENT for a specific test
-// Set mockFileContent to the db.json body a test should see
+// Set mockFileContent to serve a seeded db.json body
 let mockReadFileErr: Error | null = null;
-let mockFileContent = "{}";
+let mockFileContent: string | null = null;
 const writeFile = mock(() => Promise.resolve());
 // The mock lives at module scope, so call counts would otherwise accumulate
 // across tests in file order (visible under --randomize); reset both per test.
 beforeEach(() => {
   mockReadFileErr = null;
-  mockFileContent = "{}";
+  mockFileContent = null;
   writeFile.mockClear();
 });
 mock.module("fs/promises", () => ({
@@ -20,13 +25,13 @@ mock.module("fs/promises", () => ({
     if (mockReadFileErr !== null) {
       return Promise.reject(mockReadFileErr);
     }
-    return Promise.resolve(mockFileContent);
+    return Promise.resolve(mockFileContent ?? `{}`);
   },
   writeFile,
 }));
 
 function emptyDB(): DB {
-  return {requests: {}};
+  return {requests: {}, drafts: {}};
 }
 
 describe("generateID", () => {
@@ -201,7 +206,7 @@ describe("load", () => {
     writeFile.mockClear();
     try {
       const db = await load();
-      expect(db).toEqual({requests: {}});
+      expect(db).toEqual({requests: {}, drafts: {}});
       expect(writeFile).toHaveBeenCalled();
     } finally {
       mockReadFileErr = null;
@@ -210,77 +215,56 @@ describe("load", () => {
   });
 });
 
-describe("migration", () => {
-  // load() persists the migration fire-and-forget through the serialized
-  // queue; chaining a no-op behind it waits until the persist is done.
-  async function drainPersist(): Promise<void> {
-    await serialized(async () => {});
-  }
+describe("drafts", () => {
+  const seed = {
+    $version: 1,
+    request: [{id: "r1", kind: "http", path: "plain"}],
+    http: {r1: {request: {url: "http://x", method: "GET", body: "", headers: []}, responses: []}},
+  };
 
-  test("migrates a v1 db.json to the in-memory schema, reviving dates", async () => {
-    mockFileContent = JSON.stringify({
-      $version: 1,
-      request: [
-        {id: "h1", kind: "http", path: "api/get"},
-        {id: "src1", kind: "sql-source", path: "mydb"},
-      ],
-      http: {h1: {
-        request: {url: "https://example.com", method: "GET", body: "", headers: []},
-        responses: [{SentAt: "2026-01-01T00:00:00.000Z", ReceivedAt: "2026-01-01T00:00:01.000Z", Response: {code: 200, body: "ok", headers: []}}],
-      }},
-      "sql-source": {src1: {database: "sqlite", dsn: "file:/tmp/x.db", readOnly: true}},
-    });
-
+  test("a v1 file without a drafts section loads with no drafts", async () => {
+    mockFileContent = JSON.stringify(seed);
     const db = await load();
-    await drainPersist();
-
-    expect(db.requests["h1"]).toEqual({
-      ID: "h1",
-      Path: "api/get",
-      Kind: t.Kind.HTTP,
-      Data: {url: "https://example.com", method: "GET", body: "", headers: []},
-      Responses: [{SentAt: new Date("2026-01-01T00:00:00.000Z"), ReceivedAt: new Date("2026-01-01T00:00:01.000Z"), Response: {code: 200, body: "ok", headers: []}}],
-    });
-    expect(db.requests["src1"]).toEqual({
-      ID: "src1",
-      Path: "mydb",
-      Kind: t.Kind.SQLSource,
-      Data: {database: "sqlite", dsn: "file:/tmp/x.db", readOnly: true},
-      Responses: [],
-    });
+    expect(db.drafts).toEqual({});
   });
 
-  test("persists the migrated db with the new version", async () => {
-    mockFileContent = JSON.stringify({$version: 1, request: []});
-
-    await load();
-    await drainPersist();
-
-    expect(writeFile).toHaveBeenCalledTimes(0);
-  });
-
-  test("does not rewrite an up-to-date db.json", async () => {
-    mockFileContent = JSON.stringify({$version: 1, requests: {}});
-
-    await load();
-    await drainPersist();
-
-    expect(writeFile).not.toHaveBeenCalled();
-  });
-
-  test("treats a db.json without $version as v1", async () => {
-    mockFileContent = JSON.stringify({});
-
+  test("load seeds draft numbers from the drafts section", async () => {
+    mockFileContent = JSON.stringify({...seed, $version: 2, drafts: [{id: "r1", n: 4}]});
     const db = await load();
-    await drainPersist();
-
-    expect(db).toEqual({requests: {}});
-    expect(writeFile).toHaveBeenCalledTimes(0);
+    expect(db.drafts).toEqual({r1: 4});
   });
 
-  test("refuses a db.json written by a newer apiary", async () => {
-    mockFileContent = JSON.stringify({$version: 3, requests: {}});
+  test("createDraft allocates increasing n and persists record + section", async () => {
+    const db = emptyDB();
+    const id1 = await createDraft(db, t.Kind.JQ, {query: ".", json: "{}"});
+    const id2 = await createDraft(db, t.Kind.JQ, {query: ".", json: "{}"});
 
-    expect(load()).rejects.toThrow("newer");
+    expect(db.requests[id1].Path).toBe("draft 1");
+    expect(db.requests[id2].Path).toBe("draft 2");
+    expect(db.drafts).toEqual({[id1]: 1, [id2]: 2});
+    const lastWrite = writeFile.mock.calls.at(-1) as unknown as [string, string];
+    const raw = JSON.parse(lastWrite[1]) as rawDB;
+    expect(raw.drafts).toEqual([{id: id1, n: 1}, {id: id2, n: 2}]);
+  });
+
+  test("Delete removes the section entry", async () => {
+    const db = emptyDB();
+    const id = await createDraft(db, t.Kind.JQ, {query: ".", json: "{}"});
+    await Delete(db, id);
+
+    expect(db.drafts).toEqual({});
+    expect(db.requests[id]).toBeUndefined();
+    const lastWrite = writeFile.mock.calls.at(-1) as unknown as [string, string];
+    const raw = JSON.parse(lastWrite[1]) as rawDB;
+    expect(raw.drafts).toEqual([]);
+  });
+
+  test("rename demotes a draft to a regular request", async () => {
+    const db = emptyDB();
+    const id = await createDraft(db, t.Kind.JQ, {query: ".", json: "{}"});
+    await rename(db, id, "kept");
+
+    expect(db.drafts).toEqual({});
+    expect(db.requests[id].Path).toBe("kept");
   });
 });
