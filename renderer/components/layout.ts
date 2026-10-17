@@ -25,20 +25,31 @@ type NTabsProps = {
     onSelect?: () => void,
   }[],
 };
+// Inner tabs, styled after the outer layout tabs (renderer/layout/styles.ts) but tighter;
+// keep the two visually consistent when the layout tabs change.
+const tabsCls = {
+  container: css({display: "flex", flexDirection: "column", width: "100%"}),
+  header: css({display: "flex", flexDirection: "row", alignItems: "stretch", flex: "0 0 auto", overflow: "hidden", background: "#1a1a1f", borderBottom: "1px solid #000", userSelect: "none"}),
+  tab: [
+    css({display: "flex", alignItems: "center", gap: "4px", padding: "3px 8px", cursor: "pointer", whiteSpace: "nowrap", color: "#a0a0a0", background: "none", border: "none", borderRight: "1px solid #000", font: "inherit"}),
+    css.raw(":not(:disabled):hover{background:#222227; color:#ddd;}"),
+    css.raw(":disabled{color:#555; cursor:default;}"),
+  ],
+  tabActive: css({background: "#101014", color: "#fff", boxShadow: "inset 0 2px 0 #5a8ab5"}),
+  content: css({height: "100%", flexShrink: "1", minHeight: "0"}),
+};
 export function NTabs(props: NTabsProps): HTMLElement {
   const tab_buttons = props.tabs.map((tab, i) => m("button", {
+    class: tabsCls.tab,
     disabled: tab.disabled,
-    style: (tab.disabled ?? false) ? tabStyles.tab.disabled : tabStyles.tab.inactive,
     onclick: () => update(i),
   }, tab.name));
   const tabs = props.tabs.map(tab => m("div", {
     style: {
-      height: "100%",
-      ...tabStyles.content,
       ...tab.style,
       display: "none",
     },
-    class: tab.class,
+    class: [tabsCls.content, tab.class ?? null],
   }, tab.elem ?? null));
 
   let tab_idx = -1;
@@ -53,10 +64,10 @@ export function NTabs(props: NTabsProps): HTMLElement {
       throw new Error(`Tab ${new_tab_idx} not found in ${props.tabs.length} tabs`);
     }
     if (tab_idx >= 0) {
-      Object.assign(tab_buttons[tab_idx].style, tabStyles.tab.inactive); // TODO: classes
+      tab_buttons[tab_idx].classList.remove(tabsCls.tabActive);
       tabs[tab_idx].style.display = "none";
     }
-    Object.assign(tab_buttons[new_tab_idx].style, tabStyles.tab.active); // TODO: classes
+    tab_buttons[new_tab_idx].classList.add(tabsCls.tabActive);
     tabs[new_tab_idx].style.display = props.tabs[new_tab_idx].style?.display ?? "block";
     tab_idx = new_tab_idx;
     props.tabs[new_tab_idx].onSelect?.();
@@ -67,57 +78,11 @@ export function NTabs(props: NTabsProps): HTMLElement {
       update(firstEnabledIndex);
   }
 
-  return m("div", {class: "h100" + " " + (props.class ?? ""), style: {...tabStyles.container, ...props.style}},
-    m("div", {style: tabStyles.header}, tab_buttons),
+  return m("div", {class: ["h100", tabsCls.container, props.class ?? null], style: props.style},
+    m("div", {class: tabsCls.header}, tab_buttons),
     tabs,
   );
 }
-
-const tabStylesBase = {
-  // padding: "4px 5px",
-  // cursor: "pointer",
-  // border: "1px solid transparent",
-  // borderBottom: "none",
-  // borderRadius: "3px 3px 0 0",
-  // position: "relative",
-};
-
-const tabStyles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    width: "100%",
-  },
-  header: {
-    display: "flex",
-    gap: "0.5em",
-    // borderBottom: "1px solid #303030",
-  },
-  tab: {
-    disabled: {
-      ...tabStylesBase,
-      // background: "gray",
-      // fontWeight: "italic",
-    },
-    inactive: {
-      ...tabStylesBase,
-      // background: "#7068ab",
-      // borderColor: "#454566",
-    },
-    active: {
-      ...tabStylesBase,
-      // background: "#ddd3f5",
-      // borderColor: "#656596",
-      // borderBottom: "3px solid white",
-      // fontWeight: "bold",
-    },
-  },
-  content: {
-    flexShrink: "1",
-    minHeight: "0",
-    // padding: "2px",
-  },
-};
 
 type NSplitProps = {
   direction?: "horizontal" | "vertical",
