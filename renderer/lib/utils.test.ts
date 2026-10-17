@@ -11,6 +11,11 @@ describe("m (DOM builder)", () => {
     expect(el.textContent).toBe("Hello World");
   });
 
+  test("accepts class as list of string|null", () => {
+    const el = m("div", {class: ["foo", null, "bar", null]});
+    expect(el.className).toBe("foo bar");
+  });
+
   test("attaches event listener and handles click", () => {
     const clickMock = mock(() => {});
     const el = m("button", {onclick: clickMock}, "Click me");

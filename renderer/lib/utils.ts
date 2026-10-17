@@ -53,7 +53,7 @@ type ElementProps<K extends keyof HTMLElementTagNameMap> =
     HTMLElementTagNameMap[K],
     "style" | "children" | "innerHTML"
   >> & {
-    class?: string,
+    class?: string | (string | null)[],
     style?: Partial<CSSStyleDeclaration>,
     innerHTML?: string,
     "data-testid"?: string,
@@ -79,6 +79,8 @@ export function m<K extends keyof HTMLElementTagNameMap>(
     }
     if (key.startsWith("on")) { // event handlers
       el.addEventListener(key.slice(2).toLowerCase(), value as EventListenerOrEventListenerObject);
+    } else if (key === "class" && Array.isArray(value)) {
+      el.setAttribute("class", value.filter(c => c !== null).join(" "));
     } else if (typeof value === "object") {
       throw new Error(`Can't set element property "${key}" to ${JSON.stringify(value)}`);
     } else {
