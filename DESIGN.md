@@ -250,7 +250,7 @@ Three concrete rules give the app its identity:
 
 **Sources of truth.** Styles are injected at runtime by the `css`/`css.raw`
 utilities in `renderer/lib/styles.ts`; the remaining visual weight comes from
-three third-party dark themes (GoldenLayout dark, CodeMirror GitHub-Dark via
+two third-party dark themes (CodeMirror GitHub-Dark via
 `@fsegurai/codemirror-theme-github-dark`, github-markdown-css) and from native
 controls driven by `color-scheme: dark` in `index.html`. The protocol hue maps
 live in `renderer/sidebar/shared.ts` (`badge()`) and `renderer/sidebar/tree.ts`
@@ -266,8 +266,8 @@ neutral surfaces, text, interactive accents, and the protocol hue system.
 
 | Token | Value | Used for |
 |---|---|---|
-| `canvas` | `#000000` | GoldenLayout dock canvas, splitters, gaps, tool chips |
-| `surface` | `#222222` | Pane content (GoldenLayout dark theme) |
+| `canvas` | `#000000` | Dock canvas, splitters, gaps, tool chips |
+| `surface` | `#222222` | Pane content |
 | `surface-raised` | `#2a2a2a` | Menus, dropdowns, palette dialog |
 | `surface-input` | `#1a1a1a` | Palette search field |
 | `surface-footer` | `#1f1f1f` | Palette footer |
@@ -303,7 +303,7 @@ for metadata, empty states, and icons only.
 ### Interactive accents
 
 `primary #0b74e0` is the single action color (primary `NButton`); the sort
-affirmations use `primary-strong #007bff`; the focused GoldenLayout tab glows
+affirmations use `primary-strong #007bff`; the focused dock tab glows
 with `focus #354be3`; a drag-hovered splitter tints `hover-accent #0000cd`
 (legacy `mediumblue`). Selection tints may be translucent blues, e.g. the
 sort-priority badge uses `rgba(0, 100, 255, 0.3)` over the zebra rows.
@@ -356,7 +356,7 @@ The default body size is the platform default (`body-md 16px`); dense secondary 
 
 ## Layout
 
-apiary is a docking workbench: a **fixed `sidebar 300px`** request tree on the left and a GoldenLayout dock canvas on the right, joined by a `5px` splitter (`NSplit`). The sidebar can collapse to a `sidebar-collapsed 3em` rail showing only the expand chevron. Everything else - request tabs, result panes, viewer panels - is a user-dockable GoldenLayout component; never build a fixed sidebar into a component that is meant to be docked.
+apiary is a docking workbench: a **fixed `sidebar 300px`** request tree on the left and a dock canvas on the right, joined by a `5px` splitter (`NSplit`). The sidebar can collapse to a `sidebar-collapsed 3em` rail showing only the expand chevron. Everything else - request tabs, result panes, viewer panels - is a user-dockable layout component; never build a fixed sidebar into a component that is meant to be docked.
 
 Inside panels, layout is dense and em-relative:
 
@@ -373,7 +373,7 @@ Depth comes from **luminance, not shadows**. Hierarchy is expressed by raising a
 - **Dropdown/context menus** (`z-index: 1000`): `surface-raised #2a2a2a` with a `1px border`, `4px` radius, and `0 2px 8px rgba(0, 0, 0, 0.5)`.
 - **Command palette**: `surface-raised` with a violet `#7068ab` outline ring and `0 10px 30px rgba(0, 0, 0, 0.3)` over a `rgba(0, 0, 0, 0.5)` scrim.
 - **Modal** (`z-index: 100`): full-viewport overlay with `backdrop-filter: blur(3px)` over the dimmed canvas; the dialog body is `modal-surface #444444` - the brightest neutral in the app - signaling it sits above everything.
-- GoldenLayout raises the focused tab header to `#222222` with a `focus #354be3` underline glow; the drag proxy is `#444444`.
+- The dock layout raises the focused tab header to `#222222` with a `focus #354be3` underline glow; the drag proxy is `#444444`.
 
 Do not add box shadows to in-canvas chrome or data tables; use a border or a `surface-*` step instead.
 
@@ -406,7 +406,7 @@ The component kit (`renderer/components/`, prefixed `N`) is small and direct.  A
 
 **Modal (`Modal`, `NModal`)** - centered confirm dialogs per `modal-dialog`; overlay is the blurred full-screen scrim described under Elevation. Title is an `h3` in `display-lg`-adjacent weight; the action row (`NButton`s padded `0.5em 1em`) sits `space-around` at the bottom; clicking outside closes.
 
-**Tabs (`NTabs`)** - the in-panel switcher: plain text buttons with `0.5em` gaps and no chrome; the active tab is the clicked state of a native button.  Real document tabs live in GoldenLayout and are not restyled per component.
+**Tabs (`NTabs`)** - the in-panel switcher: plain text buttons with `0.5em` gaps and no chrome; the active tab is the clicked state of a native button.  Real document tabs live in the dock layout and are not restyled per component.
 
 **Icons (`NIcon`)** - inline SVG glyphs (Ant-style outline set) at 1em, colored via `currentColor`; grey is the default tone for metadata/type icons (`text-hint`), and protocol/status colors apply only when an icon represents a protocol entity or result state.
 
@@ -419,14 +419,14 @@ The component kit (`renderer/components/`, prefixed `N`) is small and direct.  A
 - Do keep the hue system fixed and centralized in `badge()` / `httpMethodPropsMap`. A `GET` must always be green `#70e888`-on-`#1a5f3a`-style tinted or `#202020`-based, `DELETE` always red, `REDIS` always red - everywhere, including newly added request kinds.
 - Do render protocol labels as bold, uppercase text in `label-sm` inside a chip; kind badges sit on `surface-selected #202020`, tinted method markers use the dim-bg/bright-text pairs.
 - Do preserve density: em-relative type (0.7-0.875em), `2-8px` padding and gap scale, zebra data tables, truncated single-line labels.
-- Do reach for native dark controls (inputs, selects, scrollbars) and the global themes (GoldenLayout dark, CodeMirror GitHub-Dark); extend them in one place instead of styling per component.
+- Do reach for native dark controls (inputs, selects, scrollbars) and the global themes (CodeMirror GitHub-Dark); extend them in one place instead of styling per component.
 - Do add new colors to the token frontmatter (and to the maps in code) when adding a protocol kind; never hardcode a one-off hex in a component.
 
 **Don't**
 - Don't use protocol hues (lime, blue, yellow, red, cyan, violet...) on buttons, backgrounds, body text, or any non-data element. `primary #0b74e0` is the only colored control surface.
 - Don't apply the pure keyword hues (`tag-*`) as fills or to large areas - they are sparse status markers by design.
 - Don't add box shadows to in-canvas content; only overlays (menus, palette, modal) may carry shadow + blur.
-- Don't re-skin GoldenLayout per-pane or override CodeMirror's theme locally; change those themes once, globally, if they need to evolve.
+- Don't re-skin the dock layout per-pane or override CodeMirror's theme locally; change those themes once, globally, if they need to evolve.
 - Don't mix typefaces into the Avenir stack for UI text, and don't set UI text in monospace - mono is reserved for code/data surfaces.
 - Don't invent new radius styles for chips (keep them square) or round native form controls.
 - Don't restyle or decorate existing `N*` components inline when a token or component entry already expresses the intent.

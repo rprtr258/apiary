@@ -9,7 +9,7 @@ A desktop API client that speaks HTTP, SQL, gRPC, Redis, and more - all in one w
 - **Seven protocols, one app.** HTTP requests, SQL queries (MySQL, PostgreSQL, SQLite, ClickHouse), gRPC calls, Redis commands, `jq` JSON filtering, Markdown preview, and DIFF comparisons - without leaving the window.
 - **Source plugins.** Import OpenAPI specs as browsable API collections, or connect a SQL database and explore tables like endpoints.
 - **JSON database.** Your requests and responses live in a simple `db.json` file - easy to version-control, diff, and backup.
-- **Vanilla TypeScript.** Built with Electron, GoldenLayout, and CodeMirror. No React, no Vue, no framework overhead.
+- **Vanilla TypeScript.** Built with Electron and CodeMirror. No React, no Vue, no framework overhead.
 
 ![](docs/public/screenshot.png)
 
@@ -60,7 +60,7 @@ docker compose up -d     # MySQL, PostgreSQL, Redis, gRPC, PetStore API
 
 ## How it works
 
-Launch apiary, and it creates a `db.json` file in your user data directory (e.g. `~/.config/apiary/` on Linux); set `APIARY_DB_PATH` to move it. Each request is a row with a kind tag (http, sql, grpc, redis, jq, md, diff) and its parameters. The UI is a tabbed workspace powered by [GoldenLayout](https://golden-layout.com/) with [CodeMirror](https://codemirror.net/) editors.
+Launch apiary, and it creates a `db.json` file in your user data directory (e.g. `~/.config/apiary/` on Linux); set `APIARY_DB_PATH` to move it. Each request is a row with a kind tag (http, sql, grpc, redis, jq, md, diff) and its parameters. The UI is a tabbed workspace with [CodeMirror](https://codemirror.net/) editors.
 
 ## Development
 

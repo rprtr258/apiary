@@ -28,7 +28,7 @@ features:
     details: Simple file-based storage with automatic versioning. All requests and responses stored in a single db.json file.
     icon: 💾
   - title: Modern Interface
-    details: Dark theme by default, sleek minimal design, tabbed interface with GoldenLayout, and CodeMirror editors.
+    details: Dark theme by default, sleek minimal design, tabbed interface, and CodeMirror editors.
     icon: 🎨
   - title: Request sources
     details: |
