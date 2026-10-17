@@ -8,6 +8,8 @@ import {
   StateRequest, Store, store,
 } from "./store.ts";
 import layout from "./layout.ts";
+import {css} from "./lib/styles.ts";
+import {cls} from "./layout/styles.ts";
 import {NInput} from "./components/input.ts";
 import {NModal, NSplit} from "./components/layout.ts";
 import {NEmpty, NIcon, NTag} from "./components/dataview.ts";
@@ -53,10 +55,15 @@ function rename() {
 }
 
 const command_bar_new_request_kind_visible = signal(false);
+const command_bar_draft_kind_visible = signal(false);
 const commandBarVisible = signal(false);
 const command_bar_open_visible = signal(false);
 
-function getCommandPaletteItems(): Item[] {
+// Pale-gray tab title while the tab's request is a draft; applied to the tab
+// element with a descendant selector so eye/close buttons keep their normal colors
+const draftTabClass = css.raw(` .${cls.tabTitle} { color: #74747a; }`);
+
+export function getCommandPaletteItems(): Item[] {
   const currentID = store.requestID();
   return [
     {
@@ -76,6 +83,12 @@ function getCommandPaletteItems(): Item[] {
           },
         },
         {
+          label: "New draft",
+          perform: () => {
+            command_bar_draft_kind_visible.value = true;
+          },
+        },
+        {
           label: "Open",
           shortcut: ["Ctrl", "P"],
           perform: () => {
@@ -84,6 +97,7 @@ function getCommandPaletteItems(): Item[] {
         },
         ...(currentID !== null ? (() => {
           const name = t.pathToName(store.requests[currentID].path);
+          const isDraft = store.isDraft(currentID);
           return [
             {
               label: "Run",
@@ -93,25 +107,37 @@ function getCommandPaletteItems(): Item[] {
               },
             },
             {
-              label: `Rename current (${name})`,
-              shortcut: ["Ctrl", "R"],
+              label: isDraft ? `Save current (${name})` : `Rename current (${name})`,
+              shortcut: isDraft ? ["Ctrl", "S"] : ["Ctrl", "R"],
               perform: () => {
                 renameInit(currentID);
               },
             },
-            {
+            isDraft ? {
+              label: "Duplicate current draft",
+              perform: () => {
+                if (!(currentID in store.requests2)) {
+                  notification("error", "Duplicate failed", {content: "Draft data is not loaded"});
+                  return;
+                }
+                const req = store.requests2[currentID].request;
+                const {id: _id, path: _path, kind: _kind, ...data} = req;
+                store.createDraft(req.kind, data);
+              },
+            } : {
               label: `Duplicate current (${name})`,
               perform: () => {
                 store.duplicate(currentID);
               },
             },
             {
-              label: `Delete current (${name})`,
+              label: isDraft ? "Delete current draft" : `Delete current (${name})`,
               perform: () => {
                 store.deleteRequest(currentID);
               },
-            }];
-          })() : []),
+            },
+          ];
+        })() : []),
       ],
     },
     ...(currentID !== null ? [{
@@ -231,8 +257,24 @@ command_bar_new_request_kind_visible.sub(function*() {
   while (true) newRequestKindPalette.visible = yield;
 }());
 
-const getOpenRequestItems = (): Item[] => Object
+const newDraftKindPalette = CommandPalette({
+  items: () => [...t.DraftableKinds.values()].map(kind => ({
+    label: kind,
+    perform: () => {
+      store.createDraft(kind);
+    },
+  })),
+  placeholder: "Enter kind of new draft",
+  on: {close: () => {command_bar_draft_kind_visible.value = false;}},
+});
+command_bar_draft_kind_visible.sub(function*() {
+  while (true)
+    newDraftKindPalette.visible = yield;
+}());
+
+export const getOpenRequestItems = (): Item[] => Object
   .entries(store.requests)
+  .filter(([id]) => !store.isDraft(id))
   .map(([id, preview]) => [id, preview, sourceBadge(id)] as const)
   .map(([id, preview, tag]) => ({
     label: preview.path, // TODO: preload store.requests2, fix ebanij rot kazino
@@ -304,11 +346,33 @@ const panelkaFactory = (
 
     tab.element.prepend(eye);
 
+    // Draft tabs carry a pale-gray title and delete their record when closed via
+    // the close button. The previews watcher re-styles on every refresh so the
+    // title returns to normal color once the draft is saved (renamed to a real
+    // path). Deletion is bound to the close button, not the destroy event, so
+    // programmatic closes (stale-request cleanup, app teardown) keep the record.
+    const syncDraftStyle = () => {
+      tab.element.classList.toggle(draftTabClass, store.isDraft(id));
+    };
+    syncDraftStyle();
+    const draftStyle_unsub = store.requestsTree.sub(function*() {
+      while (true) {
+        yield;
+        syncDraftStyle();
+      }
+    }());
+    tab.componentItem.tab.closeEl.addEventListener("click", () => {
+      if (!store.isDraft(id))
+        return;
+      store.deleteRequest(id).catch(e => console.error(`Failed to delete draft ${id}`, e));
+    });
+
     container.on("show", () => {
       store.activeComponentID = id;
       activeFrameSend = onSend;
     });
     container.on("destroy", () => {
+      draftStyle_unsub();
       eye_unsub();
       frame_unsub();
       if (store.activeComponentID === id) {
@@ -389,7 +453,7 @@ function filterNode(node: LayoutConfigNode, validIds: Set<string>): boolean {
 }
 
 export default function(root: HTMLElement) {
-  void store.fetch().then(() => preApp(root, store));
+  store.fetch().then(() => preApp(root, store));
 }
 
 function preApp(root: HTMLElement, store: Store) {
@@ -429,6 +493,15 @@ function preApp(root: HTMLElement, store: Store) {
     update_empty_state();
     updateLocalstorage();
   });
+
+  // Draft tabs that survived restore; live drafts without one are orphans,
+  // swept by store.cleanupDrafts right below
+  const restoredDraftIDs = Array
+    .from(layout.instance?.tabs() ?? [])
+    .filter(item => item.componentType === "MyComponent")
+    .map(item => (item.toConfig().componentState as StateRequest).id)
+    .filter(id => store.isDraft(id));
+  store.cleanupDrafts(restoredDraftIDs);
   const update_empty_state = () => {
     setDisplay(el_empty_state, layout.instance?.isEmpty ?? false);
   };
@@ -509,6 +582,7 @@ function preApp(root: HTMLElement, store: Store) {
     renameID.value !== undefined ||
     commandBarVisible.value ||
     command_bar_new_request_kind_visible.value ||
+    command_bar_draft_kind_visible.value ||
     command_bar_open_visible.value;
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -555,9 +629,22 @@ function preApp(root: HTMLElement, store: Store) {
       renameInit(currentID);
     }
 
+    if (e.key === "s" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      const currentID = store.requestID();
+      if (currentID === null || !(currentID in store.requests) || !store.isDraft(currentID)) {
+        return;
+      }
+      // Saving a draft is a rename: the backend demotes it to a stored request
+      renameInit(currentID);
+    }
+
     if (e.key === "Escape") {
       e.preventDefault();
-      if (commandBarVisible.value || command_bar_new_request_kind_visible.value || command_bar_open_visible.value) {
+      if (commandBarVisible.value || command_bar_new_request_kind_visible.value || command_bar_draft_kind_visible.value || command_bar_open_visible.value) {
         return;
       }
 
@@ -593,6 +680,15 @@ function preApp(root: HTMLElement, store: Store) {
       e.preventDefault();
       if (anyModalIsOpen()) {
         return;
+      }
+      // Same contract as the tab close button: closing a focused draft deletes it
+      const focused = layout.instance?.focusedComponentItem;
+      if (focused !== undefined && focused.isSome() && focused.value.componentType === "MyComponent") {
+        const {id} = focused.value.toConfig().componentState as StateRequest;
+        if (store.isDraft(id)) {
+          store.deleteRequest(id).catch(err => console.error(`Failed to delete draft ${id}`, err));
+          return;
+        }
       }
       layout.instance?.closeFocused();
     }
@@ -668,6 +764,7 @@ function preApp(root: HTMLElement, store: Store) {
     modalRename.element,
     mainCommandPalette.el,
     newRequestKindPalette.el,
+    newDraftKindPalette.el,
     openRequestPalette.el,
     app_container,
   ));

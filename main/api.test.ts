@@ -1,7 +1,8 @@
 import {describe, test, expect, mock, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {Duplicate, HTTPSource, resolveSQLRequest} from "./api.ts";
-import {load, setDBPath} from "./db.ts";
+import {CreateDraft, Delete, Duplicate, HTTPSource, List, Rename, resolveSQLRequest} from "./api.ts";
+import {load, setDBPath, flushSave} from "./db.ts";
+import type v2 from "./db.v2.ts";
 
 // In-memory filesystem so load()/save() round-trip without touching disk.
 // Bun runs each test file in its own module graph, so this mock is isolated from db.test.ts.
@@ -124,5 +125,110 @@ describe("resolveSQLRequest", () => {
     const j = await load();
     const data: t.SQLRequest = {dsn: "postgres://localhost:5432/db", database: "postgres", query: "SELECT 1"};
     expect(resolveSQLRequest(j.requests, data)).toEqual(data.dsn);
+  });
+});
+
+describe("CreateDraft", () => {
+  beforeEach(() => {
+    files["db.json"] = Buffer.from(JSON.stringify(db_seed));
+  });
+
+  test("allocates increasing n and writes record + section", async () => {
+    const id1 = await CreateDraft(t.Kind.JQ);
+    const id2 = await CreateDraft(t.Kind.JQ);
+    await flushSave();
+
+    const raw = JSON.parse(files["db.json"].toString()) as v2;
+    expect(raw.drafts).toEqual([{id: id1, n: 1}, {id: id2, n: 2}]);
+
+    const db = await load();
+    expect(db.requests[id1].Path).toBe("draft 1");
+    expect(db.requests[id2].Path).toBe("draft 2");
+    expect(db.requests[id1].Kind).toBe(t.Kind.JQ);
+  });
+
+  test("reuses n after the highest-numbered draft is deleted", async () => {
+    const id1 = await CreateDraft(t.Kind.DIFF);
+    const id2 = await CreateDraft(t.Kind.DIFF);
+    await Delete(id2);
+    const id3 = await CreateDraft(t.Kind.DIFF);
+    await flushSave();
+
+    const raw = JSON.parse(files["db.json"].toString()) as v2;
+    expect(raw.drafts).toEqual([{id: id1, n: 1}, {id: id3, n: 2}]);
+  });
+
+  test("concurrent creations serialize: no lost record, no duplicated draft number", async () => {
+    const [id1, id2] = await Promise.all([CreateDraft(t.Kind.JQ), CreateDraft(t.Kind.JQ)]);
+
+    expect(id1).not.toBe(id2);
+    const db = await load();
+    expect(db.requests[id1]).toBeDefined();
+    expect(db.requests[id2]).toBeDefined();
+    expect(db.drafts[id1]).toBe(1);
+    expect(db.drafts[id2]).toBe(2);
+  });
+
+  test("defaults data to the kind's empty request", async () => {
+    const id = await CreateDraft(t.Kind.DIFF);
+    const db = await load();
+    expect(db.requests[id].Data).toEqual({left: "", right: ""});
+  });
+
+  test("uses provided data", async () => {
+    const data: t.JQRequest = {query: ".x", json: "{}"};
+    const id = await CreateDraft(t.Kind.JQ, data);
+    const db = await load();
+    expect(db.requests[id].Data).toEqual(data);
+  });
+
+  test("rejects non-performable kinds", async () => {
+    expect(CreateDraft(t.Kind.SQLSource)).rejects.toThrow("cannot be a draft");
+    expect(CreateDraft(t.Kind.HTTPSource)).rejects.toThrow("cannot be a draft");
+    expect(CreateDraft(t.Kind.MCP)).rejects.toThrow("cannot be a draft");
+  });
+});
+
+describe("draft lifecycle", () => {
+  beforeEach(() => {
+    files["db.json"] = Buffer.from(JSON.stringify(db_seed));
+  });
+
+  test("Delete removes the record and the section entry", async () => {
+    const id = await CreateDraft(t.Kind.JQ);
+    await Delete(id);
+    await flushSave();
+
+    const raw = JSON.parse(files["db.json"].toString()) as v2;
+    expect(raw.drafts).toEqual([]);
+    expect(raw.request!.find((r) => r.id === id)).toBeUndefined();
+  });
+
+  test("Rename of a draft demotes it to a regular request", async () => {
+    const id = await CreateDraft(t.Kind.JQ);
+    await Rename(id, "kept/saved");
+    await flushSave();
+
+    const raw = JSON.parse(files["db.json"].toString()) as v2;
+    expect(raw.drafts).toEqual([]);
+    const db = await load();
+    expect(db.requests[id].Path).toBe("kept/saved");
+  });
+});
+
+describe("List with drafts", () => {
+  beforeEach(() => {
+    files["db.json"] = Buffer.from(JSON.stringify(db_seed));
+  });
+
+  test("excludes drafts from Tree and returns them in the Drafts map", async () => {
+    const draftID = await CreateDraft(t.Kind.JQ);
+    const res = await List();
+
+    expect(res.Drafts).toEqual({[draftID]: 1});
+    expect(res.Requests[draftID].path).toBe("draft 1");
+    expect(res.Tree.IDs).not.toContain(draftID);
+    expect(res.Tree.Dirs["itc-slon"].IDs).toContain("orig");
+    expect(res.Drafts["orig"]).toBeUndefined();
   });
 });
