@@ -47,6 +47,7 @@ apiary/
 - `emptyRequestForKind(kind)` returns the default data used by `Create`
 - `Perform(id)` dispatches to the plugin's `send<Kind>`, then `createResponse` persists the exchange into the entry's response history
 - Source/tool kinds are exposed through dedicated sub-APIs instead of `Perform`: `api.GRPC`, `api.SQLSource`, `api.HTTPSource`, `api.MCP`
+- Mutating entry points serialize one-at-a-time behind a promise queue: `db.ts` persists by whole-file load-modify-save, so concurrent operations would interleave at await boundaries and the last `save()` would silently drop the other's changes; read-only access is unqueued and works on the last-save snapshot
 
 **Plugins**:
 | Kind       | File           | Executed by                | Response history |
