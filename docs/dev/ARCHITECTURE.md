@@ -47,6 +47,7 @@ apiary/
 - `emptyRequestForKind(kind)` returns the default data used by `Create`
 - `Perform(id)` dispatches to the plugin's `send<Kind>`, then `createResponse` persists the exchange into the entry's response history
 - Source/tool kinds are exposed through dedicated sub-APIs instead of `Perform`: `api.GRPC`, `api.SQLSource`, `api.HTTPSource`, `api.MCP`
+- Mutating entry points serialize one-at-a-time behind a promise queue: `db.ts` persists by whole-file load-modify-save, so concurrent operations would interleave at await boundaries and the last `save()` would silently drop the other's changes; read-only access is unqueued and works on the last-save snapshot
 
 **Plugins**:
 | Kind       | File           | Executed by                | Response history |
@@ -186,7 +187,7 @@ Tests cross at the interface, not past it.
 ## Known Complexity
 
 1. **`main/api.ts` dispatch**: every new kind touches `emptyRequestForKind` and `Perform` (or adds a sub-API namespace) - a deliberate, explicit switch
-2. **Database migration** (`main/db.ts`): v1 -> current format handling is concentrated in one module
+2. **Database migration** (`main/db.ts`): versioned `migrations` chain keyed by the file's `$version`, applied in `load()` and persisted through the mutation queue; `save()` always writes the current version
 3. **10 structurally similar viewer modules** (`renderer/plugins/<kind>/viewer.ts`) - intentional separation, not duplication to collapse
 
 ## Vocabulary
