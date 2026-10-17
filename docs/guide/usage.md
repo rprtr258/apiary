@@ -32,7 +32,7 @@ The left sidebar shows your collections tree:
 
 ### Main Workspace
 
-The main area uses a tabbed interface powered by GoldenLayout. You can:
+The main area uses a tabbed interface. You can:
 
 - Open multiple requests side-by-side
 - Split panels horizontally or vertically

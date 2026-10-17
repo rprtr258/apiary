@@ -339,10 +339,9 @@ const panelkaFactory = (
 };
 
 // Local type for layout config items with mutable content.
-// Golden-layout's types mark content as readonly on ComponentItemConfig, but these are freshly deserialized JSON objects - mutation is safe.
 type LayoutConfigNode = {
   type: string,
-  content?: LayoutConfigNode[], // TODO: remove this kostyl and do filtering before giving shit to golden layout
+  content?: LayoutConfigNode[], // TODO: remove this kostyl and do filtering before giving shit to the layout
   componentType?: string,
   componentState?: Record<string, unknown>,
   activeItemIndex?: number,
