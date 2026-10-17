@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {create, createResponse, extractSubKind, generateID, load, save, Delete as remove, rename, update, Request, HistoryEntry, serialized} from "./db.ts";
+import {create, createDraft, createResponse, extractSubKind, generateID, load, save, Delete as remove, rename, update, Request, HistoryEntry, serialized} from "./db.ts";
 import * as http from "./database/http.ts";
 import * as jq from "./database/jq.ts";
 import * as md from "./database/md.ts";
@@ -20,6 +20,7 @@ async function get(id: t.RequestID): Promise<Request> {
 
 export async function List(): Promise<t.ListResponse> {
   const j = await load();
+  const draftNs = j.drafts;
 
   const previews: Record<t.RequestID, t.requestPreview> = Object.fromEntries(Object.entries(j.requests).map(([id, req]) => [id, {
     path: req.Path,
@@ -29,6 +30,8 @@ export async function List(): Promise<t.ListResponse> {
 
   const tree: t.Tree = {IDs: [], Dirs: {}};
   for (const [id, req] of Object.entries(j.requests)) {
+    if (id in draftNs)
+      continue;
     const parts = req.Path.split("/");
     const current = parts.slice(0, -1).filter(part => part !== "").reduce((current: t.Tree, part: string): t.Tree => {
       if (part in current.Dirs) {
@@ -45,6 +48,7 @@ export async function List(): Promise<t.ListResponse> {
   return {
     Tree: tree,
     Requests: previews,
+    Drafts: draftNs,
   };
 }
 
@@ -87,6 +91,19 @@ export function Create(path: string, kind: t.Kind): Promise<t.RequestID> {
     const j = await load();
     const emptyData = emptyRequestForKind(kind);
     return await create(j, kind, path, emptyData);
+  });
+}
+
+// Kinds Perform dispatches; other kinds (sources, MCP) cannot be performed and
+// therefore cannot be drafts (see DraftableKinds in shared/types.ts).
+const draftableKinds: ReadonlySet<t.Kind> = new Set(t.DraftableKinds);
+
+export function CreateDraft(kind: t.Kind, data?: Request["Data"]): Promise<t.RequestID> {
+  return serialized(async () => {
+    if (!draftableKinds.has(kind))
+      throw new Error(`kind ${kind} cannot be a draft: not a performable kind`);
+    const j = await load();
+    return await createDraft(j, kind, data ?? emptyRequestForKind(kind));
   });
 }
 

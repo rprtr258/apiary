@@ -140,6 +140,7 @@ numbers.forEach(n => console.log(n));
 - **Reactivity**: Use `signal<T>()` for state, but only if it is watched by using `sub`, otherwise use mutable locals. Use `m()` for DOM building, no VDOM.
 - **Components**: `N*` functions return DOM elements; `viewer.ts` factory functions manage state in provided container.
 - **Store**: Central state management in `renderer/store.ts` with CRUD operations and backend coordination.
+- **Draft requests**: drafts of performable kinds (`shared/types.ts` `DraftableKinds`) are real `db.json` records listed in the `drafts` section (title in `Path`, marker = section membership); the tab is the only referent — closing it deletes the record, saving is a `Rename` out of the section. Renderer detection goes through `store.isDraft` / `requestPreview.draft`; tab liveness keys on previews, not the tree.
 - **Electron IPC**: Main process in `main.ts` handles IPC from renderer via `ipcMain.handle()`. Preload script (`preload.ts`) exposes secure API via `contextBridge.exposeInMainWorld`. Renderer communicates through `window.api`.
 - **Data Flow**: User -> Signal -> Store -> IPC (window.api) -> Main Process -> Store -> DOM.
 

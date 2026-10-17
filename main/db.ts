@@ -32,6 +32,12 @@ type v1 = {
   [t.Kind.SQLSource]:  Record<t.RequestID, t.SQLSourceRequest>,
   [t.Kind.HTTPSource]: Record<t.RequestID, t.HTTPSourceRequest>,
   [t.Kind.MCP]:        Record<t.RequestID, t.MCPRequest>,
+  drafts?: DraftEntry[],
+};
+
+type DraftEntry = {
+  id: t.RequestID,
+  n: number,
 };
 
 type historyEntry<_Req, Resp> = {
@@ -97,6 +103,9 @@ export type Request = {
 
 export type DB = {
   requests: Record<t.RequestID, Request>,
+  // Draft membership (id -> cosmetic "draft N" number); serialized to the v1
+  // "drafts" section.
+  drafts: Record<t.RequestID, number>,
 };
 
 export function extractSubKind(
@@ -146,7 +155,7 @@ export async function load(): Promise<DB> {
     b = await readFile(dbPath);
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      const j: DB = {requests: {}};
+      const j: DB = {requests: {}, drafts: {}};
       await save(j);
       return j;
     }
@@ -239,8 +248,11 @@ export async function load(): Promise<DB> {
       ...kind,
     } as Request;
   })()]));
+  // Drop section entries whose record vanished (hand-edited files); the section is
+  // authoritative for draft-ness, a missing record is not a usable draft.
   return {
     requests,
+    drafts: Object.fromEntries((raw.drafts ?? []).filter(d => d.id in requests).map(d => [d.id, d.n])),
   };
 }
 
@@ -287,6 +299,7 @@ export async function save(j: DB): Promise<void> {
     mcp: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.MCP).map(([id, r]) => [id,
       r.Data as t.MCPRequest,
     ])),
+    drafts: Object.entries(j.drafts).map(([id, n]) => ({id, n})),
   };
   await writeFile(dbPath, JSON.stringify(raw, null, 2));
 }
@@ -303,9 +316,26 @@ export async function create(
   return id;
 }
 
+// n is allocated by max-scan over live drafts, so it is reused once the
+// highest-numbered draft is deleted (accepted).
+export async function createDraft(
+  j: DB,
+  kind: t.Kind,
+  data: Request["Data"],
+): Promise<t.RequestID> {
+  const id = generateID();
+  const n = Object.values(j.drafts).reduce((max, n) => Math.max(max, n), 0) + 1;
+  j.requests[id] = {ID: id, Path: `draft ${n}`, Kind: kind, Data: data, Responses: []} as Request;
+  j.drafts[id] = n;
+  await save(j);
+  return id;
+}
+
 export async function Delete(j: DB, id: t.RequestID): Promise<void> {
   if (!(id in j.requests))
     throw new Error(`request ${id} not found`);
+  delete j.requests[id];
+  delete j.drafts[id];
   delete j.requests[id];
   await save(j);
 }
@@ -319,6 +349,8 @@ export async function rename(j: DB, id: t.RequestID, newName: string): Promise<v
   }
   const req = j.requests[id];
   req.Path = newName;
+  // Renaming a draft saves it as a regular request, so drop its draft entry.
+  delete j.drafts[id];
   await save(j);
 }
 

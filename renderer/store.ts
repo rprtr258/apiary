@@ -6,6 +6,7 @@ import layout from "./layout.ts";
 import {ItemConfig, LayoutConfig} from "./layout/types.ts";
 import {ComponentItem, Stack} from "./layout/manager.ts";
 import notification from "./lib/notification.ts";
+import type {Request} from "../main/db.ts";
 
 /**
  * Thrown by the persistence layer when a persist failed and it already reverted its own state;
@@ -110,14 +111,20 @@ export function last_history_entry(request: get_request): t.HistoryEntry | undef
 export type Store = {
   requestsTree : Signal<t.Tree>,
   requests : Record<string, t.requestPreview>,
+  // id -> draft number, from ListResponse.Drafts; the source of truth for
+  // draft-ness in the renderer
+  drafts: Record<string, number>,
   requests2: Record<string, get_request>,
   layoutConfig: LayoutConfig,
   get activeComponentID(): string | null,
   set activeComponentID(value: string | null),
   requestID(): string | null,
+  isDraft(id: t.RequestID): boolean,
   selectRequest(id: t.RequestID): void,
   fetch(): Promise<void>,
   createRequest(id: t.RequestID, kind: t.RequestData["kind"]): Promise<void>,
+  createDraft(kind: t.RequestData["kind"], data?: Request["Data"]): Promise<void>,
+  cleanupDrafts(ids: t.RequestID[]): Promise<void>,
   duplicate(id: t.RequestID): Promise<void>,
   deleteRequest(id: t.RequestID): Promise<void>,
   rename(id: t.RequestID, newName: string): Promise<void>,
@@ -145,6 +152,7 @@ export const store = ((): Store => {
   return {
     requestsTree : signal({IDs: [], Dirs: {}}),
     requests : {},
+    drafts: {},
     requests2: {},
     layoutConfig,
     get activeComponentID(): string | null {
@@ -186,6 +194,7 @@ export const store = ((): Store => {
           delete this.requests[id];
         }
       }
+      this.drafts = res.Drafts;
 
       // paths in this.requests may change without the Tree structure changing (in-place rename),
       // so tree subscribers must be notified on every fetch
@@ -199,6 +208,39 @@ export const store = ((): Store => {
       }
 
       await this.fetch();
+    },
+    async createDraft(kind: t.RequestData["kind"], data?: Request["Data"]): Promise<void> {
+      const res = await api.createDraft(kind, data);
+      if (res.kind === "err") {
+        notification("error", "Could not create draft", {error: res.value});
+        return;
+      }
+
+      // Previews must be populated before the tab opens: the frame factory reads
+      // the request kind from this.requests
+      await this.fetch();
+      const id = res.value;
+      const tab = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
+      if (tab !== undefined) {
+        activateTab({id, item: tab});
+        return;
+      }
+      layout.instance?.addItem(id, "MyComponent", {id});
+    },
+    isDraft(id: t.RequestID): boolean {
+      return id in this.drafts;
+    },
+    // Orphan sweep: an open draft tab is the only referent of its record, so
+    // drafts without a kept tab are deleted through the regular Delete path
+    // (backend drops the drafts-section entry, store evicts caches, fetch
+    // refreshes previews)
+    async cleanupDrafts(keepIDs: t.RequestID[]): Promise<void> {
+      const kept = new Set(keepIDs);
+      for (const id of Object.keys(this.drafts)) {
+        if (kept.has(id))
+          continue;
+        await this.deleteRequest(id);
+      }
     },
     async duplicate(id: t.RequestID): Promise<void> {
       const res = await api.requestDuplicate(id);
@@ -427,21 +469,18 @@ store.requestsTree.sub(function*() {
   yield;
 
   while (true) {
-    const requestTree = yield;
+    yield;
     const openTabIds = new Map<string, ComponentItem>();
     for (const c of (layout.instance?.tabs() ?? []).filter(c => c.componentType === "MyComponent"))
       openTabIds.set((c.toConfig().componentState as StateRequest).id, c);
 
-    function* collectIds(tree: t.Tree): Generator<string> {
-      yield* tree.IDs;
-      for (const dir in tree.Dirs) {
-        yield* collectIds(tree.Dirs[dir]);
-      }
-    }
-    const treeIds = new Set(collectIds(requestTree)); // TODO: get straight from previews map
+    // Liveness is decided by the previews map, not the tree: draft requests stay
+    // in previews but are excluded from the tree, so their open tabs must survive
+    // tree refreshes
+    const liveIds = new Set(Object.keys(store.requests));
 
     for (const [id, item] of openTabIds.entries()) {
-      if (treeIds.has(id))
+      if (liveIds.has(id))
         continue;
       item.remove();
     }

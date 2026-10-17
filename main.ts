@@ -69,6 +69,7 @@ ipcMain.handle("List", _ => api.List());
 ipcMain.handle("Get", (_, id: string) => api.Get(id));
 ipcMain.handle("Create", (_, path: string, kind: t.Kind) => api.Create(path, kind));
 ipcMain.handle("Duplicate", (_, id: string) => api.Duplicate(id));
+ipcMain.handle("CreateDraft", (_, kind: t.Kind, data?: Request["Data"]) => api.CreateDraft(kind, data));
 ipcMain.handle("Rename", (_, id: string, newName: string) => api.Rename(id, newName));
 ipcMain.handle("Update", (_, id: string, data: Request["Data"]) => api.Update(id, data));
 ipcMain.handle("Delete", (_, id: string) => api.Delete(id));
