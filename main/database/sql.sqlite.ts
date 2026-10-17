@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import {createClientPool} from "./connection_pool.ts";
 import * as t from "@/types.ts";
+import {node} from "./sql_plan.ts";
 
 // TODO: fix get types
 function convertTypes(columns: number, rows: unknown[][]): t.ColumnType[] {
@@ -64,9 +65,11 @@ export async function sendBatch(request: Omit<t.SQLRequest, "query">, statements
 // EXPLAIN QUERY PLAN never executes the statement, so it is safe for writes.
 export async function explain(request: t.SQLRequest): Promise<t.SQLExplain> {
   return await pool.run({dsn: request.dsn, readonly: request.readOnly ?? false}, async db => {
-    const rows = db.prepare(`EXPLAIN QUERY PLAN ${request.query}`).all() as {detail: string}[];
+    // id/parent links rebuild the plan tree; detail lines form the raw text.
+    const rows = db.prepare(`EXPLAIN QUERY PLAN ${request.query}`).all() as {id: number, parent: number, detail: string}[];
     const raw = rows.map(r => r.detail).join("\n");
-    return {raw};
+    const plan = parsePlan(rows.map(r => ({id: Number(r.id), parent: Number(r.parent), detail: String(r.detail)})));
+    return {raw, plan};
   });
 }
 
@@ -131,4 +134,79 @@ export async function listTables(request: Omit<t.SQLRequest, "query">): Promise<
 
 export function quoteIdent(s: string): string {
   return "`" + s + "`";
+}
+
+// One EXPLAIN QUERY PLAN row: `id`, `parent` (0 for roots) and the `detail`
+// text. The tree is rebuilt from the parent links; sqlite emits a forest
+// (flat join scans, co-routines), wrapped under one synthetic root.
+export type PlanRow = {
+  id: number,
+  parent: number,
+  detail: string,
+};
+
+export function parsePlan(rows: PlanRow[]): t.SQLPlan | undefined {
+  if (rows.length === 0)
+    return undefined;
+  const byId = new Map<number, t.SQLPlanNode>();
+  const roots: t.SQLPlanNode[] = [];
+  for (const row of rows) {
+    const parts = splitTitle(row.detail);
+    const n = node(parts.label);
+    n.kind = parsePlanKind(row.detail);
+    if (parts.table !== undefined)
+      n.table = parts.table;
+    if (parts.index !== undefined)
+      n.index = parts.index;
+    byId.set(row.id, n);
+    const parent = row.parent === 0 ? undefined : byId.get(row.parent);
+    if (parent === undefined)
+      roots.push(n);
+    else
+      parent.children.push(n);
+  }
+  if (roots.length === 0)
+    return undefined;
+  const root = roots.length === 1 ? roots[0] : node("Query plan");
+  if (roots.length > 1)
+    root.children.push(...roots);
+  return {root};
+}
+
+// EQP details carry the access path inline:
+// "SCAN t", "SEARCH t USING COVERING INDEX i (c=?)", "SCAN t VIRTUAL TABLE
+// INDEX 1:M". `table` is the name after the operator; the USING descriptor
+// becomes `index`, with any trailing constraint group kept in the label.
+// Details without USING (virtual tables, subqueries) keep the full text.
+function splitTitle(detail: string): {label: string, table?: string, index?: string} {
+  const m = /^(?<head>SCAN|SEARCH)\s+(?<table>"[^"]*"|\S+)(?<rest>.*)$/.exec(detail);
+  if (m === null)
+    return {label: detail};
+  const {head, table, rest} = m.groups!;
+  const using = /^\s+USING\s+(?<index>.+?)(?<cond>\s*\([^()]*\))?$/.exec(rest);
+  if (using === null)
+    return {label: detail, table};
+  const g: Record<string, string | undefined> = using.groups!;
+  const {index, cond} = g;
+  return {
+    label: cond !== undefined ? `${head} ${cond.trim()}` : head,
+    table,
+    index: index!.trim(),
+  };
+}
+
+function parsePlanKind(detail: string): t.SQLPlanKind {
+  if (/^SEARCH\b/.test(detail))
+    return "index";
+  if (/^SCAN\b/.test(detail))
+    return "scan";
+  if (/SUBQUERY/i.test(detail))
+    return "subquery";
+  if (/^NESTED LOOP/.test(detail))
+    return "join";
+  if (/^USE TEMP B-TREE FOR (ORDER BY|GROUP BY)/.test(detail))
+    return "sort";
+  if (/^COMPOUND/.test(detail))
+    return "setop";
+  return "other";
 }

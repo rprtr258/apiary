@@ -31,7 +31,7 @@ describe("sendSQL sqlite", () => {
 });
 
 describe("explainSQL sqlite", () => {
-  test("returns EXPLAIN QUERY PLAN details as text", async () => {
+  test("returns raw details and the parsed plan tree", async () => {
     const dir = await mkdtemp(join(tmpdir(), "sqlite-explain"));
     const TEST_DB = dir + "/apiary-sql-test.db";
     await send(req({dsn: TEST_DB, query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"}));

@@ -1,12 +1,151 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
-exports[`sql.redis explain wraps the query in EXPLAIN ANALYZE and joins plan lines 1`] = `
+exports[`sql.redis explain wraps the query in EXPLAIN ANALYZE and returns raw + parsed plan 1`] = `
 {
+  "plan": {
+    "root": {
+      "children": [
+        {
+          "children": [],
+          "details": [],
+          "kind": "other",
+          "metrics": {},
+          "table": undefined,
+          "title": "Sequence",
+        },
+      ],
+      "details": [
+        "Projection: 1",
+        "Analyze: true",
+      ],
+      "kind": "project",
+      "metrics": {},
+      "table": undefined,
+      "title": "Project",
+    },
+  },
   "raw": 
 "Project
   Projection: 1
   Analyze: true
   Sequence"
 ,
+}
+`;
+
+exports[`parseGmsPlan builds the operator tree with details 1`] = `
+{
+  "root": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "children": [
+                  {
+                    "children": [],
+                    "details": [
+                      "name: rhash",
+                    ],
+                    "kind": "scan",
+                    "metrics": {},
+                    "table": "rhash",
+                    "title": "Table h",
+                  },
+                  {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "children": [],
+                            "details": [
+                              "name: rstring",
+                            ],
+                            "kind": "scan",
+                            "metrics": {},
+                            "table": "rstring",
+                            "title": "Table s",
+                          },
+                        ],
+                        "details": [
+                          "(NOT((s.value = 'x')))",
+                        ],
+                        "kind": "filter",
+                        "metrics": {},
+                        "table": undefined,
+                        "title": "Filter",
+                      },
+                    ],
+                    "details": [
+                      "left-key: (h.key)",
+                      "right-key: (s.key)",
+                    ],
+                    "kind": "join",
+                    "metrics": {},
+                    "table": undefined,
+                    "title": "HashLookup",
+                  },
+                ],
+                "details": [
+                  "(s.key = h.key)",
+                ],
+                "kind": "join",
+                "metrics": {},
+                "table": undefined,
+                "title": "HashJoin",
+              },
+            ],
+            "details": [
+              "h.field ASC",
+            ],
+            "kind": "sort",
+            "metrics": {},
+            "table": undefined,
+            "title": "Sort",
+          },
+        ],
+        "details": [
+          "columns: [s.key, h.field]",
+        ],
+        "kind": "project",
+        "metrics": {},
+        "table": undefined,
+        "title": "Project",
+      },
+    ],
+    "details": [
+      "5",
+    ],
+    "kind": "limit",
+    "metrics": {},
+    "table": undefined,
+    "title": "Limit",
+  },
+}
+`;
+
+exports[`parseGmsPlan parses the plain indented variant 1`] = `
+{
+  "root": {
+    "children": [
+      {
+        "children": [],
+        "details": [],
+        "kind": "other",
+        "metrics": {},
+        "table": undefined,
+        "title": "Sequence",
+      },
+    ],
+    "details": [
+      "Projection: 1",
+      "Analyze: true",
+    ],
+    "kind": "project",
+    "metrics": {},
+    "table": undefined,
+    "title": "Project",
+  },
 }
 `;
