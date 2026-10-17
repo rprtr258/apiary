@@ -45,6 +45,8 @@ export type Tree = {
 export type ListResponse = {
   Tree: Tree,
   Requests: Record<string, requestPreview>,
+  // id -> draft number for live drafts; every stored request is absent
+  Drafts: Record<RequestID, number>,
 };
 
 export type Response = {
@@ -77,6 +79,10 @@ export type RequestData =
 ;
 
 export const Kinds = Object.values(Kind);
+
+// Kinds Perform dispatches; only these can be drafts (sources and MCP cannot be
+// performed and therefore cannot be drafts).
+export const DraftableKinds = [Kind.HTTP, Kind.SQL, Kind.JQ, Kind.MD, Kind.REDIS, Kind.GRPC, Kind.DIFF] as const;
 export type ResponseData =
   | {kind: Kind.HTTP } & HTTPResponse
   | {kind: Kind.SQL  } & SQLResponse

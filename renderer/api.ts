@@ -79,6 +79,13 @@ export const api = {
     return await wrap(() => Api.Delete(id), {reqId: id});
   },
 
+  async createDraft(
+    kind: t.Kind,
+    data?: Request["Data"],
+  ): Promise<Result<t.RequestID>> {
+    return await wrap(() => Api.CreateDraft(kind, data), {kind, data});
+  },
+
   async grpcMethods(target: string): Promise<Result<Record<string, string[]>>> {
     return await wrap(() => Api.GRPC.Methods(target), {target});
   },

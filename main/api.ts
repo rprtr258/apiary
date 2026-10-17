@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {create, createResponse, extractSubKind, generateID, load, save, Delete as remove, rename, update, Request, HistoryEntry} from "./db.ts";
+import {create, createDraft, createResponse, extractSubKind, generateID, load, save, Delete as remove, rename, update, Request, HistoryEntry, serialized} from "./db.ts";
 import * as http from "./database/http.ts";
 import * as jq from "./database/jq.ts";
 import * as md from "./database/md.ts";
@@ -13,22 +13,25 @@ import * as mcp from "./database/mcp.ts";
 
 async function get(id: t.RequestID): Promise<Request> {
   const j = await load();
-  if (!(id in j))
+  if (!(id in j.requests))
     throw new Error(`request ${id} not found`);
-  return j[id];
+  return j.requests[id];
 }
 
 export async function List(): Promise<t.ListResponse> {
   const j = await load();
+  const draftNs = j.drafts;
 
-  const previews: Record<t.RequestID, t.requestPreview> = Object.fromEntries(Object.entries(j).map(([id, req]) => [id, {
+  const previews: Record<t.RequestID, t.requestPreview> = Object.fromEntries(Object.entries(j.requests).map(([id, req]) => [id, {
     path: req.Path,
     kind: req.Kind,
     subKind: extractSubKind(j, id),
   }]));
 
   const tree: t.Tree = {IDs: [], Dirs: {}};
-  for (const [id, req] of Object.entries(j)) {
+  for (const [id, req] of Object.entries(j.requests)) {
+    if (id in draftNs)
+      continue;
     const parts = req.Path.split("/");
     const current = parts.slice(0, -1).filter(part => part !== "").reduce((current: t.Tree, part: string): t.Tree => {
       if (part in current.Dirs) {
@@ -45,6 +48,7 @@ export async function List(): Promise<t.ListResponse> {
   return {
     Tree: tree,
     Requests: previews,
+    Drafts: draftNs,
   };
 }
 
@@ -82,43 +86,66 @@ function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   }
 }
 
-export async function Create(path: string, kind: t.Kind): Promise<t.RequestID> {
-  const j = await load();
-  const emptyData = emptyRequestForKind(kind);
-  return await create(j, kind, path, emptyData);
+export function Create(path: string, kind: t.Kind): Promise<t.RequestID> {
+  return serialized(async () => {
+    const j = await load();
+    const emptyData = emptyRequestForKind(kind);
+    return await create(j, kind, path, emptyData);
+  });
 }
 
-export async function Duplicate(id: t.RequestID): Promise<t.RequestID> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
+// Kinds Perform dispatches; other kinds (sources, MCP) cannot be performed and
+// therefore cannot be drafts (see DraftableKinds in shared/types.ts).
+const draftableKinds: ReadonlySet<t.Kind> = new Set(t.DraftableKinds);
 
-  const entry = j[id];
-  const existingPaths = new Set(Object.values(j).map(e => e.Path).filter(p => p.startsWith(`${entry.Path} (copy`)));
-  let newPath = `${entry.Path} (copy)`;
-  for (let n = 2; existingPaths.has(newPath); n++)
-    newPath = `${entry.Path} (copy ${n})`;
-
-  const newID = generateID();
-  const data = structuredClone(entry.Data);
-  j[newID] = {ID: newID, Path: newPath, Kind: entry.Kind, Data: data, Responses: []} as Request;
-  await save(j);
-  return newID;
+export function CreateDraft(kind: t.Kind, data?: Request["Data"]): Promise<t.RequestID> {
+  return serialized(async () => {
+    if (!draftableKinds.has(kind))
+      throw new Error(`kind ${kind} cannot be a draft: not a performable kind`);
+    const j = await load();
+    return await createDraft(j, kind, data ?? emptyRequestForKind(kind));
+  });
 }
 
-export async function Delete(id: t.RequestID): Promise<void> {
-  const j = await load();
-  await remove(j, id);
+export function Duplicate(id: t.RequestID): Promise<t.RequestID> {
+  return serialized(async () => {
+    const j = await load();
+    if (!(id in j.requests))
+      throw new Error(`request ${id} not found`);
+
+    const entry = j.requests[id];
+    const existingPaths = new Set(Object.values(j.requests).map(e => e.Path).filter(p => p.startsWith(`${entry.Path} (copy`)));
+    let newPath = `${entry.Path} (copy)`;
+    for (let n = 2; existingPaths.has(newPath); n++)
+      newPath = `${entry.Path} (copy ${n})`;
+
+    const newID = generateID();
+    const data = structuredClone(entry.Data);
+    j.requests[newID] = {ID: newID, Path: newPath, Kind: entry.Kind, Data: data, Responses: []} as Request;
+    await save(j);
+    return newID;
+  });
 }
 
-export async function Rename(id: t.RequestID, newName: string): Promise<void> {
-  const j = await load();
-  await rename(j, id, newName);
+export function Delete(id: t.RequestID): Promise<void> {
+  return serialized(async () => {
+    const j = await load();
+    await remove(j, id);
+  });
 }
 
-export async function Update(id: t.RequestID, data: Request["Data"]): Promise<void> {
-  const j = await load();
-  await update(j, id, data);
+export function Rename(id: t.RequestID, newName: string): Promise<void> {
+  return serialized(async () => {
+    const j = await load();
+    await rename(j, id, newName);
+  });
+}
+
+export function Update(id: t.RequestID, data: Request["Data"]): Promise<void> {
+  return serialized(async () => {
+    const j = await load();
+    await update(j, id, data);
+  });
 }
 
 type PerformResponse = {
@@ -138,50 +165,55 @@ export function resolveSQLRequest(j: Record<t.RequestID, Request>, data: t.SQLRe
   return source.Data.dsn;
 }
 
-export async function Perform(id: t.RequestID): Promise<PerformResponse> {
-  const j = await load();
-  if (!(id in j))
-    throw new Error(`request ${id} not found`);
+// The send runs inside the queue so the response persist cannot interleave
+// with another mutation (which would resurrect a deleted request or drop a
+// concurrent response): the whole perform is one serialized mutation.
+export function Perform(id: t.RequestID): Promise<PerformResponse> {
+  return serialized(async () => {
+    const j = await load();
+    if (!(id in j.requests))
+      throw new Error(`request ${id} not found`);
 
-  const req = j[id];
+    const req = j.requests[id];
 
-  const sent_at = new Date();
-  let response: unknown;
-  switch (req.Kind) {
-  case t.Kind.HTTP:
-    response = await http.send(req.Data);
-    break;
-  case t.Kind.JQ:
-    response = await jq.send(req.Data);
-    break;
-  case t.Kind.MD:
-    response = await md.send(req.Data);
-    break;
-  case t.Kind.SQL:
-    response = await sql.send({...req.Data, dsn: resolveSQLRequest(j, req.Data)});
-    break;
-  case t.Kind.REDIS:
-    response = await redis.send(req.Data);
-    break;
-  case t.Kind.GRPC:
-    response = await grpc.send(req.Data);
-    break;
-  case t.Kind.DIFF:
-    response = diff.send(req.Data);
-    break;
-  default:
-    throw new Error(`Perform not yet implemented for kind ${req.Kind}`);
-  }
-  const received_at = new Date();
+    const sent_at = new Date();
+    let response: unknown;
+    switch (req.Kind) {
+    case t.Kind.HTTP:
+      response = await http.send(req.Data);
+      break;
+    case t.Kind.JQ:
+      response = await jq.send(req.Data);
+      break;
+    case t.Kind.MD:
+      response = await md.send(req.Data);
+      break;
+    case t.Kind.SQL:
+      response = await sql.send({...req.Data, dsn: resolveSQLRequest(j.requests, req.Data)});
+      break;
+    case t.Kind.REDIS:
+      response = await redis.send(req.Data);
+      break;
+    case t.Kind.GRPC:
+      response = await grpc.send(req.Data);
+      break;
+    case t.Kind.DIFF:
+      response = diff.send(req.Data);
+      break;
+    default:
+      throw new Error(`Perform not yet implemented for kind ${req.Kind}`);
+    }
+    const received_at = new Date();
 
-  await createResponse(j, id, {SentAt: sent_at, ReceivedAt: received_at, Response: response as HistoryEntry["Response"]} as HistoryEntry);
-  return {
-    RequestId:   id,
-    sent_at:     sent_at.toISOString(),
-    received_at: received_at.toISOString(),
-    request:     req.Data,
-    response:    response,
-  };
+    await createResponse(j, id, {SentAt: sent_at, ReceivedAt: received_at, Response: response as HistoryEntry["Response"]} as HistoryEntry);
+    return {
+      RequestId:   id,
+      sent_at:     sent_at.toISOString(),
+      received_at: received_at.toISOString(),
+      request:     req.Data,
+      response:    response,
+    };
+  });
 }
 
 export const GRPC = {
@@ -281,13 +313,13 @@ export const SQL = {
   // saving anything to history; the Explain tab fetches it on open.
   async Explain(id: t.RequestID): Promise<t.SQLExplain> {
     const j = await load();
-    if (!(id in j))
+    if (!(id in j.requests))
       throw new Error(`request ${id} not found`);
-    const req = j[id];
+    const req = j.requests[id];
     if (req.Kind !== t.Kind.SQL)
       throw new Error(`request ${id} is not SQL`);
     // SQL request's dsn can store a SQLSource request id; resolve it like Perform does.
-    return await sql.explain({...req.Data, dsn: resolveSQLRequest(j, req.Data)});
+    return await sql.explain({...req.Data, dsn: resolveSQLRequest(j.requests, req.Data)});
   },
 };
 

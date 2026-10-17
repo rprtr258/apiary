@@ -12,8 +12,8 @@ apiary/
 ├── preload.ts              # contextBridge: exposes window.api / window.versions to the renderer
 ├── global.d.ts             # Api interface + window.api declaration (the typed IPC contract)
 ├── main/                   # Backend (runs in the Electron main process)
-│   ├── api.ts              # API façade: entry CRUD, emptyRequestForKind, Perform dispatch, source sub-APIs
-│   ├── db.ts               # JSON DB (db.json): entry CRUD, response history, format migration
+│   ├── api.ts              # API façade: entry CRUD, emptyRequestForKind, Perform dispatch, drafts, source sub-APIs
+│   ├── db.ts               # JSON DB (db.json): entry CRUD, response history, drafts section, format migration
 │   └── database/           # Plugin modules, one file per request kind (+ *_test.ts unit tests)
 │       ├── http.ts, sql.ts, grpc.ts, redis.ts, jq.ts, md.ts, diff.ts
 │       ├── sql_source.ts, http_source.ts, mcp.ts
@@ -47,6 +47,7 @@ apiary/
 - `emptyRequestForKind(kind)` returns the default data used by `Create`
 - `Perform(id)` dispatches to the plugin's `send<Kind>`, then `createResponse` persists the exchange into the entry's response history
 - Source/tool kinds are exposed through dedicated sub-APIs instead of `Perform`: `api.GRPC`, `api.SQLSource`, `api.HTTPSource`, `api.MCP`
+- Mutating entry points serialize one-at-a-time behind a promise queue: `db.ts` persists by whole-file load-modify-save, so concurrent operations would interleave at await boundaries and the last `save()` would silently drop the other's changes; read-only access is unqueued and works on the last-save snapshot
 
 **Plugins**:
 | Kind       | File           | Executed by                | Response history |
@@ -134,6 +135,10 @@ useLocalStorage<T>(key: string, init: T): {get value(), set value()}
 
 Used by the sidebar tree for persisting expanded keys and by the store.
 
+### Draft requests
+
+A draft is a real `db.json` record of a performable kind (`shared/types.ts` `DraftableKinds`) that is a member of the dedicated `drafts` section (`[{id, n}]` on disk; in memory `load()` returns a `DB` struct carrying it as `drafts: Record<RequestID, number>` next to `requests`). Drafts never appear in the sidebar tree or the Open palette; their open tab is the only referent, and its lifetime bounds the record's: closing a draft tab (close button or Ctrl+W) deletes the record via `Delete`, saving a draft is `Rename` to a real path (which also removes it from the drafts section), duplicating a draft creates a new draft. The record's `Path` holds the cosmetic tab title (`draft N`, `n` allocated by max-scan over live drafts), and `Responses` is ordinary persisted history. Backend surface: `CreateDraft(kind, data?)` (validates the kind, defaults via `emptyRequestForKind`). `List` returns live drafts as a separate `Drafts` map (id -> n); the renderer keeps it as `store.drafts` and detects drafts through `store.isDraft`, styles their tab titles pale gray, and keys tab liveness in the previews watcher (not the tree) so draft tabs survive tree refreshes. There is no dedicated sweep IPC: after tab restore the renderer sweeps orphaned drafts (live drafts whose tab did not restore) itself, deleting each through the regular `Delete` path.
+
 ### Electron IPC (`main.ts` + `preload.ts` + `global.d.ts`)
 
 - `main.ts`: one `ipcMain.handle()` per channel - entry CRUD (`List`, `Get`, `Create`, `Duplicate`, `Read`, `Rename`, `Update`, `Delete`), `Perform`, and namespaced channels (`GRPC.*`, `SQL.*`, `SQLSource.*`, `HTTPSource.*`, `MCP.*`)
@@ -156,7 +161,7 @@ User -> renderer state (store/signals) -> `window.api` (IPC invoke) -> `main.ts`
 ## Testing Strategy
 
 - **Backend**: Unit tests per plugin (`main/database/*_test.ts`), plus `main/api.test.ts` and `main/db.test.ts` (`bun run test`)
-- **Frontend**: Component tests (`renderer/plugins/*/viewer.test.ts`, `renderer/plugins/cache.test.ts`, `renderer/components/*`, `renderer/lib/*`) (`bun run test`)
+- **Frontend**: Component tests (`renderer/plugins/*/viewer.test.ts`, `renderer/plugins/cache.test.ts`, `renderer/components/*`, `renderer/lib/*`), draft behavior (`renderer/drafts.test.ts`, `renderer/drafts.palette.test.ts`) (`bun run test`)
 - **Go wasm engine**: Go tests of `internal/redissql/wasm` via `bun run test:go`, part of `bun run test` (runs under `GOOS=js GOARCH=wasm` via go's wasm exec wrapper; skipped when go is absent)
 - **Integration**: `main/integration.test.ts` via `bun run test:integration` (`INTEGRATION=1`)
 - **E2E**: Playwright (`renderer/e2e/`) via `bun run test:e2e` (builds first)
@@ -179,6 +184,7 @@ Tests cross at the interface, not past it.
 - **Source kinds are queried on demand**: SQLSource/HTTPSource/MCP have dedicated IPC endpoints instead of `Perform`; listings are cached client-side through a generic `createSourceCache` engine in `renderer/plugins/cache.ts`, one private cache (or three, for MCP's tools/prompts/resources) per source kind. The sidebar never sees the caches: it consumes the `renderer/plugins/source.ts` facade over each kind's `root(id): Item` tree, materialized lazily along expanded paths.
 - **Backend connections are pooled process-wide**: `main/database/connection_pool.ts` provides a `createClientPool` engine (generic over the client and key types) that caches clients by connection config, dedupes concurrent connects and closes clients idle for more than 5 minutes (`DEFAULT_TTL`); broken connections evict themselves (death events and per-operation errors), so the next request reconnects. `main/database/mcp.ts` keys it by the canonical MCP connection config (`connectionKey`: transport + command/args/env or url/headers); `redis.ts` by the normalized DSN URL; the SQL backends by DSN (postgres normalized + libpq-compat flag, sqlite plus its readonly flag). Transactional SQL batches (`sendBatch` in sql.postgres.ts / sql.mysql.ts) deliberately keep dedicated connections so concurrent batches cannot interleave inside one transaction.
 - **Frontend plugin registry**: kind-specific sidebar/context-menu/command-palette data (badges, menu entries, source item rendering, staleness caching) lives in `renderer/plugins/` as an explicit registry instead of scattered `switch (kind)` statements.
+- **Drafts are DB-backed, not in-memory**: a draft is an ordinary request record plus membership in the `drafts` db.json section — the marker is section membership, not a `Path` sentinel — so `Perform`, `Update` and history work unchanged and drafts survive restarts while their tab exists. The tab is the only referent: closing it deletes the record, and a renderer-side startup sweep deletes drafts left without tabs (e.g. lost layout config) through the regular `Delete` IPC.
 - **Custom layout manager**: `renderer/layout/` implements panes/stacks/tabs/splitters directly instead of depending on a layout library.
 - **Typed IPC contract**: the `Api` interface in `global.d.ts` is the single seam between preload and renderer.
 - **LocalStorage at seam**: Extracted to `renderer/lib/localStorage.ts` for testability.

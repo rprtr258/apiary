@@ -32,6 +32,12 @@ type v1 = {
   [t.Kind.SQLSource]:  Record<t.RequestID, t.SQLSourceRequest>,
   [t.Kind.HTTPSource]: Record<t.RequestID, t.HTTPSourceRequest>,
   [t.Kind.MCP]:        Record<t.RequestID, t.MCPRequest>,
+  drafts?: DraftEntry[],
+};
+
+type DraftEntry = {
+  id: t.RequestID,
+  n: number,
 };
 
 type historyEntry<_Req, Resp> = {
@@ -95,13 +101,18 @@ export type Request = {
   }
 );
 
-export type DB = Record<t.RequestID, Request>;
+export type DB = {
+  requests: Record<t.RequestID, Request>,
+  // Draft membership (id -> cosmetic "draft N" number); serialized to the v1
+  // "drafts" section.
+  drafts: Record<t.RequestID, number>,
+};
 
 export function extractSubKind(
   j: DB,
   id: t.RequestID,
 ): string {
-  const entry = j[id];
+  const entry = j.requests[id];
   switch (entry.Kind) {
     case t.Kind.HTTP:
       return entry.Data.method;
@@ -125,6 +136,18 @@ export function setDBPath(p: string): void {
   dbPath = p;
 }
 
+// db.ts persists by whole-file load-modify-save: two concurrent operations
+// interleave at their await boundaries and the last save() silently overwrites
+// the other's changes (lost records, duplicated draft numbers). Mutating
+// operations therefore run one-at-a-time behind this queue; read-only access
+// works on the snapshot of the last save and stays unqueued.
+let dbQueue: Promise<void> = Promise.resolve();
+export function serialized<T>(fn: () => Promise<T>): Promise<T> {
+  const run = dbQueue.then(fn);
+  dbQueue = run.then(() => undefined, () => undefined);
+  return run;
+}
+
 export async function load(): Promise<DB> {
   // TODO: migrate db
   let b: Buffer;
@@ -132,14 +155,14 @@ export async function load(): Promise<DB> {
     b = await readFile(dbPath);
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      const j: DB = {};
+      const j: DB = {requests: {}, drafts: {}};
       await save(j);
       return j;
     }
     throw err;
   }
   const raw = JSON.parse(b.toString()) as v1;
-  const j = Object.fromEntries((raw.request ?? []).map(r => [r.id, (() => {
+  const requests = Object.fromEntries((raw.request ?? []).map(r => [r.id, (() => {
     const kind: Pick<Request, "Data" | "Responses"> = (() => {
       switch (r.kind) {
       case t.Kind.HTTP:
@@ -225,52 +248,58 @@ export async function load(): Promise<DB> {
       ...kind,
     } as Request;
   })()]));
-  return j;
+  // Drop section entries whose record vanished (hand-edited files); the section is
+  // authoritative for draft-ness, a missing record is not a usable draft.
+  return {
+    requests,
+    drafts: Object.fromEntries((raw.drafts ?? []).filter(d => d.id in requests).map(d => [d.id, d.n])),
+  };
 }
 
 export async function save(j: DB): Promise<void> {
   const raw: v1 = {
     $version: 1,
-    request: Object.values(j).map(r => ({
+    request: Object.values(j.requests).map(r => ({
       id: r.ID,
       kind: r.Kind,
       path: r.Path,
     })),
-    http: Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.HTTP).map(([id, r]) => [id, {
+    http: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.HTTP).map(([id, r]) => [id, {
       request: r.Data,
       responses: r.Responses,
     } as KindEntry<t.HTTPRequest, t.HTTPResponse>])),
-    sql: Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.SQL).map(([id, r]) => [id, {
+    sql: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.SQL).map(([id, r]) => [id, {
       request: r.Data,
       responses: r.Responses,
     } as KindEntry<t.SQLRequest, t.SQLResponse>])),
-    jq: Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.JQ).map(([id, r]) => [id, {
+    jq: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.JQ).map(([id, r]) => [id, {
       request: r.Data,
       responses: r.Responses,
     } as KindEntry<t.JQRequest, t.JQResponse>])),
-    md: Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.MD).map(([id, r]) => [id, {
+    md: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.MD).map(([id, r]) => [id, {
       request: r.Data,
     } as KindEntry<t.MDRequest, t.MDResponse>])),
-    redis: Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.REDIS).map(([id, r]) => [id, {
+    redis: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.REDIS).map(([id, r]) => [id, {
       request: r.Data,
       responses: r.Responses,
     } as KindEntry<t.RedisRequest, t.RedisResponse>])),
-    grpc: Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.GRPC).map(([id, r]) => [id, {
+    grpc: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.GRPC).map(([id, r]) => [id, {
       request: r.Data,
       responses: r.Responses,
     } as KindEntry<t.GRPCRequest, t.GRPCResponse>])),
-    diff: Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.DIFF).map(([id, r]) => [id, {
+    diff: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.DIFF).map(([id, r]) => [id, {
       request: r.Data,
     } as KindEntry<t.DiffRequest, t.DiffResponse>])),
-    "http-source": Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.HTTPSource).map(([id, r]) => [id,
+    "http-source": Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.HTTPSource).map(([id, r]) => [id,
       r.Data as t.HTTPSourceRequest,
     ])),
-    "sql-source": Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.SQLSource).map(([id, r]) => [id,
+    "sql-source": Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.SQLSource).map(([id, r]) => [id,
       r.Data as t.SQLSourceRequest,
     ])),
-    mcp: Object.fromEntries(Object.entries(j).filter(([_id, r]) => r.Kind === t.Kind.MCP).map(([id, r]) => [id,
+    mcp: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.MCP).map(([id, r]) => [id,
       r.Data as t.MCPRequest,
     ])),
+    drafts: Object.entries(j.drafts).map(([id, n]) => ({id, n})),
   };
   await writeFile(dbPath, JSON.stringify(raw, null, 2));
 }
@@ -282,27 +311,46 @@ export async function create(
   data: Request["Data"],
 ): Promise<t.RequestID> {
   const id = generateID();
-  j[id] = {ID: id, Path: path, Kind: kind, Data: data, Responses: []} as Request;
+  j.requests[id] = {ID: id, Path: path, Kind: kind, Data: data, Responses: []} as Request;
+  await save(j);
+  return id;
+}
+
+// n is allocated by max-scan over live drafts, so it is reused once the
+// highest-numbered draft is deleted (accepted).
+export async function createDraft(
+  j: DB,
+  kind: t.Kind,
+  data: Request["Data"],
+): Promise<t.RequestID> {
+  const id = generateID();
+  const n = Object.values(j.drafts).reduce((max, n) => Math.max(max, n), 0) + 1;
+  j.requests[id] = {ID: id, Path: `draft ${n}`, Kind: kind, Data: data, Responses: []} as Request;
+  j.drafts[id] = n;
   await save(j);
   return id;
 }
 
 export async function Delete(j: DB, id: t.RequestID): Promise<void> {
-  if (!(id in j))
+  if (!(id in j.requests))
     throw new Error(`request ${id} not found`);
-  delete j[id];
+  delete j.requests[id];
+  delete j.drafts[id];
+  delete j.requests[id];
   await save(j);
 }
 
 export async function rename(j: DB, id: t.RequestID, newName: string): Promise<void> {
-  if (!(id in j))
+  if (!(id in j.requests))
     throw new Error(`request ${id} not found`);
-  const existing = Object.values(j).find(r => r.Path === newName && r.ID !== id);
+  const existing = Object.values(j.requests).find(r => r.Path === newName && r.ID !== id);
   if (existing !== undefined) {
     throw new Error(`request with name ${newName} already exists`);
   }
-  const req = j[id];
+  const req = j.requests[id];
   req.Path = newName;
+  // Renaming a draft saves it as a regular request, so drop its draft entry.
+  delete j.drafts[id];
   await save(j);
 }
 
@@ -311,10 +359,10 @@ export async function update(
   id: t.RequestID,
   data: Request["Data"],
 ): Promise<void> {
-  if (!(id in j))
+  if (!(id in j.requests))
     throw new Error(`request ${id} not found`);
 
-  j[id].Data = data;
+  j.requests[id].Data = data;
   await save(j);
 }
 
@@ -323,10 +371,10 @@ export async function createResponse(
   id: t.RequestID,
   response: HistoryEntry,
 ): Promise<void> {
-  if (!(id in j))
+  if (!(id in j.requests))
     throw new Error(`request ${id} not found`);
 
-  const req = j[id];
+  const req = j.requests[id];
   (req.Responses as HistoryEntry[]).push(response);
   await save(j);
 }
