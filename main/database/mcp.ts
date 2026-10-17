@@ -236,7 +236,6 @@ export async function callPrompt(req: MCPRequest, promptName: string, args: JSON
 }
 
 export async function complete(req: MCPRequest, params: MCPCompleteParams): Promise<MCPCompletion> {
-  console.log("[mcp] complete", req.transport, params.ref.name, params.argument.name);
   return await withClient(req, async (client) => {
     // A server without the capability would error; empty is the protocol's
     // "no suggestions"
