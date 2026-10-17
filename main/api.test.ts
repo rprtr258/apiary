@@ -46,7 +46,7 @@ describe("Duplicate", () => {
     expect(newID).not.toBe("orig");
 
     const db = await load();
-    const dup = db[newID];
+    const dup = db.requests[newID];
     expect(dup).toBeDefined();
     expect(dup.ID).toBe(newID);
     expect(dup.Path).toBe("itc-slon/prod (copy)");
@@ -59,7 +59,7 @@ describe("Duplicate", () => {
     await Duplicate("orig");
 
     const db = await load();
-    const orig = db["orig"];
+    const orig = db.requests["orig"];
     expect(orig).toBeDefined();
     expect(orig.Path).toBe("itc-slon/prod");
     expect(orig.Data).toEqual({dsn: "clickhouse://localhost:8123/itc_slon", database: "clickhouse", readOnly: false});
@@ -110,12 +110,12 @@ describe("resolveSQLRequest", () => {
   test("resolves a dsn holding a SQLSource id to the source's dsn", async () => {
     const j = await load();
     const data: t.SQLRequest = {dsn: "orig", database: "clickhouse", query: "SELECT 1"};
-    expect(resolveSQLRequest(j, data)).toEqual("clickhouse://localhost:8123/itc_slon");
+    expect(resolveSQLRequest(j.requests, data)).toEqual("clickhouse://localhost:8123/itc_slon");
   });
 
   test("uses a custom dsn as-is", async () => {
     const j = await load();
     const data: t.SQLRequest = {dsn: "postgres://localhost:5432/db", database: "postgres", query: "SELECT 1"};
-    expect(resolveSQLRequest(j, data)).toEqual(data.dsn);
+    expect(resolveSQLRequest(j.requests, data)).toEqual(data.dsn);
   });
 });
