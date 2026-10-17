@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {create, extractSubKind, generateID, load, save, Delete as remove, rename, update, Request, serialized} from "./db.ts";
+import {create, createDraft, extractSubKind, generateID, load, save, Delete as remove, rename, update, Request, serialized} from "./db.ts";
 import * as http from "./database/http.ts";
 import * as jq from "./database/jq.ts";
 import * as md from "./database/md.ts";
@@ -28,7 +28,7 @@ export async function List(): Promise<t.ListResponse> {
   }]));
 
   const tree: t.Tree = {IDs: [], Dirs: {}};
-  for (const [id, req] of Object.entries(j.requests)) {
+  for (const [id, req] of Object.entries(j.requests).filter(([id, _req]) => !(id in j.drafts))) {
     const parts = req.Path.split("/");
     const current = parts.slice(0, -1).filter(part => part !== "").reduce((current: t.Tree, part: string): t.Tree => {
       if (part in current.Dirs) {
@@ -45,6 +45,7 @@ export async function List(): Promise<t.ListResponse> {
   return {
     Tree: tree,
     Requests: previews,
+    Drafts: j.drafts,
   };
 }
 
@@ -79,6 +80,15 @@ export function Create(path: string, kind: t.Kind): Promise<t.RequestID> {
     const j = await load();
     const emptyData = emptyRequestForKind(kind);
     return await create(j, kind, path, emptyData);
+  });
+}
+
+export function CreateDraft(kind: t.Kind, data?: Request["Data"]): Promise<t.RequestID> {
+  return serialized(async () => {
+    if (!t.DraftableKinds.has(kind))
+      throw new Error(`kind ${kind} cannot be a draft: not a performable kind`);
+    const j = await load();
+    return await createDraft(j, kind, data ?? emptyRequestForKind(kind));
   });
 }
 

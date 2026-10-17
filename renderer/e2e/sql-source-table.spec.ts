@@ -1,21 +1,17 @@
-import {execFileSync} from "child_process";
 import {writeFile} from "fs/promises";
+import {DatabaseSync} from "node:sqlite";
 import path from "path";
 import {expect} from "@playwright/test";
 import {test as base, type Fixtures} from "./launch.ts";
 
 // SQLite fixture can't use better-sqlite3: node_modules was rebuilt for the
-// Electron ABI, so it only loads inside the app. bun:sqlite runs under bun.
+// Electron ABI, so it only loads inside the app. node:sqlite ships with the
+// node binary that runs Playwright.
 function createSqliteDatabase(file: string): void {
-  // TODO: WAT ZE FAK
-  const script = `
-import {Database} from "bun:sqlite";
-const db = new Database(${JSON.stringify(file)});
-db.exec("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
-db.exec("INSERT INTO users (name) VALUES ('alice'), ('bob')");
-db.close();
-`;
-  execFileSync("bun", ["-e", script], {stdio: "pipe"});
+  const db = new DatabaseSync(file);
+  db.exec("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+  db.exec("INSERT INTO users (name) VALUES ('alice'), ('bob')");
+  db.close();
 }
 
 // SQL source created before the test's app session: seedDB writes db.json while

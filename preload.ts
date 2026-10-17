@@ -14,6 +14,7 @@ const api: Api = {
   Get:       (a1: string                     ): Promise<t.GetResponse>           => ipcRenderer.invoke("Get",       a1    ),
   Create:    (a1: string, a2: t.Kind         ): Promise<t.RequestID>             => ipcRenderer.invoke("Create",    a1, a2),
   Duplicate: (a1: string                     ): Promise<t.RequestID>             => ipcRenderer.invoke("Duplicate", a1    ),
+  CreateDraft: (a1: t.Kind, a2?: Request["Data"]): Promise<t.RequestID>          => ipcRenderer.invoke("CreateDraft", a1, a2),
   Rename:    (a1: string, a2: string         ): Promise<void>                    => ipcRenderer.invoke("Rename",    a1, a2),
   Update:    (a1: string, a2: Request["Data"]): Promise<void>                    => ipcRenderer.invoke("Update",    a1, a2),
   Delete:    (a1: string                     ): Promise<void>                    => ipcRenderer.invoke("Delete",    a1    ),

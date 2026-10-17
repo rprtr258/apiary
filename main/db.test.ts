@@ -1,22 +1,22 @@
 import {describe, test, expect, mock, expectTypeOf, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {type DB, type Request, generateID, load, create, Delete, rename, update, serialized, setDBPath, flushSave} from "./db.ts";
+import {type DB, type Request, generateID, load, create, createDraft, Delete, rename, update, serialized, setDBPath, flushSave} from "./db.ts";
+import type v2 from "./db.v2.ts";
 
 // Controllable mock: by default readFile succeeds with "{}"
 // Set mockReadFileErr to throw ENOENT for a specific test
-// Set mockFileContent to the db.json body a test should see
-// Set mockMtimeMs to simulate an external rewrite of db.json
+// Set mockFileContent to serve a seeded db.json body
 let mockReadFileErr: Error | null = null;
-let mockFileContent = "{}";
+let mockFileContent: string | null = null;
 let mockMtimeMs = 1000;
-const writeFile = mock((_path: string, _data: string) => Promise.resolve());
+const writeFile = mock(() => Promise.resolve());
 // The mock lives at module scope, so call counts would otherwise accumulate
 // across tests in file order (visible under --randomize); reset both per test.
 // setDBPath also drops db.ts's in-memory state (cache + pending debounced
 // write), so every test's load() re-reads the freshly seeded content.
 beforeEach(() => {
   mockReadFileErr = null;
-  mockFileContent = "{}";
+  mockFileContent = null;
   mockMtimeMs = 1000;
   writeFile.mockClear();
   setDBPath("db.json");
@@ -26,7 +26,7 @@ mock.module("fs/promises", () => ({
     if (mockReadFileErr !== null) {
       return Promise.reject(mockReadFileErr);
     }
-    return Promise.resolve(mockFileContent);
+    return Promise.resolve(mockFileContent ?? `{}`);
   },
   writeFile,
   // Coherent with readFile: stat rejects exactly when readFile would
@@ -36,7 +36,7 @@ mock.module("fs/promises", () => ({
 }));
 
 function emptyDB(): DB {
-  return {requests: {}};
+  return {requests: {}, drafts: {}};
 }
 
 describe("generateID", () => {
@@ -188,7 +188,7 @@ describe("load", () => {
     writeFile.mockClear();
     try {
       const db = await load();
-      expect(db).toEqual({requests: {}});
+      expect(db).toEqual({requests: {}, drafts: {}});
       await flushSave();
       expect(writeFile).toHaveBeenCalled();
     } finally {
@@ -206,7 +206,8 @@ describe("debounced save", () => {
     await flushSave();
 
     expect(writeFile).toHaveBeenCalledTimes(1);
-    const written = JSON.parse(writeFile.mock.calls[0][1]) as {request: {id: string}[]};
+    const firstWrite = writeFile.mock.calls[0] as unknown as [string, string];
+    const written = JSON.parse(firstWrite[1]) as {request: {id: string}[]};
     expect(written.request.map(r => r.id).sort()).toEqual([id1, id2].sort());
   });
 
@@ -260,13 +261,7 @@ describe("debounced save", () => {
 });
 
 describe("migration", () => {
-  // load() persists the migration fire-and-forget through the serialized
-  // queue; chaining a no-op behind it waits until the persist is done.
-  async function drainPersist(): Promise<void> {
-    await serialized(async () => {});
-  }
-
-  test("migrates a v1 db.json to the in-memory schema, reviving dates", async () => {
+  test("migrates a v1 db.json to the in-memory schema", async () => {
     mockFileContent = JSON.stringify({
       $version: 1,
       request: [
@@ -280,7 +275,6 @@ describe("migration", () => {
     });
 
     const db = await load();
-    await drainPersist();
 
     expect(db.requests["h1"]).toEqual({
       ID: "h1",
@@ -296,20 +290,18 @@ describe("migration", () => {
     });
   });
 
-  test("persists the migrated db with the new version", async () => {
+  test("migrating a v1 db.json does not rewrite the file", async () => {
     mockFileContent = JSON.stringify({$version: 1, request: []});
 
     await load();
-    await drainPersist();
 
     expect(writeFile).toHaveBeenCalledTimes(0);
   });
 
   test("does not rewrite an up-to-date db.json", async () => {
-    mockFileContent = JSON.stringify({$version: 1, requests: {}});
+    mockFileContent = JSON.stringify({$version: 2, drafts: []});
 
     await load();
-    await drainPersist();
 
     expect(writeFile).not.toHaveBeenCalled();
   });
@@ -318,9 +310,8 @@ describe("migration", () => {
     mockFileContent = JSON.stringify({});
 
     const db = await load();
-    await drainPersist();
 
-    expect(db).toEqual({requests: {}});
+    expect(db).toEqual({requests: {}, drafts: {}});
     expect(writeFile).toHaveBeenCalledTimes(0);
   });
 
@@ -328,5 +319,61 @@ describe("migration", () => {
     mockFileContent = JSON.stringify({$version: 3, requests: {}});
 
     expect(load()).rejects.toThrow("newer");
+  });
+});
+
+describe("drafts", () => {
+  const seed = {
+    $version: 1,
+    request: [{id: "r1", kind: "http", path: "plain"}],
+    http: {r1: {request: {url: "http://x", method: "GET", body: "", headers: []}, responses: []}},
+  };
+
+  test("a v1 file without a drafts section loads with no drafts", async () => {
+    mockFileContent = JSON.stringify(seed);
+    const db = await load();
+    expect(db.drafts).toEqual({});
+  });
+
+  test("load seeds draft numbers from the drafts section", async () => {
+    mockFileContent = JSON.stringify({...seed, $version: 2, drafts: [{id: "r1", n: 4}]});
+    const db = await load();
+    expect(db.drafts).toEqual({r1: 4});
+  });
+
+  test("createDraft allocates increasing n and persists record + section", async () => {
+    const db = emptyDB();
+    const id1 = await createDraft(db, t.Kind.JQ, {query: ".", json: "{}"});
+    const id2 = await createDraft(db, t.Kind.JQ, {query: ".", json: "{}"});
+
+    expect(db.requests[id1].Path).toBe("draft 1");
+    expect(db.requests[id2].Path).toBe("draft 2");
+    expect(db.drafts).toEqual({[id1]: 1, [id2]: 2});
+    await flushSave();
+    const lastWrite = writeFile.mock.calls.at(-1) as unknown as [string, string];
+    const raw = JSON.parse(lastWrite[1]) as v2;
+    expect(raw.drafts).toEqual([{id: id1, n: 1}, {id: id2, n: 2}]);
+  });
+
+  test("Delete removes the section entry", async () => {
+    const db = emptyDB();
+    const id = await createDraft(db, t.Kind.JQ, {query: ".", json: "{}"});
+    await Delete(db, id);
+
+    expect(db.drafts).toEqual({});
+    expect(db.requests[id]).toBeUndefined();
+    await flushSave();
+    const lastWrite = writeFile.mock.calls.at(-1) as unknown as [string, string];
+    const raw = JSON.parse(lastWrite[1]) as v2;
+    expect(raw.drafts).toEqual([]);
+  });
+
+  test("rename demotes a draft to a regular request", async () => {
+    const db = emptyDB();
+    const id = await createDraft(db, t.Kind.JQ, {query: ".", json: "{}"});
+    await rename(db, id, "kept");
+
+    expect(db.drafts).toEqual({});
+    expect(db.requests[id].Path).toBe("kept");
   });
 });
