@@ -23,9 +23,18 @@ function genClass(): string {
   return `z${nextID}`;
 }
 
-export const css = Object.assign((s: string): string => {
+function camelToKebab(key: string): string {
+  return key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+}
+
+export const css = Object.assign((s: string | Partial<CSSStyleDeclaration>): string => {
+  const decl = typeof s === "string" ? s :
+    Object.entries(s)
+      .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+      .map(([k, v]) => `${camelToKebab(k)}: ${v}`)
+      .join("; ");
   const id = genClass();
-  append(`.${id} { ${s} }`);
+  append(`.${id} { ${decl} }`);
   return id;
 }, {
   raw(s: string): string {
