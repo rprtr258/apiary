@@ -110,10 +110,10 @@ test("draft performs, persists history, and Ctrl+W deletes the record", async ({
   await page.waitForSelector("text=200", {timeout: 10*1000});
 
   // The response is persisted on the draft record: real record, real history.
-  // The url enters the db with the draft record, so once it is on disk the
-  // drafts section must carry the single entry too.
-  await expect.poll(async () => JSON.stringify(await readDB(dir)), {timeout: 5*1000}).toContain(url);
-  expect((await readDB(dir)).drafts).toHaveLength(1);
+  // Persistence is debounced (SAVE_DEBOUNCE_MS in main/db.ts), so wait for the
+  // write to land instead of reading the file right after the UI updates.
+  await expect.poll(async () => (await readDB(dir)).drafts, {timeout: 5*1000}).toHaveLength(1);
+  expect(JSON.stringify(await readDB(dir))).toContain(url);
 
   await pressWith(page, ["Control"], "KeyW");
   await tab.waitFor({state: "detached"});
@@ -138,8 +138,8 @@ test("saving a draft via Ctrl+S renames it into a stored request", async ({page,
   await expect(savedTab).toBeVisible();
   await expect(page.getByText("HTTPsaved-from-draft")).toBeVisible();
 
-  await expect.poll(async () => (await readDB(dir)).drafts, {timeout: 5*1000}).toHaveLength(0);
-  expect((await readDB(dir)).request?.some(r => r.path === "saved-from-draft")).toBe(true);
+  await expect.poll(async () => (await readDB(dir)).request?.some(r => r.path === "saved-from-draft"), {timeout: 5*1000}).toBe(true);
+  expect((await readDB(dir)).drafts).toHaveLength(0);
 });
 
 test("draft survives app relaunch", async ({url, dir}) => {

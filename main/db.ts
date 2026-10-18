@@ -1,8 +1,9 @@
-import {readFile, stat, writeFile} from "fs/promises";
+import {readFile, rename as renameFile, stat, writeFile} from "fs/promises";
 import {nanoid} from "nanoid";
 import * as t from "@/types.ts";
 import v1, {KindEntry} from "./db.v1.ts";
 import v2, {migration_v1_v2} from "./db.v2.ts";
+import v3, {migration_v2_v3} from "./db.v3.ts";
 
 export function generateID(): t.RequestID {
   return nanoid();
@@ -49,6 +50,9 @@ export type DB = {
   // Draft membership (id -> cosmetic "draft N" number); serialized to the v1
   // "drafts" section.
   drafts: Record<t.RequestID, number>,
+  // Manual sidebar order per directory (see db.v3.ts); omitted dirs fall back
+  // to name-sorted children.
+  tree: Record<string, t.TreeChild[]>,
 };
 
 export function extractSubKind(
@@ -127,8 +131,8 @@ export function serialized<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-const LAST_VERSION = 2;
-type LAST_V = v2;
+const LAST_VERSION = 3;
+type LAST_V = v3;
 
 // Parse db.json and run pending migrations in memory; wasOldVersion reports
 // whether the file still needs persisting to reach the current version.
@@ -140,6 +144,7 @@ async function loadParsed(raw: Record<string, unknown>): Promise<LAST_V> {
   }
   let migrated: Record<string, unknown> = raw;
   if (version === 1) migrated = migration_v1_v2(migrated as unknown as v1);
+  if (version <= 2) migrated = migration_v2_v3(migrated as unknown as v2);
 
   return migrated as LAST_V;
 }
@@ -162,7 +167,7 @@ export async function load(): Promise<DB> {
     b = await readFile(dbPath);
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      cached = {requests: {}, drafts: {}};
+      cached = {requests: {}, drafts: {}, tree: {}};
       cachedMtimeMs = null;
       await save(cached);
       return cached;
@@ -231,10 +236,47 @@ export async function load(): Promise<DB> {
   const db: DB = {
     requests,
     drafts: Object.fromEntries((raw.drafts).filter(d => d.id in requests).map(d => [d.id, d.n])),
+    tree: pruneTree({requests, drafts: {}, tree: raw.tree}).tree,
   };
   cached = db;
   cachedMtimeMs = mtime;
   return db;
+}
+
+// Children of a directory as implied by request paths: request ids stored
+// directly under it, and immediate subdirectory names. A request whose path
+// equals a directory path is a sibling of that directory's children, not one
+// of them. Drafts live outside the tree and are skipped.
+export function childrenOf(j: DB, dir: string): {ids: Set<t.RequestID>, dirs: Set<string>} {
+  const prefix = dir === "" ? "" : dir + "/";
+  const ids = new Set<t.RequestID>();
+  const dirs = new Set<string>();
+  for (const req of Object.values(j.requests)) {
+    if (req.ID in j.drafts || !req.Path.startsWith(prefix))
+      continue;
+    const rest = req.Path.slice(prefix.length);
+    const slash = rest.indexOf("/");
+    if (slash === -1)
+      ids.add(req.ID);
+    else
+      dirs.add(rest.slice(0, slash));
+  }
+  return {ids, dirs};
+}
+
+// Drop tree-order entries whose request/dir no longer exists (renames,
+// deletes, hand-edited files) and sections that became empty; the overlay
+// never carries information of its own.
+function pruneTree(j: DB): DB {
+  for (const dir of Object.keys(j.tree)) {
+    const {ids, dirs} = childrenOf(j, dir);
+    const kept = j.tree[dir].filter(e => "r" in e ? ids.has(e.r) : dirs.has(e.d));
+    if (kept.length === 0)
+      delete j.tree[dir];
+    else
+      j.tree[dir] = kept;
+  }
+  return j;
 }
 
 // Marks the db dirty and ensures one debounced write is scheduled (later
@@ -266,8 +308,9 @@ async function saveNow(j: DB): Promise<void> {
   const mtime = await statMtimeMs(dbPath);
   if (j === cached && mtime !== null && mtime !== cachedMtimeMs)
     return;
-  const raw: v2 = {
-    $version: 2,
+  const raw: v3 = {
+    $version: 3,
+    tree: Object.fromEntries(Object.entries(j.tree).filter(([_dir, entries]) => entries.length > 0)),
     request: Object.values(j.requests).map(r => ({
       id: r.ID,
       kind: r.Kind,
@@ -305,7 +348,12 @@ async function saveNow(j: DB): Promise<void> {
       r.Data as t.MCPRequest,
     ])),
   };
-  await writeFile(dbPath, JSON.stringify(raw, null, 2));
+  // writeFile truncates its target at open, so a concurrent reader (e2e tests
+  // poll db.json while the app writes) can observe a torn file; write to a tmp
+  // sibling and rename over the target instead - rename is atomic, readers only
+  // ever see the old or the new complete content.
+  await writeFile(`${dbPath}.tmp`, JSON.stringify(raw, null, 2));
+  await renameFile(`${dbPath}.tmp`, dbPath);
   // Record the mtime our own write produced, so the next load() revalidates
   // against it instead of re-reading what we just wrote.
   cachedMtimeMs = (await statMtimeMs(dbPath)) ?? null;
@@ -320,7 +368,9 @@ export function flushSave(): Promise<void> | null {
   saveTimer = null;
   const j = pendingSave;
   pendingSave = null;
-  return saveNow(j);
+  // Queue behind an in-flight debounced write: concurrent saveNow calls would
+  // race on the tmp file the same way they used to tear db.json directly.
+  return serialized(() => saveNow(j));
 }
 
 export async function create(
@@ -355,6 +405,8 @@ export async function Delete(j: DB, id: t.RequestID): Promise<void> {
     throw new Error(`request ${id} not found`);
   delete j.requests[id];
   delete j.drafts[id];
+  // The deleted id may linger in manual-order sections otherwise
+  pruneTree(j);
   await save(j);
 }
 
@@ -369,6 +421,60 @@ export async function rename(j: DB, id: t.RequestID, newName: string): Promise<v
   req.Path = newName;
   // Renaming a draft saves it as a regular request, so drop its draft entry.
   delete j.drafts[id];
+  // A cross-directory rename invalidates the old parent's manual-order entry;
+  // the request shows up name-sorted in its new directory until reordered.
+  pruneTree(j);
+  await save(j);
+}
+
+const joinDir = (dir: string, name: string): string => dir === "" ? name : dir + "/" + name;
+
+// Sidebar drag-and-drop move in one transaction: renames the dragged request
+// (or every request under the dragged directory) into toDir, then persists
+// toDir's full manual child order as computed by the renderer. Children of
+// toDir not covered by order fall back to name-sorted positioning.
+export async function move(
+  j: DB,
+  drag: t.TreeChild,
+  toDir: string,
+  order: t.TreeChild[],
+): Promise<void> {
+  const renames: (readonly [t.RequestID, string])[] = [];
+  if ("r" in drag) {
+    if (!(drag.r in j.requests))
+      throw new Error(`request ${drag.r} not found`);
+    if (drag.r in j.drafts)
+      throw new Error(`draft ${drag.r} is not part of the sidebar tree`);
+    const req = j.requests[drag.r];
+    const newPath = joinDir(toDir, t.pathToName(req.Path));
+    if (newPath !== req.Path)
+      renames.push([drag.r, newPath]);
+  } else {
+    const oldDir = drag.d;
+    const oldChildren = childrenOf(j, oldDir);
+    if (oldChildren.ids.size === 0 && oldChildren.dirs.size === 0)
+      throw new Error(`directory ${oldDir} not found`);
+    if (toDir === oldDir || toDir.startsWith(oldDir + "/"))
+      throw new Error(`cannot move directory ${oldDir} into itself`);
+    const newDir = joinDir(toDir, t.pathToName(oldDir));
+    if (newDir !== oldDir) {
+      renames.push(...Object.values(j.requests).filter(req => req.Path.startsWith(oldDir + "/")).map(req => [req.ID, newDir + req.Path.slice(oldDir.length)] as const));
+    }
+  }
+
+  const np = renames.find(([_id, newPath]) => Object.values(j.requests).find(r => r.Path === newPath && r.ID !== _id) !== undefined);
+  if (np !== undefined)
+    throw new Error(`request with name ${np[1]} already exists`);
+
+  for (const [id, newPath] of renames)
+    j.requests[id].Path = newPath;
+
+  // order must cover only children toDir actually has after the renames above
+  const {ids, dirs} = childrenOf(j, toDir);
+  if (order.some(entry => "r" in entry ? !ids.has(entry.r) : !dirs.has(entry.d)))
+    throw new Error(`entry is not a child of directory ${toDir}`);
+  j.tree[toDir] = order;
+  pruneTree(j);
   await save(j);
 }
 

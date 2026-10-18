@@ -1,6 +1,6 @@
 import {describe, test, expect, mock, expectTypeOf, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {type DB, type Request, generateID, load, create, createDraft, Delete, rename, update, serialized, setDBPath, flushSave} from "./db.ts";
+import {type DB, type Request, generateID, load, create, createDraft, Delete, move, rename, update, serialized, save, setDBPath, flushSave} from "./db.ts";
 import type v2 from "./db.v2.ts";
 
 // Controllable mock: by default readFile succeeds with "{}"
@@ -29,6 +29,9 @@ mock.module("fs/promises", () => ({
     return Promise.resolve(mockFileContent ?? `{}`);
   },
   writeFile,
+  // saveNow writes to a tmp sibling and renames it over db.json; the mocked
+  // readFile serves the seeded content regardless of path, so a no-op suffices
+  rename: () => Promise.resolve(),
   // Coherent with readFile: stat rejects exactly when readFile would
   stat: () => mockReadFileErr !== null
     ? Promise.reject(mockReadFileErr)
@@ -36,7 +39,7 @@ mock.module("fs/promises", () => ({
 }));
 
 function emptyDB(): DB {
-  return {requests: {}, drafts: {}};
+  return {requests: {}, drafts: {}, tree: {}};
 }
 
 describe("generateID", () => {
@@ -188,7 +191,7 @@ describe("load", () => {
     writeFile.mockClear();
     try {
       const db = await load();
-      expect(db).toEqual({requests: {}, drafts: {}});
+      expect(db).toEqual({requests: {}, drafts: {}, tree: {}});
       await flushSave();
       expect(writeFile).toHaveBeenCalled();
     } finally {
@@ -311,12 +314,12 @@ describe("migration", () => {
 
     const db = await load();
 
-    expect(db).toEqual({requests: {}, drafts: {}});
+    expect(db).toEqual({requests: {}, drafts: {}, tree: {}});
     expect(writeFile).toHaveBeenCalledTimes(0);
   });
 
   test("refuses a db.json written by a newer apiary", async () => {
-    mockFileContent = JSON.stringify({$version: 3, requests: {}});
+    mockFileContent = JSON.stringify({$version: 4, requests: {}});
 
     expect(load()).rejects.toThrow("newer");
   });
@@ -375,5 +378,107 @@ describe("drafts", () => {
 
     expect(db.drafts).toEqual({});
     expect(db.requests[id].Path).toBe("kept");
+  });
+});
+
+describe("move", () => {
+  async function seeded(): Promise<{db: DB, a: t.RequestID, sub: t.RequestID, other: t.RequestID}> {
+    const db = emptyDB();
+    const a = await create(db, t.Kind.JQ, "a/x", {query: ".", json: "{}"});
+    const sub = await create(db, t.Kind.JQ, "a/sub/y", {query: ".", json: "{}"});
+    const other = await create(db, t.Kind.JQ, "other", {query: ".", json: "{}"});
+    return {db, a, sub, other};
+  }
+
+  test("moving a request renames its path and persists the target's order", async () => {
+    const {db, a} = await seeded();
+    await move(db, {r: a}, "b", [{r: a}]);
+
+    expect(db.requests[a].Path).toBe("b/x");
+    expect(db.tree["b"]).toEqual([{r: a}]);
+  });
+
+  test("moving a directory prefix-renames every request under it and rewrites section keys", async () => {
+    const {db, a, sub} = await seeded();
+    await move(db, {d: "a"}, "b", [{d: "a"}]);
+
+    expect(db.requests[a].Path).toBe("b/a/x");
+    expect(db.requests[sub].Path).toBe("b/a/sub/y");
+    // Descendant sections don't exist until something orders them; the move
+    // only writes the target's section
+    expect(Object.keys(db.tree)).toEqual(["b"]);
+    expect(db.tree["b"]).toEqual([{d: "a"}]);
+  });
+
+  test("reordering within one directory only rewrites the order, no renames", async () => {
+    const {db, a, sub} = await seeded();
+    const w = await create(db, t.Kind.JQ, "a/w", {query: ".", json: "{}"});
+    await move(db, {r: a}, "a", [{d: "sub"}, {r: w}, {r: a}]);
+
+    expect(db.requests[a].Path).toBe("a/x");
+    expect(db.requests[sub].Path).toBe("a/sub/y");
+    expect(db.tree["a"]).toEqual([{d: "sub"}, {r: w}, {r: a}]);
+  });
+
+  test("refuses to move a directory into itself or a descendant", async () => {
+    const {db} = await seeded();
+    expect(move(db, {d: "a"}, "a", [])).rejects.toThrow("into itself");
+    expect(move(db, {d: "a"}, "a/sub", [])).rejects.toThrow("into itself");
+  });
+
+  test("refuses a rename that collides with an existing request", async () => {
+    const {db, a} = await seeded();
+    await create(db, t.Kind.JQ, "b/x", {query: ".", json: "{}"});
+    expect(move(db, {r: a}, "b", [{r: a}])).rejects.toThrow("already exists");
+  });
+
+  test("rejects order entries that are not children of the target directory", async () => {
+    const {db, other} = await seeded();
+    expect(move(db, {r: other}, "a", [{r: other}, {d: "nope"}])).rejects.toThrow("not a child");
+  });
+
+  test("removes the dragged entry from the old parent's section", async () => {
+    const {db, a, other} = await seeded();
+    db.tree[""] = [{r: a}, {d: "a"}, {r: other}];
+    await move(db, {r: a}, "a", [{r: a}]);
+
+    expect(db.tree[""]).toEqual([{d: "a"}, {r: other}]);
+  });
+
+  test("refuses to move a draft", async () => {
+    const {db} = await seeded();
+    const draft = await createDraft(db, t.Kind.JQ, {query: ".", json: "{}"});
+    expect(move(db, {r: draft}, "a", [])).rejects.toThrow("draft");
+  });
+});
+
+describe("tree order pruning", () => {
+  test("load drops section entries whose request or dir vanished (hand-edited files)", async () => {
+    const db = emptyDB();
+    const id = await create(db, t.Kind.JQ, "x", {query: ".", json: "{}"});
+    await save({...db, tree: {"": [{r: id}, {r: "ghost"}, {d: "nope"}]}});
+    await flushSave();
+    const lastWrite = writeFile.mock.calls.at(-1) as unknown as [string, string];
+    mockFileContent = lastWrite[1];
+    const loaded = await load();
+    expect(loaded.tree[""]).toEqual([{r: id}]);
+  });
+
+  test("rename prunes the old parent's section on a cross-directory rename", async () => {
+    const db = emptyDB();
+    const id = await create(db, t.Kind.JQ, "a/x", {query: ".", json: "{}"});
+    db.tree["a"] = [{r: id}];
+    await rename(db, id, "x2");
+
+    expect(db.tree["a"]).toBeUndefined();
+  });
+
+  test("Delete prunes the section entry", async () => {
+    const db = emptyDB();
+    const id = await create(db, t.Kind.JQ, "x", {query: ".", json: "{}"});
+    db.tree[""] = [{r: id}];
+    await Delete(db, id);
+
+    expect(db.tree[""]).toBeUndefined();
   });
 });

@@ -51,6 +51,14 @@ export const api = {
     return await wrap(() => Api.Rename(id, newName), {reqId: id, newName});
   },
 
+  async move(
+    drag: t.TreeChild,
+    toDir: string,
+    order: t.TreeChild[],
+  ): Promise<Result<void>> {
+    return await wrap(() => Api.Move(drag, toDir, order), {drag, toDir, order});
+  },
+
   async requestPerform(
     id: t.RequestID,
   ): Promise<Result<t.HistoryEntry>> {

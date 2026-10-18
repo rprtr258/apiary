@@ -124,6 +124,7 @@ export type Store = {
   duplicate(id: t.RequestID): Promise<void>,
   deleteRequest(id: t.RequestID): Promise<void>,
   rename(id: t.RequestID, newName: string): Promise<void>,
+  move(drag: t.TreeChild, toDir: string, order: t.TreeChild[], renames: Record<t.RequestID, string>): Promise<void>,
   openViewer<S extends ViewerState>(titlePart: string, componentType: string, state: S): void,
   navigateToTab(direction: "next" | "prev"): void,
   selectTabByIndex(index: number): void,
@@ -146,7 +147,7 @@ export const store = ((): Store => {
     return findExistingTab<StateRequest>("MyComponent", t => t.id === activeID);
   }
   return {
-    requestsTree : signal({IDs: [], Dirs: {}}),
+    requestsTree : signal({entries: []}),
     requests : {},
     drafts: {},
     requests2: {},
@@ -271,6 +272,19 @@ export const store = ((): Store => {
 
       const component = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
       component?.tab.setTitle(newName);
+      await this.fetch();
+    },
+    async move(drag: t.TreeChild, toDir: string, order: t.TreeChild[], renames: Record<t.RequestID, string>): Promise<void> {
+      const res = await api.move(drag, toDir, order);
+      if (res.kind === "err") {
+        notification("error", "Could not move", {error: res.value});
+        return;
+      }
+
+      for (const [id, newPath] of Object.entries(renames)) {
+        const component = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
+        component?.tab.setTitle(newPath);
+      }
       await this.fetch();
     },
     openViewer<S extends ViewerState>(titlePart: string, componentType: string, state: S): void {

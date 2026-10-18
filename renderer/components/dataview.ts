@@ -108,11 +108,25 @@ const treeButtonClass = css(`
 const treeButtonHoverClass = css.raw(`:hover {
   background-color: #404040 !important;
 }`);
+const treeDropIntoClass = css.raw(` {
+  background-color: #404040 !important;
+  outline: 1px dashed #606060;
+  outline-offset: -1px;
+}`);
+const treeDropBeforeClass = css.raw(` {
+  box-shadow: inset 0 2px 0 0 #808080;
+}`);
+const treeDropAfterClass = css.raw(` {
+  box-shadow: inset 0 -2px 0 0 #808080;
+}`);
 
 export type TreeOption = {
   key: string,
   label: string,
   disabled?: boolean,
+  // Virtual items (source listings, placeholders) are neither draggable nor
+  // drop targets; real requests and dirs default to draggable
+  draggable?: boolean,
   tag?: ItemBadge, // baked at materialization; rendered by the sidebar tree
   loading?: boolean, // baked at materialization; drives the request-row pulse
   children?: TreeOption[],
@@ -132,10 +146,34 @@ type NTreeProps = {
   },
   render: (option: TreeOption, level: number, expanded: boolean) => DOMNode,
 };
+// Active sidebar drag and current drop indicator, module-level because store
+// fetches rebuild all row elements mid-drag (a per-instance stash would be
+// lost); only one tree drag can be in progress app-wide. The marker carries
+// the hovered row so the container's single drop handler can resolve the
+// drop destination without per-row drop handlers.
+let treeDrag: TreeOption | undefined = undefined;
+let dropMarker: {el: HTMLElement, pos: "before" | "inside" | "after", node: TreeOption} | undefined = undefined;
+
+function setDropMarker(el: HTMLElement, pos: "before" | "inside" | "after", node: TreeOption): void {
+  if (dropMarker !== undefined && dropMarker.el === el && dropMarker.pos === pos)
+    return;
+  clearDropMarker();
+  el.classList.add(pos === "before" ? treeDropBeforeClass : pos === "inside" ? treeDropIntoClass : treeDropAfterClass);
+  dropMarker = {el, pos, node};
+}
+
+function clearDropMarker(): void {
+  if (dropMarker === undefined)
+    return;
+  dropMarker.el.classList.remove(treeDropBeforeClass, treeDropIntoClass, treeDropAfterClass);
+  dropMarker = undefined;
+}
+
 export function NTree(props: NTreeProps) {
   function renderElem(v: TreeOption, level: number): HTMLElement[] {
     const isExpanded = props.defaultExpandedKeys.includes(v.key);
     const isDir = v.children !== undefined;
+    const draggable = v.draggable ?? true;
 
     const button = m("span", {
       class: `${treeButtonClass}`,
@@ -143,11 +181,48 @@ export function NTree(props: NTreeProps) {
         boxSizing: "border-box",
       },
       tabIndex: 0,
+      draggable,
       onkeydown: (e: KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           (e.target as HTMLElement).click();
         }
+      },
+      ondragstart: (e: DragEvent) => {
+        treeDrag = v;
+        // Chromium only starts a drag when data is set
+        e.dataTransfer?.setData("text/plain", v.key);
+        if (e.dataTransfer !== null)
+          e.dataTransfer.effectAllowed = "move";
+      },
+      ondragend: () => {
+        treeDrag = undefined;
+        clearDropMarker();
+      },
+      ondragover: (e: DragEvent) => {
+        if (treeDrag === undefined)
+          return;
+        if (!draggable) {
+          // Not a drop target: keep the container from treating this as a
+          // root-area drop, but allow no drop here either
+          e.stopPropagation();
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const inside = isDir && rect.height / 3 < y && y < 2 * rect.height / 3;
+        setDropMarker(e.currentTarget as HTMLElement, inside ? "inside" : y <= rect.height / 2 ? "before" : "after", v);
+      },
+      ondragleave: (e: DragEvent) => {
+        if (dropMarker?.el !== e.currentTarget)
+          return;
+        // Moving between the row's own children fires leave as well; only
+        // leaving the row entirely clears the marker
+        if (e.relatedTarget instanceof Node && (e.currentTarget as HTMLElement).contains(e.relatedTarget))
+          return;
+        clearDropMarker();
       },
       onclick: (e: Event) => {
         e.stopPropagation();
@@ -177,7 +252,35 @@ export function NTree(props: NTreeProps) {
     const children = isDir && isExpanded ? v.children!.flatMap(w => renderElem(w, level + 1)) : [];
     return [button, ...children];
   }
-  return m("div", {}, props.data.flatMap(v => renderElem(v, 0)));
+  // min-height keeps the empty space below the rows inside the root drop zone
+  // (dropping there moves the item to the tree root). The single drop handler:
+  // drops on rows bubble here, and the marker (set by row dragover) names the
+  // hovered row; with no marker the drop is the root area.
+  return m("div", {
+    style: {minHeight: "100%"},
+    ondragover: (e: DragEvent) => {
+      if (treeDrag === undefined)
+        return;
+      e.preventDefault();
+      // Empty space has no row target; also discards a stale marker left by a
+      // mid-drag rebuild before its row was replaced
+      clearDropMarker();
+    },
+    ondrop: (e: DragEvent) => {
+      const dragNode = treeDrag;
+      if (dragNode === undefined)
+        return;
+      e.preventDefault();
+      const marker = dropMarker;
+      treeDrag = undefined;
+      clearDropMarker();
+      props.on.drop({
+        node: marker?.node ?? {key: "", label: ""},
+        dragNode,
+        dropPosition: marker?.pos ?? "inside",
+      });
+    },
+  }, props.data.flatMap(v => renderElem(v, 0)));
 };
 
 export function StatusLabel() {
