@@ -90,7 +90,8 @@ The deletion test: these are pass-throughs but that's OK - they're UI adapters, 
 ### Frontend: Sidebar + Source Items
 
 - `renderer/Sidebar.ts` - sidebar shell
-- `renderer/sidebar/tree.ts` - tree rendering of request paths (persists expanded keys via `lib/localStorage.ts`); renders generic rows (root-item badge via the facade's `sourceBadge` + loading pulse for requests, baked tag/label for source items) and delegates all source data to the `renderer/plugins/source.ts` facade
+- `renderer/sidebar/tree.ts` - tree rendering of request paths (persists expanded keys via `lib/localStorage.ts`; dir keys are full paths); renders rows in the order `List` emitted (manual order plus name-sorted fallback - no client-side re-sort), wires drag-and-drop drops through `sidebar/drop.ts`, and delegates all source data to the `renderer/plugins/source.ts` facade
+- `renderer/sidebar/drop.ts` - pure drop→move resolution: drop geometry (node + before/inside/after) against the current tree becomes a `Move` payload (drag ref, target dir, full target order, renamed paths, dirs to expand); virtual items and no-op/invalid drops are rejected
 - `renderer/sidebar/contextMenu.ts`, `shared.ts` (pure view modules; menu entries come from the plugin registry, "Refresh" from the facade's `sourceRefreshable`/`sourceRefresh`)
 
 ### Frontend: Plugins (`renderer/plugins/`)
@@ -136,13 +137,17 @@ useLocalStorage<T>(key: string, init: T): {get value(), set value()}
 
 Used by the sidebar tree for persisting expanded keys and by the store.
 
+### Sidebar tree order and drag-and-drop
+
+Directories are implicit: they exist only as path prefixes of request records. The db.json v3 `tree` section (`Record<dirPath, TreeChild[]>`, `TreeChild = {r: id} | {d: name}`) overlays a manual child order per directory; children missing from it (new/renamed/moved-in records) render name-sorted after the listed ones, so CRUD needs no order bookkeeping — `rename`, `Delete` and `load` merely prune entries whose record or dir vanished. `List` builds the ordered nested `Tree` (`{entries: {kind: "dir", name, tree} | {kind: "req", id}[]}`). Drag-and-drop moves are one transactional `Move(drag, toDir, order)` IPC: the backend renames the dragged request's `Path` (or prefix-renames every path under a dragged dir, refusing self/descendant targets and collisions), validates `order` against the post-rename children and persists it; the renderer computes the payload with the pure `sidebar/drop.ts` resolver (dir keys in the sidebar are full paths, virtual source items are neither draggable nor drop targets, drop on empty sidebar space moves to root, and the drop target's dir chain is expanded so the moved item stays visible).
+
 ### Draft requests
 
 A draft is a real `db.json` record of a performable kind (`shared/types.ts` `DraftableKinds`) that is a member of the dedicated `drafts` section (`[{id, n}]` on disk; in memory `load()` returns a `DB` struct carrying it as `drafts: Record<RequestID, number>` next to `requests`). Drafts never appear in the sidebar tree or the Open palette; their open tab is the only referent, and its lifetime bounds the record's: closing a draft tab (close button or Ctrl+W) deletes the record via `Delete`, saving a draft is `Rename` to a real path (which also removes it from the drafts section), duplicating a draft creates a new draft. The record's `Path` holds the cosmetic tab title (`draft N`, `n` allocated by max-scan over live drafts), and `Responses` is ordinary persisted history. Backend surface: `CreateDraft(kind, data?)` (validates the kind, defaults via `emptyRequestForKind`). `List` returns live drafts as a separate `Drafts` map (id -> n); the renderer keeps it as `store.drafts` and detects drafts through `store.isDraft`, styles their tab titles pale gray, and keys tab liveness in the previews watcher (not the tree) so draft tabs survive tree refreshes. There is no dedicated sweep IPC: after tab restore the renderer sweeps orphaned drafts (live drafts whose tab did not restore) itself, deleting each through the regular `Delete` path.
 
 ### Electron IPC (`main.ts` + `preload.ts` + `global.d.ts`)
 
-- `main.ts`: one `ipcMain.handle()` per channel - entry CRUD (`List`, `Get`, `Create`, `Duplicate`, `Read`, `Rename`, `Update`, `Delete`), `Perform`, and namespaced channels (`GRPC.*`, `SQL.*`, `SQLSource.*`, `HTTPSource.*`, `MCP.*`)
+- `main.ts`: one `ipcMain.handle()` per channel - entry CRUD (`List`, `Get`, `Create`, `Duplicate`, `Read`, `Rename`, `Move`, `Update`, `Delete`), `Perform`, and namespaced channels (`GRPC.*`, `SQL.*`, `SQLSource.*`, `HTTPSource.*`, `MCP.*`)
 - `preload.ts`: `contextBridge.exposeInMainWorld("api", api)` mirrors every channel (plus `versions`)
 - `global.d.ts`: the `Api` interface - the single source of truth for the IPC surface
 

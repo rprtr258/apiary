@@ -22,7 +22,7 @@ const requestDelete = mock((id: string) => {
 
 mock.module("./api.ts", () => ({api: {
   collectionRequests: (): Promise<ReturnType<typeof ok<ListResponse>>> => Promise.resolve(ok({
-    Tree: {IDs: [], Dirs: {}},
+    Tree: {entries: []},
     Requests: previews,
     Drafts: drafts,
   })),
