@@ -7,64 +7,39 @@ export function generateID(): t.RequestID {
   return nanoid();
 }
 
-type historyEntry<_Req, Resp> = {
-  SentAt: Date,
-  ReceivedAt: Date,
-  // Request: Req, // TODO: use
-  Response: Resp,
-};
-
-export type HistoryEntry = // TODO: just Request["Responses"][number]
-  | historyEntry<t.HTTPRequest, t.HTTPResponse>
-  | historyEntry<t.SQLRequest, t.SQLResponse>
-  | historyEntry<t.JQRequest, t.JQResponse>
-  | historyEntry<t.RedisRequest, t.RedisResponse>
-  | historyEntry<t.GRPCRequest, t.GRPCResponse>
-;
-
 export type Request = {
   ID:        t.RequestID,
   Path:      string,
 } & (
   | {Kind: t.Kind.HTTP} & {
     Data: t.HTTPRequest,
-    Responses: historyEntry<t.HTTPRequest, t.HTTPResponse>[],
   }
   | {Kind: t.Kind.SQL} & {
     Data: t.SQLRequest,
-    Responses: historyEntry<t.SQLRequest, t.SQLResponse>[],
   }
   | {Kind: t.Kind.JQ} & {
     Data: t.JQRequest,
-    Responses: historyEntry<t.JQRequest, t.JQResponse>[],
   }
   | {Kind: t.Kind.MD} & {
     Data: t.MDRequest,
-    Responses: [],
   }
   | {Kind: t.Kind.REDIS} & {
     Data: t.RedisRequest,
-    Responses: historyEntry<t.RedisRequest, t.RedisResponse>[],
   }
   | {Kind: t.Kind.GRPC} & {
     Data: t.GRPCRequest,
-    Responses: historyEntry<t.GRPCRequest, t.GRPCResponse>[],
   }
   | {Kind: t.Kind.DIFF} & {
     Data: t.DiffRequest,
-    Responses: [],
   }
   | {Kind: t.Kind.SQLSource} & {
     Data: t.SQLSourceRequest,
-    Responses: [],
   }
   | {Kind: t.Kind.HTTPSource} & {
     Data: t.HTTPSourceRequest,
-    Responses: [],
   }
   | {Kind: t.Kind.MCP} & {
     Data: t.MCPRequest,
-    Responses: [],
   }
 );
 
@@ -187,80 +162,50 @@ export async function load(): Promise<DB> {
   }
   const raw = await loadParsed(JSON.parse(b.toString()) as Record<string, unknown>);
   const requests = Object.fromEntries((raw.request ?? []).map(r => [r.id, (() => {
-    const kind: Pick<Request, "Data" | "Responses"> = (() => {
+    const kind: Pick<Request, "Data"> = (() => {
       switch (r.kind) {
       case t.Kind.HTTP:
         const req = raw[r.kind][r.id];
         return {
           Data: req.request,
-          Responses: req.responses.map(resp => ({
-            SentAt: new Date(resp.SentAt),
-            ReceivedAt: new Date(resp.ReceivedAt),
-            Response: resp.Response,
-          })),
         };
       case t.Kind.SQL:
         return {
           Data: raw[r.kind][r.id].request,
-          Responses: raw[r.kind][r.id].responses.map(resp => ({
-            SentAt: new Date(resp.SentAt),
-            ReceivedAt: new Date(resp.ReceivedAt),
-            Response: resp.Response,
-          })),
         };
       case t.Kind.JQ:
         return {
           Data: raw[r.kind][r.id].request,
-          Responses: raw[r.kind][r.id].responses.map(resp => ({
-            SentAt: new Date(resp.SentAt),
-            ReceivedAt: new Date(resp.ReceivedAt),
-            Response: resp.Response,
-          })),
         };
       case t.Kind.MD:
         return {
           Data: raw[r.kind][r.id].request,
-          Responses: [],
         };
       case t.Kind.REDIS:
         return {
           Data: raw[r.kind][r.id].request,
-          Responses: raw[r.kind][r.id].responses.map(resp => ({
-            SentAt: new Date(resp.SentAt),
-            ReceivedAt: new Date(resp.ReceivedAt),
-            Response: resp.Response,
-          })),
         };
       case t.Kind.GRPC:
         return {
           Data: raw[r.kind][r.id].request,
-          Responses: raw[r.kind][r.id].responses.map(resp => ({
-            SentAt: new Date(resp.SentAt),
-            ReceivedAt: new Date(resp.ReceivedAt),
-            Response: resp.Response,
-          })),
         };
       case t.Kind.DIFF:
         return {
           Data: raw[r.kind][r.id].request,
-          Responses: [],
         };
       case t.Kind.SQLSource: {
         const src = raw[r.kind][r.id] as unknown as {database: t.Database, dsn: string, readOnly?: boolean};
         return {
           Data: {...src, readOnly: src.readOnly ?? false},
-          Responses: [],
         };
       }
       case t.Kind.HTTPSource:
         return {
           Data: raw[r.kind][r.id],
-          Responses: [],
         };
       case t.Kind.MCP:
         return {
           Data: raw[r.kind][r.id],
-          Responses: [],
         };
       }
     })();
@@ -315,30 +260,25 @@ async function saveNow(j: DB): Promise<void> {
     })),
     http: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.HTTP).map(([id, r]) => [id, {
       request: r.Data,
-      responses: r.Responses,
-    } as KindEntry<t.HTTPRequest, t.HTTPResponse>])),
+    } as KindEntry<t.HTTPRequest>])),
     sql: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.SQL).map(([id, r]) => [id, {
       request: r.Data,
-      responses: r.Responses,
-    } as KindEntry<t.SQLRequest, t.SQLResponse>])),
+    } as KindEntry<t.SQLRequest>])),
     jq: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.JQ).map(([id, r]) => [id, {
       request: r.Data,
-      responses: r.Responses,
-    } as KindEntry<t.JQRequest, t.JQResponse>])),
+    } as KindEntry<t.JQRequest>])),
     md: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.MD).map(([id, r]) => [id, {
       request: r.Data,
-    } as KindEntry<t.MDRequest, t.MDResponse>])),
+    } as KindEntry<t.MDRequest>])),
     redis: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.REDIS).map(([id, r]) => [id, {
       request: r.Data,
-      responses: r.Responses,
-    } as KindEntry<t.RedisRequest, t.RedisResponse>])),
+    } as KindEntry<t.RedisRequest>])),
     grpc: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.GRPC).map(([id, r]) => [id, {
       request: r.Data,
-      responses: r.Responses,
-    } as KindEntry<t.GRPCRequest, t.GRPCResponse>])),
+    } as KindEntry<t.GRPCRequest>])),
     diff: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.DIFF).map(([id, r]) => [id, {
       request: r.Data,
-    } as KindEntry<t.DiffRequest, t.DiffResponse>])),
+    } as KindEntry<t.DiffRequest>])),
     "http-source": Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.HTTPSource).map(([id, r]) => [id,
       r.Data as t.HTTPSourceRequest,
     ])),
@@ -374,7 +314,7 @@ export async function create(
   data: Request["Data"],
 ): Promise<t.RequestID> {
   const id = generateID();
-  j.requests[id] = {ID: id, Path: path, Kind: kind, Data: data, Responses: []} as Request;
+  j.requests[id] = {ID: id, Path: path, Kind: kind, Data: data} as Request;
   await save(j);
   return id;
 }
@@ -407,18 +347,5 @@ export async function update(
     throw new Error(`request ${id} not found`);
 
   j.requests[id].Data = data;
-  await save(j);
-}
-
-export async function createResponse(
-  j: DB,
-  id: t.RequestID,
-  response: HistoryEntry,
-): Promise<void> {
-  if (!(id in j.requests))
-    throw new Error(`request ${id} not found`);
-
-  const req = j.requests[id];
-  (req.Responses as HistoryEntry[]).push(response);
   await save(j);
 }

@@ -4,7 +4,7 @@ import {Kinds, Request} from "@/types.ts";
 import {clamp, m, setDisplay, signal} from "./lib/utils.ts";
 import notification from "./lib/notification.ts";
 import {
-  get_request, updateLocalstorage, update_request, send, last_history_entry,
+  get_request, updateLocalstorage, update_request, send,
   StateRequest, Store, store,
 } from "./store.ts";
 import layout from "./layout.ts";
@@ -284,9 +284,10 @@ const panelkaFactory = (
 
   let activeTab: Tab | undefined;
   // Send wrapper shared by the frame's Perform button, Ctrl+Enter and the
-  // command palette "Run" item: performs and renders the newest history entry.
-  const onSend = (): Promise<void> => send(id).then(_ => {
-    frame.push_history_entry?.(last_history_entry(store.requests2[id])!);
+  // command palette "Run" item: performs and renders the result.
+  const onSend = (): Promise<void> => send(id).then(he => {
+    if (he !== undefined)
+      frame.push_history_entry?.(he);
   });
   container.on("tab", (tab: Tab): void => {
     activeTab = tab;

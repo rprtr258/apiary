@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {get_request, last_history_entry} from "../../store.ts";
+import {get_request} from "../../store.ts";
 import {m, setDisplay, Signal} from "../../lib/utils.ts";
 import ParamsList from "../../components/ParamsList.ts";
 import {NInput, NButton, NInputGroup, NSelect} from "../../components/input.ts";
@@ -36,7 +36,7 @@ export default function(
 } {
   el.append(NEmpty({description: "Loading request..."}));
 
-  const el_response = NEmpty({description: "Send request or choose one from history."});
+  const el_response = NEmpty({description: "Send request to see the response."});
   const el_view_response_body = ViewJSON("");
   const tbody = m("tbody", {});
   const el_metadata_table = NTable({striped: true, size: "small", "single-column": true, "single-line": false}, [
@@ -147,8 +147,6 @@ export default function(
             value: service + "." + method,
           }))]));
       });
-
-      update_response(last_history_entry(r)?.response as t.GRPCResponse | undefined);
 
       const el_req_tabs = NTabs({
         class: "h100",

@@ -101,11 +101,7 @@ function findExistingTab<T>(
 
 export type get_request = {
   request: t.Request,
-  history: t.HistoryEntry[],
 };
-export function last_history_entry(request: get_request): t.HistoryEntry | undefined {
-  return request.history[request.history.length - 1];
-}
 
 export type Store = {
   requestsTree : Signal<t.Tree>,
@@ -320,14 +316,14 @@ export const store = ((): Store => {
   };
 })();
 
-export async function send(id: t.RequestID): Promise<void> {
+export async function send(id: t.RequestID): Promise<t.HistoryEntry | undefined> {
   const res = await api.requestPerform(id);
   if (res.kind === "err") {
     notification("error", "Could not perform request", {id, error: res.value});
-    return;
+    return undefined;
   }
 
-  store.requests2[id].history.push(res.value);
+  return res.value;
 }
 
 // Last state known to have landed on the backend, per request, with the persist seq that
@@ -397,12 +393,11 @@ export async function get_request(request_id: t.RequestID): Promise<get_request 
   }
 
   // Reshape raw IPC response into frontend types
-  // The IPC Get function returns types.ts shapes ({ID, Path, Data, Responses}),
+  // The IPC Get function returns types.ts shapes ({ID, Path, Data}),
   // but components expect the flattened types.ts Request ({id, path, kind, ...fields})
   const raw = res.value;
   const kind = store.requests[request_id].kind;
   const requestData = raw.Request.Data;
-  const responses = raw.History;
 
   const request = {
     id: raw.Request.ID,
@@ -411,15 +406,7 @@ export async function get_request(request_id: t.RequestID): Promise<get_request 
     ...(requestData as Omit<t.Request, "id" | "path" | "kind">),
   } as t.Request;
 
-  const history: t.HistoryEntry[] = responses.map(r => ({
-    sent_at: new Date(r.sent_at),
-    received_at: new Date(r.received_at),
-    kind,
-    request: requestData,
-    response: r.response,
-  } as t.HistoryEntry));
-
-  store.requests2[request_id] = {request, history};
+  store.requests2[request_id] = {request};
   return store.requests2[request_id];
 }
 

@@ -1,37 +1,13 @@
 import * as t from "@/types.ts";
-import {NEmpty, NIcon, NList, NListItem} from "./components/dataview.ts";
+import {NIcon} from "./components/dataview.ts";
 import {DoubleLeftOutlined, DoubleRightOutlined} from "./components/icons.ts";
 import {NSelect} from "./components/input.ts";
 import {NTabs} from "./components/layout.ts";
-import {store} from "./store.ts";
 import {m, setDisplay} from "./lib/utils.ts";
 import {createTreeView} from "./sidebar/tree.ts";
 import {newRequestKind, sidebarHidden} from "./sidebar/shared.ts";
 
 export {globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./sidebar/shared.ts";
-
-function fromNow(date: Date): string {
-  const now = new Date();
-
-  const milliseconds = now.getTime() - date.getTime();
-  const seconds = Math.floor(milliseconds / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours   = Math.floor(minutes / 60);
-  const days    = Math.floor(hours   / 24);
-  const weeks   = Math.floor(days    /  7);
-  const months  = Math.floor(weeks   /  4);
-  const years   = Math.floor(months  / 12);
-
-  switch (true) {
-    case years   > 0: return years   === 1 ? "a year ago"   : `${years} years ago`;
-    case months  > 0: return months  === 1 ? "a month ago"  : `${months} months ago`;
-    case weeks   > 0: return weeks   === 1 ? "a week ago"   : `${weeks} weeks ago`;
-    case days    > 0: return days    === 1 ? "yesterday"    : `${days} days ago`;
-    case hours   > 0: return hours   === 1 ? "an hour ago"  : `${hours} hours ago`;
-    case minutes > 0: return minutes === 1 ? "a minute ago" : `${minutes} minutes ago`;
-    default:          return "just now";
-  }
-}
 
 export const sidebar = function() {
   const collapseButtonClosed = [NIcon({component: DoubleRightOutlined})];
@@ -67,9 +43,6 @@ export const sidebar = function() {
     options: t.Kinds.map((kind: t.Kind) => ({label: kind.toUpperCase(), value: kind})),
   });
 
-  // TODO: whole history in reverse order
-  const history = [] as t.HistoryEntry[];
-
   const el = m("aside", {style: {
     color: "rgba(255, 255, 255, 0.82)",
     backgroundColor: "rgb(24, 24, 28)",
@@ -92,26 +65,6 @@ export const sidebar = function() {
             new_select.el,
             tree.el,
           ],
-        },
-        {
-          name: "History",
-          style: {flexGrow: "1"},
-          elem: (() => {
-            if (store.requestID() === null)
-              return NEmpty({description: "Not implemented"});
-            if (history.length === 0)
-              return NEmpty({description: "No history yet"});
-            return [
-              NList(history.map(r =>
-                NListItem({
-                  class: ["history-card", "card"].join(" "),
-                  // on: {click: () => selectRequest(r.request.id)},
-                }, [
-                  m("span", {style: {color: "grey"}, class: "date"}, fromNow(r.sent_at)),
-                ]),
-              )),
-            ];
-          })(),
         },
       ],
     }),

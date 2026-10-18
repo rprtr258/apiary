@@ -4,7 +4,7 @@ import {NEmpty} from "../../components/dataview.ts";
 import {NSplit} from "../../components/layout.ts";
 import ViewJSON from "../../components/ViewJSON.ts";
 import EditorJSON from "../../components/EditorJSON.ts";
-import {get_request, last_history_entry} from "../../store.ts";
+import {get_request} from "../../store.ts";
 import {m, Signal, setDisplay, signal} from "../../lib/utils.ts";
 
 type Request = {kind: t.Kind.REDIS} & t.RedisRequest;
@@ -22,7 +22,7 @@ export default function(
   unmount(): void,
 } {
   el.append(NEmpty({description: "Loading request..."}));
-  const el_empty_response = NEmpty({description: "Send request or choose one from history."});
+  const el_empty_response = NEmpty({description: "Send request to see the response."});
 
   const el_send = NButton({
     primary: true,
@@ -75,7 +75,6 @@ export default function(
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
-      response.value = last_history_entry(r)?.response as t.RedisResponse | undefined;
       dsnInput.value = request.dsn;
 
       const el_editor_json = EditorJSON({

@@ -41,7 +41,7 @@ function responseBadge(response: t.HTTPResponse): HTMLElement {
 }
 
 export type HTTPRequestViewResult = {
-  loaded(r: {request: Request, history: HistoryEntry[]}): void,
+  loaded(r: {request: Request}): void,
   push_history_entry(he: HistoryEntry): void,
   unmount(): void,
 };
@@ -94,7 +94,7 @@ export default function HTTPRequestView(
     });
   };
 
-  const el_response = NEmpty({description: "Send request or choose one from history."});
+  const el_response = NEmpty({description: "Send request to see the response."});
   const el_view_response_body = ViewJSON("");
   const tbody = m("tbody", {});
   const el_headers_table = NTable({
@@ -161,14 +161,9 @@ export default function HTTPRequestView(
   };
 
   return {
-    loaded(r: {request: Request, history: HistoryEntry[]}) {
+    loaded(r: {request: Request}) {
       const request = r.request;
       currentRequest = request;
-
-      if (r.history.length > 0) {
-        const lastHistory = r.history[r.history.length - 1];
-        update_response(lastHistory.response as t.HTTPResponse);
-      }
 
       const el_input_group = NInputGroup({style: {
         display: "grid",

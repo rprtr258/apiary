@@ -4,7 +4,7 @@ import {NEmpty} from "../../components/dataview.ts";
 import ViewJSON from "../../components/ViewJSON.ts";
 import EditorJSON from "../../components/EditorJSON.ts";
 import {NSplit} from "../../components/layout.ts";
-import {get_request, last_history_entry} from "../../store.ts";
+import {get_request} from "../../store.ts";
 import {m, setDisplay, Signal} from "../../lib/utils.ts";
 
 type Request = {kind: t.Kind.JQ} & t.JQRequest;
@@ -42,7 +42,7 @@ export default function(
     });
   }
 
-  const el_response = NEmpty({description: "Send request or choose one from history."});
+  const el_response = NEmpty({description: "Send request to see the response."});
   const el_view_response_body = ViewJSON("");
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
   function update_response(response: t.JQResponse | undefined): void {
@@ -66,7 +66,6 @@ export default function(
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
-      update_response(last_history_entry(r)?.response as t.JQResponse | undefined);
       el_query_input.value = request.query;
 
       const el_editor_json = EditorJSON({

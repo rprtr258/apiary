@@ -1,7 +1,7 @@
 import * as t from "@/types.ts";
 import {m, setDisplay, Signal} from "../../lib/utils.ts";
 import {api} from "../../api.ts";
-import {get_request, last_history_entry, store} from "../../store.ts";
+import {get_request, store} from "../../store.ts";
 import {NEmpty} from "../../components/dataview.ts";
 import {NButton, NInputGroup, NSelect, NSelectInput} from "../../components/input.ts";
 import {NScrollbar, NSplit, NTabs} from "../../components/layout.ts";
@@ -35,7 +35,7 @@ export default function(
   el.append(NEmpty({description: "Loading request..."}));
   const dataTable = DataTable();
   const el_scrollable = NScrollbar(dataTable.el);
-  const el_response = NEmpty({description: "Run query or choose one from history."});
+  const el_response = NEmpty({description: "Run query to see the results."});
   const push_response = (response: t.SQLResponse | undefined) => {
     if (response === undefined)
       return;
@@ -47,8 +47,8 @@ export default function(
   const unmounts: (() => void)[] = [];
 
   // Plan tab: the plan is fetched for the current request when the tab is
-  // opened, kept while the query/dsn/database stay unchanged, and never stored
-  // in history. The plan renders as plain text for every database.
+  // opened, kept while the query/dsn/database stay unchanged. The plan renders
+  // as plain text for every database.
   let current: get_request | null = null;
   let plan_shown = false;
   let plan_key: string | null = null;
@@ -96,7 +96,6 @@ export default function(
 
   return {
     loaded: (r: get_request): void => {
-      push_response(last_history_entry(r)?.response as t.SQLResponse | undefined);
       current = r;
       plan_key = null;
       plan_state = {kind: "idle"};

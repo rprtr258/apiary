@@ -23,7 +23,7 @@ const base: Request = {
 describe("update_request rollback target", () => {
   beforeEach(() => {
     resolvePersist = [];
-    store.requests2 = {r1: {request: {...base}, history: []}};
+    store.requests2 = {r1: {request: {...base}}};
   });
 
   test("late success of an older persist becomes the rollback target of a newer failure", async () => {

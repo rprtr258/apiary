@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {create, createResponse, extractSubKind, generateID, load, save, Delete as remove, rename, update, Request, HistoryEntry, serialized} from "./db.ts";
+import {create, extractSubKind, generateID, load, save, Delete as remove, rename, update, Request, serialized} from "./db.ts";
 import * as http from "./database/http.ts";
 import * as jq from "./database/jq.ts";
 import * as md from "./database/md.ts";
@@ -50,20 +50,12 @@ export async function List(): Promise<t.ListResponse> {
 
 export async function Get(id: t.RequestID): Promise<t.GetResponse> {
   const entry = await get(id);
-  const history = entry.Responses
-    .map(h => ({
-      sent_at: h.SentAt,
-      received_at: h.ReceivedAt,
-      response: h.Response,
-    }))
-    .toSorted((a, b) => a.sent_at.getTime() - b.sent_at.getTime());
   return {
     Request: {
       ID: id,
       Path: entry.Path,
       Data: entry.Data,
     },
-    History: history as unknown as t.Response[], // TODO: remove type casts
   };
 }
 
@@ -104,7 +96,7 @@ export function Duplicate(id: t.RequestID): Promise<t.RequestID> {
 
     const newID = generateID();
     const data = structuredClone(entry.Data);
-    j.requests[newID] = {ID: newID, Path: newPath, Kind: entry.Kind, Data: data, Responses: []} as Request;
+    j.requests[newID] = {ID: newID, Path: newPath, Kind: entry.Kind, Data: data} as Request;
     await save(j);
     return newID;
   });
@@ -148,9 +140,9 @@ export function resolveSQLRequest(j: Record<t.RequestID, Request>, data: t.SQLRe
   return source.Data.dsn;
 }
 
-// The send runs inside the queue so the response persist cannot interleave
-// with another mutation (which would resurrect a deleted request or drop a
-// concurrent response): the whole perform is one serialized mutation.
+// The send runs inside the queue so it cannot interleave with another
+// mutation (e.g. the request being deleted mid-perform): the whole perform
+// is one serialized read.
 export function Perform(id: t.RequestID): Promise<PerformResponse> {
   return serialized(async () => {
     const j = await load();
@@ -188,7 +180,6 @@ export function Perform(id: t.RequestID): Promise<PerformResponse> {
     }
     const received_at = new Date();
 
-    await createResponse(j, id, {SentAt: sent_at, ReceivedAt: received_at, Response: response as HistoryEntry["Response"]} as HistoryEntry);
     return {
       RequestId:   id,
       sent_at:     sent_at.toISOString(),
