@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {create, createDraft, extractSubKind, generateID, load, save, Delete as remove, rename, update, Request, serialized} from "./db.ts";
+import {childrenOf, create, createDraft, extractSubKind, generateID, load, move as dbMove, save, Delete as remove, rename, update, Request, serialized} from "./db.ts";
 import * as http from "./database/http.ts";
 import * as jq from "./database/jq.ts";
 import * as md from "./database/md.ts";
@@ -27,23 +27,28 @@ export async function List(): Promise<t.ListResponse> {
     subKind: extractSubKind(j, id),
   }]));
 
-  const tree: t.Tree = {IDs: [], Dirs: {}};
-  for (const [id, req] of Object.entries(j.requests).filter(([id, _req]) => !(id in j.drafts))) {
-    const parts = req.Path.split("/");
-    const current = parts.slice(0, -1).filter(part => part !== "").reduce((current: t.Tree, part: string): t.Tree => {
-      if (part in current.Dirs) {
-        return current.Dirs[part];
-      } else {
-        const child: t.Tree = {IDs: [], Dirs: {}};
-        current.Dirs[part] = child;
-        return child;
-      }
-    }, tree);
-    current.IDs.push(id);
-  }
+  // Children in the directory's persisted manual order first, unlisted ones
+  // name-sorted after them (dirs and requests interleaved by name, matching
+  // the old label sorting). Dirs are implied by request paths; the tree order
+  // (db "tree" section) only overlays positions.
+  const childName = (e: t.TreeChild): string => "r" in e ? t.pathToName(j.requests[e.r].Path) : e.d;
+  const build = (dir: string): t.Tree => {
+    const {ids, dirs} = childrenOf(j, dir);
+    const listedKeys = new Set((j.tree[dir] ?? []).map(e => "r" in e ? `r:${e.r}` : `d:${e.d}`));
+    const unlisted: t.TreeChild[] = [
+      ...[...ids].filter(id => !listedKeys.has(`r:${id}`)).map(id => ({r: id} as const)),
+      ...[...dirs].filter(d => !listedKeys.has(`d:${d}`)).map(d => ({d} as const)),
+    ].sort((a, b) => childName(a).localeCompare(childName(b)));
+    return {
+      entries: [...(j.tree[dir] ?? []), ...unlisted].map((e): t.TreeEntry =>
+        "r" in e
+          ? {kind: "req", id: e.r}
+          : {kind: "dir", name: e.d, tree: build(dir === "" ? e.d : dir + "/" + e.d)}),
+    };
+  };
 
   return {
-    Tree: tree,
+    Tree: build(""),
     Requests: previews,
     Drafts: j.drafts,
   };
@@ -123,6 +128,13 @@ export function Rename(id: t.RequestID, newName: string): Promise<void> {
   return serialized(async () => {
     const j = await load();
     await rename(j, id, newName);
+  });
+}
+
+export function Move(drag: t.TreeChild, toDir: string, order: t.TreeChild[]): Promise<void> {
+  return serialized(async () => {
+    const j = await load();
+    await dbMove(j, drag, toDir, order);
   });
 }
 

@@ -1,6 +1,6 @@
 import {describe, test, expect, mock, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {CreateDraft, Delete, Duplicate, HTTPSource, List, Rename, resolveSQLRequest} from "./api.ts";
+import {Create, CreateDraft, Delete, Duplicate, HTTPSource, List, Move, Rename, resolveSQLRequest} from "./api.ts";
 import {load, setDBPath, flushSave} from "./db.ts";
 import type v2 from "./db.v2.ts";
 
@@ -14,6 +14,14 @@ mock.module("fs/promises", () => ({
       : Promise.reject(Object.assign(new Error("ENOENT"), {code: "ENOENT"})),
   writeFile: (path: string, data: Buffer) => {
     files[path] = data;
+    return Promise.resolve();
+  },
+  // saveNow round-trips through a tmp sibling; emulate the atomic swap
+  rename: (from: string, to: string) => {
+    if (!(from in files))
+      return Promise.reject(Object.assign(new Error("ENOENT"), {code: "ENOENT"}));
+    files[to] = files[from];
+    delete files[from];
     return Promise.resolve();
   },
   stat: () => Promise.resolve({mtimeMs: 1000}),
@@ -227,8 +235,91 @@ describe("List with drafts", () => {
 
     expect(res.Drafts).toEqual({[draftID]: 1});
     expect(res.Requests[draftID].path).toBe("draft 1");
-    expect(res.Tree.IDs).not.toContain(draftID);
-    expect(res.Tree.Dirs["itc-slon"].IDs).toContain("orig");
+    expect(res.Tree.entries.some(e => e.kind === "req" && e.id === draftID)).toBe(false);
+    expect(res.Tree.entries.some(e => e.kind === "dir" && e.name === "itc-slon" &&
+      e.tree.entries.some(c => c.kind === "req" && c.id === "orig"))).toBe(true);
     expect(res.Drafts["orig"]).toBeUndefined();
+  });
+});
+
+describe("List tree ordering", () => {
+  beforeEach(() => {
+    files["db.json"] = Buffer.from(JSON.stringify({
+      ...db_seed,
+      $version: 3,
+      request: [
+        {id: "b", kind: "md", path: "zeta"},
+        {id: "a", kind: "md", path: "alpha"},
+        {id: "c", kind: "md", path: "grp/nested"},
+        {id: "d", kind: "md", path: "grp/other"},
+      ],
+      md: {
+        b: {request: {content: ""}},
+        a: {request: {content: ""}},
+        c: {request: {content: ""}},
+        d: {request: {content: ""}},
+      },
+      drafts: [],
+      tree: {"grp": [{r: "d"}, {r: "c"}]},
+    }));
+  });
+
+  test("manual order is preserved and unlisted children name-sorted after it", async () => {
+    const res = await List();
+
+    const rootIds = res.Tree.entries.map(e => e.kind === "req" ? e.id : `dir:${e.name}`);
+    // Nothing listed at root: "grp" dir, "alpha" (id a) and "zeta" (id b)
+    // name-sorted
+    expect(rootIds).toEqual(["a", "dir:grp", "b"]);
+
+    const grp = res.Tree.entries[1];
+    if (grp.kind !== "dir") throw new Error("expected dir entry");
+    // d listed before a: manual order wins over name sorting
+    expect(grp.tree.entries).toEqual([
+      {kind: "req", id: "d"},
+      {kind: "req", id: "c"},
+    ]);
+  });
+});
+
+describe("Move", () => {
+  beforeEach(() => {
+    files["db.json"] = Buffer.from(JSON.stringify({
+      ...db_seed,
+      request: [
+        {id: "x", kind: "md", path: "a/x"},
+        {id: "y", kind: "md", path: "a/y"},
+      ],
+      md: {
+        x: {request: {content: ""}},
+        y: {request: {content: ""}},
+      },
+      drafts: [],
+    }));
+  });
+
+  test("moves a request into another dir and reorders it after an existing child", async () => {
+    await Move({r: "x"}, "a", [{r: "y"}, {r: "x"}]);
+
+    const res = await List();
+    const a = res.Tree.entries[0];
+    if (a.kind !== "dir") throw new Error("expected dir entry");
+    expect(a.tree.entries).toEqual([{kind: "req", id: "y"}, {kind: "req", id: "x"}]);
+    const db = await load();
+    expect(db.requests["x"].Path).toBe("a/x");
+  });
+
+  test("moves a directory by prefix and returns the renamed tree", async () => {
+    const z = await Create("b/z", t.Kind.MD);
+    await Move({d: "a"}, "b", [{d: "a"}, {r: z}]);
+
+    const db = await load();
+    expect(db.requests["x"].Path).toBe("b/a/x");
+    expect(db.requests["y"].Path).toBe("b/a/y");
+  });
+
+  test("errors surface when the target name already exists", async () => {
+    await Create("b/x", t.Kind.MD);
+    expect(Move({r: "x"}, "b", [{r: "x"}])).rejects.toThrow("already exists");
   });
 });

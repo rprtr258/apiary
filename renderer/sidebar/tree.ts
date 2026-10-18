@@ -6,16 +6,9 @@ import {DOMNode, m, signal} from "../lib/utils.ts";
 import {useLocalStorage} from "../lib/localStorage.ts";
 import {css} from "../lib/styles.ts";
 import {changed} from "../plugins/cache.ts";
-import {byLabel, parseVirtualKey, sourceBadge, sourceChildren, sourceIsLoading, sourceResolve} from "../plugins/source.ts";
+import {parseVirtualKey, sourceBadge, sourceChildren, sourceIsLoading, sourceResolve} from "../plugins/source.ts";
+import {dropToMove} from "./drop.ts";
 import {showContextMenu} from "./contextMenu.ts";
-
-function basename(id: string): string {
-  return id.split("/").pop() ?? "";
-}
-
-function dirname(id: string): string {
-  return id.split("/").slice(0, -1).join("/");
-}
 
 const expandedKeys = useLocalStorage<string[]>("expanded-keys", []);
 const expandedKeysSignal = signal(expandedKeys.value);
@@ -26,23 +19,26 @@ expandedKeysSignal.sub(function*() {
   }
 }());
 
-function drag({node, dragNode, dropPosition}: {
+function drag(drop: {
   node: TreeOption,
   dragNode: TreeOption,
   dropPosition: "before" | "inside" | "after",
-}): void  {
-  const dir = (d: string): string => d === "" ? "" : d + "/";
-  const oldID = dragNode.key;
-  const into = node.key;
-  switch (dropPosition) {
-    case "before":
-    case "after":
-      store.rename(oldID, dir(dirname(into)) + basename(oldID));
-      break;
-    case "inside":
-      store.rename(oldID, dir(into) + basename(oldID));
-      break;
+}): void {
+  // Virtual rows are neither draggable nor drop targets (enforced by NTree);
+  // this keeps the contract explicit at the boundary
+  if (parseVirtualKey(drop.dragNode.key).isSome() || parseVirtualKey(drop.node.key).isSome())
+    return;
+  const move = dropToMove(store.requests, store.requestsTree.value, drop);
+  if (move === undefined)
+    return;
+  // Reveal the moved item's new location before the fetch-driven rebuild
+  if (move.expand.length !== 0) {
+    const keys = new Set(expandedKeysSignal.value);
+    for (const dir of move.expand)
+      keys.add(dir);
+    expandedKeysSignal.value = [...keys];
   }
+  store.move(move.drag, move.toDir, move.order, move.renames);
 }
 
 const pulseClass = css.raw(` {
@@ -57,7 +53,9 @@ const pulseClass = css.raw(` {
 }`);
 
 export function createTreeView(): {el: HTMLElement} {
-  const treeContainer = m("div", {style: {minHeight: "0"}});
+  // flexGrow fills the pane with the (NTree-owned) root drop zone even when
+  // the tree is short; minHeight 0 keeps the scrollbar shrinking in flex
+  const treeContainer = m("div", {style: {minHeight: "0", flexGrow: "1"}});
   const scrollContainer = NScrollbar();
   treeContainer.replaceChildren(scrollContainer);
 
@@ -66,27 +64,32 @@ export function createTreeView(): {el: HTMLElement} {
     const expandedSet = new Set(expandedKeysSignal.value);
 
     const data = (() => {
-      const mapper = (tree: t.Tree): TreeOption[] => [
-        ...Object.entries(tree.Dirs).map(([k, v]): TreeOption => ({
-          key: k,
-          label: basename(k),
-          children: mapper(v),
-        })),
-        ...tree.IDs.map(id => {
-            // Children of source requests materialize lazily along expanded
-            // paths (their listing thunks fetch when stale); kinds without
-            // source items keep children unset
-            const children = sourceChildren(id, expandedSet);
+      // Children render in the order List() emitted (manual order plus
+      // name-sorted fallback); dir keys are full paths, so same-named dirs in
+      // different parents keep distinct expanded keys
+      const mapper = (tree: t.Tree, prefix: string): TreeOption[] => tree.entries.map((entry): TreeOption => {
+        if (entry.kind === "dir") {
+          const key = prefix === "" ? entry.name : prefix + "/" + entry.name;
+          return {
+            key,
+            label: entry.name,
+            children: mapper(entry.tree, key),
+          };
+        }
+        // Children of source requests materialize lazily along expanded
+        // paths (their listing thunks fetch when stale); kinds without
+        // source items keep children unset
+        const id = entry.id;
+        const children = sourceChildren(id, expandedSet);
 
-            return {
-              key: id,
-              label: t.pathToName(store.requests[id].path),
-              ...(children !== undefined ? {children} : {}),
-              loading: sourceIsLoading(id),
-            };
-        }),
-      ].sort(byLabel);
-      return mapper(requestsTree);
+        return {
+          key: id,
+          label: t.pathToName(store.requests[id].path),
+          ...(children !== undefined ? {children} : {}),
+          loading: sourceIsLoading(id),
+        };
+      });
+      return mapper(requestsTree, "");
     })();
 
     scrollContainer.replaceChildren(NTree({
