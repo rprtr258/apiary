@@ -27,21 +27,20 @@ const mockRequest: get_request = {
     dsn: "test-dsn",
     query: "SELECT * FROM test",
   },
-  history: [
-    {
-      sent_at: new Date(),
-      received_at: new Date(),
-      kind: t.Kind.SQL,
-      request: {dsn: "", database: "postgres", query: ""},
-      response: {
-        columns: ["id", "name"],
-        typenames: [t.ColumnType.NUMBER, t.ColumnType.STRING],
-        types: [t.ColumnType.NUMBER, t.ColumnType.STRING],
-        rows: [[1, "test"], [2, "test2"]],
-      },
-    },
-  ],
 };
+
+const sqlResponse = (rows: unknown[][]): t.HistoryEntry => ({
+  sent_at: new Date(),
+  received_at: new Date(),
+  kind: t.Kind.SQL,
+  request: {dsn: "", database: "postgres", query: ""},
+  response: {
+    columns: ["id", "name"],
+    typenames: [t.ColumnType.NUMBER, t.ColumnType.STRING],
+    types: [t.ColumnType.NUMBER, t.ColumnType.STRING],
+    rows,
+  },
+} as unknown as t.HistoryEntry);
 
 describe("RequestSQL", () => {
   test("reuses table element on response updates", () => {
@@ -57,21 +56,12 @@ describe("RequestSQL", () => {
 
     expect(el.children.length).toBeGreaterThan(0);
 
+    component.push_history_entry(sqlResponse([[1, "test"], [2, "test2"]]));
+
     const initialDataContainer = el.querySelector("[data-testid=\"data-container\"]");
     expect(initialDataContainer).not.toBeNull();
 
-    component.push_history_entry({
-      sent_at: new Date(),
-      received_at: new Date(),
-      kind: t.Kind.SQL,
-      request: {dsn: "", database: "postgres", query: ""},
-      response: {
-        columns: ["id", "name"],
-        typenames: [t.ColumnType.NUMBER, t.ColumnType.STRING],
-        types: [t.ColumnType.NUMBER, t.ColumnType.STRING],
-        rows: [[3, "new-test"], [4, "new-test2"]],
-      },
-    });
+    component.push_history_entry(sqlResponse([[3, "new-test"], [4, "new-test2"]]));
 
     const updatedDataContainer = el.querySelector("[style*=\"display: grid\"]");
     expect(updatedDataContainer).not.toBeNull();
@@ -90,18 +80,7 @@ describe("RequestSQL", () => {
 
     expect(el.children.length).toBeGreaterThan(0);
 
-    component.push_history_entry({
-      sent_at: new Date(),
-      received_at: new Date(),
-      kind: t.Kind.SQL,
-      request: {dsn: "", database: "postgres", query: ""},
-      response: {
-        columns: [],
-        typenames: [],
-        types: [],
-        rows: [],
-      },
-    });
+    component.push_history_entry(sqlResponse([]));
 
     expect(el.children.length).toBeGreaterThan(0);
     expect(on.update).toHaveBeenCalledTimes(0);

@@ -12,7 +12,6 @@ const mockRequest: get_request = {
     left: "Hello\nWorld",
     right: "Hello\nWorld\n!",
   },
-  history: [],
 };
 
 describe("RequestDIFF", () => {
@@ -66,7 +65,6 @@ describe("RequestDIFF", () => {
         left: "",
         right: "",
       },
-      history: [],
     };
 
     const component = RequestDIFF(el, show_request, on);
@@ -93,7 +91,6 @@ describe("RequestDIFF", () => {
         left: "{\"name\": \"John\", \"age\": 30}",
         right: "{\"name\": \"Jane\", \"age\": 30}",
       },
-      history: [],
     };
 
     const component = RequestDIFF(el, show_request, on);

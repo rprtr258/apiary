@@ -57,7 +57,6 @@ export default function EndpointViewer(
 
     httpRequestView.loaded({
       request: exampleRequest,
-      history: [], // virtual endpoints don't persist history
     });
   }).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
@@ -65,7 +64,7 @@ export default function EndpointViewer(
   });
 
   return {
-    loaded(r: {request: t.HTTPRequest, history: t.HistoryEntry[]}) {
+    loaded(r: {request: t.HTTPRequest}) {
       httpRequestView?.loaded(r);
     },
     push_history_entry(he: t.HistoryEntry) {

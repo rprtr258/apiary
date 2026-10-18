@@ -275,7 +275,7 @@ const notifications: unknown[][] = [];
 
 // Hoisted by bun to run before the TableView import below.
 const apiMock = {
-  get: async () => ok({Request: {ID: "s1", Path: "", Data: {database: "postgres", dsn: "", readOnly: state.readOnly}}, History: []}),
+  get: async () => ok({Request: {ID: "s1", Path: "", Data: {database: "postgres", dsn: "", readOnly: state.readOnly}}}),
   requestPerformSQLSource: async (...args: unknown[]) => {
     performCalls.push(args);
     if (state.performError !== undefined)

@@ -4,13 +4,6 @@ import {Request} from "../main/db.ts";
 
 const Api = window.api;
 
-// TODO: remove, just use new Date
-function parseTime(s: string): Date {
-  const d = new Date();
-  d.setTime(Date.parse(s));
-  return d;
-};
-
 async function wrap<T>(f: () => Promise<T>, args: unknown): Promise<Result<T>> {
   const res = await try_(f);
   if (res.kind === "ok") {
@@ -27,16 +20,7 @@ export const api = {
   },
 
   async get(id: t.RequestID): Promise<Result<t.GetResponse>> {
-    const y = await wrap(async () => Api.Get(id), {id});
-    // TODO: it seems that is not needed, remove if so
-    return y.map((y: t.GetResponse) => {
-      // NOTE: BEWARE, DIRTY TYPESCRIPT HACKS HERE
-      const history = y.History as unknown as t.HistoryEntry[];
-      for (const req of history) {
-        req.sent_at = parseTime(req.sent_at as unknown as string);
-      }
-      return y;
-    });
+    return await wrap(() => Api.Get(id), {id});
   },
 
   async requestCreate(

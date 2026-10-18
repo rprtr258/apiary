@@ -10,8 +10,6 @@ import {MCPRequest} from "./types/mcp.ts"; export * from "./types/mcp.ts";
 
 export type JSONValue = string | number | boolean | null | JSONValue[] | {[key: string]: JSONValue};
 
-type Time = string; // Go type: time
-
 export type RequestID = string;
 
 export enum Kind {
@@ -45,12 +43,6 @@ export type Tree = {
 export type ListResponse = {
   Tree: Tree,
   Requests: Record<string, requestPreview>,
-};
-
-export type Response = {
-  sent_at: Time,
-  received_at: Time,
-  response: unknown,
 };
 
 export type Request = {
@@ -102,5 +94,4 @@ export type HistoryEntry = {
 
 export type GetResponse = {
   Request: Request2,
-  History: Response[],
 };

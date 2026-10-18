@@ -26,7 +26,7 @@ export type FrameArgs = {
 // eye and only take update.
 export type Frame = {
   loaded(r: get_request): void,
-  push_history_entry?(he: t.HistoryEntry): void, // show last history entry
+  push_history_entry?(he: t.HistoryEntry): void, // show the performed response
   unmount(): void,
 };
 

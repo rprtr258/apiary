@@ -1,6 +1,6 @@
 import {describe, test, expect, mock, expectTypeOf, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {type DB, type Request, generateID, load, create, Delete, rename, update, createResponse, HistoryEntry, serialized, setDBPath, flushSave} from "./db.ts";
+import {type DB, type Request, generateID, load, create, Delete, rename, update, serialized, setDBPath, flushSave} from "./db.ts";
 
 // Controllable mock: by default readFile succeeds with "{}"
 // Set mockReadFileErr to throw ENOENT for a specific test
@@ -73,7 +73,6 @@ describe("create", () => {
         body: "",
         headers: [],
       },
-      Responses: [],
     }});
     await flushSave();
     expect(writeFile).toHaveBeenCalledTimes(1);
@@ -96,7 +95,6 @@ describe("create", () => {
         database: "postgres",
         dsn: "postgres://localhost:5432/test",
       },
-      Responses: [],
     }});
   });
 
@@ -125,12 +123,10 @@ describe("remove", () => {
   test("removes response entries from the index", async () => {
     const db = emptyDB();
     const id = await create(db, t.Kind.JQ, "test", {query: ".", json: "{}"});
-    (db.requests[id] as Request & {Kind: t.Kind.JQ}).Responses.push({SentAt: new Date(), ReceivedAt: new Date(), Response: {response: ["{}"]}});
-    expect(db.requests[id].Responses).toHaveLength(1);
-
     await Delete(db, id);
     expect(db.requests).not.toContainKey(id);
   });
+
 
   test("throws when removing non-existent request", () => {
     const db = emptyDB();
@@ -174,26 +170,6 @@ describe("update", () => {
   test("throws when updating non-existent request", () => {
     const db = emptyDB();
     expect(update(db, "nonexistent", {} as Request["Data"])).rejects.toThrow("nonexistent");
-  });
-});
-
-describe("createResponse", () => {
-  test("appends response to request history", async () => {
-    const db = emptyDB();
-    const id = await create(db, t.Kind.HTTP, "test", {url: "http://x", method: "GET", body: "", headers: []});
-
-    const httpResp = {code: 200, body: "OK", headers: [{key: "x-foo", value: "bar"}]};
-    await createResponse(db, id, {SentAt: new Date(), ReceivedAt: new Date(), Response: httpResp});
-    expect(db.requests[id].Kind).toBe(t.Kind.HTTP);
-    expect(db.requests[id].Responses).toHaveLength(1);
-    expect(db.requests[id].Responses[0].Response).toEqual(httpResp);
-    expect(db.requests[id].Responses[0].SentAt).toBeTruthy();
-    expect(db.requests[id].Responses[0].ReceivedAt).toBeTruthy();
-  });
-
-  test("throws when creating response for non-existent request", () => {
-    const db = emptyDB();
-    expect(createResponse(db, "nonexistent", {} as HistoryEntry)).rejects.toThrow("nonexistent");
   });
 });
 
@@ -256,7 +232,7 @@ describe("debounced save", () => {
     mockMtimeMs += 1;
     mockFileContent = JSON.stringify({
       request: [{id: "ext", kind: "http", path: "ext/req"}],
-      http: {ext: {request: {url: "http://ext", method: "GET", body: "", headers: []}, responses: []}},
+      http: {ext: {request: {url: "http://ext", method: "GET", body: "", headers: []}}},
     });
     const second = await load();
     expect(second).not.toBe(first);
@@ -271,7 +247,7 @@ describe("debounced save", () => {
     mockMtimeMs += 1;
     mockFileContent = JSON.stringify({
       request: [{id: "ext", kind: "http", path: "ext/req"}],
-      http: {ext: {request: {url: "http://ext", method: "GET", body: "", headers: []}, responses: []}},
+      http: {ext: {request: {url: "http://ext", method: "GET", body: "", headers: []}}},
     });
     const fresh = await load();
     expect(fresh.requests["stale"]).toBeUndefined();
@@ -299,7 +275,6 @@ describe("migration", () => {
       ],
       http: {h1: {
         request: {url: "https://example.com", method: "GET", body: "", headers: []},
-        responses: [{SentAt: "2026-01-01T00:00:00.000Z", ReceivedAt: "2026-01-01T00:00:01.000Z", Response: {code: 200, body: "ok", headers: []}}],
       }},
       "sql-source": {src1: {database: "sqlite", dsn: "file:/tmp/x.db", readOnly: true}},
     });
@@ -312,14 +287,12 @@ describe("migration", () => {
       Path: "api/get",
       Kind: t.Kind.HTTP,
       Data: {url: "https://example.com", method: "GET", body: "", headers: []},
-      Responses: [{SentAt: new Date("2026-01-01T00:00:00.000Z"), ReceivedAt: new Date("2026-01-01T00:00:01.000Z"), Response: {code: 200, body: "ok", headers: []}}],
     });
     expect(db.requests["src1"]).toEqual({
       ID: "src1",
       Path: "mydb",
       Kind: t.Kind.SQLSource,
       Data: {database: "sqlite", dsn: "file:/tmp/x.db", readOnly: true},
-      Responses: [],
     });
   });
 

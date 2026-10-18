@@ -46,7 +46,6 @@ export default function(
 
       httpRequestView.loaded({
         request,
-        history: r.history,
       });
     },
     push_history_entry(he: t.HistoryEntry) {
