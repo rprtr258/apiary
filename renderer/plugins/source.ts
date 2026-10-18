@@ -78,6 +78,7 @@ function placeholderOption(id: t.RequestID, kind: string, path: string[], item: 
     key: ["virtual", isLoading ? "loading" : "empty", id, kind, ...path.map(escapeSegment)].join(":"),
     label: isLoading ? "Loading..." : "(None)",
     disabled: true,
+    draggable: false,
   };
 }
 
@@ -86,6 +87,8 @@ function materializeNode(id: t.RequestID, kind: string, path: string[], item: It
   const option: TreeOption = {
     key,
     label: item.label,
+    // Virtual items have no backing db record to rename
+    draggable: false,
     ...(item.badge !== undefined ? {tag: item.badge} : {}),
   };
   if (item.children === undefined)
