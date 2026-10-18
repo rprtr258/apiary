@@ -1,4 +1,4 @@
-import {readFile, writeFile} from "fs/promises";
+import {readFile, stat, writeFile} from "fs/promises";
 import {nanoid} from "nanoid";
 import * as t from "@/types.ts";
 import v1, {KindEntry} from "./db.v1.ts";
@@ -96,15 +96,48 @@ export function extractSubKind(
 // points it at the per-user app data dir via setDBPath.
 let dbPath = "db.json";
 
+// Persistence is debounced: save() marks the state dirty and schedules a
+// single write (SAVE_DEBOUNCE_MS after the first unsaved mutation), so bursts
+// of queued mutations coalesce into one disk write. `cached` is the source of
+// truth between writes - re-reading the lagging file would hand the next
+// queued mutation stale contents and silently drop the pending ones.
+// db.json can also be rewritten behind the app's back (e2e reseeding between
+// tests reuses one app process; hand edits): the cache revalidates against the
+// file mtime on every load(), and the file always wins - a cache miss drops
+// also any not-yet-persisted in-memory mutations instead of clobbering the
+// external state.
+const SAVE_DEBOUNCE_MS = 300;
+let cached: DB | null = null;
+let cachedMtimeMs = -1;
+let pendingSave: DB | null = null;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function statMtimeMs(p: string): Promise<number | null> {
+  try {
+    return (await stat(p)).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
 export function setDBPath(p: string): void {
   dbPath = p;
+  // Switching files invalidates in-memory state and any write scheduled for
+  // the old one (production calls this once at startup, before any load).
+  cached = null;
+  cachedMtimeMs = -1;
+  pendingSave = null;
+  if (saveTimer !== null) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
 }
 
 // db.ts persists by whole-file load-modify-save: two concurrent operations
 // interleave at their await boundaries and the last save() silently overwrites
 // the other's changes (lost records, duplicated draft numbers). Mutating
 // operations therefore run one-at-a-time behind this queue; read-only access
-// works on the snapshot of the last save and stays unqueued.
+// reads the in-memory state and stays unqueued.
 let dbQueue: Promise<void> = Promise.resolve();
 export function serialized<T>(fn: () => Promise<T>): Promise<T> {
   const run = dbQueue.then(fn);
@@ -129,14 +162,26 @@ async function loadParsed(raw: Record<string, unknown>): Promise<LAST_V> {
 }
 
 export async function load(): Promise<DB> {
+  const mtime = await statMtimeMs(dbPath);
+  if (cached !== null && mtime === cachedMtimeMs)
+    return cached;
+  // The file moved since our last write (e2e reseeding between tests, hand
+  // edits): external state wins - drop the cache and any scheduled write of
+  // stale in-memory state so it cannot land on top of the new file.
+  cached = null;
+  pendingSave = null;
+  if (saveTimer !== null) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
   let b: Buffer;
   try {
     b = await readFile(dbPath);
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      const j: DB = {requests: {}};
-      await save(j);
-      return j;
+      cached = {requests: {}};
+      await save(cached);
+      return cached;
     }
     throw err;
   }
@@ -227,12 +272,40 @@ export async function load(): Promise<DB> {
       ...kind,
     } as Request;
   })()]));
-  return {
-    requests,
-  };
+  cached = {requests};
+  cachedMtimeMs = mtime ?? -1;
+  return cached;
 }
 
+// Marks the db dirty and ensures one debounced write is scheduled (later
+// saves within the window are covered by it, and the write serializes the
+// state as of fire time). Resolves before the disk write happens - call
+// flushSave() when durability is needed now (quit, tests).
 export async function save(j: DB): Promise<void> {
+  pendingSave = j;
+  if (saveTimer !== null)
+    return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    const toWrite = pendingSave;
+    pendingSave = null;
+    if (toWrite !== null) {
+      // Route the write through the mutation queue so a slow disk write can
+      // never overlap the next scheduled one and tear db.json.
+      void serialized(() => saveNow(toWrite)).catch((err: unknown) => {
+        console.error("failed to persist db.json:", err);
+      });
+    }
+  }, SAVE_DEBOUNCE_MS);
+}
+
+async function saveNow(j: DB): Promise<void> {
+  // Belt-and-braces for the load() rule above: if the managed state's file
+  // was rewritten externally between the last load() and this write, decline
+  // instead of clobbering it (the next load() picks the external state up).
+  const mtime = await statMtimeMs(dbPath);
+  if (j === cached && mtime !== null && mtime !== cachedMtimeMs)
+    return;
   const raw: v1 = {
     $version: 1,
     request: Object.values(j.requests).map(r => ({
@@ -277,6 +350,21 @@ export async function save(j: DB): Promise<void> {
     ])),
   };
   await writeFile(dbPath, JSON.stringify(raw, null, 2));
+  // Record the mtime our own write produced, so the next load() revalidates
+  // against it instead of re-reading what we just wrote.
+  cachedMtimeMs = (await statMtimeMs(dbPath)) ?? -1;
+}
+
+// Persists any pending debounced state immediately; returns null when nothing
+// was pending. Used on quit (main.ts) and by tests to force the write.
+export function flushSave(): Promise<void> | null {
+  if (saveTimer === null || pendingSave === null)
+    return null;
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  const j = pendingSave;
+  pendingSave = null;
+  return saveNow(j);
 }
 
 export async function create(

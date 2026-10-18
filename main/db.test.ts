@@ -1,19 +1,25 @@
 import {describe, test, expect, mock, expectTypeOf, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {type DB, type Request, generateID, load, create, Delete, rename, update, createResponse, HistoryEntry, serialized} from "./db.ts";
+import {type DB, type Request, generateID, load, create, Delete, rename, update, createResponse, HistoryEntry, serialized, setDBPath, flushSave} from "./db.ts";
 
 // Controllable mock: by default readFile succeeds with "{}"
 // Set mockReadFileErr to throw ENOENT for a specific test
 // Set mockFileContent to the db.json body a test should see
+// Set mockMtimeMs to simulate an external rewrite of db.json
 let mockReadFileErr: Error | null = null;
 let mockFileContent = "{}";
-const writeFile = mock(() => Promise.resolve());
+let mockMtimeMs = 1000;
+const writeFile = mock((_path: string, _data: string) => Promise.resolve());
 // The mock lives at module scope, so call counts would otherwise accumulate
 // across tests in file order (visible under --randomize); reset both per test.
+// setDBPath also drops db.ts's in-memory state (cache + pending debounced
+// write), so every test's load() re-reads the freshly seeded content.
 beforeEach(() => {
   mockReadFileErr = null;
   mockFileContent = "{}";
+  mockMtimeMs = 1000;
   writeFile.mockClear();
+  setDBPath("db.json");
 });
 mock.module("fs/promises", () => ({
   readFile: () => {
@@ -23,6 +29,10 @@ mock.module("fs/promises", () => ({
     return Promise.resolve(mockFileContent);
   },
   writeFile,
+  // Coherent with readFile: stat rejects exactly when readFile would
+  stat: () => mockReadFileErr !== null
+    ? Promise.reject(mockReadFileErr)
+    : Promise.resolve({mtimeMs: mockMtimeMs}),
 }));
 
 function emptyDB(): DB {
@@ -65,6 +75,7 @@ describe("create", () => {
       },
       Responses: [],
     }});
+    await flushSave();
     expect(writeFile).toHaveBeenCalledTimes(1);
   });
 
@@ -202,11 +213,73 @@ describe("load", () => {
     try {
       const db = await load();
       expect(db).toEqual({requests: {}});
+      await flushSave();
       expect(writeFile).toHaveBeenCalled();
     } finally {
       mockReadFileErr = null;
       writeFile.mockClear();
     }
+  });
+});
+
+describe("debounced save", () => {
+  test("coalesces near-time mutations into one write", async () => {
+    const db = emptyDB();
+    const id1 = await create(db, t.Kind.HTTP, "a", {url: "http://a", method: "GET", body: "", headers: []});
+    const id2 = await create(db, t.Kind.HTTP, "b", {url: "http://b", method: "GET", body: "", headers: []});
+    await flushSave();
+
+    expect(writeFile).toHaveBeenCalledTimes(1);
+    const written = JSON.parse(writeFile.mock.calls[0][1]) as {request: {id: string}[]};
+    expect(written.request.map(r => r.id).sort()).toEqual([id1, id2].sort());
+  });
+
+  test("load() reuses in-memory state while a write is pending", async () => {
+    const db = await load();
+    const id = await create(db, t.Kind.HTTP, "pending", {url: "http://x", method: "GET", body: "", headers: []});
+    expect(writeFile).not.toHaveBeenCalled();
+
+    const again = await load();
+    expect(again.requests[id]).toBeDefined();
+  });
+
+  test("load() cache-hits while the file is unchanged", async () => {
+    const first = await load();
+    const second = await load();
+    expect(second).toBe(first);
+  });
+
+  test("load() re-reads db.json after an external rewrite", async () => {
+    const first = await load();
+    expect(Object.keys(first.requests)).toEqual([]);
+
+    mockMtimeMs += 1;
+    mockFileContent = JSON.stringify({
+      request: [{id: "ext", kind: "http", path: "ext/req"}],
+      http: {ext: {request: {url: "http://ext", method: "GET", body: "", headers: []}, responses: []}},
+    });
+    const second = await load();
+    expect(second).not.toBe(first);
+    expect(second.requests["ext"].Path).toBe("ext/req");
+  });
+
+  test("external rewrite wins over pending unsaved state", async () => {
+    const db = await load();
+    await create(db, t.Kind.HTTP, "stale", {url: "http://s", method: "GET", body: "", headers: []});
+    expect(writeFile).not.toHaveBeenCalled();
+
+    mockMtimeMs += 1;
+    mockFileContent = JSON.stringify({
+      request: [{id: "ext", kind: "http", path: "ext/req"}],
+      http: {ext: {request: {url: "http://ext", method: "GET", body: "", headers: []}, responses: []}},
+    });
+    const fresh = await load();
+    expect(fresh.requests["stale"]).toBeUndefined();
+    expect(fresh.requests["ext"].Path).toBe("ext/req");
+
+    // The stale write was dropped with the cache, it must never land
+    await flushSave();
+    expect(writeFile).not.toHaveBeenCalled();
   });
 });
 

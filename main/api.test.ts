@@ -1,7 +1,7 @@
 import {describe, test, expect, mock, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
 import {Duplicate, HTTPSource, resolveSQLRequest} from "./api.ts";
-import {load} from "./db.ts";
+import {load, setDBPath} from "./db.ts";
 
 // In-memory filesystem so load()/save() round-trip without touching disk.
 // Bun runs each test file in its own module graph, so this mock is isolated from db.test.ts.
@@ -15,7 +15,14 @@ mock.module("fs/promises", () => ({
     files[path] = data;
     return Promise.resolve();
   },
+  stat: () => Promise.resolve({mtimeMs: 1000}),
 }));
+
+// db.ts keeps loaded state in memory between debounced writes; reset it so
+// each test's re-seeded db.json is actually re-read.
+beforeEach(() => {
+  setDBPath("db.json");
+});
 
 const db_seed = {
   $version: 1,
