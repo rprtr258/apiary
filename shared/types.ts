@@ -35,9 +35,20 @@ export function pathToName(path: string): string {
   return path.split("/").slice(-1)[0];
 }
 
+// One child of a sidebar directory: a request by id, or a subdirectory. In
+// order lists (the db "tree" section and Move's order argument) `d` is the
+// dir name relative to that directory; in Move's `drag` argument `d` is the
+// dragged dir's full path, which is what db.move resolves it by.
+export type TreeChild = {r: RequestID} | {d: string};
+
+// Sidebar tree as emitted by List: children in the directory's persisted
+// manual order first, unlisted children name-sorted after them.
+export type TreeEntry =
+  | {kind: "dir", name: string, tree: Tree}
+  | {kind: "req", id: RequestID};
+
 export type Tree = {
-  IDs: RequestID[],
-  Dirs: Record<string, Tree>,
+  entries: TreeEntry[],
 };
 
 export type ListResponse = {

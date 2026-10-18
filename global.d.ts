@@ -14,6 +14,7 @@ export type Api = {
   Duplicate: (_1: string                     ) => Promise<t.ResponseNewRequest>,
   CreateDraft: (_1: t.Kind, _2?: Request["Data"]) => Promise<t.RequestID>,
   Rename:    (_1: string, _2: string         ) => Promise<void>,
+  Move:      (_1: t.TreeChild, _2: string, _3: t.TreeChild[]) => Promise<void>,
   Update:    (_1: string, _2: Request["Data"]) => Promise<void>,
   Delete:    (_1: string                     ) => Promise<void>,
   Perform:   (_1: string                     ) => Promise<Record<string, unknown>>,
