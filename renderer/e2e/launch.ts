@@ -11,8 +11,9 @@ const main = path.join(process.cwd(), "dist-electron", "main.js");
 
 // One Electron app per worker instead of per test: launching dominates the
 // suite's runtime. Each test still starts pristine because seedDB rewrites
-// db.json (the app re-reads it on every IPC call, nothing is cached) and the
-// page fixture clears the profile's localStorage and reloads before the body.
+// db.json (the app revalidates the file mtime on every IPC call, so an
+// external rewrite is picked up) and the page fixture clears the profile's
+// localStorage and reloads before the body.
 export type Fixtures = {
   page: Page,
   // Per-test db.json contents; override to start a test with pre-seeded data.

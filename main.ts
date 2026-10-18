@@ -4,7 +4,7 @@ import {app, BrowserWindow, ipcMain, Menu} from "electron";
 import data from "./package.json" with {type: "json"};
 import * as t from "@/types.ts";
 import * as api from "./main/api.ts";
-import {Request, setDBPath} from "./main/db.ts";
+import {Request, setDBPath, flushSave} from "./main/db.ts";
 
 const version = data.version;
 
@@ -63,6 +63,16 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+// A debounced db.json write may still be pending at quit time; flush it
+// before letting the quit proceed so the last edits reach disk.
+app.on("before-quit", (event) => {
+  const flushing = flushSave();
+  if (flushing === null)
+    return;
+  event.preventDefault();
+  void flushing.catch(() => undefined).then(() => app.quit());
 });
 
 ipcMain.handle("List", _ => api.List());
