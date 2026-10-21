@@ -27,7 +27,7 @@
     "dist:linux": "APIARY_SOURCEMAP=1 bun run build && electron-builder --linux",
     "dist:mac": "APIARY_SOURCEMAP=1 bun run build && electron-builder --mac",
     "dist:win": "APIARY_SOURCEMAP=1 bun run build && electron-builder --win",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsrs --noEmit",
     "_start": "bun run build && electron . --no-sandbox",
     "gen:grpc": "grpc_tools_node_protoc --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts --ts_out=grpc_js:./ --js_out=import_style=commonjs,binary:./ --grpc_out=grpc_js:./ ./scripts/grpc/helloworld.proto && sed -i '1i/* eslint-disable */' ./scripts/grpc/helloworld.ts && sed -i '2i// @ts-nocheck' ./scripts/grpc/helloworld.ts",
     "kal": "electron-rebuild"
@@ -92,6 +92,7 @@
     "jiti": "^2.7.0",
     "protoc-gen-ts": "^0.8.7",
     "tslib": "^2.8.1",
+    "tsrs": "^0.18.0-ts7.1.0-dev.20260929",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.61.0",
     "vite": "^6.4.3",
