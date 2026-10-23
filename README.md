@@ -42,7 +42,7 @@ chmod +x apiary-linux-x86_64.AppImage
 ### Build from source
 
 ```bash
-# Prerequisites: Bun 1.3.14+
+# Prerequisites: Bun
 git clone https://github.com/rprtr258/apiary.git
 cd apiary
 bun install
