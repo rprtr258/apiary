@@ -97,6 +97,7 @@ describe("sourceTree materialization", () => {
     expect(options).toEqual([{
       key: "virtual:SQLSource:id1:users",
       label: "users (3 rows)",
+      draggable: false,
       tag: {label: "TBL", color: "white"},
     }]);
   });
@@ -117,17 +118,21 @@ describe("sourceTree materialization", () => {
     expect(options).toEqual([{
       label: "GET ",
       key: "virtual:HTTPSource:id1:GET ",
+      draggable: false,
       children: [
         {
           key: "virtual:HTTPSource:id1:GET :health",
           label: "/health/",
+          draggable: false,
         },
         {
           key: "virtual:HTTPSource:id1:GET :users",
           label: "users",
+          draggable: false,
           children: [{
             key: "virtual:HTTPSource:id1:GET :users:\\:id",
             label: "/users/:id/",
+            draggable: false,
           }],
         },
       ],
@@ -141,6 +146,7 @@ describe("sourceTree materialization", () => {
       key: "virtual:loading:id1:MCP",
       label: "Loading...",
       disabled: true,
+      draggable: false,
     }]);
   });
 
@@ -151,6 +157,7 @@ describe("sourceTree materialization", () => {
       key: "virtual:empty:id1:MCP",
       label: "(None)",
       disabled: true,
+      draggable: false,
     }]);
   });
 
@@ -164,6 +171,7 @@ describe("sourceTree materialization", () => {
       key: "virtual:loading:id1:MCP:Tools",
       label: "Loading...",
       disabled: true,
+      draggable: false,
     }]);
   });
 
