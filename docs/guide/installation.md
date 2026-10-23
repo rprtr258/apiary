@@ -44,7 +44,7 @@ apiary-win-x64.exe
 ## Building from Source
 
 ### Prerequisites
-- **Bun 1.3.14+**: [Install Bun](https://bun.sh/)
+- **Bun**: [Install Bun](https://bun.sh/)
 
 ### Build Steps
 ```bash
