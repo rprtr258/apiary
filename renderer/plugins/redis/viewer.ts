@@ -6,6 +6,7 @@ import ViewJSON from "../../components/ViewJSON.ts";
 import EditorJSON from "../../components/EditorJSON.ts";
 import {get_request} from "../../store.ts";
 import {m, Signal, setDisplay, signal} from "../../lib/utils.ts";
+import {useRequest} from "../../hooks/useRequest.ts";
 
 type Request = {kind: t.Kind.REDIS} & t.RedisRequest;
 
@@ -29,6 +30,10 @@ export default function(
     on: {click: on.send},
     disabled: false,
   }, "Send");
+  const requestHook = useRequest<t.RedisRequest>({initialRequest: {
+    dsn: "",
+    query: "",
+  }, on: {update: on.update}});
   const response = signal<t.RedisResponse | undefined>(undefined);
   const dsnInput = NInput({
     style: {
@@ -42,8 +47,11 @@ export default function(
   const unmounts: (() => void)[] = [() => el_view_response_body.unmount()];
   function update_request(patch: Partial<t.RedisRequest>): void {
     el_send.disabled = true;
-    on.update(patch).then(() => {
+    requestHook.update(patch).finally(() => {
       el_send.disabled = false;
+    }).catch(() => {
+      dsnInput.value = requestHook.requestSignal.value.dsn;
+      // TODO: query editor not re-synced on failed persist (EditorJSON exposes no update API)
     });
   }
   const el_response = m("div", {class: "h100"});
@@ -75,7 +83,8 @@ export default function(
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
-      dsnInput.value = request.dsn;
+      requestHook.requestSignal.value = request;
+      dsnInput.value = requestHook.requestSignal.value.dsn;
 
       const el_editor_json = EditorJSON({
         class: "h100",
