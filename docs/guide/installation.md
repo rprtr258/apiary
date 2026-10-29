@@ -2,11 +2,13 @@
 
 There are three ways to install Apiary: Homebrew, downloading pre-built binaries, or building from source.
 
-## Homebrew (Linux)
+## Homebrew (Linux, macOS)
 
 ```bash
 brew install rprtr258/tap/apiary
 ```
+
+Installs the AppImage on Linux and the app bundle on macOS. Windows is not available via Homebrew - use the download section below.
 
 ## Download Pre-built Binaries
 
@@ -97,7 +99,7 @@ Example:
 
 ## Updating
 
-To update Apiary, simply download the latest binary from the releases page and replace the old one. If you installed via Homebrew, run:
+To update Apiary, simply download the latest binary from the releases page and replace the old one. If you installed via Homebrew (Linux or macOS), run:
 
 ```bash
 brew upgrade apiary

@@ -199,4 +199,5 @@ numbers.forEach(n => console.log(n));
   - macOS: `apiary-darwin-${arch}.${ext}` (dmg)
   - Windows: `apiary-win-${arch}.${ext}` (NSIS installer)
 - **Artifact Names**: Defined in `package.json` under `"build"` config
+- **Homebrew Tap**: On tag push only, a `homebrew` job (runs after `release`) renders the full cask from `homebrew/apiary.rb` (`@TOKENS@` replaced with the released version and per-arch sha256s computed from the published artifacts) and pushes it wholesale to `rprtr258/homebrew-tap` as `Casks/apiary.rb`, removing the legacy `Formula/apiary.rb`. Requires the `HOMEBREW_TAP_TOKEN` secret (fine-grained PAT, Contents: read/write on the tap only).
 

@@ -12,13 +12,35 @@ on:
         default: '0.0.0-test'
 
 jobs:
+  tag-on-master:
+    name: Tag is on master
+    # Gate for the whole pipeline: releases are cut from master only.
+    # Runs (and no-ops) on workflow_dispatch - a skipped job in `needs` would skip all dependents.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        if: github.event_name == 'push'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # Full history so origin/master is available for the ancestry check
+
+      - name: Verify tag commit is on master
+        if: github.event_name == 'push'
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA^{commit}" origin/master || {
+            echo "::error::${GITHUB_REF_NAME} does not point to a commit on master"
+            exit 1
+          }
+
   build-linux:
     name: Build Linux
+    needs: [tag-on-master]
     runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0  # Full history for release notes
 
@@ -76,6 +98,7 @@ jobs:
 
   build-macos:
     name: Build macOS
+    needs: [tag-on-master]
     runs-on: macos-latest
     strategy:
       matrix:
@@ -83,7 +106,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -138,11 +161,12 @@ jobs:
 
   build-windows:
     name: Build Windows
+    needs: [tag-on-master]
     runs-on: windows-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -294,3 +318,72 @@ jobs:
           prerelease: ${{ contains(steps.version.outputs.version, '-test') || contains(steps.version.outputs.version, '-rc') || contains(steps.version.outputs.version, '-beta') || contains(steps.version.outputs.version, '-alpha') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  homebrew:
+    name: Update Homebrew tap
+    needs: [release]
+    # workflow_dispatch test builds publish no tag; never push the tap for them.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read  # GITHUB_TOKEN only reads own repo's release assets
+
+    steps:
+      - name: Checkout apiary (cask template)
+        uses: actions/checkout@v7
+
+      - name: Download released artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download "${{ github.ref_name }}" --repo rprtr258/apiary --pattern "apiary-darwin-*.dmg" --pattern "apiary-linux-*.AppImage"
+
+      - name: Compute sha256s
+        id: sha
+        run: |
+          {
+            echo "dmg_arm64=$(sha256sum apiary-darwin-arm64.dmg | cut -d' ' -f1)"
+            echo "dmg_x64=$(sha256sum apiary-darwin-x64.dmg | cut -d' ' -f1)"
+            echo "appimage_x86_64=$(sha256sum apiary-linux-x86_64.AppImage | cut -d' ' -f1)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Render cask from template
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          sed -e "s/@VERSION@/$VERSION/g" \
+              -e "s/@SHA_DMG_ARM64@/${{ steps.sha.outputs.dmg_arm64 }}/g" \
+              -e "s/@SHA_DMG_X64@/${{ steps.sha.outputs.dmg_x64 }}/g" \
+              -e "s/@SHA_APPIMAGE_X86_64@/${{ steps.sha.outputs.appimage_x86_64 }}/g" \
+              homebrew/apiary.rb > rendered-apiary.rb
+          # A leftover placeholder means the template drifted from this job; fail loudly.
+          ! grep -q "@[A-Z_]*@" rendered-apiary.rb || { echo "unrendered placeholder left in cask"; exit 1; }
+          cat rendered-apiary.rb
+
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v7
+        with:
+          repository: rprtr258/homebrew-tap
+          # GITHUB_TOKEN cannot push to another repo; HOMEBREW_TAP_TOKEN is a PAT
+          # with Contents: read+write on rprtr258/homebrew-tap only.
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      # The tap is synced wholesale: full cask written over the old one, legacy
+      # formula removed, so the tap state is fully defined by this repo.
+      - name: Sync tap
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          mkdir -p tap/Casks
+          cp rendered-apiary.rb tap/Casks/apiary.rb
+          rm -f tap/Formula/apiary.rb
+          cd tap
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Tap already up to date for $VERSION"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "apiary ${VERSION#v}"
+          git push
