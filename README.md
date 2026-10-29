@@ -15,7 +15,7 @@ A desktop API client that speaks HTTP, SQL, gRPC, Redis, and more - all in one w
 
 ## Getting started
 
-### Homebrew (Linux)
+### Homebrew (Linux, macOS)
 
 ```bash
 brew install rprtr258/tap/apiary
