@@ -46,11 +46,13 @@ If you prefer to build Apiary from source, see the [Building from Source](/guide
 
 ## Installation Instructions
 
-### Homebrew (Linux)
+### Homebrew (Linux, macOS)
 
 ```bash
 brew install rprtr258/tap/apiary
 ```
+
+Installs the AppImage on Linux and the app bundle on macOS. Windows is not available via Homebrew - use the manual steps below.
 
 ### Linux/macOS
 
