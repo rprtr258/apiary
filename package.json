@@ -87,7 +87,7 @@
     "eslint-plugin-promise": "^6.6.0",
     "google-protobuf": "^4.0.2",
     "grpc-tools": "^1.13.1",
-    "happy-dom": "^20.10.3",
+    "happy-dom": ">=21.0.4",
     "jiti": "^2.7.0",
     "protoc-gen-ts": "^0.8.7",
     "tslib": "^2.8.1",
