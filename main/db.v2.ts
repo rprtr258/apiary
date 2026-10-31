@@ -1,7 +1,7 @@
 import * as t from "@/types.ts";
 import v1, {KindEntry} from "./db.v1.ts";
 
-type DraftEntry = {
+export type DraftEntry = {
   id: t.RequestID,
   n: number,
 };
