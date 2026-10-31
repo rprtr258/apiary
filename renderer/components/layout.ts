@@ -29,12 +29,12 @@ type NTabsProps = {
 // keep the two visually consistent when the layout tabs change.
 const tabsCls = {
   container: css({display: "flex", flexDirection: "column", width: "100%"}),
-  header: css({display: "flex", flexDirection: "row", alignItems: "stretch", flex: "0 0 auto", overflow: "hidden", background: "#1a1a1f", borderBottom: "1px solid #000", userSelect: "none"}),
-  tab: css({display: "flex", alignItems: "center", gap: "4px", padding: "3px 8px", cursor: "pointer", whiteSpace: "nowrap", color: "#a0a0a0", background: "none", border: "none", borderRight: "1px solid #000", font: "inherit"}, {
-    ":not(:disabled):hover": "color:#ddd; background:#222227;",
-    ":disabled": "color:#555; cursor:default;",
+  header: css({display: "flex", flexDirection: "row", alignItems: "stretch", flex: "0 0 auto", overflow: "hidden", background: "var(--color-dark-7)", borderBottom: "1px solid var(--color-dark-4)", userSelect: "none"}),
+  tab: css({display: "flex", alignItems: "center", gap: "4px", padding: "3px 8px", cursor: "pointer", whiteSpace: "nowrap", color: "var(--color-dimmed)", background: "none", border: "none", borderRight: "1px solid var(--color-dark-4)", font: "inherit"}, {
+    ":not(:disabled):hover": "background:var(--color-dark-6); color:var(--color-text);",
+    ":disabled": "color:var(--color-disabled-color); cursor:default;",
   }),
-  tabActive: css({background: "#101014", color: "#fff", boxShadow: "inset 0 2px 0 #5a8ab5"}),
+  tabActive: css({background: "var(--color-body)", color: "var(--color-bright)", boxShadow: "inset 0 2px 0 var(--color-blue-6)"}),
   content: css({height: "100%", flexShrink: "1", minHeight: "0"}),
 };
 export function NTabs(props: NTabsProps): HTMLElement {
@@ -220,7 +220,9 @@ const style_overlay = {
   backdropFilter: "blur(3px)",
 };
 const style_modal = {
-  backgroundColor: "#444444",
+  backgroundColor: "var(--color-default)",
+  boxShadow: "var(--shadow-lg)",
+  borderRadius: "var(--radius-md)",
   width: "40%",
   height: "20%",
   padding: "1em",

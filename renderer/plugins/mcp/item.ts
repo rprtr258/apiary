@@ -137,7 +137,7 @@ export function root(id: t.RequestID): Item {
   return {
     key: "",
     label: "",
-    badge: {label: "MCP", color: "white"},
+    badge: {label: "MCP", color: "var(--color-bright)"},
     children: () => {
       void fetchAll(id);
       return [toolsItem(id), promptsItem(id), resourcesItem(id)];

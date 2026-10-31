@@ -14,11 +14,11 @@ import {ComponentContainer} from "../layout/types.ts";
 function render(v: t.RowValue): DOMNode {
   switch (true) {
   case v === null:
-    return m("span", {style: {color: "grey"}}, "(NULL)");
+    return m("span", {style: {color: "var(--color-dimmed)"}}, "(NULL)");
   case typeof v === "boolean":
     return v ? "✅" : "❌";
   case typeof v === "number":
-    return m("span", {style: {color: "#e84e40"}}, String(v));
+    return m("span", {style: {color: "var(--color-red-6)"}}, String(v));
   case typeof v === "string":
     return v;
   case v instanceof Date:
@@ -48,7 +48,7 @@ function render_column(c: string, typ: string) {
     c,
     m("div", {}, NIcon({
       size: 15,
-      color: "grey",
+      color: "var(--color-dimmed)",
       component:
         typ === "number" ? FieldNumberOutlined :
         typ === "string" ? ItalicOutlined :
@@ -107,7 +107,7 @@ function render_column_with_sort(
       c,
       m("div", {}, NIcon({
         size: 15,
-        color: "grey",
+        color: "var(--color-dimmed)",
         component: column_type_icons[typ] ?? QuestionCircleOutlined,
       })),
     ),
@@ -122,8 +122,8 @@ function render_column_with_sort(
       sortOrder !== undefined && sortOrder > 1 ? m("span", {
         style: {
           fontSize: "0.7em",
-          backgroundColor: "rgba(0, 100, 255, 0.3)",
-          color: "white",
+          backgroundColor: "var(--color-blue-light)",
+          color: "var(--color-bright)",
           borderRadius: "50%",
           width: "1.2em",
           height: "1.2em",
@@ -143,7 +143,7 @@ function render_column_with_sort(
           cursor: "pointer",
           padding: "0.2em",
           fontSize: "0.8em",
-          color: isSorted ? "#007bff" : "#666666",
+          color: isSorted ? "var(--color-blue-6)" : "var(--color-dark-3)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -202,20 +202,20 @@ type EditableConfig = {
 };
 
 const edited_cell_style = css(`
-  outline: 2px solid #f5a623;
+  outline: 2px solid var(--color-yellow-6);
   outline-offset: -2px;
 `);
 const invalid_cell_style = css(`
-  outline: 2px solid #e0533d;
+  outline: 2px solid var(--color-red-6);
   outline-offset: -2px;
 `);
 const cell_menu_style = css(`
   position: fixed;
   z-index: 1000;
-  background: #26282e;
-  border: 1px solid #4a5568;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  background: var(--color-default);
+  border: 1px solid var(--color-default-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
   min-width: 120px;
 `);
 const cell_menu_item_style = css(`
@@ -224,7 +224,7 @@ const cell_menu_item_style = css(`
   white-space: nowrap;
 `, {
   ":hover": {
-    background: "rgba(255, 255, 255, 0.1)",
+    background: "var(--color-dark-5)",
   },
 });
 
@@ -442,7 +442,7 @@ export function DataTable() {
       width: "100%",
       boxSizing: "border-box",
       fontSize: "12pt",
-      border: isInvalid ? "1px solid #e0533d" : "1px solid #4a90d9",
+      border: isInvalid ? "1px solid var(--color-red-6)" : "1px solid var(--color-blue-6)",
       padding: "0 3px",
     }});
     input.value = initialRaw !== undefined ? initialRaw :
@@ -741,7 +741,7 @@ export default function(
     notification("info", "Update script copied to clipboard", {});
   }
 
-  const editCountSpan = m("span", {style: {fontSize: ".85em", color: "grey"}});
+  const editCountSpan = m("span", {style: {fontSize: ".85em", color: "var(--color-dimmed)"}});
   const applyButton = NButton({primary: true, on: {click: () => onApply()}}, "Apply");
   const copyButton = NButton({on: {click: () => onCopy()}}, "Copy");
   const cancelButton = NButton({on: {click: () => dataTable.clearEdits()}}, "Cancel");
@@ -751,7 +751,7 @@ export default function(
     copyButton.el,
     cancelButton.el,
   );
-  const bannerSpan = m("span", {style: {fontSize: ".85em", color: "#f5a623"}});
+  const bannerSpan = m("span", {style: {fontSize: ".85em", color: "var(--color-yellow-6)"}});
   setDisplay(el_edits, false);
   setDisplay(bannerSpan, false);
 
