@@ -216,6 +216,11 @@ export function getCommandPaletteItems(): Item[] {
     {
       items: [
         {
+          label: `${sidebarHidden.value ? "Show" : "Hide"} sidebar`,
+          shortcut: ["Ctrl", "B"],
+          perform: () => sidebarHidden.update(v => !v),
+        },
+        {
           label: "Command Palette",
           shortcut: ["Ctrl", "Shift", "P"],
           perform: () => {
@@ -481,7 +486,7 @@ function preApp(root: HTMLElement, store: Store) {
     yield;
     while (true) {
       const sidebarHidden = yield;
-      app_container.style.gridTemplateColumns = sidebarHidden ? "3em 5px 1fr" : "300px 5px 1fr";
+      split.leftVisible = !sidebarHidden;
     }
   }());
 
@@ -615,6 +620,15 @@ function preApp(root: HTMLElement, store: Store) {
         return;
       }
       command_bar_new_request_kind_visible.value = true;
+      return;
+    }
+
+    if (e.key === "b" && e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+      e.preventDefault();
+      if (anyModalIsOpen()) {
+        return;
+      }
+      sidebarHidden.update(v => !v);
       return;
     }
 
