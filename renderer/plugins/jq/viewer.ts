@@ -6,6 +6,7 @@ import ViewJSON from "../../components/ViewJSON.ts";
 import EditorJSON from "../../components/EditorJSON.ts";
 import {NSplit} from "../../components/layout.ts";
 import {get_request} from "../../store.ts";
+import {useRequest} from "../../hooks/useRequest.ts";
 import {m, setDisplay, Signal} from "../../lib/utils.ts";
 
 type Request = {kind: t.Kind.JQ} & t.JQRequest;
@@ -30,6 +31,10 @@ export default function(
     on: {click: on.send},
     disabled: true,
   }, "Send");
+  const requestHook = useRequest<t.JQRequest>({initialRequest: {
+    query: "",
+    json: "",
+  }, on: {update: on.update}});
   const el_query_input = NInput({
     placeholder: "JQ query",
     status: jqerror !== undefined ? "error" : "success",
@@ -38,8 +43,11 @@ export default function(
   });
   function update_request(patch: Partial<t.JQRequest>): void {
     el_send.disabled = true;
-    on.update(patch).then(() => {
+    requestHook.update(patch).finally(() => {
       el_send.disabled = false;
+    }).catch(() => {
+      el_query_input.value = requestHook.requestSignal.value.query;
+      // TODO: json editor not re-synced (EditorJSON exposes no update API)
     });
   }
 
@@ -67,6 +75,7 @@ export default function(
   return {
     loaded: (r: get_request) => {
       const request = r.request as Request;
+      requestHook.requestSignal.value = request;
       el_query_input.value = request.query;
 
       const el_editor_json = EditorJSON({
