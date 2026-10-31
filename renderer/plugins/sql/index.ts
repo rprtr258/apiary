@@ -6,5 +6,5 @@ export const sqlPlugin: Plugin = {
   kind: t.Kind.SQL,
   frame: (args) => RequestSQL(args.el, args.show_request, args.on),
   viewers: {},
-  root: () => ({key: "", label: "", badge: {label: "SQL", color: "lightblue"}}),
+  root: () => ({key: "", label: "", badge: {label: "SQL", color: "var(--color-blue-2)"}}),
 };

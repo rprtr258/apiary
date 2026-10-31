@@ -6,5 +6,5 @@ export const grpcPlugin: Plugin = {
   kind: t.Kind.GRPC,
   frame: (args) => RequestGRPC(args.el, args.show_request, args.on),
   viewers: {},
-  root: () => ({key: "", label: "", badge: {label: "GRPC", color: "cyan"}}),
+  root: () => ({key: "", label: "", badge: {label: "GRPC", color: "var(--color-cyan-4)"}}),
 };

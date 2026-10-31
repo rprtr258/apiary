@@ -6,5 +6,5 @@ export const diffPlugin: Plugin = {
   kind: t.Kind.DIFF,
   frame: (args) => RequestDIFF(args.el, args.show_request, args.on),
   viewers: {},
-  root: () => ({key: "", label: "", badge: {label: "DIFF", color: "#70e888"}}),
+  root: () => ({key: "", label: "", badge: {label: "DIFF", color: "var(--color-green-4)"}}),
 };
