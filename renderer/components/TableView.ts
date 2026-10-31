@@ -222,10 +222,11 @@ const cell_menu_item_style = css(`
   padding: 4px 12px;
   cursor: pointer;
   white-space: nowrap;
-`);
-const cell_menu_item_hover_style = css.raw(`:hover {
-  background: rgba(255, 255, 255, 0.1);
-}`);
+`, {
+  ":hover": {
+    background: "rgba(255, 255, 255, 0.1)",
+  },
+});
 
 // Columns of the table's primary key, in schema column order. MySQL and
 // SQLite report one constraint entry per PK column (same name) — entries are
@@ -375,7 +376,7 @@ export function DataTable() {
     const column = lastProps.columns[i];
     const menu = m("div", {class: cell_menu_style, style: {left: `${e.clientX}px`, top: `${e.clientY}px`}},
       m("div", {
-        class: [cell_menu_item_style, cell_menu_item_hover_style].join(" "),
+        class: cell_menu_item_style,
         "data-testid": "set-null",
         onclick: () => {
           closeMenu();

@@ -12,6 +12,18 @@ beforeEach(() => {
 });
 
 describe("css", () => {
+  test("empty class with subclass", () => {
+    const id = css("", {":hover": "color: red;"});
+    expect(id).not.toBe("");
+    expect(rules()).toEqual(`.${id}:hover { color: red; }\n`);
+  });
+
+  test("empty subclass", () => {
+    const id = css("color: red;", {":hover": ""});
+    expect(id).not.toBe("");
+    expect(rules()).toEqual(`.${id} { color: red; }\n`);
+  });
+
   test("string form generates class with declarations", () => {
     const id = css("border-color: red;");
     expect(id).not.toBe("");
@@ -32,6 +44,32 @@ describe("css", () => {
   test("object form skips undefined values", () => {
     const id = css({display: undefined, opacity: "0.5"});
     expect(rules()).toEqual(`.${id} { opacity: 0.5 }\n`);
+  });
+
+  test("string form with selector blocks appends one suffixed rule per selector", () => {
+    const id = css("color: white;", {":hover": "color: black;"});
+    expect(rules()).toEqual(`.${id} { color: white; }\n.${id}:hover { color: black; }\n`);
+  });
+
+  test("string form with multiple selector blocks keeps insertion order", () => {
+    const id = css("color: red;", {":hover": "color: blue;", ":focus": "color: green;"});
+    expect(rules()).toEqual(
+      `.${id} { color: red; }\n.${id}:hover { color: blue; }\n.${id}:focus { color: green; }\n`);
+  });
+
+  test("selector blocks accept declaration objects", () => {
+    const id = css("color: white;", {":hover": {backgroundColor: "black"}});
+    expect(rules()).toEqual(`.${id} { color: white; }\n.${id}:hover { background-color: black }\n`);
+  });
+
+  test("object form base with selector blocks", () => {
+    const id = css({color: "white"}, {":hover": {color: "black"}});
+    expect(rules()).toEqual(`.${id} { color: white }\n.${id}:hover { color: black }\n`);
+  });
+
+  test("selector block declarations convert camelCase and skip undefined", () => {
+    const id = css({color: "red"}, {":hover": {backgroundColor: "blue", outline: undefined}});
+    expect(rules()).toEqual(`.${id} { color: red }\n.${id}:hover { background-color: blue }\n`);
   });
 });
 

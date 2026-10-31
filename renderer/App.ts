@@ -356,9 +356,7 @@ const panelkaFactory = (
     // title returns to normal color once the draft is saved (renamed to a real
     // path). Deletion is bound to the close button, not the destroy event, so
     // programmatic closes (stale-request cleanup, app teardown) keep the record.
-    const syncDraftStyle = () => {
-      tab.element.classList.toggle(draftTabClass, store.isDraft(id));
-    };
+    const syncDraftStyle = () => tab.element.classList.toggle(draftTabClass, store.isDraft(id));
     syncDraftStyle();
     const draftStyle_unsub = store.requestsTree.sub(function*() {
       while (true) {
