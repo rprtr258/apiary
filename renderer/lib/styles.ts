@@ -27,15 +27,27 @@ function camelToKebab(key: string): string {
   return key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 }
 
-export const css = Object.assign((s: string | Partial<CSSStyleDeclaration>): string => {
-  const decl = typeof s === "string" ? s :
+type StyleDeclarations = string | Partial<CSSStyleDeclaration>;
+
+function declarations(s: StyleDeclarations): string {
+  return typeof s === "string" ? s :
     Object.entries(s)
       .filter((entry): entry is [string, string] => typeof entry[1] === "string")
       .map(([k, v]) => `${camelToKebab(k)}: ${v}`)
       .join("; ");
-  const id = genClass();
-  append(`.${id} { ${decl} }`);
-  return id;
+}
+
+export const css = Object.assign((s: StyleDeclarations, extra?: Record<string, StyleDeclarations>): string => {
+  const cls = genClass();
+  const decl = declarations(s);
+  if (decl !== "")
+    append(`.${cls} { ${decl} }`);
+  for (const [selector, block] of Object.entries(extra ?? {})) {
+    const decl = declarations(block);
+    if (decl !== "")
+      append(`.${cls}${selector} { ${decl} }`);
+  }
+  return cls;
 }, {
   raw(s: string): string {
     const id = genClass();

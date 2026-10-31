@@ -3,8 +3,8 @@ import {css} from "../lib/styles.ts";
 // Layout styling. Each element gets a generated class via the project css() utility.
 // Literal "lm_header"/"lm_tab" classes are also added for e2e selector compatibility.
 
-const fullSize = css("width:100%; height:100%;");
-const noSelect = css("user-select:none;");
+const fullSize = css({width: "100%", height: "100%"});
+const noSelect = css({userSelect: "none"});
 
 export const cls = {
   root: [css("position:relative; width:100%; height:100%; overflow:hidden;"), fullSize].join(" "),
@@ -26,11 +26,11 @@ export const cls = {
   item: css("position:absolute; inset:0; overflow:hidden;"),
 
   splitter: {
-    v: [css("flex:0 0 6px; cursor:col-resize; background:#3a3a40; z-index:5;") + " " + css.raw(":hover{background:#5a8ab5;}")].join(" "),
-    h: [css("flex:0 0 6px; cursor:row-resize; background:#3a3a40; z-index:5;") + " " + css.raw(":hover{background:#5a8ab5;}")].join(" "),
+    v: [css("flex:0 0 6px; cursor:col-resize; background:#3a3a40; z-index:5;"), css.raw(":hover{background:#5a8ab5;}")].join(" "),
+    h: [css("flex:0 0 6px; cursor:row-resize; background:#3a3a40; z-index:5;"), css.raw(":hover{background:#5a8ab5;}")].join(" "),
     active: css("background:#5a8ab5 !important;"),
   },
 
   drop: css("position:absolute; background:rgba(80,140,220,0.18); border:2px solid rgba(80,140,220,0.8); pointer-events:none; z-index:50; box-sizing:border-box;"),
-  proxy: css("position:fixed; z-index:99999; pointer-events:none; opacity:0.85; background:#1a1a1f; color:#fff; padding:4px 12px; border:1px solid #000; border-radius:3px; font-size:13px; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.6);") + " " + noSelect,
+  proxy: [css("position:fixed; z-index:99999; pointer-events:none; opacity:0.85; background:#1a1a1f; color:#fff; padding:4px 12px; border:1px solid #000; border-radius:3px; font-size:13px; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.6);"), noSelect].join(" "),
 };
