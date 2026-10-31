@@ -1,3 +1,7 @@
+import {installTheme} from "./theme.ts";
+
+installTheme();
+
 let style: Element | null = null;
 function getStyle(): Element {
   if (style !== null)
@@ -51,3 +55,6 @@ export function setClass(el: HTMLElement, on: boolean, ...cls: string[]): void {
     el.classList.toggle(token, on);
   }
 }
+
+export type Size = 1 | 2 | 3 | 4 | 5;
+export const sizes: Size[] = [1, 2, 3, 4, 5];

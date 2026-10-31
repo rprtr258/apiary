@@ -130,7 +130,7 @@ export function createTreeView(): {el: HTMLElement} {
                 alignItems: "center",
                 width: "100%",
                 opacity: "0.6",
-                color: "#808080",
+                color: "var(--color-dimmed)",
                 fontStyle: "italic",
                 pointerEvents: "none", // TODO: move into parent element
               },
@@ -142,7 +142,7 @@ export function createTreeView(): {el: HTMLElement} {
                 display: "flex",
                 alignItems: "center",
                 width: "100%",
-                color: "#a0a0a0",
+                color: "var(--color-dimmed)",
                 fontStyle: "italic",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -177,7 +177,7 @@ export function createTreeView(): {el: HTMLElement} {
           NTag({
             label: option.label,
             tooltip: option.label,
-            color: "#e0e0e0",
+            color: "var(--color-bright)",
             style: {
               flex: "1",
               minWidth: "0",
@@ -216,7 +216,7 @@ export function createTreeView(): {el: HTMLElement} {
               style: {
                 flex: "1",
                 minWidth: "0",
-                color: "#e0e0e0",
+                color: "var(--color-bright)",
                 overflow: "clip",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",

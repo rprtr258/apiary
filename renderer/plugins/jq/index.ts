@@ -6,5 +6,5 @@ export const jqPlugin: Plugin = {
   kind: t.Kind.JQ,
   frame: (args) => RequestJQ(args.el, args.show_request, args.on),
   viewers: {},
-  root: () => ({key: "", label: "", badge: {label: "JQ", color: "violet"}}),
+  root: () => ({key: "", label: "", badge: {label: "JQ", color: "var(--color-violet-4)"}}),
 };

@@ -61,7 +61,7 @@ const command_bar_open_visible = signal(false);
 
 // Pale-gray tab title while the tab's request is a draft; applied to the tab
 // element with a descendant selector so eye/close buttons keep their normal colors
-const draftTabClass = css.raw(` .${cls.tabTitle} { color: #74747a; }`);
+const draftTabClass = css.raw(` .${cls.tabTitle} { color: var(--color-dark-2); }`);
 
 export function getCommandPaletteItems(): Item[] {
   const currentID = store.requestID();
@@ -472,8 +472,8 @@ function preApp(root: HTMLElement, store: Store) {
 
   const el_main = m("div", {
     style: {
-      color: "rgba(255, 255, 255, 0.82)",
-      backgroundColor: "rgb(16, 16, 20)",
+      color: "var(--color-text)",
+      backgroundColor: "var(--color-body)",
       overflow: "hidden", // TODO: fix hiding layout element
     }}, [
       el_empty_state,

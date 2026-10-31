@@ -24,11 +24,11 @@ function Dropdown() {
   const el: HTMLElement = m("div", {style: {
     position: "fixed",
     zIndex: "1000",
-    background: "#2a2a2a",
-    color: "#ffffff",
-    border: "1px solid #404040",
-    borderRadius: "4px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+    background: "var(--color-default)",
+    color: "var(--color-bright)",
+    border: "1px solid var(--color-dark-4)",
+    borderRadius: "var(--radius-sm)",
+    boxShadow: "var(--shadow-md)",
     minWidth: "120px",
   }});
   open.sub(function*() {while(true) setDisplay(el, yield);}());

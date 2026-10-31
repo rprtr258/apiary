@@ -1,6 +1,24 @@
 import {describe, test, expect, mock} from "bun:test";
 import {NInput, NInputGroup} from "./input.ts";
 
+describe("input sizing", () => {
+  test("size prop sets size variables", () => {
+    const input = NInput({size: 4, on: {update: () => {}}});
+    expect(input.style.getPropertyValue("--input-height")).toBe("var(--input-height-4)");
+    expect(input.style.getPropertyValue("--input-fz")).toBe("var(--font-size-4)");
+  });
+
+  test("no size prop sets no variables (sm default applies via CSS)", () => {
+    const input = NInput({on: {update: () => {}}});
+    expect(input.style.getPropertyValue("--input-height")).toBe("");
+  });
+
+  test("caller style overrides size variables", () => {
+    const input = NInput({size: 4, style: {"--input-height": "20px"} as Partial<CSSStyleDeclaration>, on: {update: () => {}}});
+    expect(input.style.getPropertyValue("--input-height")).toBe("20px");
+  });
+});
+
 describe("NInput", () => {
   test("renders with given props", () => {
     const input = NInput({
