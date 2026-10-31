@@ -2,6 +2,18 @@ import {describe, test, expect, mock} from "bun:test";
 import NButton from "./button.ts";
 
 describe("NButton", () => {
+  test("size prop sets button size variables", () => {
+    const button = NButton({size: 4, on: {click: () => {}}}).el;
+    expect(button.style.getPropertyValue("--button-height")).toBe("var(--button-height-4)");
+    expect(button.style.getPropertyValue("--button-padding-x")).toBe("var(--button-padding-x-4)");
+    expect(button.style.getPropertyValue("--button-fz")).toBe("var(--font-size-4)");
+  });
+
+  test("no size prop sets no variables (sm default applies via CSS)", () => {
+    const button = NButton({on: {click: () => {}}}).el;
+    expect(button.style.getPropertyValue("--button-height")).toBe("");
+  });
+
   test("renders button with children", () => {
     const clickMock = mock(() => {});
     const button = NButton({

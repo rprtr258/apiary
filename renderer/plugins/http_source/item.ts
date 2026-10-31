@@ -6,19 +6,19 @@ import {api} from "../../api.ts";
 import {store} from "../../store.ts";
 
 const httpMethodPropsMap: Record<string, ItemBadge> = {
-  "GET":     {label: "GET",     background: "#1a5f3a", color: "#70e888"},
-  "POST":    {label: "POST",    background: "#2a3a5f", color: "#85b4ee"},
-  "PUT":     {label: "PUT",     background: "#5f4a1a", color: "#e8c070"},
-  "DELETE":  {label: "DELETE",  background: "#5f1a1a", color: "#e98a8a"},
-  "PATCH":   {label: "PATCH",   background: "#3a1a5f", color: "#a870e8"},
-  "HEAD":    {label: "HEAD",    background: "#1a5f5f", color: "#70e8e8"},
-  "OPTIONS": {label: "OPTIONS", background: "#5f5f1a", color: "#e8e870"},
+  "GET":     {label: "GET",     background: "var(--color-green-light)", color: "var(--color-green-4)"},
+  "POST":    {label: "POST",    background: "var(--color-blue-light)", color: "var(--color-blue-4)"},
+  "PUT":     {label: "PUT",     background: "var(--color-yellow-light)", color: "var(--color-yellow-4)"},
+  "DELETE":  {label: "DELETE",  background: "var(--color-red-light)", color: "var(--color-red-3)"},
+  "PATCH":   {label: "PATCH",   background: "var(--color-violet-light)", color: "var(--color-violet-3)"},
+  "HEAD":    {label: "HEAD",    background: "var(--color-cyan-light)", color: "var(--color-cyan-4)"},
+  "OPTIONS": {label: "OPTIONS", background: "var(--color-lime-light)", color: "var(--color-lime-4)"},
 };
 function httpMethodProps(method: string): ItemBadge {
   const upperMethod = method.toUpperCase();
   if (upperMethod in httpMethodPropsMap)
     return httpMethodPropsMap[upperMethod];
-  return {label: method, background: "#3a3a3a", color: "#c0c0c0"};
+  return {label: method, background: "var(--color-default)", color: "var(--color-bright)"};
 }
 
 function formatEndpointLabel(endpoint: t.EndpointInfo): string {
@@ -64,7 +64,7 @@ export function root(id: t.RequestID): Item {
   return {
     key: "",
     label: "",
-    badge: {label: "HTTP*", color: "lime"},
+    badge: {label: "HTTP*", color: "var(--color-lime-4)"},
     children: () => listChildren(endpointsCache, id, ep => toEndpointNode(id, ep)),
     loading: () => endpointsCache.get(id)?.loading ?? false,
     refresh: () => endpointsCache.fetch(id),

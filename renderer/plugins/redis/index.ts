@@ -6,5 +6,5 @@ export const redisPlugin: Plugin = {
   kind: t.Kind.REDIS,
   frame: (args) => RequestRedis(args.el, args.show_request, args.on),
   viewers: {},
-  root: () => ({key: "", label: "", badge: {label: "REDIS", color: "#e87070"}}),
+  root: () => ({key: "", label: "", badge: {label: "REDIS", color: "var(--color-red-4)"}}),
 };

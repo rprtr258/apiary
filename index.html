@@ -24,16 +24,14 @@
     }
 
     html, body, #app {
-      font-family: Avenir, Helvetica, Arial, sans-serif;
-      /* background: rgb(10, 10, 20); */
-      /* color: white; */
+      font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji;
       height: 100%;
       max-height: 100%;
       margin: 0;
-      --row-even: #020202;
-      --row-odd: #101010;
-      --row-highlight: #202020;
-      --col-highlight: #202020;
+      --row-even: var(--color-body);
+      --row-odd: var(--color-dark-8);
+      --row-highlight: var(--color-dark-7);
+      --col-highlight: var(--color-dark-7);
     }
 
     table {
@@ -61,10 +59,10 @@
     }
 
     .highlight-red {
-      color: grey;
+      color: var(--color-dimmed);
     }
     .highlight-red:hover {
-      color: #ff0000;
+      color: var(--color-red-6);
     }
 
     /* that fucking shit does not set that by default and does not give element to me to

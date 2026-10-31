@@ -28,8 +28,8 @@ function toTableItem(id: string, table: t.TableInfo): Item {
     label: formatTableLabel(table),
     badge: {
       label: "TBL",
-      color: "#70c0e8",
-      background: "#1a3a5f",
+      color: "var(--color-blue-4)",
+      background: "var(--color-blue-light)",
     },
     onOpen: () => store.openViewer(table.name, componentType, {
       sourceID: id,
@@ -44,7 +44,7 @@ export function root(id: t.RequestID): Item {
   return {
     key: "",
     label: "",
-    badge: {label: "SQL*", color: "#70a0e8"},
+    badge: {label: "SQL*", color: "var(--color-indigo-4)"},
     children: () => listChildren(tablesCache, id, t => toTableItem(id, t)),
     loading: () => tablesCache.get(id)?.loading ?? false,
     refresh: () => tablesCache.fetch(id),

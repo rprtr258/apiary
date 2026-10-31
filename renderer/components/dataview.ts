@@ -9,10 +9,10 @@ export function Json<T>(data: T) {
 
 export type TagType = "success" | "info" | "warning" | "error";
 export const tagColors: Record<TagType, string> = {
-  success: "lime",
-  info: "blue",
-  warning: "yellow",
-  error: "red",
+  success: "var(--color-lime-4)",
+  info: "var(--color-blue-4)",
+  warning: "var(--color-yellow-4)",
+  error: "var(--color-red-4)",
 };
 export type NTagProps = {
   label: string,
@@ -106,7 +106,7 @@ const treeButtonClass = css(`
   font-size: inherit;
 `);
 const treeButtonHoverClass = css.raw(`:hover {
-  background-color: #404040 !important;
+  background-color: var(--color-dark-5) !important;
 }`);
 
 export type TreeOption = {

@@ -2,6 +2,19 @@ import {describe, test, expect, mock} from "bun:test";
 import {MouseEvent, KeyboardEvent} from "happy-dom";
 import {NSelect, NSelectInput} from "./input_select.ts";
 
+describe("input sizing", () => {
+  test("NSelect supports sizes", () => {
+    const {el} = NSelect({size: 1, options: [{label: "a", value: 1}], on: {update: () => {}}});
+    expect(el.style.getPropertyValue("--input-height")).toBe("var(--input-height-1)");
+  });
+
+  test("NSelectInput supports sizes", () => {
+    const {el} = NSelectInput({size: 3, options: () => [], on: {update: () => {}}});
+    const input = el.querySelector("input") as HTMLInputElement;
+    expect(input.style.getPropertyValue("--input-height")).toBe("var(--input-height-3)");
+  });
+});
+
 describe("NSelect", () => {
   test("renders select with options", () => {
     const updateMock = mock((v: string) => void v);

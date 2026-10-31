@@ -1,17 +1,28 @@
 import * as t from "@/types.ts";
 import {m} from "../lib/utils.ts";
+import {css} from "../lib/styles.ts";
 import {NIcon} from "./dataview.ts";
 import {NInput} from "./input.ts";
 import {DeleteOutline} from "./icons.ts";
 
-const input_style = {
-  padding: "4px 8px",
-  border: "1px solid #ccc",
-  "border-radius": "4px",
-};
-
 declare const is_id: unique symbol;
 type ID = number & {[is_id]: true};
+
+// Inputs render collapsed: no gaps, a single shared 1px border between
+// neighbours, square inner corners; only the block's four outer corners
+// keep the input rounding. Rows are sized 1px shorter than the inputs so
+// each input's top border covers the row above's bottom border, value
+// inputs pull 1px over the key input's right border, and the focused
+// input is raised so its full border isn't hidden under the overlap (same
+// trick as NInputGroup).
+const listClass = [
+  css.raw(" > input{border-radius:0;}"),
+  css.raw(" > input:focus{position:relative; z-index:1;}"),
+  css.raw(" > input:nth-child(1){border-start-start-radius:var(--input-radius);}"),
+  css.raw(" > input:nth-child(2){border-start-end-radius:var(--input-radius);}"),
+  css.raw(" > input:nth-last-child(2){border-end-start-radius:var(--input-radius);}"),
+  css.raw(" > input:nth-last-child(1){border-end-end-radius:var(--input-radius);}"),
+].join(" ");
 
 export default function(props: {
   value: t.KV[],
@@ -36,7 +47,7 @@ export default function(props: {
         update: v => update_kv(id, "key", v),
         blur: () => unfocus_kv(id),
       },
-      style: {...input_style, gridColumn: "1/2"},
+      style: {gridColumn: "1/2"},
     }),
     NInput({
       placeholder: "Value",
@@ -45,11 +56,12 @@ export default function(props: {
         update: v => update_kv(id, "value", v),
         blur: () => unfocus_kv(id),
       },
-      style: {...input_style, gridColumn: "2/3"},
+      style: {gridColumn: "2/3", marginLeft: "-1px"},
     }),
     m("button", {
       style: {
         gridColumn: "3/4",
+        margin: "2px 0 2px 2px",
         padding: "4px 8px",
         border: "none",
         backgroundColor: "oklch(0.5 0.1 27)",
@@ -60,7 +72,7 @@ export default function(props: {
     },
       NIcon({
         component: DeleteOutline,
-        color: "#ff4444",
+        color: "var(--color-red-6)",
       }),
     ),
   ];
@@ -97,13 +109,12 @@ export default function(props: {
       placeholder: "New Header",
       value: "",
       on: {update: v => add_kv(v, "")},
-      style: input_style,
     }),
     NInput({
       placeholder: "New Value",
       value: "",
       on: {update: v => add_kv("", v)},
-      style: input_style,
+      style: {marginLeft: "-1px"},
     }),
   ];
 
@@ -114,12 +125,11 @@ export default function(props: {
     props.on.update(value);
   };
 
-  const el = m("div", {style: {
+  const el = m("div", {class: listClass, style: {
     padding: "4px 8px",
     "display": "grid",
     gridTemplateColumns: "48% 48% 4%",
-    gridColumnGap: "2px",
-    gridRowGap: "3px",
+    gridAutoRows: "calc(var(--input-height) - 1px)",
   }}, [...el_rows, el_empty]);
 
   const delete_kv = (id: ID) => {

@@ -113,10 +113,10 @@ export default function(
         case "file": {
           const fileButton = m("button", {
             style: {
-              border: "1px solid #ccc",
+              border: "1px solid var(--color-dark-4)",
               padding: "4px 8px",
               cursor: "pointer",
-              backgroundColor: "#f5f5f5",
+              backgroundColor: "var(--color-default)",
             },
             onclick: async () => {
               try {
@@ -152,7 +152,7 @@ export default function(
               style: {
                 marginLeft: "8px",
                 fontSize: ".8em",
-                color: "#666",
+                color: "var(--color-dark-3)",
                 alignSelf: "center",
               },
             }, `Loaded: ${request.specData.length} chars`);

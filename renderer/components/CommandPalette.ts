@@ -1,5 +1,5 @@
 import {m, DOMNode, setDisplay, clone} from "../lib/utils.ts";
-import {css} from "../lib/styles.ts";
+import {css, setClass} from "../lib/styles.ts";
 import {KeyESC, KeyDown, KeyUp, KeyEnter} from "./icons.ts";
 
 export const styles = {
@@ -22,23 +22,23 @@ export const styles = {
     width: 600px;
     max-width: 90vw;
     max-height: 90%;
-    background-color: #2a2a2a;
-    border-radius: 8px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    background-color: var(--color-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
   `),
   header: css(`
     display: flex;
-    border: 1px solid #7068ab;
+    border-bottom: 1px solid var(--color-dark-4);
   `),
   input: css(`
     width: 100%;
     padding: 12px 16px;
-    background-color: #1a1a1a;
+    background-color: transparent;
     border: none;
-    border-radius: 4px;
-    color: #ffffff;
+    border-radius: var(--radius-sm);
+    color: var(--color-bright);
     font-size: 14px;
     outline: none;
   `),
@@ -56,11 +56,11 @@ export const styles = {
     gap: 12px;
 
     &:hover {
-      background-color: #353535;
+      background-color: var(--color-dark-6);
     }
   `),
   itemSelected: css(`
-    background-color: #404040;
+    background-color: var(--color-dark-5);
   `),
   itemContent: css(`
     flex: 1;
@@ -71,7 +71,7 @@ export const styles = {
     white-space: nowrap;
   `),
   itemLabel: css(`
-    color: #ffffff;
+    color: var(--color-bright);
     font-size: 14px;
     flex-grow: 1;
   `),
@@ -81,24 +81,24 @@ export const styles = {
     gap: 2px;
   `),
   shortcutSeparator: css(`
-    color: #888888;
+    color: var(--color-dimmed);
     font-size: 12px;
   `),
   shortcutKey: css(`
     padding: 2px 6px;
-    background-color: #1a1a1a;
-    border: 1px solid #404040;
-    border-radius: 3px;
-    color: #cccccc;
+    background-color: var(--color-default);
+    border: 1px solid var(--color-default-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-default-color);
     font-size: 11px;
-    font-family: monospace;
+    font-family: var(--font-family-monospace);
   `),
   footer: css(`
     padding: 12px 16px;
     display: flex;
     justify-content: center;
     gap: 24px;
-    background-color: #1f1f1f;
+    border-top: 1px solid var(--color-dark-4);
   `),
   footerItem: css(`
     display: flex;
@@ -107,15 +107,15 @@ export const styles = {
   `),
   footerKey: css(`
     padding: 2px 6px;
-    background-color: #2a2a2a;
-    border: 1px solid #404040;
-    border-radius: 3px;
-    color: #cccccc;
+    background-color: var(--color-default);
+    border: 1px solid var(--color-default-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-default-color);
     font-size: 11px;
-    font-family: monospace;
+    font-family: var(--font-family-monospace);
   `),
   footerLabel: css(`
-    color: #888888;
+    color: var(--color-dimmed);
     font-size: 12px;
   `),
 };
@@ -156,7 +156,7 @@ function Item({item, on}: ItemProps) {
   return {
     el,
     set selected(value: boolean) {
-      el.classList.toggle(styles.itemSelected, value);
+      setClass(el, value, styles.itemSelected);
     },
   };
 }
@@ -164,7 +164,7 @@ function Item({item, on}: ItemProps) {
 const styleEmpty = css(`
   padding: 32px;
   text-align: center;
-  color: #888888;
+  color: var(--color-dimmed);
   font-style: italic;
 `);
 

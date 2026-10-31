@@ -215,7 +215,7 @@ export const ResultInfo = s("svg", {
   viewBox: "0 0 28 28",
   xmlns: "http://www.w3.org/2000/svg",
   style: {
-    fill: "#70c0e8",
+    fill: "var(--color-blue-4)",
     fontSize: "80px",
   },
 },

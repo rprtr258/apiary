@@ -186,7 +186,7 @@ export default function ToolViewer(
 
   const infoButton = m("span", {
     title: "Show description",
-    style: {cursor: "pointer", display: "inline-flex", alignItems: "center", color: "#a0a0a0"},
+    style: {cursor: "pointer", display: "inline-flex", alignItems: "center", color: "var(--color-dimmed)"},
     onclick: () => {infoModal.display = true;},
   }, NIcon({component: QuestionCircleOutlined}));
 

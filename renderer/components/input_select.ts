@@ -1,5 +1,6 @@
 import {m} from "../lib/utils.ts";
-import {css} from "../lib/styles.ts";
+import {css, Size} from "../lib/styles.ts";
+import {inputBase, sizeStyle} from "./input.ts";
 
 export type SelectOption<T> = {
   label: string,
@@ -7,10 +8,19 @@ export type SelectOption<T> = {
   disabled?: boolean,
 };
 
+// Native select keeps its popup but gets the Select chrome: surface from
+// inputBase plus the dimmed chevron as a background image (appearance:none
+// removes the UA arrow).
+const selectBase = [
+  inputBase,
+  css.raw(":not(:disabled){cursor:pointer; padding-right:calc(var(--input-height) - 2px); background-image:url(\"data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23828282' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\"); background-repeat:no-repeat; background-position:right calc((var(--input-height) - 18px) / 2) center; background-size:16px;}"),
+].join(" ");
+
 export function NSelect<T>(props: {
   label?: string,
   options: SelectOption<T>[],
   placeholder?: string,
+  size?: Size,
   style?: Partial<CSSStyleDeclaration>,
   disabled?: boolean,
   on: {update: (value: T) => void},
@@ -47,7 +57,8 @@ export function NSelect<T>(props: {
   }, label));
   let el_opts = renderOptions(props.options);
   const el = m("select", {
-    style: props.style,
+    class: selectBase,
+    style: {...sizeStyle(props.size), ...props.style},
     // m() maps props to attributes, and in HTML presence of "disabled" disables
     // regardless of value - so a false must become undefined (attribute omitted).
     disabled: props.disabled === true ? true : undefined,
@@ -104,11 +115,11 @@ const selectInputStyles = {
     z-index: 1000;
     max-height: 200px;
     overflow-y: auto;
-    background: #2a2a2a;
-    color: #ffffff;
-    border: 1px solid #404040;
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    background: var(--color-default);
+    color: var(--color-bright);
+    border: 1px solid var(--color-default-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
   `),
   item: css(`
     padding: 4px 8px;
@@ -116,10 +127,10 @@ const selectInputStyles = {
     white-space: nowrap;
   `),
   itemHighlighted: css(`
-    background-color: #404040;
+    background-color: var(--color-dark-5);
   `),
   itemDisabled: css(`
-    color: #666666;
+    color: var(--color-disabled-color);
     cursor: not-allowed;
   `),
 };
@@ -131,6 +142,7 @@ export function NSelectInput(props: {
   placeholder?: string,
   options: () => SelectOption<string>[], // label is shown to the user and used as input text, value is reported on update
   value?: string,
+  size?: Size,
   style?: Partial<CSSStyleDeclaration>,
   disabled?: boolean,
   on?: {update: (value: string) => void},
@@ -243,7 +255,8 @@ export function NSelectInput(props: {
   refresh("");
 
   const el_input = m("input", {
-    style: props.style,
+    class: inputBase,
+    style: {...sizeStyle(props.size), ...props.style},
     value: props.value === undefined ? undefined : (byValue.get(props.value)?.label ?? props.value),
     placeholder: props.placeholder,
     disabled: props.disabled,

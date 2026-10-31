@@ -20,8 +20,8 @@ export const sidebar = function() {
   });
 
   const el = m("aside", {style: {
-    color: "rgba(255, 255, 255, 0.82)",
-    backgroundColor: "rgb(24, 24, 28)",
+    color: "var(--color-text)",
+    backgroundColor: "var(--color-dark-8)",
     display: "flex",
     flexDirection: "column",
     height: "100vh",

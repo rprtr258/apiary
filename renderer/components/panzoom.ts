@@ -10,7 +10,7 @@ import {clamp} from "../lib/utils.ts";
 const ZOOM_STEP = 1.1;
 
 // Dot grid: 40px tile, 2px dot; offset matches the original SVG pattern.
-const GRID_BACKGROUND = "#2a2a2a radial-gradient(#343434 2px, transparent 2.5px) -4px -16px / 40px 40px";
+const GRID_BACKGROUND = "var(--color-dark-6) radial-gradient(var(--color-dark-5) 2px, transparent 2.5px) -4px -16px / 40px 40px";
 // Dot offset inside the tile: backgroundPosition must track the pan minus
 // these so the dots move exactly with the content.
 const GRID_OFFSET_X = -4;

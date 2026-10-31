@@ -36,5 +36,5 @@ export const httpPlugin: Plugin = {
   frame: args => RequestHTTP(args.el, args.show_request, args.on),
   viewers: {},
   menuEntries: id => [copyAsCurl(id)],
-  root: () => ({key: "", label: "", badge: {label: "HTTP", color: "lime"}}),
+  root: () => ({key: "", label: "", badge: {label: "HTTP", color: "var(--color-lime-4)"}}),
 };

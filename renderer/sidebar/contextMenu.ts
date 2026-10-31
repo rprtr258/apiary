@@ -52,7 +52,7 @@ export function showContextMenu(id: RequestID, event: MouseEvent): void {
     {
       label: "Delete",
       key: "delete",
-      icon: NIcon({color: "red", component: DeleteOutlined}),
+      icon: NIcon({color: "var(--color-red-6)", component: DeleteOutlined}),
       on: {
         click: () => store.deleteRequest(id),
       },
@@ -66,10 +66,10 @@ export function showContextMenu(id: RequestID, event: MouseEvent): void {
         display: "flex",
         alignItems: "center",
         gap: "8px",
-        color: "#ffffff",
+        color: "var(--color-bright)",
       },
       // TODO: remove, put to styles
-      onmouseover: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "#404040";},
+      onmouseover: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "var(--color-dark-5)";},
       onmouseout: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "";},
       onclick: () => {
         opt.on.click();

@@ -59,6 +59,25 @@ type ElementProps<K extends keyof HTMLElementTagNameMap> =
     "data-testid"?: string,
   };
 
+// Object.assign on CSSStyleDeclaration cannot set CSS custom properties
+// ("--*"): those go through setProperty.
+function assignStyle(target: CSSStyleDeclaration, style: Partial<CSSStyleDeclaration> | Record<string, string> | undefined): void {
+  if (style === undefined) {
+    return;
+  }
+  for (const [key, raw] of Object.entries(style)) {
+    const value = raw as string | undefined;
+    if (value === undefined) {
+      continue;
+    }
+    if (key.startsWith("--")) {
+      target.setProperty(key, value);
+    } else {
+      (target as unknown as Record<string, string>)[key] = value;
+    }
+  }
+}
+
 export function m<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   preProps?: ElementProps<K> & object,
@@ -66,7 +85,7 @@ export function m<K extends keyof HTMLElementTagNameMap>(
 ): HTMLElementTagNameMap[K] {
   const props: ElementProps<K> = preProps ?? {};
   const el = document.createElement(tag);
-  Object.assign(el.style, props.style ?? {});
+  assignStyle(el.style, props.style);
   if (props.innerHTML !== undefined) {
       el.innerHTML = props.innerHTML;
       if (children.length !== 0) {
@@ -184,7 +203,7 @@ export function s<K extends keyof SVGAttrs>(
   const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
   for (const [key, value] of Object.entries(props)) {
     if (key === "style") { // inline styles
-      Object.assign(el.style, value);
+      assignStyle(el.style, value as Partial<CSSStyleDeclaration>);
     } else {
       el.setAttribute(key, String(value));
     }

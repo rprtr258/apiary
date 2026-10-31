@@ -149,8 +149,8 @@ export default function HTTPRequestView(
     badgeContainer.replaceChildren(responseBadge(response));
     el_view_response_body.update(response.body);
     tbody.replaceChildren(...response.headers.map((header: t.KV) => m("tr", {},
-      m("td", {style: {border: "1px solid #444"}}, header.key),
-      m("td", {style: {border: "1px solid #444", wordBreak: "break-word"}}, header.value),
+      m("td", {style: {border: "1px solid var(--color-dark-4)"}}, header.key),
+      m("td", {style: {border: "1px solid var(--color-dark-4)", wordBreak: "break-word"}}, header.value),
     )));
     if (!tabsReplaced) {
       el_response.replaceChildren(tabsElement);
