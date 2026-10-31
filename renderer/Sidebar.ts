@@ -1,7 +1,7 @@
 import * as t from "@/types.ts";
 import {NIcon} from "./components/dataview.ts";
 import {DoubleLeftOutlined, DoubleRightOutlined} from "./components/icons.ts";
-import {NSelect} from "./components/input.ts";
+import {NSelect} from "./components/input_select.ts";
 import {NTabs} from "./components/layout.ts";
 import {m, setDisplay} from "./lib/utils.ts";
 import {createTreeView} from "./sidebar/tree.ts";

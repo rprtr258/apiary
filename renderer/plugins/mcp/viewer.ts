@@ -1,7 +1,8 @@
 import * as t from "@/types.ts";
 import {NEmpty, StatusLabel} from "../../components/dataview.ts";
 import ParamsList from "../../components/ParamsList.ts";
-import {NInput, NInputGroup, NSelect} from "../../components/input.ts";
+import {NSelect} from "../../components/input_select.ts";
+import {NInput, NInputGroup} from "../../components/input.ts";
 import {get_request} from "../../store.ts";
 import {api} from "../../api.ts";
 import {invalidateMCP, seedMCP} from "./item.ts";

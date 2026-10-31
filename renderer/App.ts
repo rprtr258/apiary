@@ -474,7 +474,8 @@ function preApp(root: HTMLElement, store: Store) {
       el_empty_state,
       el_layout,
     ]);
-  const app_container = NSplit(sidebar, el_main, {direction: "horizontal", sizes: ["300px", "1fr"], snap: 100}).element;
+  const split = NSplit(sidebar, el_main, {direction: "horizontal", sizes: ["300px", "1fr"], snap: 100});
+  const app_container = split.element;
 
   sidebarHidden.sub(function*() {
     yield;

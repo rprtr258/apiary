@@ -1,6 +1,8 @@
 import * as t from "@/types.ts";
 import {m} from "../lib/utils.ts";
-import {NButton, NInput, NSelect, NSelectInput} from "./input.ts";
+import {NSelect, NSelectInput} from "./input_select.ts";
+import {NInput} from "./input.ts";
+import NButton from "./button.ts";
 
 // Operators that compare against the value input, in display order; the null
 // checks take no value and apply as soon as they are selected.

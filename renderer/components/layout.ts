@@ -1,6 +1,6 @@
 import Split, {SplitInstance} from "split-grid";
 import {DOMNode, m, setDisplay} from "../lib/utils.ts";
-import {NButton} from "./input.ts";
+import NButton from "./button.ts";
 import {css} from "../lib/styles.ts";
 
 export function NScrollbar(...children: HTMLElement[]) {

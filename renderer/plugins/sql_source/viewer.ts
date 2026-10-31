@@ -3,7 +3,8 @@ import {api} from "../../api.ts";
 import {get_request} from "../../store.ts";
 import {m} from "../../lib/utils.ts";
 import {NEmpty, StatusLabel} from "../../components/dataview.ts";
-import {NInput, NInputGroup, NSelect} from "../../components/input.ts";
+import {NSelect} from "../../components/input_select.ts";
+import {NInput, NInputGroup} from "../../components/input.ts";
 import {NTabs} from "../../components/layout.ts";
 import SchemaCanvas from "../../components/SchemaCanvas.ts";
 

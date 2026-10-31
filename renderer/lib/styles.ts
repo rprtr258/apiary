@@ -43,3 +43,11 @@ export const css = Object.assign((s: string | Partial<CSSStyleDeclaration>): str
     return id;
   },
 });
+
+// classList.toggle accepts a single token; css()+css.raw() chains are
+// space-separated multi-token strings.
+export function setClass(el: HTMLElement, on: boolean, ...cls: string[]): void {
+  for (const token of cls) {
+    el.classList.toggle(token, on);
+  }
+}

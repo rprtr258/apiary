@@ -1,14 +1,8 @@
 import * as t from "@/types.ts";
 import {m} from "../lib/utils.ts";
 import {NIcon} from "./dataview.ts";
+import {NInput} from "./input.ts";
 import {DeleteOutline} from "./icons.ts";
-
-type Props = {
-  value: t.KV[],
-  on: {
-    update: (value: t.KV[]) => void,
-  },
-};
 
 const input_style = {
   padding: "4px 8px",
@@ -19,7 +13,12 @@ const input_style = {
 declare const is_id: unique symbol;
 type ID = number & {[is_id]: true};
 
-export default function(props: Props) {
+export default function(props: {
+  value: t.KV[],
+  on: {
+    update: (value: t.KV[]) => void,
+  },
+}) {
   const {value} = props;
   const gen_id: () => ID = (() => {
     let internal_id = -1 as ID;
@@ -30,20 +29,22 @@ export default function(props: Props) {
   })();
   const ids = props.value.map(_ => gen_id());
   const new_el_row = (id: ID, kv: t.KV) => [
-    m("input", {
-      type: "text",
+    NInput({
       placeholder: "Header",
       value: kv.key,
-      oninput: (e: Event) => update_kv(id, "key", (e.target as HTMLInputElement).value),
-      onblur: () => unfocus_kv(id),
+      on: {
+        update: v => update_kv(id, "key", v),
+        blur: () => unfocus_kv(id),
+      },
       style: {...input_style, gridColumn: "1/2"},
     }),
-    m("input", {
-      type: "text",
+    NInput({
       placeholder: "Value",
       value: kv.value,
-      oninput: (e: Event) => update_kv(id, "value", (e.target as HTMLInputElement).value),
-      onblur: () => unfocus_kv(id),
+      on: {
+        update: v => update_kv(id, "value", v),
+        blur: () => unfocus_kv(id),
+      },
       style: {...input_style, gridColumn: "2/3"},
     }),
     m("button", {
@@ -92,18 +93,16 @@ export default function(props: Props) {
   };
 
   const el_empty = [
-    m("input", {
-      type: "text",
+    NInput({
       placeholder: "New Header",
       value: "",
-      oninput: (e: Event) => add_kv((e.target as HTMLInputElement).value, ""),
+      on: {update: v => add_kv(v, "")},
       style: input_style,
     }),
-    m("input", {
-      type: "text",
+    NInput({
       placeholder: "New Value",
       value: "",
-      oninput: (e: Event) => add_kv("", (e.target as HTMLInputElement).value),
+      on: {update: v => add_kv("", v)},
       style: input_style,
     }),
   ];

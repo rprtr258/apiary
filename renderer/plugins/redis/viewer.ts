@@ -1,5 +1,6 @@
 import * as t from "@/types.ts";
-import {NButton, NInputGroup, NInput} from "../../components/input.ts";
+import NButton from "../../components/button.ts";
+import {NInputGroup, NInput} from "../../components/input.ts";
 import {NEmpty} from "../../components/dataview.ts";
 import {NSplit} from "../../components/layout.ts";
 import ViewJSON from "../../components/ViewJSON.ts";

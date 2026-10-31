@@ -4,7 +4,7 @@ import {api} from "../api.ts";
 import {clamp, deepEquals, DOMNode, m, setDisplay, signal} from "../lib/utils.ts";
 import {css} from "../lib/styles.ts";
 import notification from "../lib/notification.ts";
-import {NButton} from "./input.ts";
+import NButton from "./button.ts";
 import {NScrollbar, NTabs} from "./layout.ts";
 import TableFilter from "./TableFilter.ts";
 import {NIcon} from "./dataview.ts";
