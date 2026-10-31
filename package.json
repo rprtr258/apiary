@@ -101,6 +101,7 @@
     "appId": "com.apiary.app",
     "productName": "apiary",
     "icon": "build/icon.png",
+    "toolsets": {"appimage": "1.0.3"},
     "directories": {
       "output": "release"
     },
