@@ -26,7 +26,7 @@ type LintFinding = {
 // Run via pinned bun x (not a devDependency): @google/design.md pulls in
 // zod@^3 which would break the repo's zod/v4 MCP typechecking.
 async function runDesignLint(): Promise<void> {
-  const proc = spawn(["bun", "x", "@google/design.md@0.4.0", "lint", "DESIGN.md", "--format=json"], {
+  const proc = spawn(["bun", "run", "lint:design"], {
     cwd: ".",
     env: process.env,
     stdout: "pipe",
