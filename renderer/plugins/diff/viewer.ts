@@ -11,13 +11,13 @@ import {m, Signal} from "../../lib/utils.ts";
 import {css} from "../../lib/styles.ts";
 
 const diffAddedLineCl = css(`
-  background-color: rgba(0, 255, 0, 0.1);
+  background-color: var(--color-green-light);
 `);
 const diffRemovedLineCl = css(`
-  background-color: rgba(255, 0, 0, 0.1);
+  background-color: var(--color-red-light);
 `);
 const diffUpdatedLineCl = css(`
-  background-color: rgba(255, 255, 0, 0.1);
+  background-color: var(--color-yellow-light);
 `);
 const diffContextLineCl = css(`
   background-color: transparent;
@@ -124,9 +124,9 @@ export default function(
   const el_error = m("div", {
     style: {
       display: "none",
-      background: "rgba(239, 68, 68, 0.15)",
-      color: "#fca5a5",
-      borderLeft: "3px solid #ef4444",
+      background: "var(--color-red-light)",
+      color: "var(--color-red-3)",
+      borderLeft: "3px solid var(--color-red-6)",
       padding: "0.5em 0.75em",
       fontSize: "0.875em",
       fontWeight: "500",

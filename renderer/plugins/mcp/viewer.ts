@@ -91,12 +91,14 @@ export default function(
             const commandInput = NInput({
               placeholder: "bunx",
               value: request.command,
+              size: 1,
               style: {flex: "1"},
               on: {update: (v: string) => update_request({command: v})},
             });
             const argsInput = NInput({
               placeholder: "-y @modelcontextprotocol/server-filesystem /tmp",
               value: request.args.join(" "),
+              size: 1,
               style: {flex: "1"},
               on: {update: (v: string) => update_request({args: v.split(" ").map(a => a.trim()).filter(a => a !== "")})},
             });
@@ -116,6 +118,7 @@ export default function(
             const urlInput = NInput({
               placeholder: "https://example.com/mcp",
               value: request.url,
+              size: 1,
               style: {flex: "1"},
               on: {update: (v: string) => update_request({url: v})},
             });
