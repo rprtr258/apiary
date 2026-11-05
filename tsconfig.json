@@ -12,13 +12,14 @@
     "target": "ESNext",
     "module": "preserve",
     "moduleDetection": "force",
+    "allowJs": true, // TODO: false
+    "types": ["bun"],
 
-    // Module resolution
+    // Bundler mode
     "moduleResolution": "bundler",
     "verbatimModuleSyntax": false,
-
-    // Emit compiled JS to dist/
-    "outDir": "dist",
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
     "noEmit": true,
 
     // Best practices
@@ -28,16 +29,13 @@
     "noUncheckedIndexedAccess": false,
     "noImplicitOverride": true,
 
-    "allowJs": true, // TODO: false
-    "noPropertyAccessFromIndexSignature": false,
-    "allowImportingTsExtensions": true,
-
+    // Some stricter flags
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noPropertyAccessFromIndexSignature": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
     "sourceMap": true,
-    "resolveJsonModule": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
     "forceConsistentCasingInFileNames": true,

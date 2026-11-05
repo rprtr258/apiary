@@ -134,7 +134,7 @@ type LAST_V = v2;
 // whether the file still needs persisting to reach the current version.
 async function loadParsed(raw: Record<string, unknown>): Promise<LAST_V> {
   // Files from before versioning count as v1
-  const version = typeof raw.$version === "number" && raw.$version >= 1 ? raw.$version : 1;
+  const version = typeof raw["$version"] === "number" && raw["$version"] >= 1 ? raw["$version"] : 1;
   if (version > LAST_VERSION) {
     throw new Error(`db.json was written by a newer apiary version ($version ${version}, this build understands up to ${LAST_VERSION})`);
   }

@@ -213,7 +213,7 @@ function splitTitle(title: string): {label: string, table?: string, index?: stri
   if (m === null)
     return {label: title};
   const g: Record<string, string | undefined> = m.groups!;
-  const head = g.head!;
+  const head = g["head"]!;
   const {index, table, cond} = g;
   return {label: cond !== undefined ? `${head}${cond}` : head, table, index};
 }

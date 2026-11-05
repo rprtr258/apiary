@@ -30,7 +30,7 @@ describe("generateExampleFromSchema", () => {
   test("Dir with items of Dir|File (oneOf) terminates with a well-formed example", () => {
     const file: JSONSchema = {type: "object", properties: {name: str, size: {type: "integer"}}};
     const dir: JSONSchema = {type: "object", properties: {name: str}};
-    dir.properties.items = {type: "array", items: {type: "object", properties: {}, oneOf: [dir, file]}};
+    dir.properties["items"] = {type: "array", items: {type: "object", properties: {}, oneOf: [dir, file]}};
 
     // random variant pick: Dir (cycle-cut by seen) or File — both finite
     const outcomes: JSONValue[] = [
@@ -44,7 +44,7 @@ describe("generateExampleFromSchema", () => {
 
   test("self-referential Dir (items of the same Dir) terminates with a shallow example", () => {
     const dir: {type: "object", properties: Record<string, JSONSchema>} = {type: "object", properties: {name: str}};
-    dir.properties.items = {type: "array", items: dir};
+    dir.properties["items"] = {type: "array", items: dir};
 
     expect(generateExampleFromSchema(dir)).toEqual({name: "string", items: [{}]});
   });

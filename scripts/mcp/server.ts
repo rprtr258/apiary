@@ -21,9 +21,9 @@ import {StdioServerTransport} from "@modelcontextprotocol/server/stdio";
 
 const NAME = "apiary-sample-mcp";
 const VERSION = "0.0.0";
-const HTTP_PORT = Number(process.env.MCP_PORT ?? "3001");
+const HTTP_PORT = Number(process.env["MCP_PORT"] ?? "3001");
 const TRANSPORT = (() => {
-  const e = process.env.MCP_TRANSPORT ?? "stdio";
+  const e = process.env["MCP_TRANSPORT"] ?? "stdio";
   if (!["stdio", "http"].includes(e))
     throw new Error(`unknown MCP_TRANSPORT "${e}" (expected "stdio" | "http")`);
   return e as "stdio" | "http";
@@ -138,7 +138,7 @@ function buildServer(): McpServer {
   server.registerResource("echo",
     new ResourceTemplate("sample://echo/{text}", {list: undefined}),
     {description: "Echoes the {text} path segment back as the resource body."},
-    async (uri, vars) => ({contents: [{uri: uri.href, mimeType: "text/plain", text: String(vars.text)}]}),
+    async (uri, vars) => ({contents: [{uri: uri.href, mimeType: "text/plain", text: String(vars["text"])}]}),
   );
 
 

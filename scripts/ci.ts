@@ -57,6 +57,7 @@ async function main() {
   await Promise.all([
     runCommand(["bun", "run", "typecheck"]),
     runCommand(["bun", "run", "lint"]),
+    runCommand(["bun", "run", "check:deps"]),
     runCommand(["bun", "run", "build"]),
     runDesignLint(),
   ]);

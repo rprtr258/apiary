@@ -7,8 +7,8 @@ import * as sql_source from "./database/sql_source.ts";
 import * as redis from "./database/redis.ts";
 import * as grpc from "./database/grpc.ts";
 
-const IS_INTEGRATION = Boolean(process.env.INTEGRATION);
-const pgDSN = process.env.PG_DSN ?? "postgres://postgres:password@localhost:5432/postgres";
+const IS_INTEGRATION = Boolean(process.env["INTEGRATION"]);
+const pgDSN = process.env["PG_DSN"] ?? "postgres://postgres:password@localhost:5432/postgres";
 
 function pgRequest(query?: string): SQLRequest {
   return {dsn: pgDSN, database: "postgres", query: query ?? ""};
@@ -86,7 +86,7 @@ describe.if(IS_INTEGRATION)("SQLSource (postgres)", () => {
   });
 });
 
-const redisDSN = process.env.REDIS_DSN ?? "redis://localhost:6379";
+const redisDSN = process.env["REDIS_DSN"] ?? "redis://localhost:6379";
 
 // redissql wasm artifact (built by bun run build:wasm); sql-over-redis tests
 // skip when missing, mirroring main/redissql.test.ts
