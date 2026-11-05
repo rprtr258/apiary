@@ -16,6 +16,7 @@
     "preview": "vite preview",
     "lint": "eslint '**/*.{ts,json}'",
     "lint:fix": "eslint --fix '**/*.{ts,json}'",
+    "check:deps": "bun scripts/check-runtime-deps.ts",
     "ci": "bun run scripts/ci.ts",
     "test": "bun scripts/test.ts",
     "test:go": "bun scripts/test-go.ts",
@@ -63,6 +64,7 @@
     "perfect-arrows": "^0.3.7",
     "pg": "^8.21.0",
     "pg-types": "^4.1.0",
+    "protobufjs": "^7.6.6",
     "redis": "^5.12.1",
     "sanitize-html": "^2.17.5",
     "split-grid": "^1.0.11",
@@ -101,7 +103,9 @@
     "appId": "com.apiary.app",
     "productName": "apiary",
     "icon": "build/icon.png",
-    "toolsets": {"appimage": "1.0.3"},
+    "toolsets": {
+      "appimage": "1.0.3"
+    },
     "directories": {
       "output": "release"
     },

@@ -13,7 +13,7 @@ type LintMessage = Linter.LintMessage;
 // files written after the first lint would never be added to it (the linter reports
 // them as not part of the project). The watch-program path used otherwise
 // invalidates programs when new files appear, which this test relies on.
-process.env.TSESTREE_SINGLE_RUN = "false";
+process.env["TSESTREE_SINGLE_RUN"] = "false";
 
 // Type-aware linting needs a real TS program, so the fixtures share one temp
 // dir with a minimal strict tsconfig (the default project ignores

@@ -1,6 +1,6 @@
 import {defineConfig} from "@playwright/test";
 
-const isCI = process.env.CI !== undefined;
+const isCI = process.env["CI"] !== undefined;
 
 export default defineConfig({
   testDir: "./renderer/e2e",

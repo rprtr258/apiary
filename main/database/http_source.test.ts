@@ -176,8 +176,8 @@ describe("generateExampleRequest from ported Go tests", () => {
     const example = generateExampleRequest(endpoint, "https://api.example.com/v1", {type: "none"});
     const body = JSON.parse(example.body) as Record<string, unknown>;
     expect(Object.keys(body).length).toBe(15);
-    expect(body.prop1 as string).toBe("string");
-    expect(body.prop15 as string).toBe("string");
+    expect(body["prop1"] as string).toBe("string");
+    expect(body["prop15"] as string).toBe("string");
   });
 
   test("generates example with simple object structure", async () => {

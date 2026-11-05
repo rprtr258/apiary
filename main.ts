@@ -10,7 +10,7 @@ const version = data.version;
 
 // db.json lives in the per-user app data dir (e.g. ~/.config/apiary on Linux), so the
 // same db is found regardless of cwd; APIARY_DB_PATH overrides it (e2e tests).
-setDBPath(process.env.APIARY_DB_PATH ?? path.join(app.getPath("appData"), data.name, "db.json"));
+setDBPath(process.env["APIARY_DB_PATH"] ?? path.join(app.getPath("appData"), data.name, "db.json"));
 
 if (process.argv.includes("--version")) {
   console.log(version);
@@ -52,8 +52,8 @@ app.on("ready", async () => {
     },
   });
 
-  if (process.env.VITE_DEV_SERVER_URL !== undefined) {
-    await win.loadURL(process.env.VITE_DEV_SERVER_URL);
+  if (process.env["VITE_DEV_SERVER_URL"] !== undefined) {
+    await win.loadURL(process.env["VITE_DEV_SERVER_URL"]);
   } else {
     await win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
