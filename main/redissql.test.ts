@@ -129,7 +129,7 @@ describe("querySqlOverRedis end-to-end", async () => {
       return;
     }
 
-    expect(querySqlOverRedis("localhost:6379", "SELEKT nope")).rejects.toThrow("syntax error");
+    await expect(querySqlOverRedis("localhost:6379", "SELEKT nope")).rejects.toThrow("syntax error");
   });
 
   test("pools clients per dsn", async () => {

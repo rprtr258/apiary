@@ -4,6 +4,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 import stylistic from "@stylistic/eslint-plugin";
 import importPlugin from "eslint-plugin-import";
+import jest from "eslint-plugin-jest";
 import {noBooleanLiteralCompare} from "./eslint/rules/no-boolean-literal-compare.ts";
 
 export default defineConfig([
@@ -77,6 +78,20 @@ export default defineConfig([
         skipCompoundAssignments: false,
       }],
       "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    files: ["**/*.test.ts"],
+    plugins: {jest},
+    settings: {jest: {globalPackage: "bun:test"}},
+    rules: {
+      // bun-types types the async matchers (.rejects/.resolves) as void although
+      // they return a promise at runtime (test.d.ts: rejects: Matchers<unknown>),
+      // so: type-based no-floating-promises cannot see unawaited assertions and
+      // type-based await-thenable false-positives on the correct `await`. The
+      // syntactic valid-expect + alwaysAwait enforces the awaits instead.
+      "jest/valid-expect": ["error", {alwaysAwait: true}],
+      "@typescript-eslint/await-thenable": "off",
     },
   },
 ]);

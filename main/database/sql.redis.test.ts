@@ -43,18 +43,18 @@ mock.module("../redissql.ts", () => ({
 describe("sql.redis send", () => {
   test("rejects write statements in read-only mode", async () => {
     for (const query of ["UPDATE rstring SET value = 'x'", "  DELETE FROM rstring", "-- comment\nINSERT INTO rstring VALUES (1)", "/* c */ DROP TABLE rstring", "SET @a = 1", "TRUNCATE TABLE rstring"]) {
-      expect(send({dsn: "localhost:6379", database: "redis", query, readOnly: true})).rejects.toThrow("read-only");
+      await expect(send({dsn: "localhost:6379", database: "redis", query, readOnly: true})).rejects.toThrow("read-only");
     }
   });
 
   test("allows reads in read-only mode", async () => {
     for (const query of ["SELECT * FROM rstring", "SHOW TABLES", "DESCRIBE rstring", "EXPLAIN SELECT 1", "/* c */ SELECT 1"]) {
-      expect(send({dsn: "localhost:6379", database: "redis", query, readOnly: true})).resolves.toBeDefined();
+      await expect(send({dsn: "localhost:6379", database: "redis", query, readOnly: true})).resolves.toBeDefined();
     }
   });
 
   test("allows writes when not read-only", async () => {
-    expect(send({dsn: "localhost:6379", database: "redis", query: "UPDATE rstring SET value = 'x'"})).resolves.toBeDefined();
+    await expect(send({dsn: "localhost:6379", database: "redis", query: "UPDATE rstring SET value = 'x'"})).resolves.toBeDefined();
   });
 
   test("maps engine typenames to column types", async () => {
@@ -80,7 +80,7 @@ describe("sql.redis sendBatch", () => {
   });
 
   test("rejects writes when read-only", async () => {
-    expect(sendBatch({dsn: "localhost:6379", database: "redis", readOnly: true}, ["UPDATE rstring SET value = 'x'"])).rejects.toThrow("read-only");
+    await expect(sendBatch({dsn: "localhost:6379", database: "redis", readOnly: true}, ["UPDATE rstring SET value = 'x'"])).rejects.toThrow("read-only");
   });
 });
 
@@ -125,7 +125,7 @@ describe("sql_source redis", () => {
   });
 
   test("connection test passes", async () => {
-    expect(testSQLSource(source)).resolves.toBeUndefined();
+    await expect(testSQLSource(source)).resolves.toBeUndefined();
   });
 });
 
