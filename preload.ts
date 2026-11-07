@@ -19,6 +19,7 @@ const api: Api = {
   Move:      (a1: t.TreeChild, a2: string, a3: t.TreeChild[]): Promise<void>       => ipcRenderer.invoke("Move",      a1, a2, a3),
   Update:    (a1: string, a2: Request["Data"]): Promise<void>                    => ipcRenderer.invoke("Update",    a1, a2),
   Delete:    (a1: string                     ): Promise<void>                    => ipcRenderer.invoke("Delete",    a1    ),
+  DeleteDir: (a1: string                     ): Promise<void>                    => ipcRenderer.invoke("DeleteDir", a1    ),
   Perform:   (a1: string                     ): Promise<Record<string, unknown>> => ipcRenderer.invoke("Perform",   a1    ),
   GRPC: {
     Methods:       (a1: string                        ): Promise<Record<string, string[]>> => ipcRenderer.invoke("GRPC.Methods",       a1        ),

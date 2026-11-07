@@ -84,6 +84,7 @@ ipcMain.handle("Rename", (_, id: string, newName: string) => api.Rename(id, newN
 ipcMain.handle("Move", (_, drag: t.TreeChild, toDir: string, order: t.TreeChild[]) => api.Move(drag, toDir, order));
 ipcMain.handle("Update", (_, id: string, data: Request["Data"]) => api.Update(id, data));
 ipcMain.handle("Delete", (_, id: string) => api.Delete(id));
+ipcMain.handle("DeleteDir", (_, dir: string) => api.DeleteDir(dir));
 ipcMain.handle("Perform", (_, id: string) => api.Perform(id));
 ipcMain.handle("GRPC.Methods", (_, target: string) => api.GRPC.Methods(target));
 ipcMain.handle("GRPC.QueryFake", (_, target: string, method: string) => api.GRPC.QueryFake(target, method));

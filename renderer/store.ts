@@ -123,6 +123,7 @@ export type Store = {
   cleanupDrafts(ids: t.RequestID[]): Promise<void>,
   duplicate(id: t.RequestID): Promise<void>,
   deleteRequest(id: t.RequestID): Promise<void>,
+  deleteDir(dir: string): Promise<void>,
   rename(id: t.RequestID, newName: string): Promise<void>,
   move(drag: t.TreeChild, toDir: string, order: t.TreeChild[], renames: Record<t.RequestID, string>): Promise<void>,
   openViewer<S extends ViewerState>(titlePart: string, componentType: string, state: S): void,
@@ -261,6 +262,25 @@ export const store = ((): Store => {
         delete this.requests2[id];
       }
       lastPersisted.delete(id); // no in-flight persist can own a deleted request's state anymore
+      await this.fetch();
+    },
+    async deleteDir(dir: string): Promise<void> {
+      const res = await api.dirDelete(dir);
+      if (res.kind === "err") {
+        notification("error", "Could not delete directory", {error: res.value});
+        return;
+      }
+
+      // Evict the deleted subtree's cached bodies and in-flight persists;
+      // fetch() only reconciles the preview map. dir is a directory key (full
+      // path with a trailing "/"), so it doubles as the subtree's path prefix
+      for (const id of Object.keys(this.requests)) {
+        if (!this.requests[id].path.startsWith(dir))
+          continue;
+        delete this.requests[id];
+        delete this.requests2[id];
+        lastPersisted.delete(id);
+      }
       await this.fetch();
     },
     async rename(id: t.RequestID, newName: string): Promise<void> {

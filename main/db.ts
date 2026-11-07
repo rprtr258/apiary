@@ -439,6 +439,29 @@ export async function Delete(j: DB, id: t.RequestID): Promise<void> {
   await save(j);
 }
 
+// A directory has no record of its own (it is only the "/"-prefix grouping of
+// request paths), so deleting it deletes every request under it. A request
+// whose path equals the directory name is a sibling, not a child. The dir
+// argument is a directory key: the full dir path with a trailing "/". That
+// key form keeps the root unaddressable ("" is not a directory), and the
+// non-empty path is what stops "/" from slipping through childrenOf's root
+// special case and deleting nothing while reporting success.
+export async function DeleteDir(j: DB, dir: string): Promise<void> {
+  const path = dir.slice(0, -1);
+  if (!dir.endsWith("/") || path === "")
+    throw new Error(`directory "${dir}" not found`);
+  const {ids, dirs} = childrenOf(j, path);
+  if (ids.size === 0 && dirs.size === 0)
+    throw new Error(`directory "${dir}" not found`);
+
+  for (const req of Object.values(j.requests)) {
+    if (req.Path.startsWith(dir))
+      delete j.requests[req.ID];
+  }
+  pruneTree(j);
+  await save(j);
+}
+
 export async function rename(j: DB, id: t.RequestID, newName: string): Promise<void> {
   if (!(id in j.requests))
     throw new Error(`request ${id} not found`);
