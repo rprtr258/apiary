@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {childrenBuckets, create, createDraft, extractSubKind, generateID, load, move as dbMove, save, Delete as remove, rename, update, Request, serialized} from "./db.ts";
+import {childrenBuckets, create, createDraft, extractSubKind, generateID, load, move as dbMove, save, Delete as remove, DeleteDir as removeDir, rename, update, Request, serialized} from "./db.ts";
 import * as http from "./database/http.ts";
 import * as jq from "./database/jq.ts";
 import * as md from "./database/md.ts";
@@ -122,6 +122,13 @@ export function Delete(id: t.RequestID): Promise<void> {
   return serialized(async () => {
     const j = await load();
     await remove(j, id);
+  });
+}
+
+export function DeleteDir(dir: string): Promise<void> {
+  return serialized(async () => {
+    const j = await load();
+    await removeDir(j, dir);
   });
 }
 

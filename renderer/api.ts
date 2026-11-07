@@ -71,6 +71,12 @@ export const api = {
     return await wrap(() => Api.Delete(id), {reqId: id});
   },
 
+  async dirDelete(
+    dir: string,
+  ): Promise<Result<void>> {
+    return await wrap(() => Api.DeleteDir(dir), {dir});
+  },
+
   async createDraft(
     kind: t.Kind,
     data?: Request["Data"],

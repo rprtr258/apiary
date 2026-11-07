@@ -17,6 +17,7 @@ export type Api = {
   Move:      (_1: t.TreeChild, _2: string, _3: t.TreeChild[]) => Promise<void>,
   Update:    (_1: string, _2: Request["Data"]) => Promise<void>,
   Delete:    (_1: string                     ) => Promise<void>,
+  DeleteDir: (_1: string                     ) => Promise<void>,
   Perform:   (_1: string                     ) => Promise<Record<string, unknown>>,
   GRPC: {
     Methods:       (_1: string                        ) => Promise<Record<string, string[]>>,

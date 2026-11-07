@@ -1,6 +1,6 @@
 import {describe, test, expect, mock, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {Create, CreateDraft, Delete, Duplicate, HTTPSource, List, Move, Rename, resolveSQLRequest} from "./api.ts";
+import {Create, CreateDraft, Delete, DeleteDir, Duplicate, HTTPSource, List, Move, Rename, resolveSQLRequest} from "./api.ts";
 import {load, setDBPath, flushSave} from "./db.ts";
 import type v2 from "./db.v2.ts";
 
@@ -210,6 +210,23 @@ describe("draft lifecycle", () => {
     const raw = JSON.parse(files["db.json"].toString()) as v2;
     expect(raw.drafts).toEqual([]);
     expect(raw.request!.find((r) => r.id === id)).toBeUndefined();
+  });
+
+  test("DeleteDir removes the subtree and keeps siblings", async () => {
+    const id1 = await CreateDraft(t.Kind.JQ);
+    await Rename(id1, "dir/kept");
+    const id2 = await CreateDraft(t.Kind.JQ);
+    await Rename(id2, "dir/sub/nested");
+    const id3 = await CreateDraft(t.Kind.JQ);
+    await Rename(id3, "outside");
+
+    await DeleteDir("dir/");
+    await flushSave();
+
+    const raw = JSON.parse(files["db.json"].toString()) as v2;
+    expect(raw.request!.find((r) => r.id === id1)).toBeUndefined();
+    expect(raw.request!.find((r) => r.id === id2)).toBeUndefined();
+    expect(raw.request!.find((r) => r.id === id3)).toBeDefined();
   });
 
   test("Rename of a draft demotes it to a regular request", async () => {

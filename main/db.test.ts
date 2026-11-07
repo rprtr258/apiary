@@ -1,6 +1,6 @@
 import {describe, test, expect, mock, expectTypeOf, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {type DB, type Request, generateID, load, create, createDraft, Delete, move, rename, update, serialized, save, setDBPath, flushSave} from "./db.ts";
+import {type DB, type Request, generateID, load, create, createDraft, Delete, DeleteDir, move, rename, update, serialized, save, setDBPath, flushSave} from "./db.ts";
 import type v2 from "./db.v2.ts";
 
 // Controllable mock: by default readFile succeeds with "{}"
@@ -133,6 +133,63 @@ describe("remove", () => {
   test("throws when removing non-existent request", async () => {
     const db = emptyDB();
     await expect(Delete(db, "nonexistent")).rejects.toThrow("nonexistent");
+  });
+});
+
+describe("DeleteDir", () => {
+  async function seeded(): Promise<{db: DB, x: t.RequestID, y: t.RequestID, root: t.RequestID}> {
+    const db = emptyDB();
+    const x = await create(db, t.Kind.JQ, "a/x", {query: ".", json: "{}"});
+    const y = await create(db, t.Kind.JQ, "a/sub/y", {query: ".", json: "{}"});
+    const root = await create(db, t.Kind.JQ, "other", {query: ".", json: "{}"});
+    return {db, x, y, root};
+  }
+
+  test("deletes every request under the directory and prunes sections", async () => {
+    const {db, x, y, root} = await seeded();
+    db.tree[""] = [{d: "a"}, {r: root}];
+    db.tree["a"] = [{r: x}, {d: "sub"}];
+
+    await DeleteDir(db, "a/");
+
+    expect(db.requests[x]).toBeUndefined();
+    expect(db.requests[y]).toBeUndefined();
+    expect(db.requests[root]).toBeDefined();
+    expect(db.tree[""]).toEqual([{r: root}]);
+    expect(db.tree["a"]).toBeUndefined();
+  });
+
+  test("sibling request whose path equals the directory name survives", async () => {
+    const {db, x} = await seeded();
+    const sibling = await create(db, t.Kind.JQ, "a", {query: ".", json: "{}"});
+
+    await DeleteDir(db, "a/");
+
+    expect(db.requests[x]).toBeUndefined();
+    expect(db.requests[sibling]).toBeDefined();
+  });
+
+  test("deleting a nested subdirectory keeps the parent's other requests", async () => {
+    const {db, x, y} = await seeded();
+
+    await DeleteDir(db, "a/sub/");
+
+    expect(db.requests[y]).toBeUndefined();
+    expect(db.requests[x].Path).toBe("a/x");
+  });
+
+  test("rejects arguments that are not directory keys (trailing slash required)", async () => {
+    const {db} = await seeded();
+    // "" is the root, not a directory; "a" and "/" are not directory keys
+    await expect(DeleteDir(db, "")).rejects.toThrow(`directory "" not found`);
+    await expect(DeleteDir(db, "a")).rejects.toThrow(`directory "a" not found`);
+    await expect(DeleteDir(db, "/")).rejects.toThrow(`directory "/" not found`);
+    expect(Object.keys(db.requests)).toHaveLength(3);
+  });
+
+  test("throws when the directory does not exist", async () => {
+    const db = emptyDB();
+    await expect(DeleteDir(db, "nope/")).rejects.toThrow(`directory "nope/" not found`);
   });
 });
 
