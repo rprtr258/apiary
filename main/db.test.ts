@@ -130,10 +130,9 @@ describe("remove", () => {
     expect(db.requests).not.toContainKey(id);
   });
 
-
-  test("throws when removing non-existent request", () => {
+  test("throws when removing non-existent request", async () => {
     const db = emptyDB();
-    expect(Delete(db, "nonexistent")).rejects.toThrow("nonexistent");
+    await expect(Delete(db, "nonexistent")).rejects.toThrow("nonexistent");
   });
 });
 
@@ -151,12 +150,12 @@ describe("rename", () => {
     await create(db, t.Kind.HTTP, "existing", {url: "http://a", method: "GET", body: "", headers: []});
     const id = await create(db, t.Kind.HTTP, "other", {url: "http://b", method: "GET", body: "", headers: []});
 
-    expect(rename(db, id, "existing")).rejects.toThrow("already exists");
+    await expect(rename(db, id, "existing")).rejects.toThrow("already exists");
   });
 
-  test("throws when renaming non-existent request", () => {
+  test("throws when renaming non-existent request", async () => {
     const db = emptyDB();
-    expect(rename(db, "nonexistent", "new-name")).rejects.toThrow("nonexistent");
+    await expect(rename(db, "nonexistent", "new-name")).rejects.toThrow("nonexistent");
   });
 });
 
@@ -170,9 +169,9 @@ describe("update", () => {
     expect(db.requests[id].Data).toEqual(newData);
   });
 
-  test("throws when updating non-existent request", () => {
+  test("throws when updating non-existent request", async () => {
     const db = emptyDB();
-    expect(update(db, "nonexistent", {} as Request["Data"])).rejects.toThrow("nonexistent");
+    await expect(update(db, "nonexistent", {} as Request["Data"])).rejects.toThrow("nonexistent");
   });
 });
 
@@ -321,7 +320,7 @@ describe("migration", () => {
   test("refuses a db.json written by a newer apiary", async () => {
     mockFileContent = JSON.stringify({$version: 4, requests: {}});
 
-    expect(load()).rejects.toThrow("newer");
+    await expect(load()).rejects.toThrow("newer");
   });
 });
 
@@ -445,19 +444,19 @@ describe("move", () => {
 
   test("refuses to move a directory into itself or a descendant", async () => {
     const {db} = await seeded();
-    expect(move(db, {d: "a"}, "a", [])).rejects.toThrow("into itself");
-    expect(move(db, {d: "a"}, "a/sub", [])).rejects.toThrow("into itself");
+    await expect(move(db, {d: "a"}, "a", [])).rejects.toThrow("into itself");
+    await expect(move(db, {d: "a"}, "a/sub", [])).rejects.toThrow("into itself");
   });
 
   test("refuses a rename that collides with an existing request", async () => {
     const {db, a} = await seeded();
     await create(db, t.Kind.JQ, "b/x", {query: ".", json: "{}"});
-    expect(move(db, {r: a}, "b", [{r: a}])).rejects.toThrow("already exists");
+    await expect(move(db, {r: a}, "b", [{r: a}])).rejects.toThrow("already exists");
   });
 
   test("rejects order entries that are not children of the target directory", async () => {
     const {db, other} = await seeded();
-    expect(move(db, {r: other}, "a", [{r: other}, {d: "nope"}])).rejects.toThrow("not a child");
+    await expect(move(db, {r: other}, "a", [{r: other}, {d: "nope"}])).rejects.toThrow("not a child");
   });
 
   test("a rejected move leaves the in-memory db unmutated", async () => {
@@ -496,7 +495,7 @@ describe("move", () => {
   test("refuses to move a draft", async () => {
     const {db} = await seeded();
     const draft = await createDraft(db, t.Kind.JQ, {query: ".", json: "{}"});
-    expect(move(db, {r: draft}, "a", [])).rejects.toThrow("draft");
+    await expect(move(db, {r: draft}, "a", [])).rejects.toThrow("draft");
   });
 });
 

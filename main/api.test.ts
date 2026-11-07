@@ -82,7 +82,7 @@ describe("Duplicate", () => {
   });
 
   test("throws when duplicating a non-existent request", async () => {
-    expect(Duplicate("nope")).rejects.toThrow("nope");
+    await expect(Duplicate("nope")).rejects.toThrow("nope");
   });
 });
 
@@ -106,8 +106,8 @@ describe("HTTPSource.GenerateExampleRequest", () => {
     }));
   });
 
-  test("throws for endpoint missing from the schema", () => {
-    expect(HTTPSource.GenerateExampleRequest("src", {method: "POST", path: "/nope"}))
+  test("throws for endpoint missing from the schema", async () => {
+    await expect(HTTPSource.GenerateExampleRequest("src", {method: "POST", path: "/nope"}))
       .rejects.toThrow("POST /nope");
   });
 
@@ -191,9 +191,9 @@ describe("CreateDraft", () => {
   });
 
   test("rejects non-performable kinds", async () => {
-    expect(CreateDraft(t.Kind.SQLSource)).rejects.toThrow("cannot be a draft");
-    expect(CreateDraft(t.Kind.HTTPSource)).rejects.toThrow("cannot be a draft");
-    expect(CreateDraft(t.Kind.MCP)).rejects.toThrow("cannot be a draft");
+    await expect(CreateDraft(t.Kind.SQLSource)).rejects.toThrow("cannot be a draft");
+    await expect(CreateDraft(t.Kind.HTTPSource)).rejects.toThrow("cannot be a draft");
+    await expect(CreateDraft(t.Kind.MCP)).rejects.toThrow("cannot be a draft");
   });
 });
 
@@ -320,6 +320,6 @@ describe("Move", () => {
 
   test("errors surface when the target name already exists", async () => {
     await Create("b/x", t.Kind.MD);
-    expect(Move({r: "x"}, "b", [{r: "x"}])).rejects.toThrow("already exists");
+    await expect(Move({r: "x"}, "b", [{r: "x"}])).rejects.toThrow("already exists");
   });
 });

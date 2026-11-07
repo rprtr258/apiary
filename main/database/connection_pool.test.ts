@@ -89,14 +89,14 @@ describe("createClientPool.run", () => {
 
   test("propagates the error of fn", async () => {
     const {pool} = setup(1000);
-    expect(pool.run("k", async () => {
+    await expect(pool.run("k", async () => {
       throw new Error("boom");
     })).rejects.toThrow("boom");
   });
 
   test("evicts the entry after a fn error and reconnects next call", async () => {
     const {pool, connects, closes} = setup(1000);
-    expect(pool.run("k", async () => {
+    await expect(pool.run("k", async () => {
       throw new Error("boom");
     })).rejects.toThrow("boom");
     // Entry removed; close fires out-of-band.
@@ -113,8 +113,8 @@ describe("createClientPool.run", () => {
       attempts++;
       return Promise.reject(new Error("refused"));
     });
-    expect(pool.run("k", async c => c.id)).rejects.toThrow("refused");
-    expect(pool.run("k", async c => c.id)).rejects.toThrow("refused");
+    await expect(pool.run("k", async c => c.id)).rejects.toThrow("refused");
+    await expect(pool.run("k", async c => c.id)).rejects.toThrow("refused");
     expect(attempts).toBe(2);
     expect(pool.size()).toBe(0);
     expect(closes).toEqual([]);

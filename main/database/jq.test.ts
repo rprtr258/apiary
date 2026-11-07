@@ -28,7 +28,7 @@ describe("sendJQ", () => {
       async () => ({stdout: "", stderr: "parse error: Invalid numeric literal at line 1", exitCode: 1}),
     );
 
-    expect(send(makeRequest({query: "..invalid.."}))).rejects.toThrow("jq error");
+    await expect(send(makeRequest({query: "..invalid.."}))).rejects.toThrow("jq error");
   });
 
   test("handles empty results", async () => {

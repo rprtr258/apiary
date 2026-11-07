@@ -110,11 +110,11 @@ describe("sendHTTP", () => {
     expect(result.body).toBe("Not Found");
   });
 
-  test("throws on network error", () => {
+  test("throws on network error", async () => {
     mockFetch.mockImplementationOnce(async (_0: string, _1: RequestInit) => new Promise((_resolve, reject) => {
       reject(new Error("ECONNREFUSED"));
     }));
 
-    expect(send(makeRequest())).rejects.toThrow("ECONNREFUSED");
+    await expect(send(makeRequest())).rejects.toThrow("ECONNREFUSED");
   });
 });
