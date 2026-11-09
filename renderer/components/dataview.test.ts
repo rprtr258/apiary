@@ -198,10 +198,10 @@ describe("Json component", () => {
 
 describe("NTag component", () => {
   test.each([
-    ["success", "Success", "lime"],
-    ["error", "Error", "red"],
-    ["warning", "Warning", "yellow"],
-    ["info", "Info", "blue"],
+    ["success", "Success", "var(--green)"],
+    ["error", "Error", "var(--err)"],
+    ["warning", "Warning", "var(--warn)"],
+    ["info", "Info", "var(--accent)"],
   ] as [TagType, string, string][])("%s", (type, label, color) => {
     const component = NTag({label, color: tagColors[type]});
     expect(component.tagName).toBe("SPAN");
@@ -218,7 +218,7 @@ describe("NTag component", () => {
 
     expect(tag.style.fontSize).toBe("14px");
     expect(tag.style.margin).toBe("5px");
-    expect(tag.style.color).toBe("lime");
+    expect(tag.style.color).toBe("var(--green)");
   });
 
   test("handles round prop", () => {

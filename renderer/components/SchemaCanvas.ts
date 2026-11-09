@@ -44,7 +44,7 @@ if (document.getElementById("schema-canvas-defs") === null) {
       orient: "auto",
     }, s("polygon", {
         points: "0 0, 10 3.5, 0 7",
-        fill: "#888888",
+        fill: "var(--faint)",
       })))));
 }
 
@@ -142,7 +142,7 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
         } else {
           const path = s("path", {
             d,
-            stroke: "#888888",
+            stroke: "var(--faint)",
             fill: "none",
             "stroke-width": 2,
             "marker-end": "url(#arrowhead)",
@@ -238,9 +238,9 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
       position: "absolute",
       top: "10px",
       right: "10px",
-      background: "#555",
-      color: "#fff",
-      border: "1px solid #777",
+      background: "var(--bg2)",
+      color: "var(--ink)",
+      border: "1px solid var(--hair)",
       padding: "5px 10px",
       cursor: "pointer",
     },
@@ -275,7 +275,7 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
           width: width.toString(),
           height: height.toString(),
           fill: nodeBg,
-          stroke: "#555555",
+          stroke: "var(--hair)",
           "stroke-width": 1,
           rx: "5",
         });
@@ -292,7 +292,7 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
         const headerText = s("text", {
           x: (PADDING + colWidths.reduce((a, b) => a + b) / 2).toString(),
           y: (yPos + 15).toString(),
-          fill: "#ffffff",
+          fill: "var(--on-fill)",
           "font-family": "monospace",
           "font-size": "10px",
           "text-anchor": "middle",
@@ -318,7 +318,7 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
             y: yPos.toString(),
             width: colWidths.reduce((a, b) => a + b).toString(),
             height: ROW_HEIGHT.toString(),
-            fill: "#333333",
+            fill: "var(--pane)",
           }));
 
           const texts = [col.name + icon, col.type];
@@ -327,7 +327,7 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
             const cellText = s("text", {
               x: (xPos + colWidths[colIdx] / 2).toString(),
               y: (yPos + 15).toString(),
-              fill: "#ffffff",
+              fill: "var(--ink)",
               "font-family": "monospace",
               "font-size": "10px",
               "text-anchor": "middle",
@@ -350,7 +350,7 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
               y1: currentY,
               x2: PADDING + colWidths.reduce((a, b) => a + b),
               y2: currentY,
-              stroke: "#555555",
+              stroke: "var(--hair)",
               "stroke-width": 1,
             });
           }),
@@ -359,7 +359,7 @@ export default function SchemaCanvas(el: HTMLElement): {loaded: (data: SchemaDat
             y1: y1,
             x2: x,
             y2: y2,
-            stroke: "#555555",
+            stroke: "var(--hair)",
             "stroke-width": 1,
           })),
         ]);

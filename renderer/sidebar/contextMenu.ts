@@ -25,10 +25,10 @@ function renderOption(opt: MenuOption): HTMLDivElement {
       display: "flex",
       alignItems: "center",
       gap: "8px",
-      color: "#ffffff",
+      color: "var(--ink)",
     },
     // TODO: remove, put to styles
-    onmouseover: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "#404040";},
+    onmouseover: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "var(--sel)";},
     onmouseout: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "";},
     onclick: () => {
       opt.on.click();
@@ -78,7 +78,7 @@ export function showContextMenu(id: RequestID, event: MouseEvent): void {
     {
       label: "Delete",
       key: "delete",
-      icon: NIcon({color: "red", component: DeleteOutlined}),
+      icon: NIcon({color: "var(--err)", component: DeleteOutlined}),
       on: {
         click: () => store.deleteRequest(id),
       },
@@ -97,7 +97,7 @@ function showDirectoryContextMenu(dir: string, event: MouseEvent): void {
   const option: MenuOption = {
     label: "Delete",
     key: "delete",
-    icon: NIcon({color: "red", component: DeleteOutlined}),
+    icon: NIcon({color: "var(--err)", component: DeleteOutlined}),
     on: {
       click: () => store.deleteDir(dir + "/"),
     },

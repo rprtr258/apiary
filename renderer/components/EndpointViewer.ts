@@ -60,7 +60,7 @@ export default function EndpointViewer(
     });
   }).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
-    el.replaceChildren(m("div", {class: "h100", style: {color: "red"}}, `Error: ${message}`));
+    el.replaceChildren(m("div", {class: "h100", style: {color: "var(--err)"}}, `Error: ${message}`));
   });
 
   return {

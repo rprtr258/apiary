@@ -24,10 +24,10 @@ function Dropdown() {
   const el: HTMLElement = m("div", {style: {
     position: "fixed",
     zIndex: "1000",
-    background: "#2a2a2a",
-    color: "#ffffff",
-    border: "1px solid #404040",
-    borderRadius: "4px",
+    background: "var(--pane)",
+    color: "var(--ink)",
+    border: "1px solid var(--hair)",
+    borderRadius: "8px",
     boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
     minWidth: "120px",
   }});

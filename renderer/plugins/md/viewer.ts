@@ -66,9 +66,9 @@ export default function(
   const el_error = m("div", {
     style: {
       display: "none",
-      background: "rgba(239, 68, 68, 0.15)",
-      color: "#fca5a5",
-      borderLeft: "3px solid #ef4444",
+      background: "color-mix(in srgb, var(--err) 15%, transparent)",
+      color: "var(--err)",
+      borderLeft: "3px solid var(--err)",
       padding: "0.5em 0.75em",
       fontSize: "0.875em",
       fontWeight: "500",

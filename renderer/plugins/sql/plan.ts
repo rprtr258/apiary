@@ -110,12 +110,12 @@ const nodeBodyClass = css({
   gap: "6px",
   boxSizing: "border-box",
   padding: "6px 8px 8px",
-  borderTop: "1px solid #555555",
+  borderTop: "1px solid var(--hair)",
   fontSize: "11px",
   lineHeight: "1.45",
   cursor: "default",
 });
-const nodeMutedClass = css({color: "#9a9a9a"});
+const nodeMutedClass = css({color: "var(--faint)"});
 // Metric rows packed tighter than the body gap, so several metrics read as
 // one block.
 const nodeMetricsClass = css({
@@ -143,7 +143,7 @@ const nodeListClass = css({
   overflowWrap: "anywhere",
   fontFamily: "monospace",
   fontSize: "11px",
-  color: "#cfcfcf",
+  color: "var(--ink)",
 });
 const canvasClass = css({
   position: "relative",
@@ -191,9 +191,9 @@ export default function PlanDiagram(el: HTMLElement): {
       position: "absolute",
       top: "10px",
       right: "10px",
-      background: "#555",
-      color: "#fff",
-      border: "1px solid #777",
+      background: "var(--bg2)",
+      color: "var(--ink)",
+      border: "1px solid var(--hair)",
       padding: "5px 10px",
       cursor: "pointer",
     },
@@ -295,7 +295,7 @@ export default function PlanDiagram(el: HTMLElement): {
       return s("path", {
         d: `M ${x1} ${y1} C ${x1} ${y1 + bend}, ${x2} ${y2 - bend}, ${x2} ${y2}`,
         fill: "none",
-        stroke: "#6a6a6a",
+        stroke: "var(--faint)",
         "stroke-width": 1.5,
       });
     }));
@@ -307,8 +307,8 @@ export default function PlanDiagram(el: HTMLElement): {
         width: String(p.w),
         height: String(p.h),
         rx: "6",
-        fill: "#333333",
-        stroke: isExpanded ? "#ffffff" : "#8a8a8a",
+        fill: "var(--pane)",
+        stroke: isExpanded ? "var(--ink)" : "var(--faint)",
         "stroke-width": isExpanded ? 2 : 1.5,
       });
       const g = s("g", {style: {cursor: "pointer"}},
@@ -317,7 +317,7 @@ export default function PlanDiagram(el: HTMLElement): {
           x: String(p.x + p.w / 2),
           y: String(p.y + (p.n.table === undefined ? NODE_H / 2 + 4 : 18)),
           "text-anchor": "middle",
-          fill: "#e0e0e0",
+          fill: "var(--ink)",
           "font-size": "12",
           "font-family": "monospace",
         }, truncate(p.n.title, 20)),

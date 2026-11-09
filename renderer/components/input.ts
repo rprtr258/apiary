@@ -1,9 +1,26 @@
 import {m, DOMNode} from "../lib/utils.ts";
 import {css, setClass} from "../lib/styles.ts";
 
+// Shared base for every text-entry control (NInput, NSelect, NSelectInput) —
+// recessed bg2 field, hairline border, accent focus, no glow. Status classes
+// below re-declare border-color on :focus so they win over the base focus rule
+// (equal specificity, later in the stylesheet).
+export const inputBase = css(`
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg2);
+  border: 1px solid var(--hair);
+  padding: 4px 8px;
+  outline: none;
+`, {
+  "::placeholder": "color: var(--faint);",
+  ":focus": "border-color: var(--accent);",
+  ":disabled": "opacity: 0.4; cursor: not-allowed;",
+});
+
 const inputStyles = {
-  error: css("border-color: red; background-color: rgba(255, 0, 0, 0.1);"),
-  success: css("border-color: green; background-color: rgba(0, 255, 0, 0.1);"),
+  error: css("border-color: var(--err); background-color: color-mix(in srgb, var(--err) 10%, transparent);", {":focus": "border-color: var(--err);"}),
+  success: css("border-color: var(--green); background-color: color-mix(in srgb, var(--green) 10%, transparent);", {":focus": "border-color: var(--green);"}),
 };
 
 type NInputProps = {
@@ -21,6 +38,7 @@ type NInputProps = {
 };
 export function NInput(props: NInputProps) {
   const el = m("input", {
+    class: inputBase,
     style: props.style,
     value: props.value,
     placeholder: props.placeholder,

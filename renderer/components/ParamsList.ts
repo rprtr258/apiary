@@ -4,12 +4,6 @@ import {NIcon} from "./dataview.ts";
 import {NInput} from "./input.ts";
 import {DeleteOutline} from "./icons.ts";
 
-const input_style = {
-  padding: "4px 8px",
-  border: "1px solid #ccc",
-  "border-radius": "4px",
-};
-
 declare const is_id: unique symbol;
 type ID = number & {[is_id]: true};
 
@@ -36,7 +30,7 @@ export default function(props: {
         update: v => update_kv(id, "key", v),
         blur: () => unfocus_kv(id),
       },
-      style: {...input_style, gridColumn: "1/2"},
+      style: {gridColumn: "1/2"},
     }),
     NInput({
       placeholder: "Value",
@@ -45,14 +39,14 @@ export default function(props: {
         update: v => update_kv(id, "value", v),
         blur: () => unfocus_kv(id),
       },
-      style: {...input_style, gridColumn: "2/3"},
+      style: {gridColumn: "2/3"},
     }),
     m("button", {
       style: {
         gridColumn: "3/4",
         padding: "4px 8px",
         border: "none",
-        backgroundColor: "oklch(0.5 0.1 27)",
+        backgroundColor: "color-mix(in srgb, var(--err) 25%, transparent)",
         borderRadius: "4px",
         cursor: "pointer",
       },
@@ -60,7 +54,7 @@ export default function(props: {
     },
       NIcon({
         component: DeleteOutline,
-        color: "#ff4444",
+        color: "var(--err)",
       }),
     ),
   ];
@@ -97,13 +91,11 @@ export default function(props: {
       placeholder: "New Header",
       value: "",
       on: {update: v => add_kv(v, "")},
-      style: input_style,
     }),
     NInput({
       placeholder: "New Value",
       value: "",
       on: {update: v => add_kv("", v)},
-      style: input_style,
     }),
   ];
 

@@ -43,8 +43,8 @@ const classes = {
       max-width: 360px;
       padding: 10px 28px 10px 12px;
       border-radius: 6px;
-      background: #1a1a1f;
-      border: 1px solid #2a2a30;
+      background: var(--bg2);
+      border: 1px solid var(--hair);
       border-left: 3px solid transparent;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
       transition: opacity 150ms ease;
@@ -75,9 +75,9 @@ const classes = {
     }`),
   },
   variants: {
-    error: variantClasses("#b91c1c"),
-    warning: variantClasses("#d97706"),
-    info: variantClasses("#5a8ab5"),
+    error: variantClasses("var(--err)"),
+    warning: variantClasses("var(--warn)"),
+    info: variantClasses("var(--accent)"),
   },
   text: css(`
     margin-top: 4px;
@@ -85,7 +85,7 @@ const classes = {
     overflow-y: auto;
     white-space: pre-line;
     word-break: break-word;
-    color: #a0a0a0;
+    color: var(--faint);
     font-size: 12px;
     line-height: 1.45;
   `),
@@ -97,7 +97,7 @@ const classes = {
     border: none;
     background: none;
     cursor: pointer;
-    color: #666;
+    color: var(--faint);
     font-size: 13px;
     line-height: 1;
   `),
@@ -115,7 +115,7 @@ const classes = {
     display: flex;
     align-items: center;
     gap: 7px;
-    color: #fff;
+    color: var(--ink);
     font-size: 13px;
     font-weight: 600;
   `),

@@ -132,9 +132,13 @@ export function createTreeView(): {el: HTMLElement} {
                 display: "flex",
                 alignItems: "center",
                 width: "100%",
+                minWidth: "0",
                 opacity: "0.6",
-                color: "#808080",
+                color: "var(--faint)",
                 fontStyle: "italic",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                overflow: "clip",
                 pointerEvents: "none", // TODO: move into parent element
               },
             }, "(None)");
@@ -145,7 +149,7 @@ export function createTreeView(): {el: HTMLElement} {
                 display: "flex",
                 alignItems: "center",
                 width: "100%",
-                color: "#a0a0a0",
+                color: "var(--faint)",
                 fontStyle: "italic",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -162,6 +166,7 @@ export function createTreeView(): {el: HTMLElement} {
               alignItems: "center",
               gap: "8px",
               width: "100%",
+              minWidth: "0",
             },
           },
           ...(option.tag !== undefined ? [NTag({
@@ -180,7 +185,7 @@ export function createTreeView(): {el: HTMLElement} {
           NTag({
             label: option.label,
             tooltip: option.label,
-            color: "#e0e0e0",
+            color: "var(--ink)",
             style: {
               flex: "1",
               minWidth: "0",
@@ -219,7 +224,7 @@ export function createTreeView(): {el: HTMLElement} {
               style: {
                 flex: "1",
                 minWidth: "0",
-                color: "#e0e0e0",
+                color: "var(--ink)",
                 overflow: "clip",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",

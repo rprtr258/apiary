@@ -12,12 +12,12 @@ export const cls = {
   column: [css("display:flex; flex-direction:column; min-width:0; min-height:0;"), fullSize].join(" "),
   stack: [css("display:flex; flex-direction:column; min-width:0; min-height:0; overflow:hidden; position:relative;"), fullSize].join(" "),
 
-  header: [css("display:flex; flex-direction:row; align-items:stretch; flex:0 0 auto; overflow:hidden; background:#1a1a1f; border-bottom:1px solid #000;"), noSelect, "lm_header"].join(" "),
+  header: [css("display:flex; flex-direction:row; align-items:stretch; flex:0 0 auto; overflow:hidden; background:var(--bg2); border-bottom:1px solid var(--hair);"), noSelect, "lm_header"].join(" "),
 
-  tab: [css("display:flex; align-items:center; gap:4px; padding:4px 10px; cursor:pointer; white-space:nowrap; color:#a0a0a0; border-right:1px solid #000; max-width:220px;"), noSelect, "lm_tab"].join(" "),
-  tabActive: css("background:#101014; color:#fff;"),
-  tabCurrent: css("box-shadow: inset 0 2px 0 #5a8ab5;"),
-  tabHover: css.raw(":hover{background:#222227; color:#ddd;}"),
+  tab: [css("display:flex; align-items:center; gap:4px; padding:4px 10px; cursor:pointer; white-space:nowrap; color:var(--faint); border-right:1px solid var(--hair); max-width:220px;"), noSelect, "lm_tab"].join(" "),
+  tabActive: css("background:var(--pane); color:var(--ink);"),
+  tabCurrent: css("box-shadow: inset 0 2px 0 var(--accent);"),
+  tabHover: css.raw(":hover{background:var(--sel); color:var(--ink);}"),
 
   tabTitle: css("overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"),
   tabClose: [css("cursor:pointer; padding:0 2px; opacity:0.6; font-size:14px; line-height:1;"), css.raw(":hover{opacity:1;}")].join(" "),
@@ -26,11 +26,11 @@ export const cls = {
   item: css("position:absolute; inset:0; overflow:hidden;"),
 
   splitter: {
-    v: [css("flex:0 0 6px; cursor:col-resize; background:#3a3a40; z-index:5;"), css.raw(":hover{background:#5a8ab5;}")].join(" "),
-    h: [css("flex:0 0 6px; cursor:row-resize; background:#3a3a40; z-index:5;"), css.raw(":hover{background:#5a8ab5;}")].join(" "),
-    active: css("background:#5a8ab5 !important;"),
+    v: [css("flex:0 0 6px; cursor:col-resize; background:var(--hair); z-index:5;"), css.raw(":hover{background:var(--accent);}")].join(" "),
+    h: [css("flex:0 0 6px; cursor:row-resize; background:var(--hair); z-index:5;"), css.raw(":hover{background:var(--accent);}")].join(" "),
+    active: css("background:var(--accent) !important;"),
   },
 
-  drop: css("position:absolute; background:rgba(80,140,220,0.18); border:2px solid rgba(80,140,220,0.8); pointer-events:none; z-index:50; box-sizing:border-box;"),
-  proxy: [css("position:fixed; z-index:99999; pointer-events:none; opacity:0.85; background:#1a1a1f; color:#fff; padding:4px 12px; border:1px solid #000; border-radius:3px; font-size:13px; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.6);"), noSelect].join(" "),
+  drop: css("position:absolute; background:color-mix(in srgb, var(--accent) 18%, transparent); border:2px solid color-mix(in srgb, var(--accent) 80%, transparent); pointer-events:none; z-index:50; box-sizing:border-box;"),
+  proxy: [css("position:fixed; z-index:99999; pointer-events:none; opacity:0.85; background:var(--pane); color:var(--ink); padding:4px 12px; border:1px solid var(--hair); border-radius:3px; font-size:13px; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.6);"), noSelect].join(" "),
 };

@@ -118,12 +118,12 @@ export default function TableFilter(
     }},
   });
 
-  const el_builder = m("div", {"data-testid": "filter-builder-row", style: {display: "flex", gap: "5px", alignItems: "center", flex: "1", minWidth: "0"}},
+  const el_builder = m("div", {"data-testid": "filter-builder-row", style: {display: "flex", alignItems: "center", flex: "1", minWidth: "0"}},
     el_column.el,
     el_op_slot,
     el_value,
   );
-  const el_manual = m("div", {"data-testid": "filter-manual-row", style: {display: "none", gap: "5px", alignItems: "center", flex: "1", minWidth: "0"}},
+  const el_manual = m("div", {"data-testid": "filter-manual-row", style: {display: "none", alignItems: "center", flex: "1", minWidth: "0"}},
     el_expr,
   );
   // One toggle button switching between structured and manual mode. Both
@@ -151,7 +151,7 @@ export default function TableFilter(
   el_value.setAttribute("data-testid", "filter-value");
   el_expr.setAttribute("data-testid", "filter-expr");
 
-  const el = m("div", {style: {display: "flex", gap: "5px", alignItems: "center", flexWrap: "wrap", minHeight: "30px"}},
+  const el = m("div", {style: {display: "flex", alignItems: "center", flexWrap: "wrap", minHeight: "30px"}},
     el_toggle.el,
     el_builder,
     el_manual,
