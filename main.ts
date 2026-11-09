@@ -41,6 +41,7 @@ app.on("ready", async () => {
   }
 
   const win = new BrowserWindow({
+    autoHideMenuBar: true,
     width: 1600,
     height: 1000,
     webPreferences: {

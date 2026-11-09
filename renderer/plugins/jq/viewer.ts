@@ -51,7 +51,7 @@ export default function(
       return;
 
     if (jqerror !== undefined) {
-      el_response.replaceChildren(m("div", {style: {position: "fixed", color: "red", bottom: "3em"}}, jqerror));
+      el_response.replaceChildren(m("div", {style: {position: "fixed", color: "var(--err)", bottom: "3em"}}, jqerror));
       return;
     }
 

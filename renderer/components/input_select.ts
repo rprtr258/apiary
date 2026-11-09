@@ -1,5 +1,6 @@
 import {m} from "../lib/utils.ts";
 import {css} from "../lib/styles.ts";
+import {inputBase} from "./input.ts";
 
 export type SelectOption<T> = {
   label: string,
@@ -47,6 +48,7 @@ export function NSelect<T>(props: {
   }, label));
   let el_opts = renderOptions(props.options);
   const el = m("select", {
+    class: inputBase,
     style: props.style,
     // m() maps props to attributes, and in HTML presence of "disabled" disables
     // regardless of value - so a false must become undefined (attribute omitted).
@@ -104,22 +106,24 @@ const selectInputStyles = {
     z-index: 1000;
     max-height: 200px;
     overflow-y: auto;
-    background: #2a2a2a;
-    color: #ffffff;
-    border: 1px solid #404040;
-    border-radius: 4px;
+    padding: 4px;
+    background: var(--pane);
+    color: var(--ink);
+    border: 1px solid var(--hair);
+    border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   `),
   item: css(`
     padding: 4px 8px;
+    border-radius: 4px;
     cursor: pointer;
     white-space: nowrap;
   `),
   itemHighlighted: css(`
-    background-color: #404040;
+    background-color: var(--sel);
   `),
   itemDisabled: css(`
-    color: #666666;
+    color: var(--faint);
     cursor: not-allowed;
   `),
 };
@@ -243,6 +247,7 @@ export function NSelectInput(props: {
   refresh("");
 
   const el_input = m("input", {
+    class: inputBase,
     style: props.style,
     value: props.value === undefined ? undefined : (byValue.get(props.value)?.label ?? props.value),
     placeholder: props.placeholder,

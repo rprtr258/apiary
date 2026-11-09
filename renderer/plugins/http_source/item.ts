@@ -6,19 +6,19 @@ import {api} from "../../api.ts";
 import {store} from "../../store.ts";
 
 const httpMethodPropsMap: Record<string, ItemBadge> = {
-  "GET":     {label: "GET",     background: "#1a5f3a", color: "#70e888"},
-  "POST":    {label: "POST",    background: "#2a3a5f", color: "#85b4ee"},
-  "PUT":     {label: "PUT",     background: "#5f4a1a", color: "#e8c070"},
-  "DELETE":  {label: "DELETE",  background: "#5f1a1a", color: "#e98a8a"},
-  "PATCH":   {label: "PATCH",   background: "#3a1a5f", color: "#a870e8"},
-  "HEAD":    {label: "HEAD",    background: "#1a5f5f", color: "#70e8e8"},
-  "OPTIONS": {label: "OPTIONS", background: "#5f5f1a", color: "#e8e870"},
+  "GET":     {label: "GET",     background: "color-mix(in srgb, var(--green) 25%, transparent)", color: "var(--green)"},
+  "POST":    {label: "POST",    background: "color-mix(in srgb, var(--accent) 25%, transparent)", color: "var(--accent)"},
+  "PUT":     {label: "PUT",     background: "color-mix(in srgb, var(--warn) 25%, transparent)", color: "var(--warn)"},
+  "DELETE":  {label: "DELETE",  background: "color-mix(in srgb, var(--err) 25%, transparent)", color: "var(--err)"},
+  "PATCH":   {label: "PATCH",   background: "color-mix(in srgb, var(--type) 25%, transparent)", color: "var(--type)"},
+  "HEAD":    {label: "HEAD",    background: "color-mix(in srgb, var(--ok) 25%, transparent)", color: "var(--ok)"},
+  "OPTIONS": {label: "OPTIONS", background: "color-mix(in srgb, var(--result) 25%, transparent)", color: "var(--result)"},
 };
 function httpMethodProps(method: string): ItemBadge {
   const upperMethod = method.toUpperCase();
   if (upperMethod in httpMethodPropsMap)
     return httpMethodPropsMap[upperMethod];
-  return {label: method, background: "#3a3a3a", color: "#c0c0c0"};
+  return {label: method, background: "color-mix(in srgb, var(--faint) 25%, transparent)", color: "var(--faint)"};
 }
 
 function formatEndpointLabel(endpoint: t.EndpointInfo): string {
@@ -64,7 +64,7 @@ export function root(id: t.RequestID): Item {
   return {
     key: "",
     label: "",
-    badge: {label: "HTTP*", color: "lime"},
+    badge: {label: "HTTP*", color: "var(--green)"},
     children: () => listChildren(endpointsCache, id, ep => toEndpointNode(id, ep)),
     loading: () => endpointsCache.get(id)?.loading ?? false,
     refresh: () => endpointsCache.fetch(id),

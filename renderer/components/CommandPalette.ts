@@ -9,7 +9,7 @@ export const styles = {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: color-mix(in srgb, var(--ink) 22%, transparent);
     backdrop-filter: blur(3px);
     z-index: 1000;
     display: flex;
@@ -22,24 +22,26 @@ export const styles = {
     width: 600px;
     max-width: 90vw;
     max-height: 90%;
-    background-color: #2a2a2a;
+    background-color: var(--pane);
+    border: 1px solid var(--hair);
     border-radius: 8px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.25);
     display: flex;
     flex-direction: column;
   `),
   header: css(`
     display: flex;
-    border: 1px solid #7068ab;
+    border: 1px solid var(--hair);
   `),
   input: css(`
     width: 100%;
-    padding: 12px 16px;
-    background-color: #1a1a1a;
+    font: inherit;
+    padding: 11px 14px;
+    background: transparent;
     border: none;
-    border-radius: 4px;
-    color: #ffffff;
-    font-size: 14px;
+    border-bottom: 1px solid var(--hair);
+    border-radius: 0;
+    color: var(--ink);
     outline: none;
   `),
   body: css(`
@@ -56,11 +58,11 @@ export const styles = {
     gap: 12px;
 
     &:hover {
-      background-color: #353535;
+      background-color: var(--sel);
     }
   `),
   itemSelected: css(`
-    background-color: #404040;
+    background-color: var(--sel);
   `),
   itemContent: css(`
     flex: 1;
@@ -71,7 +73,7 @@ export const styles = {
     white-space: nowrap;
   `),
   itemLabel: css(`
-    color: #ffffff;
+    color: var(--ink);
     font-size: 14px;
     flex-grow: 1;
   `),
@@ -81,15 +83,15 @@ export const styles = {
     gap: 2px;
   `),
   shortcutSeparator: css(`
-    color: #888888;
+    color: var(--faint);
     font-size: 12px;
   `),
   shortcutKey: css(`
     padding: 2px 6px;
-    background-color: #1a1a1a;
-    border: 1px solid #404040;
+    background-color: var(--bg2);
+    border: 1px solid var(--hair);
     border-radius: 3px;
-    color: #cccccc;
+    color: var(--ink);
     font-size: 11px;
     font-family: monospace;
   `),
@@ -98,7 +100,7 @@ export const styles = {
     display: flex;
     justify-content: center;
     gap: 24px;
-    background-color: #1f1f1f;
+    background-color: var(--bg2);
   `),
   footerItem: css(`
     display: flex;
@@ -107,15 +109,15 @@ export const styles = {
   `),
   footerKey: css(`
     padding: 2px 6px;
-    background-color: #2a2a2a;
-    border: 1px solid #404040;
+    background-color: var(--bg);
+    border: 1px solid var(--hair);
     border-radius: 3px;
-    color: #cccccc;
+    color: var(--ink);
     font-size: 11px;
     font-family: monospace;
   `),
   footerLabel: css(`
-    color: #888888;
+    color: var(--faint);
     font-size: 12px;
   `),
 };
@@ -164,7 +166,7 @@ function Item({item, on}: ItemProps) {
 const styleEmpty = css(`
   padding: 32px;
   text-align: center;
-  color: #888888;
+  color: var(--faint);
   font-style: italic;
 `);
 

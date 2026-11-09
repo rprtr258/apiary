@@ -2,11 +2,27 @@ import {m, DOMNode, setDisplay} from "../lib/utils.ts";
 import {css, setClass} from "../lib/styles.ts";
 
 const btnStyles = {
+  // Base look for every NButton (ef "tb-btn"): quiet hairline box, sel hover.
+  base: css(`
+    font: inherit;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--hair);
+    border-radius: 6px;
+    padding: 4px 10px;
+    cursor: pointer;
+  `, {
+    ":hover": "background: var(--sel);",
+    ":disabled": "opacity: 0.4; cursor: not-allowed;",
+    ":disabled:hover": "background: transparent;",
+  }),
   primary: css(`
-    background-color: #0b74e0;
-    color: white;
-    border: 1px solid #0b74e0;
-  `),
+    background-color: var(--accent);
+    color: var(--accent-ink);
+    border: 1px solid var(--accent);
+  `, {
+    ":hover": "background-color: var(--accent);",
+  }),
   loading: css(`
     opacity: 0.8;
     cursor: wait;
@@ -33,7 +49,7 @@ export default function(props: {
       textWrapMode: "nowrap",
       ...props.style,
     },
-    class: props.class,
+    class: props.class !== undefined ? [btnStyles.base, props.class] : btnStyles.base,
     onclick: async (): Promise<void> => {
       if (disabled || loading) {
         return;

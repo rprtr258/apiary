@@ -9,10 +9,10 @@ export function Json<T>(data: T) {
 
 export type TagType = "success" | "info" | "warning" | "error";
 export const tagColors: Record<TagType, string> = {
-  success: "lime",
-  info: "blue",
-  warning: "yellow",
-  error: "red",
+  success: "var(--green)",
+  info: "var(--accent)",
+  warning: "var(--warn)",
+  error: "var(--err)",
 };
 export type NTagProps = {
   label: string,
@@ -88,11 +88,14 @@ export function NListItem(props: NListItemProps, children: DOMNode[]) {
 };
 
 export const treeLabelClass = css(`
+  flex: 1;
+  min-width: 0;
   cursor: pointer;
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: clip;
 `);
+const noShrinkClass = css("flex: 0 0 auto;");
 const treeButtonClass = css(`
   width: 100%;
   text-align: left;
@@ -105,13 +108,17 @@ const treeButtonClass = css(`
   color: inherit;
   font-size: inherit;
   position: relative;
+  /* Rows are hard-capped at the sidebar width: nothing inside (labels, the
+     absolute drop marker) may widen the scroll area - labels ellipsize, and
+     a deep-indent drop line past a narrow row is clipped away */
+  overflow-x: clip;
 `);
 const treeButtonHoverClass = css.raw(`:hover {
-  background-color: #404040 !important;
+  background-color: var(--sel) !important;
 }`);
 const treeDropIntoClass = css.raw(` {
-  background-color: #404040 !important;
-  outline: 1px dashed #606060;
+  background-color: var(--sel) !important;
+  outline: 1px dashed var(--faint);
   outline-offset: -1px;
 }`);
 
@@ -167,7 +174,7 @@ function setDropMarker(el: HTMLElement, pos: "before" | "inside" | "after", node
     left: `${indent * 1.5}em`,
     right: "0",
     height: "2px",
-    background: "#808080",
+    background: "var(--faint)",
     pointerEvents: "none",
     ...(pos === "before" ? {top: "0"} : {bottom: "0"}),
   }});
@@ -301,11 +308,12 @@ export function NTree(props: NTreeProps) {
         props.on.context_menu!(v, e);
       } : undefined,
     },
-      m("div", {style: {minWidth: `${level * 1.5}em`}}, " "),
-      m("span", {class: treeButtonHoverClass, style: {display: "flex", width: "100%", height: "100%"}},
+      m("div", {style: {width: `${level * 1.5}em`, minWidth: "0", flexShrink: "1"}}, " "),
+      m("span", {class: treeButtonHoverClass, style: {display: "flex", flex: "1", minWidth: "0", height: "100%"}},
         isDir ? NIcon({
           component: isExpanded ? FolderOpenOutlined : FolderOutlined,
           size: 20,
+          class: noShrinkClass,
         }) : null,
         props.render(v, level, isExpanded),
       ),
@@ -350,7 +358,7 @@ export function StatusLabel() {
     el,
     setStatus(message: string, isSuccess: boolean) {
       el.textContent = message;
-      el.style.color = isSuccess ? "green" : "red";
+      el.style.color = isSuccess ? "var(--green)" : "var(--err)";
     },
   };
 };
