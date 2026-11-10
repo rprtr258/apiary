@@ -26,8 +26,7 @@ function promptSchema(prompt: t.MCPPrompt): t.JSONSchema {
   };
 }
 
-// String values of the object's properties (except `except`), as
-// completion/complete context
+// Completion/complete candidates for the object under the caret
 function stringArgs(state: EditorState, object: SyntaxNode, except: string): Record<string, string> {
   const args: Record<string, string> = {};
   for (let prop = object.firstChild; prop !== null; prop = prop.nextSibling) {

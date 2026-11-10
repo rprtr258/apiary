@@ -111,7 +111,6 @@ export function generateExampleRequest(
     }
   }
 
-  // Add query params
   const queryParams = endpoint.parameters.filter(p => p.in === "query");
   if (queryParams.length > 0) {
     const qs = queryParams

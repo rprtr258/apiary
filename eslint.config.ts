@@ -6,6 +6,7 @@ import stylistic from "@stylistic/eslint-plugin";
 import importPlugin from "eslint-plugin-import";
 import jest from "eslint-plugin-jest";
 import {noBooleanLiteralCompare} from "./eslint/rules/no-boolean-literal-compare.ts";
+import {noRestatingComments} from "./eslint/rules/no-restating-comments.ts";
 
 export default defineConfig([
   {
@@ -29,7 +30,7 @@ export default defineConfig([
     plugins: {
       "@stylistic": stylistic,
       import: importPlugin,
-      local: {rules: {"no-boolean-literal-compare": noBooleanLiteralCompare}},
+      local: {rules: {"no-boolean-literal-compare": noBooleanLiteralCompare, "no-restating-comments": noRestatingComments}},
     },
     rules: {
       "eqeqeq": ["error", "always"],
@@ -48,6 +49,7 @@ export default defineConfig([
         message: "Assignment inside an expression is prohibited.",
       }],
       "local/no-boolean-literal-compare": "error",
+      "local/no-restating-comments": "error",
       "@stylistic/semi": ["error", "always"],
       "@stylistic/member-delimiter-style": ["error", {
         "multiline": {delimiter: "comma", requireLast: true},
