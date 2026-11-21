@@ -23,7 +23,7 @@ globalThis.window = window;
 // happy-dom defaults to "about:blank", which breaks @apidevtools/json-schema-ref-parser's
 // URL resolution (cwd() checks window.location.href before process.cwd()).
 // Set a valid HTTP URL so relative URL resolution works.
-window.location.href = "http://localhost/"; // TODO: remove this parasha
+window.location.href = "http://localhost/";
 globalThis.document = window.document;
 globalThis.localStorage = window.localStorage;
 globalThis.MutationObserver = window.MutationObserver;

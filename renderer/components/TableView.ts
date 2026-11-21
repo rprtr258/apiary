@@ -65,7 +65,7 @@ const column_type_icons: Partial<Record<t.ColumnType, SVGSVGElement>> = {
   [t.ColumnType.STRING]: ItalicOutlined,
   [t.ColumnType.BOOLEAN]: CheckSquareOutlined,
   [t.ColumnType.TIME]: ClockCircleOutlined,
-  [t.ColumnType.JSON]: QuestionCircleOutlined, // TODO: json icon
+  [t.ColumnType.JSON]: QuestionCircleOutlined,
   [t.ColumnType.UNKNOWN]: QuestionCircleOutlined,
 };
 

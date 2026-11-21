@@ -23,8 +23,8 @@ export default function(
 } {
   el.append(NEmpty({description: "Loading request..."}));
 
-  const jqerror: string | undefined = undefined as string | undefined; // TODO: remove type cast, fill sometimes with error
-  const el_send = NButton({ // TODO: autosend
+  const jqerror: string | undefined = undefined as string | undefined;
+  const el_send = NButton({
     primary: true,
     on: {click: on.send},
     disabled: true,

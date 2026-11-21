@@ -358,7 +358,7 @@ export const HTTPSource = {
   async Test(id: t.RequestID): Promise<void> {
     const sourceRequest = (await getOfKind(id, t.Kind.HTTPSource)).Data;
     const specData = await http_source.fetchSpec(sourceRequest);
-    void(await http_source.parseSpec(specData)); // TODO: use/return?
+    void(await http_source.parseSpec(specData));
   },
 };
 

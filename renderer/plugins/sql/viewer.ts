@@ -53,7 +53,6 @@ export default function(
     if (response === undefined)
       return;
 
-    // TODO: fix duplicate column names
     el_response.style.justifyContent = "";
     dataTable.update({columns: response.columns, rows: response.rows as t.RowValue[][], typenames: response.typenames, types: response.types, on: {}});
   };

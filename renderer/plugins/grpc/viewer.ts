@@ -25,7 +25,7 @@ function responseBadge(response: {code: number}) {
 
 export default function(
   el: HTMLElement,
-  show_request: Signal<boolean>, // TODO: remove, show by default
+  show_request: Signal<boolean>,
   on: {
     update: (patch: Partial<Request>) => Promise<void>,
     send: () => Promise<void>,

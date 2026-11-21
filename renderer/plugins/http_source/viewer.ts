@@ -53,7 +53,7 @@ function AuthFields(auth: t.AuthConfig, onUpdate: (patch: Partial<t.AuthConfig>)
     break;
   case "oauth":
     fields.push(
-      m("label", {}, "Token"), NInput({value: auth.token, on: {update: (v: string) => onUpdate({token: v})}}), // placeholder // TODO: implement
+      m("label", {}, "Token"), NInput({value: auth.token, on: {update: (v: string) => onUpdate({token: v})}}),
     );
     break;
   }

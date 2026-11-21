@@ -7,7 +7,7 @@ export type KV = {
 
 export type JSONSchema = {
   example?: JSONValue,
-} & ({ // TODO: reuse from lib
+} & ({
   "$schema"?: "http://json-schema.org/draft-07/schema#",
   type: "object",
   properties: Record<string, JSONSchema>,

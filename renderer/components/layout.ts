@@ -241,12 +241,11 @@ type ModalProps = {
   },
 };
 
-// TODO: use https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog
 export function Modal(
   {title, children: content, buttons, on}: ModalProps,
   children: DOMNode[] = [],
 ) {
-  let show = false; // TODO: signal as in dropdown
+  let show = false;
   const el_modal = m("div", {style: style_modal},
     m("h3", {}, title),
     m("div", {}, content),
