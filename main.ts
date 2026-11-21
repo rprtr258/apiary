@@ -4,13 +4,20 @@ import {app, BrowserWindow, ipcMain, Menu} from "electron";
 import data from "./package.json" with {type: "json"};
 import * as t from "@/types.ts";
 import * as api from "./main/api.ts";
+import {logRenderer, startFileLogging} from "./main/logfile.ts";
 import {Request, setDBPath, flushSave} from "./main/db.ts";
 
 const version = data.version;
 
 // db.json lives in the per-user app data dir (e.g. ~/.config/apiary on Linux), so the
 // same db is found regardless of cwd; APIARY_DB_PATH overrides it (e2e tests).
-setDBPath(process.env["APIARY_DB_PATH"] ?? path.join(app.getPath("appData"), data.name, "db.json"));
+const dbPath = process.env["APIARY_DB_PATH"] ?? path.join(app.getPath("appData"), data.name, "db.json");
+setDBPath(dbPath);
+
+// App logs (main-process console + forwarded renderer console) go next to
+// db.json, under the same APIARY_DB_PATH override so e2e runs don't clobber the
+// user's real log; truncated on every launch.
+startFileLogging(path.join(path.dirname(dbPath), "apiary.log"));
 
 if (process.argv.includes("--version")) {
   console.log(version);
@@ -53,6 +60,8 @@ app.on("ready", async () => {
       sandbox: false,
     },
   });
+
+  win.webContents.on("console-message", ({level, message, sourceId, lineNumber}) => logRenderer(level, message, sourceId, lineNumber));
 
   if (process.env["VITE_DEV_SERVER_URL"] !== undefined) {
     await win.loadURL(process.env["VITE_DEV_SERVER_URL"]);
