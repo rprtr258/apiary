@@ -9,7 +9,7 @@ export const STALE_AFTER = 1000*60*5;
 // Bumped on every cache mutation so subscribers (e.g. tree view) can re-render.
 export const changed = signal(0);
 
-export type SourceCacheEntry<T> = {
+type SourceCacheEntry<T> = {
   lastFetch: number,
   loading?: boolean,
   items: T[],

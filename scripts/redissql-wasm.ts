@@ -11,7 +11,7 @@ import {tmpdir} from "node:os";
 
 export const root = path.resolve(import.meta.dirname, "..");
 export const wasmModuleDir = path.join(root, "internal", "redissql", "wasm");
-export const vitessShimDir = path.join(root, "build", "vitess-js");
+const vitessShimDir = path.join(root, "build", "vitess-js");
 
 export function run(command: string, args: string[], options: {cwd?: string, env?: NodeJS.ProcessEnv} = {}): string {
   const result = spawnSync(command, args, {encoding: "utf8", ...options});

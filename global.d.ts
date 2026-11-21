@@ -1,4 +1,4 @@
-import {Request} from "./db.ts";
+import {Request} from "./main/db.ts";
 import * as t from "@/types.ts";
 
 type Versions = {
@@ -7,6 +7,7 @@ type Versions = {
   electron: () => string,
 };
 
+/** @public — imported by preload.ts via "./global.ts" (declaration fallback) */
 export type Api = {
   List:      (                               ) => Promise<t.ListResponse>,
   Get:       (_1: string                     ) => Promise<t.GetResponse>,

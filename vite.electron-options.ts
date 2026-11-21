@@ -8,8 +8,7 @@ import {ElectronOptions} from "vite-plugin-electron";
 //     `with {type: "json"}` attribute when externalizing) stays bundled.
 //   - type-only imports (openapi-types, sdk/shared/transport.js) are elided
 //     before rolldown sees them and are not listed.
-// protobufjs itself is not a direct dependency: it arrives transitively via
-// @grpc/proto-loader, which electron-builder packages.
+// protobufjs is a direct dependency, so electron-builder packages it.
 const MAIN_EXTERNAL = [
   "better-sqlite3",
   "@clickhouse/client",

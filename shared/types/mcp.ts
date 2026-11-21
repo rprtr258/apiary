@@ -27,7 +27,7 @@ export type MCPTool = {
 };
 
 // A prompt subitem: a named template with simple string arguments.
-export type MCPPromptArgument = {
+type MCPPromptArgument = {
   name: string,
   description: string,
   required: boolean,
@@ -56,7 +56,7 @@ export type MCPResource = {
 };
 
 // One content entry of resources/read: text inline or blob as base64.
-export type MCPResourceContents = {
+type MCPResourceContents = {
   uri: string,
   mimeType: string,
   text: string,

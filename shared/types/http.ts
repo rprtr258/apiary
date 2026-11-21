@@ -88,7 +88,6 @@ export const HTTPCodes = {
   510: "Not Extended",
   511: "Network Authentication Required",
 } as const;
-export type HTTPCode = keyof typeof HTTPCodes;
 
 export const Method = {
   GET:     "GET",

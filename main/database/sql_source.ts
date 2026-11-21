@@ -9,7 +9,7 @@ export const EmptyRequest: SQLSourceRequest = {
 
 // SQL literal for a cell value. null → NULL, booleans → TRUE/FALSE, strings
 // and dates quoted with '' escaping.
-export function sqlLiteral(v: RowValue): string {
+function sqlLiteral(v: RowValue): string {
   if (v === null)
     return "NULL";
   if (typeof v === "number")
@@ -139,7 +139,7 @@ export async function updateTableRows(request: Omit<SQLRequest, "query">, tableN
 // Primary key columns of a table in key order, taken from the table schema.
 // Pins the table viewer's pagination order. Empty for ClickHouse
 // (describeTable returns no constraints, so no PK info is available).
-export async function tablePrimaryKeyColumns(request: Omit<SQLRequest, "query">, tableName: string): Promise<string[]> {
+async function tablePrimaryKeyColumns(request: Omit<SQLRequest, "query">, tableName: string): Promise<string[]> {
   const schema = await describeTable(request, tableName);
   return schema.constraints.find(c => c.type === "PRIMARY KEY")?.columns ?? [];
 }

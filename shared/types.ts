@@ -65,7 +65,7 @@ export type Request = {
   id: RequestID,
   path: string,
 } & RequestData;
-export type Request2 = {
+type Request2 = {
   ID: RequestID,
   Path: string,
   Data: unknown,
@@ -89,16 +89,6 @@ export const Kinds = Object.values(Kind);
 // Kinds Perform dispatches; only these can be drafts (sources and MCP cannot be
 // performed and therefore cannot be drafts).
 export const DraftableKinds: ReadonlySet<Kind> = new Set([Kind.HTTP, Kind.SQL, Kind.JQ, Kind.MD, Kind.REDIS, Kind.GRPC, Kind.DIFF]);
-
-export type ResponseData =
-  | {kind: Kind.HTTP } & HTTPResponse
-  | {kind: Kind.SQL  } & SQLResponse
-  | {kind: Kind.GRPC } & GRPCResponse
-  | {kind: Kind.JQ   } & JQResponse
-  | {kind: Kind.REDIS} & RedisResponse
-  | {kind: Kind.MD   } & MDResponse
-  | {kind: Kind.DIFF } & DiffResponse
-;
 
 export type HistoryEntry = {
   sent_at: Date,

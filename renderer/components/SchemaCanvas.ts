@@ -4,7 +4,7 @@ import {hashmod} from "@/shared.ts";
 import {m, s} from "../lib/utils.ts";
 import PanZoom from "./panzoom.ts";
 
-export function range(start: number, end: number): number[] {
+function range(start: number, end: number): number[] {
   if (start >= end) return [];
   return Array.from({length: end - start}, (_, i) => i + start);
 }
