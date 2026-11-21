@@ -185,10 +185,11 @@ numbers.forEach(n => console.log(n));
 - **Version Format**: Semantic versioning (e.g., `vX.Y.Z`).
 
 ### Creating a Release
-1. **Tag Creation**: `git tag vX.Y.Z`
-2. **Push Tag**: `git push origin vX.Y.Z` (triggers GitHub Actions)
-3. **Automated Build**: GitHub Actions builds for Linux, macOS, and Windows
-4. **Release Creation**: Binaries attached to GitHub Release with auto-generated notes
+1. **Version Bump**: `package.json` `"version"` must equal the release version - the release workflow's gate job fails the tag push otherwise
+2. **Tag Creation**: `git tag vX.Y.Z`
+3. **Push Tag**: `git push origin vX.Y.Z` (triggers GitHub Actions)
+4. **Automated Build**: GitHub Actions builds for Linux, macOS, and Windows
+5. **Release Creation**: Binaries attached to GitHub Release with auto-generated notes
 
 ### GitHub Actions Workflow
 - **File**: `.github/workflows/release.yml`
