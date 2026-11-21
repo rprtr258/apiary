@@ -1,5 +1,62 @@
 import {describe, test, expect} from "bun:test";
-import {parsePlan} from "./sql.postgres.ts";
+import {parsePlan, columnType, typename, dataTypeColumnType} from "./sql.postgres.ts";
+import {ColumnType} from "@/types.ts";
+
+describe("postgres oid tables", () => {
+  test.each([
+    [1700, "numeric"],
+    [1043, "varchar"],
+    [21, "int2"],
+    [701, "float8"],
+    [2950, "uuid"],
+    [3802, "jsonb"],
+    [3904, "int4range"],
+    // non-builtin OIDs (extension types) keep the raw form
+    [999999, "999999"],
+  ])("typename(%i)", (oid, want) => {
+    expect(typename(oid)).toBe(want);
+  });
+
+  test.each([
+    [1700, ColumnType.NUMBER], // numeric
+    [21, ColumnType.NUMBER], // int2
+    [701, ColumnType.NUMBER], // float8
+    [16, ColumnType.BOOLEAN], // bool
+    [1184, ColumnType.TIME], // timestamptz
+    [1186, ColumnType.TIME], // interval
+    [114, ColumnType.JSON], // json
+    [3802, ColumnType.JSON], // jsonb
+    [1043, ColumnType.STRING], // varchar
+    [3904, ColumnType.UNKNOWN], // int4range
+    [999999, ColumnType.UNKNOWN], // extension oid
+  ])("columnType(%i)", (oid, want) => {
+    expect(columnType(oid)).toBe(want);
+  });
+});
+
+describe("dataTypeColumnType (information_schema)", () => {
+  test.each([
+    ["boolean", ColumnType.BOOLEAN],
+    ["integer", ColumnType.NUMBER],
+    ["numeric", ColumnType.NUMBER],
+    ["double precision", ColumnType.NUMBER],
+    ["bigserial", ColumnType.NUMBER],
+    ["character varying", ColumnType.STRING],
+    ["text", ColumnType.STRING],
+    ["uuid", ColumnType.STRING],
+    ["timestamp without time zone", ColumnType.TIME],
+    ["timestamp with time zone", ColumnType.TIME],
+    ["date", ColumnType.TIME],
+    ["time without time zone", ColumnType.TIME],
+    ["interval", ColumnType.TIME],
+    ["json", ColumnType.JSON],
+    ["jsonb", ColumnType.JSON],
+    ["ARRAY", ColumnType.UNKNOWN],
+    ["USER-DEFINED", ColumnType.UNKNOWN],
+  ])("dataTypeColumnType(%s)", (dataType, want) => {
+    expect(dataTypeColumnType(dataType)).toBe(want);
+  });
+});
 
 const POSTGRES_FIXTURE = `Limit  (cost=38.98..39.00 rows=5 width=12) (actual time=0.156..0.157 rows=5 loops=1)
   ->  Sort  (cost=38.97..39.02 rows=20 width=12) (actual time=0.155..0.155 rows=5 loops=1)

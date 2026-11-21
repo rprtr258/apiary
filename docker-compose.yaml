@@ -4,6 +4,16 @@ services:
     ports: ["3306:3306"]
     environment:
       MYSQL_ROOT_PASSWORD: my-secret-pw
+    healthcheck:
+      # TCP, not the socket: during first-boot initialization a temporary
+      # server listens on the socket only, so the check must keep failing
+      # until the real server accepts connections. $$ escapes compose
+      # interpolation; the container shell expands $MYSQL_ROOT_PASSWORD.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
 
   redis:
     image: redis:alpine

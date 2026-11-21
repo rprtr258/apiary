@@ -13,6 +13,10 @@ export class BetterLikeDB {
     return {
       all: () => stmt.all() as Record<string, unknown>[],
       run: () => stmt.run() as {changes: number | bigint, lastInsertRowid: number | bigint},
+      // better-sqlite3 reader: statement returns data (bun:sqlite exposes the
+      // same fact as a non-empty columnNames)
+      reader: stmt.columnNames.length > 0,
+      columns: () => stmt.columnNames.map((name, i) => ({name, type: stmt.declaredTypes[i] ?? null})),
     };
   }
   transaction<T>(fn: () => T): () => T {

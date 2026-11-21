@@ -143,7 +143,7 @@ jobs:
         # file uses no ${} interpolation, so skipping it is safe.
         env:
           COMPOSE_DISABLE_ENV_FILE: "1"
-        run: docker compose up -d --wait postgres redis grpc-server clickhouse
+        run: docker compose up -d --wait mysql postgres redis grpc-server clickhouse
 
       - name: Wait for gRPC server
         # grpc-server has no compose healthcheck, so poll its port before testing.

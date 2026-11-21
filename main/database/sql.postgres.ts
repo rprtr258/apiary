@@ -19,32 +19,31 @@ LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
 WHERE n.nspname = 'pg_catalog'
 ORDER BY t.oid
 */
-const pg_types: Partial<Record<TypeId, t.ColumnType>> = {
-  [typeIDs.BOOL]: t.ColumnType.BOOLEAN,
-  [typeIDs.INT8]: t.ColumnType.NUMBER,
-  [typeIDs.INT4]: t.ColumnType.NUMBER,
-  [19 as TypeId]: t.ColumnType.STRING,
-  [typeIDs.TEXT]: t.ColumnType.STRING,
-  [typeIDs.JSON]: t.ColumnType.JSON,
-  [typeIDs.JSONB]: t.ColumnType.JSON,
-  [typeIDs.DATE]: t.ColumnType.TIME,
-  [typeIDs.TIME]: t.ColumnType.TIME,
-  [typeIDs.TIMESTAMP]: t.ColumnType.TIME,
-  [typeIDs.TIMESTAMPTZ]: t.ColumnType.TIME,
-};
-const pg_typenames: Partial<Record<TypeId, string>> = {
-  [typeIDs.BOOL]: "bool",
-  [typeIDs.INT8]: "int8",
-  [typeIDs.INT4]: "int4",
-  [19 as TypeId]: "name",
-  [typeIDs.TEXT]: "text",
-  [typeIDs.JSON]: "json",
-  [typeIDs.JSONB]: "json",
-  [typeIDs.DATE]: "date",
-  [typeIDs.TIME]: "time",
-  [typeIDs.TIMESTAMP]: "timestamp",
-  [typeIDs.TIMESTAMPTZ]: "timestamptz",
-};
+// UI kind per builtin type-family; everything else built-in renders as unknown.
+function pgKind(key: string): t.ColumnType {
+  if (["BOOL"].includes(key)) return t.ColumnType.BOOLEAN;
+  if (["JSON", "JSONB", "JSONPATH"].includes(key)) return t.ColumnType.JSON;
+  if (["DATE", "TIME", "TIMETZ", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL"].includes(key)) return t.ColumnType.TIME;
+  if (["INT2", "INT4", "INT8", "FLOAT4", "FLOAT8", "NUMERIC", "OID", "XID", "XID8", "CID", "TID"].includes(key)) return t.ColumnType.NUMBER;
+  if (["CHAR", "TEXT", "BPCHAR", "VARCHAR"].includes(key)) return t.ColumnType.STRING;
+  return t.ColumnType.UNKNOWN;
+}
+
+// Complete builtin OID tables derived from pg-types' generated enum: typename
+// is the enum key lowercased (pg_type.typname form, e.g. "int8",
+// "timestamptz"). OIDs outside the builtin set (extension types) fall back to
+// the raw OID / UNKNOWN.
+const pgBuiltins = Object.entries(typeIDs).filter((entry): entry is [string, number] => typeof entry[1] === "number");
+const pg_types: Partial<Record<TypeId, t.ColumnType>> = Object.fromEntries(pgBuiltins.map(([key, oid]) => [oid, pgKind(key)]));
+const pg_typenames: Partial<Record<TypeId, string>> = Object.fromEntries(pgBuiltins.map(([key, oid]) => [oid, key.toLowerCase()]));
+
+export function columnType(oid: number): t.ColumnType {
+  return pg_types[oid as TypeId] ?? t.ColumnType.UNKNOWN;
+}
+
+export function typename(oid: number): string {
+  return pg_typenames[oid as TypeId] ?? `${oid}`;
+}
 
 // Normalized connection string used as the pool key: schema-prefixed and
 // carrying the libpq sslmode compatibility flag, so sslmode=require/prefer
@@ -95,8 +94,8 @@ export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
     const fields = result.fields;
     return {
       columns: fields.map(f => f.name),
-      typenames: fields.map((f): TypeId => f.dataTypeID).map(f => pg_typenames[f] ?? `${f}`), // TODO: fix number shit casting // TODO: use lib enum
-      types: fields.map((f): TypeId => f.dataTypeID).map(f => pg_types[f] ?? t.ColumnType.UNKNOWN), // "unknown ${f}" string breaks frontend icon lookup; TODO: use lib enum
+      typenames: fields.map(f => typename(f.dataTypeID)),
+      types: fields.map(f => columnType(f.dataTypeID)),
       rows: result.rows.map(r => Object.values(r as Record<string, unknown>)),
     };
   });
@@ -175,6 +174,18 @@ function stripLeadingColumns(definition: string, type: string): string {
   return definition;
 }
 
+// information_schema data_type values ("character varying", "timestamp with
+// time zone", ...) share nothing with the ColumnType enum; "ARRAY" and
+// "USER-DEFINED" carry no mappable kind.
+export function dataTypeColumnType(dataType: string): t.ColumnType {
+  if (dataType === "boolean") return t.ColumnType.BOOLEAN;
+  if ("smallint|integer|bigint|decimal|numeric|real|double precision|smallserial|serial|bigserial".split("|").includes(dataType)) return t.ColumnType.NUMBER;
+  if (/^(timestamp|date|time|interval)/.test(dataType)) return t.ColumnType.TIME;
+  if (dataType === "json" || dataType === "jsonb") return t.ColumnType.JSON;
+  if (dataType === "ARRAY" || dataType === "USER-DEFINED") return t.ColumnType.UNKNOWN;
+  return t.ColumnType.STRING;
+}
+
 export async function describe(request: Omit<t.SQLRequest, "query">, tableName: string): Promise<t.TableSchema> {
   const colResult = await send({...request, query: `SELECT
   column_name,
@@ -188,7 +199,7 @@ ORDER BY ordinal_position`}); // TODO: pass tableName as arg
   const columns: t.ColumnInfo[] = colResult.rows.map(([name, typ, typename, nullable, defaultVal]) => ({
     name: name as string,
     typename: typename as string,
-    type: typ as t.ColumnType, // TODO: map
+    type: dataTypeColumnType(typ as string),
     nullable: nullable as boolean,
     defaultValue: JSON.stringify(defaultVal ?? ""),
   }));

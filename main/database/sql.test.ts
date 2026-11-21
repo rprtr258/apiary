@@ -3,7 +3,7 @@ import {tmpdir} from "os";
 import {join} from "path";
 import {mock, describe, test, expect} from "bun:test";
 import {SQLRequest, ColumnType} from "@/types.ts";
-import {send, explain} from "./sql.ts";
+import {send, sendBatch, explain} from "./sql.ts";
 import {BetterLikeDB} from "./mock_better_sqlite3.ts";
 
 mock.module("better-sqlite3", () => ({
@@ -26,7 +26,51 @@ describe("sendSQL sqlite", () => {
     expect(result2).toEqual({typenames: [], types: [], columns: [], rows: []});
 
     const result = await send(req({dsn: TEST_DB, query: "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"}));
-    expect(result).toEqual({typenames: ["string"], types: [ColumnType.STRING], columns: ["name"], rows: [["posts"], ["users"]]});
+    expect(result).toEqual({typenames: ["TEXT"], types: [ColumnType.STRING], columns: ["name"], rows: [["posts"], ["users"]]});
+  });
+
+  test("reports declared column types for empty result sets", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sqlite-empty-types"));
+    const TEST_DB = dir + "/apiary-sql-test.db";
+    await send(req({dsn: TEST_DB, query: "CREATE TABLE t (id INTEGER, name TEXT, flag BOOLEAN, created DATETIME)"}));
+
+    const result = await send(req({dsn: TEST_DB, query: "SELECT id, name, flag, created FROM t WHERE 0"}));
+    expect(result.columns).toEqual(["id", "name", "flag", "created"]);
+    expect(result.typenames).toEqual(["INTEGER", "TEXT", "BOOLEAN", "DATETIME"]);
+    expect(result.types).toEqual([ColumnType.NUMBER, ColumnType.STRING, ColumnType.BOOLEAN, ColumnType.TIME]);
+    expect(result.rows).toEqual([]);
+  });
+
+  test("expression columns fall back to value shape, then UNKNOWN", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sqlite-expr-types"));
+    const TEST_DB = dir + "/apiary-sql-test.db";
+    await send(req({dsn: TEST_DB, query: "CREATE TABLE t (id INTEGER)"}));
+    await send(req({dsn: TEST_DB, query: "INSERT INTO t VALUES (1)"}));
+    await send(req({dsn: TEST_DB, query: "INSERT INTO t VALUES (NULL)"}));
+
+    const result = await send(req({dsn: TEST_DB, query: "SELECT id * 2 AS dbl, COUNT(*) AS n FROM t"}));
+    expect(result.typenames).toEqual(["number", "number"]);
+    expect(result.types).toEqual([ColumnType.NUMBER, ColumnType.NUMBER]);
+
+    const empty = await send(req({dsn: TEST_DB, query: "SELECT id * 2 AS dbl FROM t WHERE 0"}));
+    expect(empty.typenames).toEqual(["unknown"]);
+    expect(empty.types).toEqual([ColumnType.UNKNOWN]);
+  });
+  test("reports affected rows for writes", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sqlite-affected-rows"));
+    const TEST_DB = dir + "/apiary-sql-test.db";
+    await sendBatch(req({dsn: TEST_DB}), ["CREATE TABLE t (id INTEGER, val TEXT)"]);
+
+    const insert = await sendBatch(req({dsn: TEST_DB}), [
+      "INSERT INTO t VALUES (1, 'a'), (2, 'b')",
+    ]);
+    expect(insert.affectedRows).toEqual([2]);
+
+    const update = await sendBatch(req({dsn: TEST_DB}), [
+      "UPDATE t SET val = 'x' WHERE id >= 1",
+      "UPDATE t SET val = 'y' WHERE id = 2",
+    ]);
+    expect(update.affectedRows).toEqual([2, 1]);
   });
 });
 

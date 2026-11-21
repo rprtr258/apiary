@@ -9,6 +9,81 @@ function connect(dsn: string) {
   return mysql.createConnection({uri: dsn, dateStrings: true});
 }
 
+// Field metadata (column_definition packet fields consumed here).
+type Field = {name: string, columnType?: number, characterSet?: number, extendedTypeName?: string};
+
+// MySQL protocol column type ids (mysql_com.h) with display typenames and UI
+// column kinds; unknown ids (future types) degrade to "unknown"/UNKNOWN.
+const protocolTypes: Record<number, {typename: string, type: t.ColumnType}> = {
+  0: {typename: "decimal", type: t.ColumnType.NUMBER}, // DECIMAL
+  1: {typename: "tinyint", type: t.ColumnType.NUMBER}, // TINY
+  2: {typename: "smallint", type: t.ColumnType.NUMBER}, // SHORT
+  3: {typename: "int", type: t.ColumnType.NUMBER}, // LONG
+  4: {typename: "float", type: t.ColumnType.NUMBER}, // FLOAT
+  5: {typename: "double", type: t.ColumnType.NUMBER}, // DOUBLE
+  6: {typename: "null", type: t.ColumnType.UNKNOWN}, // NULL
+  7: {typename: "timestamp", type: t.ColumnType.TIME}, // TIMESTAMP
+  8: {typename: "bigint", type: t.ColumnType.NUMBER}, // LONGLONG
+  9: {typename: "mediumint", type: t.ColumnType.NUMBER}, // INT24
+  10: {typename: "date", type: t.ColumnType.TIME}, // DATE
+  11: {typename: "time", type: t.ColumnType.TIME}, // TIME
+  12: {typename: "datetime", type: t.ColumnType.TIME}, // DATETIME
+  13: {typename: "year", type: t.ColumnType.NUMBER}, // YEAR
+  14: {typename: "date", type: t.ColumnType.TIME}, // NEWDATE
+  15: {typename: "varchar", type: t.ColumnType.STRING}, // VARCHAR
+  16: {typename: "bit", type: t.ColumnType.NUMBER}, // BIT
+  242: {typename: "vector", type: t.ColumnType.UNKNOWN}, // VECTOR
+  245: {typename: "json", type: t.ColumnType.JSON}, // JSON
+  246: {typename: "decimal", type: t.ColumnType.NUMBER}, // NEWDECIMAL
+  247: {typename: "enum", type: t.ColumnType.STRING}, // ENUM
+  248: {typename: "set", type: t.ColumnType.STRING}, // SET
+  249: {typename: "tinyblob", type: t.ColumnType.STRING}, // TINY_BLOB
+  250: {typename: "mediumblob", type: t.ColumnType.STRING}, // MEDIUM_BLOB
+  251: {typename: "longblob", type: t.ColumnType.STRING}, // LONG_BLOB
+  252: {typename: "text", type: t.ColumnType.STRING}, // BLOB
+  253: {typename: "varchar", type: t.ColumnType.STRING}, // VAR_STRING
+  254: {typename: "char", type: t.ColumnType.STRING}, // STRING
+  255: {typename: "geometry", type: t.ColumnType.UNKNOWN}, // GEOMETRY
+};
+
+export function columnMeta(field: Field): {typename: string, type: t.ColumnType} {
+  const base = protocolTypes[field.columnType ?? -1] ?? {typename: "unknown", type: t.ColumnType.UNKNOWN};
+  const typename = (() => {
+    // MariaDB ships real types (uuid, inet4, ...) only in the extended metadata
+    // block; on the wire they look like plain string/blob columns.
+    if (field.extendedTypeName !== undefined)
+      return field.extendedTypeName;
+    // The protocol does not distinguish TEXT from BLOB (nor CHAR from BINARY,
+    // VARCHAR from VARBINARY); charset 63 (binary) marks the byte variants.
+    if (field.characterSet === 63) {
+      if (field.columnType === 252) return "blob";
+      if (field.columnType === 253) return "varbinary";
+      if (field.columnType === 254) return "binary";
+    }
+    return base.typename;
+  })();
+  return {typename, type: base.type};
+}
+
+// information_schema data_type names share the protocol typenames, except the
+// binary-charset variants (columnMeta derives those from the charset, not the
+// type id) and the sized text family; anything exotic degrades to unknown.
+const dataTypeKinds: Record<string, t.ColumnType> = {
+  ...Object.fromEntries(Object.values(protocolTypes).map(v => [v.typename, v.type])),
+  binary: t.ColumnType.STRING,
+  varbinary: t.ColumnType.STRING,
+  tinytext: t.ColumnType.STRING,
+  mediumtext: t.ColumnType.STRING,
+  longtext: t.ColumnType.STRING,
+  uuid: t.ColumnType.STRING,
+  inet4: t.ColumnType.STRING,
+  inet6: t.ColumnType.STRING,
+};
+
+export function dataTypeMeta(name: string): t.ColumnType {
+  return dataTypeKinds[name] ?? t.ColumnType.UNKNOWN;
+}
+
 const pool = createClientPool<Connection, string>({
   keyOf: dsn => dsn,
   connect: async dsn => {
@@ -26,14 +101,17 @@ export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
     try {
       if (request.readOnly ?? false)
         await connection.execute("SET SESSION TRANSACTION READ ONLY");
-      const [rows, fields] = await connection.execute(request.query) as [Record<string, unknown>[], {name: string, type?: number}[]];
-      if (rows.length === 0) {
-        return {columns: fields.map(f => f.name), typenames: [], types: [], rows: []}; // TODO: get column metadata
+      const result = await connection.execute(request.query) as [unknown, Field[] | undefined];
+      if (!Array.isArray(result[0])) {
+        // Writes and DDL resolve to a stats packet with no result-set metadata.
+        return {columns: [], typenames: [], types: [], rows: []};
       }
+      const [rows, fields] = result as [Record<string, unknown>[], Field[]];
+      const meta = fields.map(columnMeta);
       return {
         columns: fields.map(f => f.name),
-        typenames: fields.map(f => f.type === undefined ? "???" : String(f.type)),
-        types: fields.map(f => f.type === undefined ? t.ColumnType.UNKNOWN : String(f.type) as t.ColumnType),
+        typenames: meta.map(m => m.typename),
+        types: meta.map(m => m.type),
         rows: rows.map(r => Object.values(r)),
       };
     } finally {
@@ -87,8 +165,8 @@ export async function explain(request: t.SQLRequest): Promise<t.SQLExplain> {
 export async function describe(request: Omit<t.SQLRequest, "query">, tableName: string): Promise<t.TableSchema> {
   const colResult = await send({...request, query: `SELECT
   column_name,
-  column_type,
-  is_nullable = 'YES',
+  data_type,
+  is_nullable,
   column_default
 FROM information_schema.columns
 WHERE table_name = '${tableName}' AND table_schema = DATABASE()
@@ -96,8 +174,8 @@ ORDER BY ordinal_position`});
   const columns: t.ColumnInfo[] = colResult.rows.map(([name, typ, nullable, defaultVal]) => ({
     name: name as string,
     typename: typ as string,
-    type: typ as t.ColumnType,
-    nullable: nullable as boolean,
+    type: dataTypeMeta(typ as string),
+    nullable: nullable === "YES",
     defaultValue: JSON.stringify(defaultVal ?? ""),
   }));
 

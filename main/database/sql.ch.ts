@@ -3,24 +3,16 @@ import {createClientPool} from "./connection_pool.ts";
 import * as t from "@/types.ts";
 import {buildTree, node, PlanLine} from "./sql_plan.ts";
 
-// TODO: fix get types
-function convertTypes(columns: number, rows: unknown[][]): t.ColumnType[] {
-  if (rows.length === 0) {
-    return new Array<t.ColumnType>(columns).fill(t.ColumnType.STRING); // TODO: unknown fallback
-  }
-
-  return Array.from({length: columns}).map((_, i) => {
-    const row = rows.map(r => r[i]).filter(r => r !== null);
-    return ((): t.ColumnType => {
-      switch (typeof row[0]) {
-      case "string": return t.ColumnType.STRING;
-      case "number": return t.ColumnType.NUMBER;
-      case "boolean": return t.ColumnType.BOOLEAN;
-      case "object": if (row[0] instanceof Date) return t.ColumnType.TIME;
-      }
-      return t.ColumnType.STRING; // TODO: unknown fallback
-    })();
-  });
+// ClickHouse server column type classified for the UI; Nullable and
+// LowCardinality wrappers carry no kind of their own and are stripped first.
+export function columnType(typename: string): t.ColumnType {
+  const up = typename.replace(/^(?:Nullable|LowCardinality)\((.*)\)$/, "$1").toUpperCase();
+  if (/^UINT|^INT|^FLOAT|^DECIMAL/.test(up)) return t.ColumnType.NUMBER;
+  if (/^DATE|^TIME/.test(up)) return t.ColumnType.TIME;
+  if (["BOOL", "BOOLEAN"].includes(up)) return t.ColumnType.BOOLEAN;
+  if (up === "JSON") return t.ColumnType.JSON;
+  if (/^STRING|^FIXEDSTRING|^ENUM|^UUID|^IPV/.test(up)) return t.ColumnType.STRING;
+  return t.ColumnType.UNKNOWN;
 }
 
 // Stateless HTTP client (readonly is a per-query setting), so every entry
@@ -49,29 +41,44 @@ export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
       return {columns: [], typenames: [], types: [], rows: []};
     }
 
-    const resultSet = await client.query({query: request.query, format: "JSONEachRow", clickhouse_settings: request.readOnly ?? false ? {readonly: "1"} : {}});
-    const rows: Record<string, unknown>[] = await resultSet.json();
-    if (rows.length === 0) {
-      return {columns: [], typenames: [], types: [], rows: []}; // TODO: get column metadata
-    }
-    const columns = Object.keys(rows[0]);
-    const typenames = convertTypes(columns.length, rows.map(Object.values));
-    return {
-      columns,
-      typenames: typenames,
-      types: typenames,
-      rows: rows.map(r => Object.values(r)),
-    };
+    // Server type names/types ride the two header rows of this format and
+    // survive empty result sets, unlike JSONEachRow (no metadata) or value
+    // sniffing (all-NULL columns).
+    const resultSet = await client.query({query: request.query, format: "JSONCompactEachRowWithNamesAndTypes", clickhouse_settings: request.readOnly ?? false ? {readonly: "1"} : {}});
+    return parseResponse(await resultSet.text());
   });
 }
 
+// NDJSON of the format: names row, types row, then one data row per line.
+export function parseResponse(text: string): t.SQLResponse {
+  const parsed = text.split("\n").filter(l => l.trim() !== "").map(l => JSON.parse(l) as unknown[]);
+  const names = parsed[0] ?? [];
+  const serverTypes = parsed[1] ?? [];
+  return {
+    columns: names.map(String),
+    typenames: serverTypes.map(String),
+    types: serverTypes.map(String).map(columnType),
+    rows: parsed.slice(2),
+  };
+}
+
 export async function sendBatch(request: Omit<t.SQLRequest, "query">, statements: string[]): Promise<t.SQLResponse> {
-  // ClickHouse has no transactions; statements run sequentially. Table editing
-  // is unreachable for ClickHouse (no PK introspection), this is a safety net.
+  // ClickHouse has no transactions; statements run sequentially.
   return await pool.run(request.dsn, async client => {
-    for (const statement of statements)
-      await client.exec({query: statement, clickhouse_settings: request.readOnly ?? false ? {readonly: "1"} : {}});
-    return {columns: [], typenames: [], types: [], rows: []};
+    const affectedRows: number[] = [];
+    for (const statement of statements) {
+      // wait_end_of_query: the streamed response's X-ClickHouse-Summary counters
+      // are only complete once the server has buffered the full response
+      const result = await client.exec({
+        query: statement,
+        clickhouse_settings: {
+          ...(request.readOnly ?? false ? {readonly: "1"} : {}),
+          wait_end_of_query: 1,
+        },
+      });
+      affectedRows.push(Number(result.summary?.written_rows ?? 0));
+    }
+    return {columns: [], typenames: [], types: [], rows: [], affectedRows};
   });
 }
 
@@ -96,13 +103,33 @@ WHERE database = currentDatabase() AND table = '${tableName}'`});
   const columns: t.ColumnInfo[] = colResult.rows.map(r => ({
     name: String(r[0]),
     typename: String(r[1]),
-    type: String(r[1]) as t.ColumnType,
+    type: columnType(String(r[1])),
     nullable: String(r[1]).includes("Nullable"),
     defaultValue: ["YES" as unknown, 1, true].includes(r[2]) ? JSON.stringify(r[3] ?? "") : "",
   }));
 
-  // TODO: get rest
-  return {columns, constraints: [], foreign_keys: [], indexes: []};
+  // MergeTree tables report their key as an ORDER BY prefix expression; plain
+  // column names become the PRIMARY KEY constraint, non-column expressions are
+  // dropped later by the viewer's PK detection. ClickHouse has no foreign keys.
+  const tablesResult = await send({...request, query: `SELECT primary_key FROM system.tables WHERE database = currentDatabase() AND name = '${tableName}'`});
+  const pkRaw = tablesResult.rows[0]?.[0];
+  const pk = (typeof pkRaw === "string" ? pkRaw : "").trim();
+  const constraints: t.ConstraintInfo[] = pk === "" ? [] : [{
+    name: "PRIMARY KEY",
+    type: "PRIMARY KEY",
+    definition: `PRIMARY KEY (${pk})`,
+    columns: pk.split(",").map(c => c.trim()),
+  }];
+
+  const idxResult = await send({...request, query: `SELECT name, expr, type, granularity
+FROM system.data_skipping_indices
+WHERE database = currentDatabase() AND table = '${tableName}'`});
+  const indexes: t.IndexInfo[] = idxResult.rows.map(([name, expr, type, granularity]) => ({
+    name: String(name),
+    definition: `INDEX ${String(name)} ${String(expr)} TYPE ${String(type)} GRANULARITY ${String(granularity)}`,
+  }));
+
+  return {columns, constraints, foreign_keys: [], indexes};
 }
 
 export async function listTables(request: Omit<t.SQLRequest, "query">): Promise<t.TableInfo[]> {

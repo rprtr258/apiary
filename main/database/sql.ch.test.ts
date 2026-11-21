@@ -1,5 +1,6 @@
 import {describe, test, expect} from "bun:test";
-import {parsePlan} from "./sql.ch.ts";
+import {parsePlan, columnType, parseResponse} from "./sql.ch.ts";
+import {ColumnType, JSONValue, SQLResponse} from "@/types.ts";
 
 const CLICKHOUSE_FIXTURE = `Limit (preliminary LIMIT)
 │  Limit 5
@@ -36,6 +37,59 @@ Limit (preliminary LIMIT)
 │  Offset 0
 └──ReadFromSystemNumbers
       Output: number`;
+
+describe("columnType (clickhouse server types)", () => {
+  test.each([
+    ["UInt64", ColumnType.NUMBER],
+    ["Int32", ColumnType.NUMBER],
+    ["Float64", ColumnType.NUMBER],
+    ["Decimal(10, 2)", ColumnType.NUMBER],
+    ["Date", ColumnType.TIME],
+    ["DateTime64(3, 'UTC')", ColumnType.TIME],
+    ["Bool", ColumnType.BOOLEAN],
+    ["String", ColumnType.STRING],
+    ["FixedString(10)", ColumnType.STRING],
+    ["Enum8('a' = 1)", ColumnType.STRING],
+    ["UUID", ColumnType.STRING],
+    ["IPv4", ColumnType.STRING],
+    ["Nullable(Int32)", ColumnType.NUMBER],
+    ["LowCardinality(String)", ColumnType.STRING],
+    ["Array(String)", ColumnType.UNKNOWN],
+  ])("columnType(%s)", (typename, want) => {
+    expect(columnType(typename)).toBe(want);
+  });
+});
+
+describe("parseResponse (JSONCompactEachRowWithNamesAndTypes)", () => {
+  test.each<{label: string, values: JSONValue[][], want: SQLResponse}>([
+    {
+      label: "splits names, types and data rows",
+      values: [
+        ["id", "name", "flag"],
+        ["UInt32", "Nullable(String)", "Bool"],
+        [1, "a", true],
+        [2, null, false],
+      ],
+      want: {
+        columns: ["id", "name", "flag"],
+        typenames: ["UInt32", "Nullable(String)", "Bool"],
+        types: [ColumnType.NUMBER, ColumnType.STRING, ColumnType.BOOLEAN],
+        rows: [[1, "a", true], [2, null, false]],
+      },
+    },
+    {
+      label: "keeps metadata for empty result sets",
+      values: [
+        ["id"],
+        ["UInt32"],
+      ],
+      want: {columns: ["id"], typenames: ["UInt32"], types: [ColumnType.NUMBER], rows: []},
+    },
+  ])("$label", ({values: text, want}) => {
+    const response = text.map(v => JSON.stringify(v)).join("\n");
+    expect(parseResponse(response)).toEqual(want);
+  });
+});
 
 describe("parseClickhousePlan", () => {
   test("builds the operator tree", () => {

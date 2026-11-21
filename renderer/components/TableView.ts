@@ -231,8 +231,8 @@ const cell_menu_item_style = css(`
 
 // Columns of the table's primary key, in schema column order. MySQL and
 // SQLite report one constraint entry per PK column (same name) — entries are
-// merged. TODO: ClickHouse — describeTable returns no constraints, so PK
-// detection (and table editing) is unavailable for ClickHouse tables.
+// merged. Backends without PK introspection (e.g. redis tables) report no
+// constraints, leaving table editing unavailable there.
 export function primaryKeyColumns(schema: t.TableSchema): string[] {
   const pkColumns = new Set<string>();
   for (const c of schema.constraints) {
