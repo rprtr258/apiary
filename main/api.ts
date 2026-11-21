@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {childrenBuckets, create, createDraft, extractSubKind, generateID, load, move as dbMove, save, Delete as remove, DeleteDir as removeDir, rename, update, Request, serialized} from "./db.ts";
+import {childrenBuckets, create, createDraft, extractSubKind, generateID, load, move as dbMove, save, takeDBNotice, Delete as remove, DeleteDir as removeDir, rename, update, Request, serialized} from "./db.ts";
 import * as http from "./database/http.ts";
 import * as jq from "./database/jq.ts";
 import * as md from "./database/md.ts";
@@ -48,11 +48,15 @@ export async function List(): Promise<t.ListResponse> {
     };
   };
 
-  return {
+  const res: t.ListResponse = {
     Tree: build(""),
     Requests: previews,
     Drafts: j.drafts,
   };
+  const notice = takeDBNotice();
+  if (notice !== null)
+    res.Notice = notice;
+  return res;
 }
 
 export async function Get(id: t.RequestID): Promise<t.GetResponse> {
