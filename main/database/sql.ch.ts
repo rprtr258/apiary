@@ -31,11 +31,22 @@ const pool = createClientPool<ClickHouseClient, string>({
   close: client => client.close(),
 });
 
+// Statements without a result set go through exec(), which sends the SQL
+// verbatim; query() requests a formatted result set, and INSERT ... VALUES
+// must not carry any FORMAT request - the server (async inserts are the
+// default on recent versions) parses it as VALUES data.
+const NO_RESULT_SET = /^\s*(INSERT|CREATE|DROP|ALTER|TRUNCATE|RENAME|OPTIMIZE|SET|SYSTEM|GRANT|REVOKE|KILL|ATTACH|DETACH|EXCHANGE|UNDROP|USE)\b/i;
+
 export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
   return await pool.run(request.dsn, async client => {
     const ping = await client.ping();
     if (!ping.success) {
       throw new Error(`ClickHouse ping failed: ${ping.error}`);
+    }
+
+    if (NO_RESULT_SET.test(request.query)) {
+      await client.exec({query: request.query, clickhouse_settings: request.readOnly ?? false ? {readonly: "1"} : {}});
+      return {columns: [], typenames: [], types: [], rows: []};
     }
 
     const resultSet = await client.query({query: request.query, format: "JSONEachRow", clickhouse_settings: request.readOnly ?? false ? {readonly: "1"} : {}});
@@ -136,6 +147,15 @@ export function parsePlan(raw: string): t.SQLPlan | undefined {
       const text = bar[1].trim();
       if (text !== "")
         lines.push({operator: false, text});
+      continue;
+    }
+    // ClickHouse 26.x prints an "Output: <columns>" list before the tree and
+    // under every operator; kept as operator lines they yield a second root
+    // (the pre-tree header) and the whole plan is discarded. As details the
+    // per-operator ones attach to their operator; the header has no owner yet
+    // and buildTree drops it.
+    if (/^\s*Output: /.test(line)) {
+      lines.push({operator: false, text: line.trim()});
       continue;
     }
     // Plain line: the root in the box format, any operator in the legacy one.

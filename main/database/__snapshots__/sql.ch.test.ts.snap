@@ -115,3 +115,29 @@ exports[`parseClickhousePlan builds the operator tree 1`] = `
   },
 }
 `;
+
+exports[`parseClickhousePlan keeps 26.x Output lines out of the operator tree 1`] = `
+{
+  "root": {
+    "children": [
+      {
+        "children": [],
+        "details": [
+          "Output: number",
+        ],
+        "kind": "scan",
+        "metrics": {},
+        "title": "ReadFromSystemNumbers",
+      },
+    ],
+    "details": [
+      "preliminary LIMIT",
+      "Limit 5",
+      "Offset 0",
+    ],
+    "kind": "limit",
+    "metrics": {},
+    "title": "Limit",
+  },
+}
+`;

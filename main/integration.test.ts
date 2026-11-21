@@ -1,7 +1,7 @@
 import {describe, test, expect, beforeAll, afterAll} from "bun:test";
 import {existsSync} from "node:fs";
 import path from "node:path";
-import {SQLRequest, RedisRequest, ColumnType} from "@/types.ts";
+import {SQLRequest, RedisRequest, ColumnType, SQLPlanNode} from "@/types.ts";
 import * as sql from "./database/sql.ts";
 import * as sql_source from "./database/sql_source.ts";
 import * as redis from "./database/redis.ts";
@@ -83,6 +83,85 @@ describe.if(IS_INTEGRATION)("SQLSource (postgres)", () => {
 
   test("pings with SELECT 1", async () => {
     await sql_source.testSQLSource(pgRequest());
+  });
+});
+
+const chDSN = process.env["CH_DSN"] ?? "http://default:alpha@localhost:8123";
+
+function chRequest(query?: string): SQLRequest {
+  return {dsn: chDSN, database: "clickhouse", query: query ?? ""};
+}
+
+function chNodeTitles(node: SQLPlanNode): string[] {
+  return [node.title, ...node.children.flatMap(chNodeTitles)];
+}
+
+describe.if(IS_INTEGRATION)("sql.send (clickhouse)", () => {
+  test("multiple rows", async () => {
+    const result = await sql.send(chRequest("SELECT * FROM (SELECT 1 AS id, 'a' AS name UNION ALL SELECT 2, 'b')"));
+    expect(result.rows).toHaveLength(2);
+    expect(result.columns).toHaveLength(2);
+  });
+
+  test("empty result", async () => {
+    const result = await sql.send(chRequest("SELECT 1 WHERE 0"));
+    expect(result).toEqual({columns: [], typenames: [], types: [], rows: []});
+  });
+
+  test("SELECT 1 returns one row", async () => {
+    const result = await sql.send(chRequest("SELECT 1 AS num"));
+    expect(result).toEqual({
+      columns: ["num"],
+      typenames: ["number"],
+      types: [ColumnType.NUMBER],
+      rows: [[1]],
+    });
+  });
+});
+
+describe.if(IS_INTEGRATION)("SQLSource (clickhouse)", () => {
+  const tableName = "test_sql_source";
+
+  beforeAll(async () => {
+    await sql.send(chRequest(`DROP TABLE IF EXISTS ${tableName}`));
+    await sql.send(chRequest(`CREATE TABLE ${tableName} (id UInt8, name String, n Nullable(UInt8), v UInt8 DEFAULT 7) ENGINE = Memory`));
+    await sql.send(chRequest(`INSERT INTO ${tableName} VALUES (1, 'a', NULL, 100), (2, 'b', NULL, 200)`));
+  });
+
+  test("lists tables", async () => {
+    const tables = await sql.listTables(chRequest());
+    expect(tables.some(t => t.name === tableName)).toBe(true);
+    expect(tables.find(t => t.name === tableName)).toMatchObject({name: tableName, rowCount: 2});
+  });
+
+  test("counts rows", async () => {
+    const count = await sql_source.countRowsSQLSource(chRequest(), tableName, null);
+    expect(count).toBeGreaterThanOrEqual(2);
+  });
+
+  test("describes table", async () => {
+    const schema = await sql.describeTable(chRequest(), tableName);
+    expect(schema.columns).toEqual([
+      {name: "id", typename: "UInt8", type: "UInt8" as ColumnType, nullable: false, defaultValue: ""},
+      {name: "name", typename: "String", type: "String" as ColumnType, nullable: false, defaultValue: ""},
+      {name: "n", typename: "Nullable(UInt8)", type: "Nullable(UInt8)" as ColumnType, nullable: true, defaultValue: ""},
+      {name: "v", typename: "UInt8", type: "UInt8" as ColumnType, nullable: false, defaultValue: `"7"`},
+    ]);
+  });
+
+  test("pings with SELECT 1", async () => {
+    await sql_source.testSQLSource(chRequest());
+  });
+});
+
+describe.if(IS_INTEGRATION)("sql.explain (clickhouse)", () => {
+  test("parses the plan of a real query", async () => {
+    const {raw, plan} = await sql.explain(chRequest("SELECT number FROM system.numbers LIMIT 5"));
+    expect(raw).toContain("Limit");
+    expect(plan).toBeDefined();
+    const titles = plan === undefined ? [] : chNodeTitles(plan.root);
+    expect(titles.some(title => /^Limit/.test(title))).toBe(true);
+    expect(titles.some(title => /^Read/.test(title))).toBe(true);
   });
 });
 
