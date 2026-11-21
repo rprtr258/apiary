@@ -20,7 +20,7 @@ export default function(init_value: string) {
         changes: {from: 0, to: editor.state.doc.length, insert: state.value},
       });
     }
-    transform(state.value, state.query) // TODO: can't transform if body is stream of jsons
+    transform(state.value, state.query)
       .then(v => {
         switch (v.kind) {
         case "ok":
@@ -56,16 +56,15 @@ export default function(init_value: string) {
       display: "flex",
       flexDirection: "column",
     }},
-      // TODO: put input under editor
       NInput({
         placeholder: "JQ query",
-        status: state.jqerror !== undefined ? "error" : "success", // TODO: update
+        status: state.jqerror !== undefined ? "error" : "success",
         on: {update: (v: string) => {
           state.query = v;
           update(state.value);
         }},
       }),
-      NTooltip({ // TODO: show over input
+      NTooltip({
         show: state.jqerror !== undefined,
         placement: "bottom",
       }, state.jqerror ?? ""),

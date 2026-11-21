@@ -219,7 +219,7 @@ export async function readResource(req: MCPRequest, uri: string): Promise<MCPRea
 
 export async function callTool(req: MCPRequest, toolName: string, args: JSONValue): Promise<unknown> {
   return await withClient(req, async (client) => {
-    return await client.callTool({ // TODO: is result always is content[] ? render nicely if so
+    return await client.callTool({
       name: toolName,
       arguments: args as Record<string, unknown> | undefined,
     });

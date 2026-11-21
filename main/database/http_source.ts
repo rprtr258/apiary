@@ -87,7 +87,6 @@ export function generateExampleRequest(
     authHeaders.push({key, value});
     break;
   case "oauth":
-    // TODO: implement
     break;
   }
 

@@ -110,7 +110,7 @@ type SVGAttrs = {
   svg: {
     xmlns: "http://www.w3.org/2000/svg",
     "xmlns:xlink": "http://www.w3.org/1999/xlink",
-    viewBox: string, // TODO: DOMRect
+    viewBox: string,
     width: string,
     height: string,
     "aria-label": string,
@@ -237,7 +237,7 @@ type Sub<T> = Generator<undefined, never, T>;
 export type Signal<T> = {
   update(f: (value: T) => T, force?: boolean): void,
   sub(sub: Sub<T>): () => void,
-  get value(): T, // TODO: remove?
+  get value(): T,
   set value(value: T),
 };
 export function signal<T>(value: T): Signal<T> {

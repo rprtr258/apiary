@@ -21,9 +21,6 @@ export async function send(request: MDRequest): Promise<MDResponse> {
         // extension.Footnote,
         // emoji.Emoji,
         // extension.Typographer,
-        // &mermaid.Extender{ // TODO: not working
-        //   RenderMode: mermaid.RenderModeClient,
-        // },
         // highlighting.NewHighlighting(
         //   highlighting.WithStyle("catppuccin-mocha"),
         // ),

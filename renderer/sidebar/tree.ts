@@ -139,7 +139,7 @@ export function createTreeView(): {el: HTMLElement} {
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 overflow: "clip",
-                pointerEvents: "none", // TODO: move into parent element
+                pointerEvents: "none",
               },
             }, "(None)");
           case "loading":

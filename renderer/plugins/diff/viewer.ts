@@ -39,7 +39,7 @@ function diffHighlighting(view: EditorView) {
       const lineStart = pos;
       const lineEnd = lineStart + line.length;
 
-      builder.add(lineStart, lineStart, (() => { // TODO: structural diff
+      builder.add(lineStart, lineStart, (() => {
         if (line.startsWith("+") && !line.startsWith("+++")) {
           return diffAddedLine;
         } else if (line.startsWith("-") && !line.startsWith("---")) {
