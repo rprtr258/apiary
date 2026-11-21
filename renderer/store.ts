@@ -184,6 +184,11 @@ export const store = ((): Store => {
 
       const res = json.value;
 
+      // Delivered once by the main process (List drops it after this read),
+      // so no dedupe is needed despite fetch() running on every mutation
+      if (res.Notice !== undefined)
+        notification("error", "Corrupt database file", {content: res.Notice});
+
       for (const id in res.Requests) {
         this.requests[id] = res.Requests[id];
       }

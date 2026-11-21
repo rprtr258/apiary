@@ -56,6 +56,9 @@ export type ListResponse = {
   Requests: Record<string, requestPreview>,
   // id -> draft number for live drafts; every stored request is absent
   Drafts: Record<RequestID, number>,
+  // Present once after an unreadable db.json (corrupt JSON, newer $version)
+  // was moved aside at load; the text names the backup file.
+  Notice?: string,
 };
 
 export type Request = {

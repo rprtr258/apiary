@@ -1,6 +1,6 @@
 import {describe, test, expect, mock, expectTypeOf, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {type DB, type Request, generateID, load, create, createDraft, Delete, DeleteDir, move, rename, update, serialized, save, setDBPath, flushSave} from "./db.ts";
+import {type DB, type Request, generateID, load, create, createDraft, Delete, DeleteDir, move, rename, update, serialized, save, setDBPath, flushSave, takeDBNotice} from "./db.ts";
 import type v2 from "./db.v2.ts";
 
 // Controllable mock: by default readFile succeeds with "{}"
@@ -10,6 +10,7 @@ let mockReadFileErr: Error | null = null;
 let mockFileContent: string | null = null;
 let mockMtimeMs = 1000;
 const writeFile = mock(() => Promise.resolve());
+const renameMock = mock((_from: string, _to: string) => Promise.resolve());
 // The mock lives at module scope, so call counts would otherwise accumulate
 // across tests in file order (visible under --randomize); reset both per test.
 // setDBPath also drops db.ts's in-memory state (cache + pending debounced
@@ -19,6 +20,8 @@ beforeEach(() => {
   mockFileContent = null;
   mockMtimeMs = 1000;
   writeFile.mockClear();
+  renameMock.mockClear();
+  renameMock.mockImplementation(() => Promise.resolve());
   setDBPath("db.json");
 });
 mock.module("fs/promises", () => ({
@@ -30,8 +33,10 @@ mock.module("fs/promises", () => ({
   },
   writeFile,
   // saveNow writes to a tmp sibling and renames it over db.json; the mocked
-  // readFile serves the seeded content regardless of path, so a no-op suffices
-  rename: () => Promise.resolve(),
+  // readFile serves the seeded content regardless of path, so a no-op
+  // implementation suffices (the quarantine tests assert on the recorded
+  // calls instead)
+  rename: renameMock,
   // Coherent with readFile: stat rejects exactly when readFile would
   stat: () => mockReadFileErr !== null
     ? Promise.reject(mockReadFileErr)
@@ -374,10 +379,80 @@ describe("migration", () => {
     expect(writeFile).toHaveBeenCalledTimes(0);
   });
 
-  test("refuses a db.json written by a newer apiary", async () => {
+  test("quarantines a db.json written by a newer apiary", async () => {
     mockFileContent = JSON.stringify({$version: 4, requests: {}});
 
-    await expect(load()).rejects.toThrow("newer");
+    const db = await load();
+    expect(db).toEqual({requests: {}, drafts: {}, tree: {}});
+    expect(renameMock).toHaveBeenCalledTimes(1);
+    const [from, to] = renameMock.mock.calls[0];
+    expect(from).toBe("db.json");
+    expect(to).toMatch(/^db\.json\.corrupt-/);
+    expect(takeDBNotice()).toContain("newer apiary version");
+    expect(takeDBNotice()).toBeNull();
+  });
+});
+
+describe("corrupt db.json quarantine", () => {
+  test("invalid JSON is moved to a dated backup and the app starts empty", async () => {
+    mockFileContent = "{not valid json!!";
+
+    const db = await load();
+    expect(db).toEqual({requests: {}, drafts: {}, tree: {}});
+    expect(renameMock).toHaveBeenCalledTimes(1);
+    const [from, to] = renameMock.mock.calls[0];
+    expect(from).toBe("db.json");
+    expect(to).toMatch(/^db\.json\.corrupt-/);
+    expect(takeDBNotice()).toContain(to);
+    // one-shot: the notice is not repeated on every subsequent fetch
+    expect(takeDBNotice()).toBeNull();
+
+    // with the corrupt file moved aside, the fresh empty db is persisted
+    mockReadFileErr = Object.assign(new Error("ENOENT"), {code: "ENOENT"});
+    writeFile.mockClear();
+    await flushSave();
+    expect(writeFile).toHaveBeenCalled();
+  });
+
+  test("valid JSON with an unusable structure is quarantined too", async () => {
+    // a v3 file missing the always-written drafts section (e.g. torn write
+    // that still parses) fails the mapping and must not load as empty
+    mockFileContent = JSON.stringify({$version: 3, request: []});
+
+    const db = await load();
+    expect(db).toEqual({requests: {}, drafts: {}, tree: {}});
+    expect(renameMock).toHaveBeenCalledTimes(1);
+    expect(takeDBNotice()).toContain("moved to");
+  });
+
+  test("a quarantined path is not re-quarantined once the file is valid again", async () => {
+    mockFileContent = "{not valid json!!";
+    await load();
+    expect(takeDBNotice()).not.toBeNull();
+    renameMock.mockClear();
+
+    // the app's fresh write replaces the corrupt file
+    mockFileContent = `{}`;
+    const db = await load();
+    expect(db).toEqual({requests: {}, drafts: {}, tree: {}});
+    expect(renameMock).not.toHaveBeenCalled();
+    expect(takeDBNotice()).toBeNull();
+  });
+
+  test("switching DB paths drops an undelivered notice", async () => {
+    mockFileContent = "{not valid json!!";
+    await load();
+    setDBPath("other.json");
+    expect(takeDBNotice()).toBeNull();
+  });
+
+  test("if the backup move fails, that error propagates", async () => {
+    mockFileContent = "{not valid json!!";
+    renameMock.mockImplementation(() => Promise.reject(new Error("EACCES")));
+
+    await expect(load()).rejects.toThrow("EACCES");
+    // nothing was quarantined, so there is nothing to report
+    expect(takeDBNotice()).toBeNull();
   });
 });
 

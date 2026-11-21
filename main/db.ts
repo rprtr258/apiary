@@ -113,10 +113,23 @@ export function setDBPath(p: string): void {
   cached = null;
   cachedMtimeMs = null;
   pendingSave = null;
+  dbNotice = null;
   if (saveTimer !== null) {
     clearTimeout(saveTimer);
     saveTimer = null;
   }
+}
+
+// Set by load() when the file on disk was unreadable (invalid JSON, structure
+// the schema or migrations choke on, $version newer than this build) and was
+// moved aside; List() delivers the text to the renderer once, so a missed
+// toast is not repeated on every subsequent fetch.
+let dbNotice: string | null = null;
+
+export function takeDBNotice(): string | null {
+  const notice = dbNotice;
+  dbNotice = null;
+  return notice;
 }
 
 // db.ts persists by whole-file load-modify-save: two concurrent operations
@@ -174,6 +187,34 @@ export async function load(): Promise<DB> {
     }
     throw err;
   }
+  let db: DB;
+  try {
+    db = await parseDB(b);
+  } catch (err: unknown) {
+    // The file body is unusable (torn write, hand edit, newer $version):
+    // quarantine it so no later write can clobber the recoverable bytes, then
+    // continue from an empty DB; takeDBNotice carries the backup path to the
+    // renderer for the user-facing toast.
+    const backup = `${dbPath}.corrupt-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+    // If even the move fails, propagate that instead of writing a fresh
+    // db.json over data that was not preserved.
+    await renameFile(dbPath, backup);
+    const msg = `db.json could not be read (${err instanceof Error ? err.message : String(err)}); the file was moved to ${backup} and the app starts with an empty database.`;
+    console.error(msg);
+    dbNotice = dbNotice === null ? msg : `${dbNotice}\n${msg}`;
+    cached = {requests: {}, drafts: {}, tree: {}};
+    cachedMtimeMs = null;
+    await save(cached);
+    return cached;
+  }
+  cached = db;
+  cachedMtimeMs = mtime;
+  return db;
+}
+
+// Map one raw file body onto the in-memory DB shape; throws on anything the
+// schema cannot express (invalid JSON, missing sections, newer $version).
+async function parseDB(b: Buffer): Promise<DB> {
   const raw = await loadParsed(JSON.parse(b.toString()) as Record<string, unknown>);
   const requests = Object.fromEntries((raw.request ?? []).map(r => [r.id, (() => {
     const kind: Pick<Request, "Data"> = (() => {
@@ -233,14 +274,11 @@ export async function load(): Promise<DB> {
   })()]));
   // Drop section entries whose record vanished (hand-edited files); the section is
   // authoritative for draft-ness, a missing record is not a usable draft.
-  const db: DB = {
+  return {
     requests,
     drafts: Object.fromEntries((raw.drafts).filter(d => d.id in requests).map(d => [d.id, d.n])),
     tree: pruneTree({requests, drafts: {}, tree: raw.tree}).tree,
   };
-  cached = db;
-  cachedMtimeMs = mtime;
-  return db;
 }
 
 // Children of a directory as implied by request paths: request ids stored

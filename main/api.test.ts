@@ -259,6 +259,20 @@ describe("List with drafts", () => {
   });
 });
 
+describe("List corruption notice", () => {
+  test("a quarantined db.json is reported once, with the backup path", async () => {
+    files["db.json"] = Buffer.from("{not valid json!!");
+
+    const first = await List();
+    expect(first.Tree.entries).toEqual([]);
+    expect(first.Notice).toContain("db.json.corrupt-");
+    expect(first.Notice).toContain("moved to");
+
+    const second = await List();
+    expect(second.Notice).toBeUndefined();
+  });
+});
+
 describe("List tree ordering", () => {
   beforeEach(() => {
     files["db.json"] = Buffer.from(JSON.stringify({

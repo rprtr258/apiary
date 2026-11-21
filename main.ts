@@ -17,7 +17,8 @@ if (process.argv.includes("--version")) {
   process.exit(0);
 }
 
-// TODO: init/migrate db
+// db.json init/migration/corruption handling happens in db.load(), reached
+// through the renderer's startup List call.
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
