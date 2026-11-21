@@ -69,11 +69,12 @@ export default function(
       const request = r.request as Request;
       el_query_input.value = request.query;
 
-      const el_editor_json = EditorJSON({
+      const {el: el_editor_json, destroy} = EditorJSON({
         class: "h100",
         value: request.json,
         on: {update: (json: string) => update_request({json})},
       });
+      unmounts.push(destroy);
 
       const split = NSplit(el_editor_json, el_response, {direction: "horizontal", style: {minHeight: "0"}});
       unmounts.push(() => split.unmount());

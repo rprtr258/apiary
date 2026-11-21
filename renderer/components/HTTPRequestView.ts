@@ -184,18 +184,21 @@ export default function HTTPRequestView(
         el_send.el,
       );
 
+      const {el: el_editor_body, destroy} = EditorJSON({
+        class: "h100",
+        value: request.body,
+        schema: schema,
+        on: {update: (body: string) => updateRequest({body})},
+      });
+      unmounts.push(destroy);
+
       const el_req_tabs = NTabs({
         class: "h100",
         tabs: [
           {
             name: "Request",
             class: "h100",
-            elem: EditorJSON({
-              class: "h100",
-              value: request.body,
-              schema: schema,
-              on: {update: (body: string) => updateRequest({body})},
-            }),
+            elem: el_editor_body,
           },
           {
             name: "Headers",

@@ -149,11 +149,12 @@ export default function(
           await on.send();
         }},
       }, "Run");
-      const el_editor = EditorSQL({
+      const {el: el_editor, destroy} = EditorSQL({
         value: request.query,
         on: {update: (query: string) => update_request({query})},
         class: "h100",
       });
+      unmounts.push(destroy);
       const db_select = NSelect({
         style: {minWidth: "0"},
         label: t.Database[request.database],

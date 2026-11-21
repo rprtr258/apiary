@@ -47,10 +47,5 @@ export default function(props: Props) {
     state: state,
   });
 
-  void editor; // TODO: close/unmount method
-    // onremove() {
-    //   editor?.destroy();
-    // },
-
-  return el;
+  return {el, destroy: () => editor.destroy()};
 }
