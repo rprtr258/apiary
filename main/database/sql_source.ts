@@ -127,7 +127,7 @@ export async function updateTableRows(request: Omit<SQLRequest, "query">, tableN
   const statements = buildTableUpdateStatements(request, tableName, pkColumns, updates);
   const res = await sendBatch(request, statements);
   if (res.affectedRows === undefined)
-    return res; // driver does not report affected rows (clickhouse)
+    return res; // driver does not report affected rows (redis)
   // Each statement targets exactly one row; a mismatch means the row is gone
   // or its pk changed — report failure instead of silently dropping the edit.
   const bad = res.affectedRows.findIndex(n => n !== 1);

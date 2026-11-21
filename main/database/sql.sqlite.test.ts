@@ -1,5 +1,28 @@
 import {describe, test, expect} from "bun:test";
-import {parsePlan} from "./sql.sqlite";
+import {ColumnType} from "@/types.ts";
+import {parsePlan, declaredColumnType} from "./sql.sqlite";
+
+describe("declaredColumnType (sqlite affinity)", () => {
+  test.each([
+    ["INTEGER", ColumnType.NUMBER],
+    ["BIGINT", ColumnType.NUMBER],
+    ["DOUBLE PRECISION", ColumnType.NUMBER],
+    ["DECIMAL(10,5)", ColumnType.NUMBER],
+    ["VARCHAR(255)", ColumnType.STRING],
+    ["TEXT", ColumnType.STRING],
+    ["CLOB", ColumnType.STRING],
+    ["BLOB", ColumnType.STRING],
+    // specials win over the affinity ladder ("BOOLEAN" contains "INT")
+    ["BOOLEAN", ColumnType.BOOLEAN],
+    ["DATETIME", ColumnType.TIME],
+    ["TIMESTAMP", ColumnType.TIME],
+    ["JSON", ColumnType.JSON],
+    ["FROBNICATOR", undefined],
+    [null, undefined],
+  ])("declaredColumnType(%s)", (declared, want) => {
+    expect(declaredColumnType(declared)).toBe(want);
+  });
+});
 
 describe("parseSqlitePlan", () => {
   test("wraps the flat join forest under a synthetic root", () => {
