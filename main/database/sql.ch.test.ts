@@ -27,8 +27,22 @@ const CLICKHOUSE_FIXTURE = `Limit (preliminary LIMIT)
             │  Filter column: 1 != 0
             └──ReadFromSystemOne`;
 
+// 26.x also prints an "Output: <columns>" list before the tree and under each
+// operator (captured from clickhouse-server 26.10).
+const CLICKHOUSE_26_FIXTURE = `Output: number
+
+Limit (preliminary LIMIT)
+│  Limit 5
+│  Offset 0
+└──ReadFromSystemNumbers
+      Output: number`;
+
 describe("parseClickhousePlan", () => {
   test("builds the operator tree", () => {
     expect(parsePlan(CLICKHOUSE_FIXTURE)).toMatchSnapshot();
+  });
+
+  test("keeps 26.x Output lines out of the operator tree", () => {
+    expect(parsePlan(CLICKHOUSE_26_FIXTURE)).toMatchSnapshot();
   });
 });
