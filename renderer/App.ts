@@ -415,7 +415,7 @@ type LayoutConfigNode = {
   activeItemIndex?: number,
 };
 
-// Remove tabs from layout config whose underlying request/source no longer exists in the DB,
+// Remove tabs from layout config whose underlying request/source is missing from the DB,
 // and clamp stack activeItemIndex so the layout does not crash on load with an out-of-range index.
 function stripStaleTabs(config: LayoutConfig, validIds: Set<string>): void {
   const root = config.root as LayoutConfigNode | undefined;

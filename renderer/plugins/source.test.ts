@@ -244,7 +244,7 @@ describe("resolveIn", () => {
 // Regression tests: source listings never loaded when their request row was
 // expanded on app start. The sidebar (sidebar/tree.ts) materializes expanded
 // rows inside its changed-signal subscriber generator; a fetch fired from
-// there used to notify `changed` synchronously, which calls .next() on the
+// there would notify `changed` synchronously, which calls .next() on the
 // RUNNING subscriber generator - a hard JS error - aborting the fetch before
 // the API call and leaving the listing stuck in loading state forever.
 describe("source listing load (row expanded on start)", () => {

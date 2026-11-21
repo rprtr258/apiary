@@ -137,7 +137,7 @@ export async function updateTableRows(request: Omit<SQLRequest, "query">, tableN
 }
 
 // Primary key columns of a table in key order, taken from the table schema.
-// Used to pin the table viewer's pagination order. Empty for ClickHouse
+// Pins the table viewer's pagination order. Empty for ClickHouse
 // (describeTable returns no constraints, so no PK info is available).
 export async function tablePrimaryKeyColumns(request: Omit<SQLRequest, "query">, tableName: string): Promise<string[]> {
   const schema = await describeTable(request, tableName);

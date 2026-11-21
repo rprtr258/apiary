@@ -437,7 +437,7 @@ describe("TableViewer toolbar", () => {
     expect(relations.textContent).toContain("public");
     expect(relations.textContent).toContain("CASCADE");
     expect(relations.textContent).toContain("SET NULL");
-    // foreign keys no longer appear in the constraints tab
+    // foreign keys do not appear in the constraints tab
     expect(constraintsTab.textContent).not.toContain("fk_user");
     expect(constraintsTab.textContent).not.toContain("FOREIGN KEY");
     expect(constraintsTab.textContent).toContain("PRIMARY");

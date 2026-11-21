@@ -49,7 +49,7 @@ export function ensureVitessShim(force: boolean): void {
   // resolved in a throwaway module because the wasm module replaces vitess with
   // build/vitess-js, which does not exist until after this copy. go mod edit
   // -json is a pure file parse, safe to run against the wasm module directly.
-  const modJson = JSON.parse(run("go", ["mod", "edit", "-json"], {cwd: wasmModuleDir})) as {Require?: Array<{Path: string, Version: string}>};
+  const modJson = JSON.parse(run("go", ["mod", "edit", "-json"], {cwd: wasmModuleDir})) as {Require?: {Path: string, Version: string}[]};
   const vitessVersion = modJson.Require?.find((r) => r.Path === "github.com/dolthub/vitess")?.Version;
   if (vitessVersion === undefined) {
     throw new Error("dolthub/vitess not in the require list of internal/redissql/wasm/go.mod");
