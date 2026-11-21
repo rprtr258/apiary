@@ -35,6 +35,25 @@ function variantClasses(accent: string): VariantClasses {
 
 const TOAST_MS = 5000;
 
+const barClass = css.raw(`{
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  border-radius: 0 0 4px 4px;
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: toast-timer ${TOAST_MS}ms linear forwards;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+@keyframes toast-timer {
+  from {transform: scaleX(0);}
+  to   {transform: scaleX(1);}
+}`);
+
 const classes = {
   common: {
     item: css(`
@@ -48,31 +67,16 @@ const classes = {
       border-left: 3px solid transparent;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
       transition: opacity 150ms ease;
-    `),
+    `, {
+      [`:hover .${barClass}`]: {animationPlayState: "paused"},
+    }),
     dot: css(`
       flex-shrink: 0;
       width: 8px;
       height: 8px;
       border-radius: 50%;
     `),
-    bar: css.raw(`{
-      position: absolute;
-      left: 0;
-      bottom: 0;
-      width: 100%;
-      height: 2px;
-      border-radius: 0 0 4px 4px;
-      transform: scaleX(0);
-      transform-origin: left;
-      animation: toast-timer ${TOAST_MS}ms linear forwards;
-      @media (prefers-reduced-motion: reduce) {
-        animation: none;
-      }
-    }
-    @keyframes toast-timer {
-      from {transform: scaleX(0);}
-      to   {transform: scaleX(1);}
-    }`),
+    bar: barClass,
   },
   variants: {
     error: variantClasses("var(--err)"),
@@ -146,8 +150,19 @@ export default (
     bar,
   );
   box.appendChild(el);
-  setTimeout(() => {
+  const dismiss = () => {
     el.classList.add(classes.hide);
     setTimeout(() => el.remove(), 150);
-  }, TOAST_MS);
+  };
+  let remaining = TOAST_MS;
+  let startedAt = Date.now();
+  let timer = setTimeout(dismiss, remaining);
+  el.onmouseenter = () => {
+    clearTimeout(timer);
+    remaining -= Date.now() - startedAt;
+  };
+  el.onmouseleave = () => {
+    startedAt = Date.now();
+    timer = setTimeout(dismiss, remaining);
+  };
 };
