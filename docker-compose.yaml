@@ -31,6 +31,18 @@ services:
       timeout: 5s
       retries: 5
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports: ["8123:8123", "9000:9000"]
+    environment:
+      CLICKHOUSE_PASSWORD: alpha
+    healthcheck:
+      # /ping needs no auth; wget ships with the image, curl does not
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   grpc-server:
     build: ./scripts/grpc
     ports: ["50051:50051"]
