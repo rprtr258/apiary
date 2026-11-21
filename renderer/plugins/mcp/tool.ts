@@ -128,13 +128,14 @@ export default function ToolViewer(
   const schema = item.kind === "prompt" ? promptSchema(item) : item.inputSchema;
   let args = JSON.stringify(generateExampleFromSchema(schema), null, 2);
 
-  const editor = EditorJSON({
+  const {el: editor, destroy} = EditorJSON({
     value: args,
     schema,
     completions: item.kind === "prompt" ? [promptCompletions(sourceID, item)] : undefined,
     on: {update: (value: string) => {args = value;}},
     style: {height: "100%"},
   });
+  unmounts.push(destroy);
 
   const view = ViewJSON(JSON.stringify({status: "waiting"}, null, 2));
   unmounts.push(() => view.unmount());

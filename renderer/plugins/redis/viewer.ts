@@ -78,11 +78,12 @@ export default function(
       const request = r.request as Request;
       dsnInput.value = request.dsn;
 
-      const el_editor_json = EditorJSON({
+      const {el: el_editor_json, destroy} = EditorJSON({
         class: "h100",
         value: request.query,
         on: {update: (value: string) => update_request({query: value})},
       });
+      unmounts.push(destroy);
 
       const split = NSplit(el_editor_json, el_response, {direction: "horizontal"});
       unmounts.push(() => split.unmount());
