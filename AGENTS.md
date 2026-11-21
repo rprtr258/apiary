@@ -62,7 +62,7 @@ apiary is a cross-platform desktop application for managing various API requests
 - **Object curly spacing**: No spaces inside braces: `{key: value}` not `{ key: value }`
 - **Commas**: Use trailing commas in multiline objects/arrays/interfaces
 - **Interface members**: Use commas to separate interface entries (not semicolons)
-- **Boolean comparisons**: For plain `boolean` values use truthiness and negation: `if (value)` not `if (value === true)`, `if (!value)` not `if (value === false)` (enforced by the type-aware `local/no-boolean-literal-compare` ESLint rule, defined in `eslint/rules/`). Explicit comparisons (`=== true`, `=== false`) are only for narrowing union values (e.g. `boolean | undefined`, `t.RowValue | null`); the rule flags exact booleans and passes unions. Null checks stay explicit: `if (value === null)`, not `if (!value)`
+- **Boolean comparisons**: For plain `boolean` values use truthiness and negation: `if (value)` not `if (value === true)`, `if (!value)` not `if (value === false)` (enforced by the type-aware `local/no-boolean-literal-compare` ESLint rule, from `@rprtr258/eslint-rules`). Explicit comparisons (`=== true`, `=== false`) are only for narrowing union values (e.g. `boolean | undefined`, `t.RowValue | null`); the rule flags exact booleans and passes unions. Null checks stay explicit: `if (value === null)`, not `if (!value)`
 - **Equality**: Use `===` and `!==` instead of `==` and `!=`
 - **Array methods**: Avoid `forEach`; use `for...of` or functional methods that return values
 - **Type imports**: Use `import type` for type-only imports when appropriate

@@ -5,8 +5,13 @@ import tseslint from "typescript-eslint";
 import stylistic from "@stylistic/eslint-plugin";
 import importPlugin from "eslint-plugin-import";
 import jest from "eslint-plugin-jest";
-import {noBooleanLiteralCompare} from "./eslint/rules/no-boolean-literal-compare.ts";
-import {noRestatingComments} from "./eslint/rules/no-restating-comments.ts";
+import {
+  commentHygiene,
+  mdParser,
+  noBooleanLiteralCompare,
+  noRestatingComments,
+  noUnusedClassMembers,
+} from "@rprtr258/eslint-rules";
 
 export default defineConfig([
   {
@@ -30,7 +35,12 @@ export default defineConfig([
     plugins: {
       "@stylistic": stylistic,
       import: importPlugin,
-      local: {rules: {"no-boolean-literal-compare": noBooleanLiteralCompare, "no-restating-comments": noRestatingComments}},
+      local: {rules: {
+        "no-unused-class-members": noUnusedClassMembers,
+        "comment-hygiene": commentHygiene,
+        "no-boolean-literal-compare": noBooleanLiteralCompare,
+        "no-restating-comments": noRestatingComments,
+      }},
     },
     rules: {
       "eqeqeq": ["error", "always"],
@@ -50,6 +60,9 @@ export default defineConfig([
       }],
       "local/no-boolean-literal-compare": "error",
       "local/no-restating-comments": "error",
+      "local/no-unused-class-members": "error",
+      "local/comment-hygiene": "error",
+      "@typescript-eslint/array-type": "error",
       "@stylistic/semi": ["error", "always"],
       "@stylistic/member-delimiter-style": ["error", {
         "multiline": {delimiter: "comma", requireLast: true},
@@ -95,5 +108,17 @@ export default defineConfig([
       "jest/valid-expect": ["error", {alwaysAwait: true}],
       "@typescript-eslint/await-thenable": "off",
     },
+  },
+  {
+    // Generated declaration files: class methods there are public API surface
+    // for the generated runtime/consumers, and JSDoc @public tags would not
+    // survive regeneration.
+    files: ["**/*.d.ts"],
+    rules: {"local/no-unused-class-members": "off"},
+  },
+  {
+    files: ["**/*.md"],
+    languageOptions: {parser: mdParser},
+    rules: {"local/comment-hygiene": ["error", {prose: true}]},
   },
 ]);

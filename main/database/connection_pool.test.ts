@@ -217,9 +217,9 @@ describe("createClientPool idle expiry", () => {
   });
 
   test("does not sweep while ANY concurrent operation is still running on the shared client", async () => {
-    // Regression: callers awaiting the shared connect promise used to skip the
-    // busy count, so a sweep could close the client once the first op finished
-    // while a second one was still running.
+    // Callers awaiting the shared connect promise are part of the busy count:
+    // a sweep must not close the client once the first op finishes while a
+    // second one is still running.
     const {pool, closes} = setup(20);
     let releaseA: (value?: unknown) => void = () => {};
     let releaseB: (value?: unknown) => void = () => {};

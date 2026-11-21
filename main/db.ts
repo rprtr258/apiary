@@ -292,7 +292,7 @@ export function childrenBuckets(j: DB): Map<string, {ids: Set<t.RequestID>, dirs
   return buckets;
 }
 
-// Drop tree-order entries whose request/dir no longer exists (renames,
+// Drop tree-order entries whose request/dir is missing (renames,
 // deletes, hand-edited files) and sections that became empty; the overlay
 // never carries information of its own.
 function pruneTree(j: DB): DB {
@@ -398,7 +398,8 @@ export function flushSave(): Promise<void> | null {
   const j = pendingSave;
   pendingSave = null;
   // Queue behind an in-flight debounced write: concurrent saveNow calls would
-  // race on the tmp file the same way they used to tear db.json directly.
+  // race on the tmp file, tearing db.json the same way unsynchronized direct
+  // writes do.
   return serialized(() => saveNow(j));
 }
 

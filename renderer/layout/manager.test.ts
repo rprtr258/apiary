@@ -81,7 +81,7 @@ describe("LayoutManager", () => {
     dragTab(stack.children[0], tab);
 
     // The stack must survive: detach() destroys an emptied stack, and the
-    // drop used to reinsert the tab into that destroyed stack.
+    // drop would reinsert the tab into that destroyed stack.
     expect(stacksOf(manager)).toHaveLength(1);
     expect(manager.rootItem).toBe(stack);
     expect(stack.element.isConnected).toBe(true);
