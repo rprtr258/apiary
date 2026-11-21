@@ -1,0 +1,56 @@
+{
+  // Rule set ported from ../ef/knip.json: everything at "error" except
+  // cycles, which ef disables for its deliberate compiler cycles
+  // (eval⇄builtins, parser→types→analysis). This repo has known import
+  // cycles too (e.g. renderer plugins ↔ store), so cycles stays off.
+  "rules": {
+    "files": "error",
+    "dependencies": "error",
+    "devDependencies": "error",
+    "optionalPeerDependencies": "error",
+    "unlisted": "error",
+    "binaries": "error",
+    "unresolved": "error",
+    "exports": "error",
+    "types": "error",
+    "nsExports": "error",
+    "nsTypes": "error",
+    "enumMembers": "error",
+    "namespaceMembers": "error",
+    "duplicates": "error",
+    "catalog": "error",
+    "catalogReferences": "error",
+    "cycles": "off"
+  },
+  // entry files too (main/preload, scripts, sample servers) — exports must
+  // be imported or tagged @public, not just reachable
+  "includeEntryExports": true,
+  // Files run directly rather than imported: the electron main/preload
+  // pair (main.ts via the package.json "main" built output, preload.ts
+  // referenced from main.ts as a built-output path), the standalone bun
+  // CLIs in scripts/ (ef's config uses the same pattern), the sample MCP
+  // server, and the in-process MCP mock spawned by mcp.test.ts via an
+  // import.meta.dir path knip cannot see
+  "entry": [
+    "main.ts",
+    "preload.ts",
+    "scripts/*.ts",
+    "scripts/mcp/*.ts",
+    "main/database/mock_mcp_server.ts"
+  ],
+  // Self-contained sub-packages with their own lockfiles (vitepress docs
+  // site, dockerized gRPC demo) and agent tooling — analyzed against their
+  // own package.json, not the root one
+  "ignore": [".pi/**", "docs/**", "scripts/grpc/**"],
+  // System toolchain required by build-wasm/test-go, not an npm binary
+  "ignoreBinaries": ["go"],
+  // github-markdown-css is loaded via <link href="/node_modules/..."> in
+  // index.html (knip doesn't parse html); protoc-gen-ts is referenced as a
+  // --plugin path in the gen:grpc script (knip only sees bare binary names)
+  "ignoreDependencies": ["github-markdown-css", "protoc-gen-ts"],
+  // CWD-relative spawn argument in scripts/build.ts ("bun
+  // scripts/build-wasm.ts" run from the repo root), not an import
+  // specifier; ./global.ts resolves to global.d.ts via TS bundler-mode
+  // declaration fallback, which knip's resolver does not attempt
+  "ignoreUnresolved": ["scripts/build-wasm.ts", "./global.ts"]
+}

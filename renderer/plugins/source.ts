@@ -66,7 +66,7 @@ export function parseVirtualKey(key: string): Option<VirtualKey> {
   return some({kind, sourceID, segments});
 }
 
-export const byLabel = (a: TreeOption, b: TreeOption): number => a.label.localeCompare(b.label);
+const byLabel = (a: TreeOption, b: TreeOption): number => a.label.localeCompare(b.label);
 
 // "Loading..."/"(None)" placeholder row: keyed after the placeholder
 // convention "virtual:<state>:<sourceID>:<kind>:<path...>" and disabled so it

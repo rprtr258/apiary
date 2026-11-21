@@ -41,7 +41,7 @@ type Placed = {
 // Expanded nodes are wider and taller than the header; each row's tallest
 // extra pushes all rows below down, and a leaf's own width widens its slot,
 // so expansion never overlaps neighbouring nodes.
-export function layoutPlan(plan: t.SQLPlan, sizeOf: (n: t.SQLPlanNode) => {w: number, h: number}): {nodes: Placed[], width: number, height: number} {
+function layoutPlan(plan: t.SQLPlan, sizeOf: (n: t.SQLPlanNode) => {w: number, h: number}): {nodes: Placed[], width: number, height: number} {
   const nodes: Placed[] = [];
   let nextId = 0;
 

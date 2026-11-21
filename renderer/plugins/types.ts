@@ -10,7 +10,7 @@ export type ItemBadge = {
   background?: string,
 };
 
-export type FrameArgs = {
+type FrameArgs = {
   el: HTMLElement,
   show_request: Signal<boolean>,
   eye: HTMLElement,
@@ -24,7 +24,7 @@ export type FrameArgs = {
 // mounting. Factories mirror the Request<Kind> modules: request kinds toggle
 // their editor via show_request (the eye in the tab); source kinds hide the
 // eye and only take update.
-export type Frame = {
+type Frame = {
   loaded(r: get_request): void,
   push_history_entry?(he: t.HistoryEntry): void, // show the performed response
   unmount(): void,

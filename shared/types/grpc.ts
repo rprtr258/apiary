@@ -19,7 +19,6 @@ export const GRPCCodes = {
   15: "DATA_LOSS",
   16: "UNAUTHENTICATED",
 } as const;
-export type GRPCCode = keyof typeof GRPCCodes;
 
 export type GRPCRequest = {
   target: string,

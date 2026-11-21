@@ -1,10 +1,5 @@
-import {Option, some, none} from "@/option.ts";
 import {Result, ok, try_} from "@/result.ts";
 import {jq} from "@/jq.ts";
-
-export function arrayGet<T>(items: T[], index: number): Option<T> {
-  return index >= 0 && index < items.length ? some(items[index]) : none;
-}
 
 function formatResponse(response: string): string {
   const value = ((): unknown => {

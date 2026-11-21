@@ -285,7 +285,7 @@ async function parseDB(b: Buffer): Promise<DB> {
 // directly under it, and immediate subdirectory names. A request whose path
 // equals a directory path is a sibling of that directory's children, not one
 // of them. Drafts live outside the tree and are skipped.
-export function childrenOf(j: DB, dir: string): {ids: Set<t.RequestID>, dirs: Set<string>} {
+function childrenOf(j: DB, dir: string): {ids: Set<t.RequestID>, dirs: Set<string>} {
   const prefix = dir === "" ? "" : dir + "/";
   const ids = new Set<t.RequestID>();
   const dirs = new Set<string>();
