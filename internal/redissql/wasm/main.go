@@ -105,6 +105,15 @@ func (c *jsClient) Type(ctx context.Context, key string) (string, error) {
 	return typ, json.Unmarshal(raw, &typ)
 }
 
+func (c *jsClient) KeyLen(ctx context.Context, key, typ string) (uint64, error) {
+	raw, err := c.call("keyLen", key, typ)
+	if err != nil {
+		return 0, err
+	}
+	var n uint64
+	return n, json.Unmarshal(raw, &n)
+}
+
 func (c *jsClient) ExpireTime(ctx context.Context, key string) (time.Duration, error) {
 	raw, err := c.call("expireTime", key)
 	if err != nil {

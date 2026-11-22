@@ -25,12 +25,23 @@ describe("commandFor", () => {
     expect(commandFor("scanType", [5, "*", 10, "hash"])).toEqual(["SCAN", "5", "MATCH", "*", "COUNT", "10", "TYPE", "hash"]);
     expect(commandFor("scanType", [7, "*", 0, ""])).toEqual(["SCAN", "7", "MATCH", "*"]);
     expect(commandFor("type", ["foo"])).toEqual(["TYPE", "foo"]);
+    expect(commandFor("keyLen", ["foo", "string"])).toEqual(["STRLEN", "foo"]);
+    expect(commandFor("keyLen", ["foo", "list"])).toEqual(["LLEN", "foo"]);
+    expect(commandFor("keyLen", ["foo", "set"])).toEqual(["SCARD", "foo"]);
+    expect(commandFor("keyLen", ["foo", "zset"])).toEqual(["ZCARD", "foo"]);
+    expect(commandFor("keyLen", ["foo", "hash"])).toEqual(["HLEN", "foo"]);
+    expect(commandFor("keyLen", ["foo", "stream"])).toEqual(["XLEN", "foo"]);
+    expect(commandFor("keyLen", ["foo", "vectorset"])).toEqual(["VCARD", "foo"]);
     expect(commandFor("expireTime", ["foo"])).toEqual(["PTTL", "foo"]);
     expect(commandFor("mGet", [["foo", "bar"]])).toEqual(["MGET", "foo", "bar"]);
     expect(commandFor("lRange", ["foo", 0, -1])).toEqual(["LRANGE", "foo", "0", "-1"]);
     expect(commandFor("sMembers", ["foo"])).toEqual(["SMEMBERS", "foo"]);
     expect(commandFor("hGetAll", ["foo"])).toEqual(["HGETALL", "foo"]);
     expect(commandFor("zRangeWithScores", ["foo", 0, -1])).toEqual(["ZRANGE", "foo", "0", "-1", "WITHSCORES"]);
+  });
+
+  test("throws on type without cardinality command", () => {
+    expect(() => commandFor("keyLen", ["foo", "ReJSON-RL"])).toThrow("no cardinality command for type ReJSON-RL");
   });
 
   test("throws on unknown op", () => {

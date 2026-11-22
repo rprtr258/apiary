@@ -23,6 +23,8 @@ type fakeClient struct {
 	sets    map[string][]string
 	lists   map[string][]string
 	zsets   map[string][]Z
+	types   map[string]string // per-key TYPE replies, default "string"
+	lens    map[string]uint64
 }
 
 func (c *fakeClient) DBIndex() int { return 0 }
@@ -42,7 +44,16 @@ func (c *fakeClient) ScanType(_ context.Context, cursor uint64, _ string, _ int6
 	return c.keys, 0, nil
 }
 
-func (c *fakeClient) Type(_ context.Context, _ string) (string, error) { return "string", nil }
+func (c *fakeClient) Type(_ context.Context, key string) (string, error) {
+	if typ, ok := c.types[key]; ok {
+		return typ, nil
+	}
+	return "string", nil
+}
+
+func (c *fakeClient) KeyLen(_ context.Context, key, _ string) (uint64, error) {
+	return c.lens[key], nil
+}
 
 func (c *fakeClient) ExpireTime(_ context.Context, _ string) (time.Duration, error) { return -1, nil }
 
@@ -134,6 +145,59 @@ func TestRowIterEndsOnEmptyScanPage(t *testing.T) {
 		if rows != 1 {
 			t.Fatalf("%s: got %d rows, want 1", table.Name(), rows)
 		}
+	}
+}
+
+// len is filled per type through the Client (cardinality commands on the
+// host side) and stays null for types without one.
+func TestRkeyLenColumn(t *testing.T) {
+	ctx := sql.NewContext(t.Context())
+	c := &fakeClient{
+		keys: []string{"str", "lst", "strm", "vs", "json"},
+		types: map[string]string{
+			"str":  "string",
+			"lst":  "list",
+			"strm": "stream",
+			"vs":   "vectorset",
+			"json": "ReJSON-RL",
+		},
+		lens: map[string]uint64{"str": 3, "lst": 2, "strm": 9, "vs": 4},
+	}
+	want := map[string]any{
+		"str":  uint64(3),
+		"lst":  uint64(2),
+		"strm": uint64(9),
+		"vs":   uint64(4),
+		"json": nil,
+	}
+
+	iter, err := (&rkeyTable{c}).PartitionRows(ctx, nil)
+	if err != nil {
+		t.Fatalf("partition rows: %v", err)
+	}
+	for {
+		row, err := iter.Next(ctx)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("next: %v", err)
+		}
+		key, ok := row[0].(string)
+		if !ok {
+			t.Fatalf("unexpected key cell %v (%T)", row[0], row[0])
+		}
+		wantLen, ok := want[key]
+		if !ok {
+			t.Fatalf("unexpected key %q", key)
+		}
+		if row[3] != wantLen {
+			t.Fatalf("len(%q) = %v (%T), want %v", key, row[3], row[3], wantLen)
+		}
+		delete(want, key)
+	}
+	if len(want) > 0 {
+		t.Fatalf("missing rows for keys %v", want)
 	}
 }
 

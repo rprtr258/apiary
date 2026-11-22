@@ -57,6 +57,16 @@ export function commandFor(op: string, args: unknown[]): string[] {
     }
     case "type":
       return ["TYPE", key];
+    case "keyLen": {
+      // The engine only sends types from its rkeyTypes table; the throw is
+      // the loud-failure guard against drift with that table.
+      const typ = args[1] as string;
+      const command = {string: "STRLEN", list: "LLEN", set: "SCARD", zset: "ZCARD", hash: "HLEN", stream: "XLEN", vectorset: "VCARD"}[typ];
+      if (command === undefined) {
+        throw new Error(`keyLen: no cardinality command for type ${typ}`);
+      }
+      return [command, key];
+    }
     case "expireTime":
       // PTTL instead of EXPIRETIME (added in Redis 7.4); PTTL works since 2.6.
       return ["PTTL", key];
