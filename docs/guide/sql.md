@@ -26,7 +26,7 @@ Enter the connection string (DSN) for your database:
 | Database | Example DSN |
 |----------|-------------|
 | SQLite | `file:data.db` |
-| PostgreSQL | `postgres://user:pass@localhost:5432/dbname` |
+| PostgreSQL | `postgres://user:pass@localhost:5432/dbname`, or libpq keyword/value form: `host=localhost user=postgres dbname=mydb` |
 | ClickHouse | `tcp://localhost:9000?database=default` |
 | MySQL | `user:pass@tcp(localhost:3306)/dbname` |
 

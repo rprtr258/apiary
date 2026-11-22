@@ -1,5 +1,6 @@
 import {describe, test, expect} from "bun:test";
-import {parsePlan, columnType, typename, dataTypeColumnType, quoteIdent} from "./sql.postgres.ts";
+import {parsePlan, columnType, typename, dataTypeColumnType, quoteIdent, dsnOf} from "./sql.postgres.ts";
+import {parse, type ConnectionOptions} from "pg-connection-string";
 import {ColumnType} from "@/types.ts";
 
 describe("quoteIdent", () => {
@@ -62,6 +63,48 @@ describe("dataTypeColumnType (information_schema)", () => {
     ["USER-DEFINED", ColumnType.UNKNOWN],
   ])("dataTypeColumnType(%s)", (dataType, want) => {
     expect(dataTypeColumnType(dataType)).toBe(want);
+  });
+});
+
+describe("dsnOf", () => {
+  test.each([
+    ["postgres://u:p@h:5432/db?sslmode=disable", "postgres://u:p@h:5432/db?sslmode=disable&uselibpqcompat=true"],
+    ["postgresql://h/db", "postgresql://h/db?uselibpqcompat=true"],
+    ["localhost:5432/db", "postgres://localhost:5432/db?uselibpqcompat=true"],
+    ["localhost:5432/db?sslmode=disable", "postgres://localhost:5432/db?sslmode=disable&uselibpqcompat=true"],
+  ])("keeps URI and shorthand DSNs working: %s", (dsn, want) => {
+    expect(dsnOf(dsn)).toBe(want);
+  });
+
+  test.each([
+    ["host=localhost user=postgres password=secret port=5433 dbname=mydb sslmode=disable", "postgres://postgres:secret@localhost:5433/mydb?sslmode=disable&uselibpqcompat=true"],
+    ["host=/var/run/postgresql dbname=regress", "postgres://%2Fvar%2Frun%2Fpostgresql/regress?uselibpqcompat=true"],
+    ["host=::1 port=5432", "postgres://[::1]:5432/?uselibpqcompat=true"],
+    ["host=localhost dbname='my db' options='-c statement_timeout=300'", "postgres://localhost/my%20db?options=-c%20statement_timeout%3D300&uselibpqcompat=true"],
+    ["dbname='a\\'b' dbname=c", "postgres:///c?uselibpqcompat=true"],
+  ])("rewrites keyword/value DSNs to URIs: %s", (dsn, want) => {
+    expect(dsnOf(dsn)).toBe(want);
+  });
+
+  test.each([
+    ["host=localhost port", `missing "=" after "port"`],
+    ["dbname='unterminated", "unterminated quoted string"],
+    ["host=h port=abc", `invalid port "abc"`],
+  ])("rejects malformed keyword/value DSN: %s", (dsn, message) => {
+    expect(() => dsnOf(dsn)).toThrow(message);
+  });
+
+  test.each<{dsn: string, want: Partial<ConnectionOptions>}>([
+    {
+      dsn: "host=localhost user=postgres password=secret port=5433 dbname=mydb sslmode=disable",
+      want: {user: "postgres", password: "secret", host: "localhost", port: "5433", database: "mydb", ssl: false},
+    },
+    {
+      dsn: "host=/var/run/postgresql dbname='my db' options='-c statement_timeout=300'",
+      want: {host: "/var/run/postgresql", database: "my db"},
+    },
+  ])("built URI for $dsn parses back through pg-connection-string", ({dsn, want}) => {
+    expect(parse(dsnOf(dsn))).toMatchObject(want);
   });
 });
 
