@@ -1,5 +1,5 @@
 import {describe, test, expect, mock} from "bun:test";
-import {m, setDisplay, signal, deepEquals} from "./utils.ts";
+import {m, setDisplay, signal, deepEquals, transform} from "./utils.ts";
 
 describe("m (DOM builder)", () => {
   test("creates element with props and text children", () => {
@@ -231,5 +231,30 @@ describe("deepEquals", () => {
     for (const [a, b] of negativeTests) {
       expect(deepEquals(a, b)).toBe(false);
     }
+  });
+});
+
+describe("transform", () => {
+  test("applies the query to each document of a JSONL stream", async () => {
+    const res = await transform("{\"a\": 1}\n{\"a\": 2}", ".a");
+    expect(res.kind).toBe("ok");
+    expect(res.kind === "ok" ? res.value : null).toBe("1\n2");
+  });
+
+  test("applies the query to a single document", async () => {
+    const res = await transform("{\"a\": {\"b\": 3}}", ".a.b");
+    expect(res.kind).toBe("ok");
+    expect(res.kind === "ok" ? res.value : null).toBe("3");
+  });
+
+  test("errors on a failing query", async () => {
+    const res = await transform("{\"a\": 1}", ".a | badfilter");
+    expect(res.kind).toBe("err");
+  });
+
+  test("shows non-JSON bodies as-is instead of erroring", async () => {
+    const res = await transform("plain text", ".a");
+    expect(res.kind).toBe("ok");
+    expect(res.kind === "ok" ? res.value : null).toBe("plain text");
   });
 });

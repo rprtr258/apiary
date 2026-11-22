@@ -62,7 +62,7 @@ The `response` field is what makes a kind performable and draftable: `RequestDat
 Each plugin is a module exporting an `EmptyRequest` constant and a `send` function. Minimal real example (`main/database/jq.ts`):
 
 ```typescript
-import type {JQRequest, JQResponse} from "@/types.ts";
+import {JQRequest, JQResponse} from "@/types.ts";
 import {jq} from "@/jq.ts";
 
 export const EmptyRequest: JQRequest = {
@@ -218,7 +218,7 @@ export const sqlSourcePlugin: Plugin = {
 
 ```typescript
 import * as t from "@/types.ts";
-import type {Item} from "../source.ts";
+import {Item} from "../source.ts";
 import {api} from "../../api.ts";
 import {store} from "../../store.ts";
 import {createSourceCache, listChildren} from "../cache.ts";

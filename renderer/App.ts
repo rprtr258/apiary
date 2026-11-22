@@ -325,9 +325,12 @@ const panelkaFactory = (
   let activeTab: Tab | undefined;
   // Send wrapper shared by the frame's Perform button, Ctrl+Enter and the
   // command palette "Run" item: performs and renders the result.
-  const onSend = (): Promise<void> => send(id).then(he => {
-    if (he !== undefined)
-      frame.push_history_entry?.(he);
+  const onSend = (): Promise<void> => send(id).then(res => {
+    if (res.kind === "err") {
+      frame.performError?.(res.value);
+      return;
+    }
+    frame.push_history_entry?.(res.value);
   });
   const tab_cleanups: (() => void)[] = [];
   container.on("tab", (tab: Tab): void => {

@@ -15,9 +15,25 @@ function formatResponse(response: string): string {
   return JSON.stringify(value, null, 2);
 }
 
+function parsesAsJSON(value: string): boolean {
+  try {
+    JSON.parse(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function transform(body: string, query: string): Promise<Result<string>> {
   if (query === "") {
     return ok(formatResponse(body));
+  }
+
+  // Bodies shown next to the query input are often not JSON at all (plain-text
+  // HTTP/redis responses) — jq only applies to a single document or a JSONL
+  // stream, anything else is shown as-is instead of erroring.
+  if (!parsesAsJSON(body) && !body.split("\n").filter(line => line.trim().length > 0).every(parsesAsJSON)) {
+    return ok(body);
   }
 
   const res = await try_(() => jq(body, query));
