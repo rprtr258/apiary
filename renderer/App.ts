@@ -12,8 +12,7 @@ import {css} from "./lib/styles.ts";
 import {cls} from "./layout/styles.ts";
 import {NInput} from "./components/input.ts";
 import {NModal, NSplit} from "./components/layout.ts";
-import {NEmpty, NIcon, NTag} from "./components/dataview.ts";
-import {Eye, EyeClosed} from "./components/icons.ts";
+import {NEmpty, NTag} from "./components/dataview.ts";
 import {CommandPalette, Item} from "./components/CommandPalette.ts";
 import {sidebar, globalDropdown, newRequestKind, newRequestName, renameID, renameInit, renameValue, sidebarHidden} from "./Sidebar.ts";
 import {plugins, pluginsByKind} from "./plugins/index.ts";
@@ -320,14 +319,8 @@ const panelkaFactory = (
   {id}: StateRequest,
 ): Panelka => {
   const el = container.element;
+  const plugin = pluginsByKind[store.requests[id].kind];
   const show_request = signal(true);
-  let eye_unsub = () => {};
-  const eye = m("span", {
-    title: "Hide request",
-    onclick: () => {
-      show_request.update(b => !b);
-    },
-  });
 
   let activeTab: Tab | undefined;
   // Send wrapper shared by the frame's Perform button, Ctrl+Enter and the
@@ -336,20 +329,12 @@ const panelkaFactory = (
     if (he !== undefined)
       frame.push_history_entry?.(he);
   });
+  const tab_cleanups: (() => void)[] = [];
   container.on("tab", (tab: Tab): void => {
     activeTab = tab;
-    eye_unsub = show_request.sub(function*() {
-      while (true) {
-        const value = yield;
-        eye.title = value ? "Hide request" : "Show request";
-        eye.replaceChildren(NIcon({
-          component: value ? Eye : EyeClosed,
-          class: "highlight-red",
-        }));
-      }
-    }());
-
-    tab.element.prepend(eye);
+    for (const modifier of plugin.tabModifiers ?? []) {
+      tab_cleanups.push(modifier(tab, {show_request}));
+    }
 
     // Draft tabs carry a pale-gray title and delete their record when closed via
     // the close button. The previews watcher re-styles on every refresh so the
@@ -376,7 +361,8 @@ const panelkaFactory = (
     });
     container.on("destroy", () => {
       draftStyle_unsub();
-      eye_unsub();
+      for (const cleanup of tab_cleanups)
+        cleanup();
       frame_unsub();
       if (store.activeComponentID === id) {
         store.activeComponentID = null;
@@ -385,10 +371,9 @@ const panelkaFactory = (
     });
 
   });
-  const frame = pluginsByKind[store.requests[id].kind].frame({
+  const frame = plugin.frame({
     el,
     show_request,
-    eye,
     on: {
       update: (patch: Partial<Request>) => update_request(id, patch),
       send: onSend,
@@ -481,7 +466,6 @@ function preApp(root: HTMLElement, store: Store) {
   const app_container = split.element;
 
   sidebarHidden.sub(function*() {
-    yield;
     while (true) {
       const sidebarHidden = yield;
       split.leftVisible = !sidebarHidden;

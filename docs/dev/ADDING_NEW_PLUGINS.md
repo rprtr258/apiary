@@ -160,11 +160,11 @@ import RequestExample from "./viewer.ts";
 // performable kind:
 frame: (args) => RequestExample(args.el, args.show_request, args.on),
 
-// source kind (no send/eye — they query sources on demand):
-frame: (args) => {
-  setDisplay(args.eye, false);
-  return RequestExample(args.el, {update: args.on.update});
-},
+// source kind (no editor pane — they query sources on demand):
+frame: (args) => RequestExample(args.el, {update: args.on.update}),
+```
+
+Performable plugins add the shared eye toggle via `tabModifiers: [eyeTabModifier]` (from `plugins/tab.ts`); source plugins declare no `tabModifiers`, so their tabs carry no eye.
 ```
 
 Source panes that display fetched data also ship a viewer component and expose it through the plugin's `viewer` hook — shared viewers stay in `renderer/components/` (e.g. `TableView.ts`, `EndpointViewer.ts`), kind-specific ones colocate in the plugin dir (e.g. `plugins/mcp/tool.ts`). `App.ts` builds the layout factories from the registry, so no per-viewer edit is needed there.
@@ -211,10 +211,7 @@ type StateSQLSourceTable = {
 export const sqlSourcePlugin: Plugin<t.TableInfo> = {
   kind: t.Kind.SQLSource,
   root: id => ({key: "", label: "", badge: {text: "SQL*", color: "#70a0e8"}, /* + listing thunks */ }),
-  frame: (args) => {
-    setDisplay(args.eye, false);
-    return RequestSQLSource(args.el, {update: args.on.update});
-  },
+  frame: (args) => RequestSQLSource(args.el, {update: args.on.update}),
   cache: createSourceCache<t.TableInfo>({
     fetcher: id => api.requestListTablesSQLSource(id),   // Promise<Result<TableInfo[]>>
     errorTitle: "Could not fetch tables",
