@@ -85,13 +85,15 @@ export async function describe(request: Omit<t.SQLRequest, "query">, tableName: 
   // from the engine's information_schema; constraints and indexes are not
   // reported — a primary key would make the table viewer offer cell editing,
   // which the engine rejects ("table doesn't support UPDATE").
+  // The engine's query entry point takes no bound parameters, so the literal
+  // escapes its own quotes by doubling (MySQL string literal semantics).
   const colResult = await send({...request, query: `SELECT
   column_name,
   column_type,
   is_nullable = 'YES',
   column_default
 FROM information_schema.COLUMNS
-WHERE table_name = '${tableName}' AND table_schema = DATABASE()
+WHERE table_name = '${tableName.replaceAll("'", "''")}' AND table_schema = DATABASE()
 ORDER BY ordinal_position`});
   const columns: t.ColumnInfo[] = colResult.rows.map(([name, typ, nullable, defaultVal]): t.ColumnInfo => ({
     name: name as string,

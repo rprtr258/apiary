@@ -1,6 +1,13 @@
 import {describe, test, expect} from "bun:test";
 import {ColumnType} from "@/types.ts";
-import {parsePlan, declaredColumnType} from "./sql.sqlite";
+import {parsePlan, declaredColumnType, quoteIdent} from "./sql.sqlite";
+
+describe("quoteIdent", () => {
+  test("doubles embedded backticks", () => {
+    expect(quoteIdent("plain")).toBe("`plain`");
+    expect(quoteIdent("we`ird")).toBe("`we``ird`");
+  });
+});
 
 describe("declaredColumnType (sqlite affinity)", () => {
   test.each([

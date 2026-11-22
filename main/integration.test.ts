@@ -1,11 +1,20 @@
-import {describe, test, expect, beforeAll, afterAll} from "bun:test";
+import {describe, test, expect, beforeAll, afterAll, mock} from "bun:test";
 import {existsSync} from "node:fs";
+import {mkdtemp} from "node:fs/promises";
 import path from "node:path";
+import {tmpdir} from "node:os";
 import {SQLRequest, RedisRequest, ColumnType, SQLPlanNode} from "@/types.ts";
 import * as sql from "./database/sql.ts";
 import * as sql_source from "./database/sql_source.ts";
 import * as redis from "./database/redis.ts";
 import * as grpc from "./database/grpc.ts";
+import {BetterLikeDB} from "./database/mock_better_sqlite3.ts";
+
+// better-sqlite3 is a native addon unsupported by bun; the mock bridges it to
+// bun:sqlite so the sqlite driver runs against a real SQLite engine.
+mock.module("better-sqlite3", () => ({
+  default: BetterLikeDB,
+}));
 
 const IS_INTEGRATION = Boolean(process.env["INTEGRATION"]);
 const pgDSN = process.env["PG_DSN"] ?? "postgres://postgres:password@localhost:5432/postgres";
@@ -83,6 +92,49 @@ describe.if(IS_INTEGRATION)("SQLSource (postgres)", () => {
 
   test("pings with SELECT 1", async () => {
     await sql_source.testSQLSource(pgRequest());
+  });
+});
+
+// Table names may carry quotes and dots: H1 sizes them via format('%I.%I'),
+// quoteIdent double embedded quotes for the sql_source count/filter/update paths.
+describe.if(IS_INTEGRATION)("sql crafted table names (postgres)", () => {
+  const tableName = `pg'test.tbl`;
+  const quotedTable = `pg'q"t`;
+  const quotedColumn = `c"1`;
+
+  beforeAll(async () => {
+    await sql.send(pgRequest(`DROP TABLE IF EXISTS "${tableName}"`));
+    await sql.send(pgRequest(`CREATE TABLE "${tableName}" (id INT)`));
+    await sql.send(pgRequest(`INSERT INTO "${tableName}" VALUES (1)`));
+    // DDL quotes the raw names by hand (doubled "); the driver receives the
+    // raw forms via the count/describe/update calls below.
+    await sql.send(pgRequest(`DROP TABLE IF EXISTS "pg'q""t"`));
+    await sql.send(pgRequest(`CREATE TABLE "pg'q""t" (id INT PRIMARY KEY, "c""1" TEXT)`));
+    await sql.send(pgRequest(`INSERT INTO "pg'q""t" VALUES (1, 'x')`));
+  });
+  afterAll(async () => {
+    await sql.send(pgRequest(`DROP TABLE IF EXISTS "${tableName}"`));
+    await sql.send(pgRequest(`DROP TABLE IF EXISTS "pg'q""t"`));
+  });
+
+  test("lists and sizes such tables", async () => {
+    const tables = await sql.listTables(pgRequest());
+    const found = tables.find(t => t.name === tableName);
+    expect(found).toMatchObject({name: tableName, rowCount: 1});
+    expect(found?.sizeBytes).toBeGreaterThanOrEqual(0);
+  });
+
+  test("describes such tables", async () => {
+    const schema = await sql.describeTable(pgRequest(), tableName);
+    expect(schema.columns.map(c => c.name)).toEqual(["id"]);
+  });
+
+  test("counts and updates through quoteIdent", async () => {
+    const count = await sql_source.countRowsSQLSource(pgRequest(), quotedTable, {kind: "simple", column: quotedColumn, op: "=", value: "x"});
+    expect(count).toBe(1);
+    await sql_source.updateTableRows({dsn: pgDSN, database: "postgres", readOnly: false}, quotedTable, ["id"],
+      [{pkValues: [1], column: quotedColumn, value: "O'Brien"}]);
+    expect(await pgValues(`SELECT * FROM "pg'q""t"`)).toEqual([[1, "O'Brien"]]);
   });
 });
 
@@ -166,6 +218,28 @@ describe.if(IS_INTEGRATION)("SQLSource (clickhouse)", () => {
 
   test("pings with SELECT 1", async () => {
     await sql_source.testSQLSource(chRequest());
+  });
+});
+
+// Table names may carry quotes; describe must bind them (query_params) instead
+// of interpolating them into system.* string literals. MergeTree + skipping
+// index so all three bound queries (columns, primary key, indices) run.
+describe.if(IS_INTEGRATION)("sql crafted table names (clickhouse)", () => {
+  const tableName = `ch'table`;
+
+  beforeAll(async () => {
+    await sql.send(chRequest(`DROP TABLE IF EXISTS \`${tableName}\``));
+    await sql.send(chRequest(`CREATE TABLE \`${tableName}\` (id UInt8, v UInt8, INDEX idx_v v TYPE minmax GRANULARITY 2) ENGINE = MergeTree ORDER BY id`));
+  });
+  afterAll(async () => {
+    await sql.send(chRequest(`DROP TABLE IF EXISTS \`${tableName}\``));
+  });
+
+  test("describes such tables", async () => {
+    const schema = await sql.describeTable(chRequest(), tableName);
+    expect(schema.columns.map(c => c.name)).toEqual(["id", "v"]);
+    expect(schema.constraints.map(c => c.name)).toEqual(["PRIMARY KEY"]);
+    expect(schema.indexes.map(i => i.name)).toEqual(["idx_v"]);
   });
 });
 
@@ -294,6 +368,53 @@ describe.if(IS_INTEGRATION)("SQLSource (mysql)", () => {
 
   test("pings with SELECT 1", async () => {
     await sql_source.testSQLSource(mysqlRequest());
+  });
+
+  // Backticks in identifiers reach the engine doubled by quoteIdent;
+  // describe is parameterized, so quotes in names must already survive it.
+  test("handles tables whose names/columns carry quotes", async () => {
+    const tableName = "mysql'q`t";
+    const quotedColumn = "c`1";
+    try {
+      await sql.send(mysqlRequest("CREATE TABLE `mysql'q``t` (id INT PRIMARY KEY, `c``1` TEXT)"));
+      await sql.send(mysqlRequest("INSERT INTO `mysql'q``t` VALUES (1, 'x')"));
+
+      const schema = await sql.describeTable(mysqlRequest(), tableName);
+      expect(schema.columns.map(c => c.name)).toEqual(["id", quotedColumn]);
+
+      const count = await sql_source.countRowsSQLSource(mysqlRequest(), tableName, {kind: "simple", column: quotedColumn, op: "=", value: "x"});
+      expect(count).toBe(1);
+
+      await sql_source.updateTableRows({dsn: mysqlDSN, database: "mysql", readOnly: false}, tableName, ["id"],
+        [{pkValues: [1], column: quotedColumn, value: "O'Brien"}]);
+      const res = await sql.send(mysqlRequest("SELECT `c``1` FROM `mysql'q``t`"));
+      expect(res.rows).toEqual([["O'Brien"]]);
+    } finally {
+      await sql.send(mysqlRequest("DROP TABLE IF EXISTS `mysql'q``t`"));
+    }
+  });
+
+  // MySQL string literals treat \ as an escape character: without doubling, a
+  // trailing backslash terminates the literal (unterminated string error) and
+  // a backslash before a quote closes it early, splicing the tail into SQL.
+  test("updates and filters values carrying backslashes", async () => {
+    const table = "test_mysql_backslash_values";
+    try {
+      await sql.send(mysqlRequest(`CREATE TABLE ${table} (id INT PRIMARY KEY, v TEXT)`));
+      await sql.send(mysqlRequest(`INSERT INTO ${table} VALUES (1, 'x'), (2, 'y')`));
+
+      await sql_source.updateTableRows({dsn: mysqlDSN, database: "mysql", readOnly: false}, table, ["id"], [
+        {pkValues: [1], column: "v", value: "a\\"},
+        {pkValues: [2], column: "v", value: "a\\'"},
+      ]);
+      const res = await sql.send(mysqlRequest(`SELECT v FROM ${table} ORDER BY id`));
+      expect(res.rows).toEqual([["a\\"], ["a\\'"]]);
+
+      expect(await sql_source.countRowsSQLSource(mysqlRequest(), table, {kind: "simple", column: "v", op: "=", value: "a\\"})).toBe(1);
+      expect(await sql_source.countRowsSQLSource(mysqlRequest(), table, {kind: "simple", column: "v", op: "=", value: "a\\'"})).toBe(1);
+    } finally {
+      await sql.send(mysqlRequest(`DROP TABLE IF EXISTS ${table}`));
+    }
   });
 });
 
@@ -425,6 +546,62 @@ describe.if(IS_INTEGRATION)("sql.send (redis)", () => {
     } finally {
       await redis.send(req("DEL test:zinf"));
     }
+  });
+});
+
+// The engine's query entry point takes no bound parameters, so a quote in a
+// caller-supplied table name must reach it as a doubled-quote literal
+// instead of breaking out of the information_schema string.
+describe.if(IS_INTEGRATION)("sql crafted table names (redis)", () => {
+  test("describeTable escapes quotes in the table name", async () => {
+    if (!existsSync(wasmPath) || !existsSync(wasmExecPath)) {
+      console.warn("skipping sql-over-redis integration: artifact missing, run bun run build:wasm");
+      return;
+    }
+    // no such table: the escaped literal must parse (not error) and match nothing
+    const schema = await sql.describeTable({dsn: redisDSN, database: "redis"}, "o'brien");
+    expect(schema.columns).toEqual([]);
+    // a real table still describes fully
+    const real = await sql.describeTable({dsn: redisDSN, database: "redis"}, "rstring");
+    expect(real.columns.map(c => c.name)).toEqual(["key", "value", "string"]);
+  });
+});
+
+// sqlite runs on a real engine via the bun:sqlite-backed better-sqlite3 mock:
+// pragmas must ride table-valued functions with bound args and
+// quoteIdent must double backticks stored inside identifiers.
+describe.if(IS_INTEGRATION)("sql crafted table names (sqlite)", () => {
+  let dsn = "";
+
+  beforeAll(async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "sqlite-crafted-integration"));
+    dsn = path.join(dir, "apiary-crafted.db");
+    await sql.send({dsn, database: "sqlite", query: `CREATE TABLE "a\`b" ("c\`d" TEXT)`});
+    await sql.send({dsn, database: "sqlite", query: `INSERT INTO "a\`b" VALUES ('xyz')`});
+    await sql.send({dsn, database: "sqlite", query: `CREATE TABLE "o'brien" (id INTEGER PRIMARY KEY, p INT REFERENCES "o'brien"(id))`});
+    await sql.send({dsn, database: "sqlite", query: `CREATE TABLE "up\`d" (id INTEGER PRIMARY KEY, "c\`d" TEXT)`});
+    await sql.send({dsn, database: "sqlite", query: `INSERT INTO "up\`d" VALUES (1, 'x')`});
+  });
+
+  test("listTables handles quote characters in table and column names", async () => {
+    const tables = await sql.listTables({database: "sqlite", dsn});
+    expect(tables.find(t => t.name === "a`b")).toEqual({name: "a`b", rowCount: 1, sizeBytes: 3});
+  });
+
+  test("describeTable handles a single quote in the table name", async () => {
+    const schema = await sql.describeTable({dsn, database: "sqlite"}, "o'brien");
+    expect(schema.columns.map(c => c.name)).toEqual(["id", "p"]);
+    expect(schema.constraints.map(c => c.columns)).toEqual([["id"]]);
+    expect(schema.foreign_keys.map(f => f.table)).toEqual(["o'brien"]);
+  });
+
+  test("counts and updates through quoteIdent", async () => {
+    const count = await sql_source.countRowsSQLSource({dsn, database: "sqlite"}, "up`d", {kind: "simple", column: "c`d", op: "=", value: "x"});
+    expect(count).toBe(1);
+    await sql_source.updateTableRows({dsn, database: "sqlite", readOnly: false}, "up`d", ["id"],
+      [{pkValues: [1], column: "c`d", value: `w"x'z`}]);
+    const res = await sql.send({dsn, database: "sqlite", query: `SELECT "c\`d" FROM "up\`d"`});
+    expect(res.rows).toEqual([[`w"x'z`]]);
   });
 });
 

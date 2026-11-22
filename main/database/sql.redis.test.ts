@@ -8,6 +8,7 @@ const counts: Record<string, number> = {rstring: 2, rhash: 5};
 const columns: Record<string, [string, string, boolean, string][]> = {
   rstring: [["key", "text", false, ""], ["value", "blob", false, ""]],
   rhash: [["key", "text", false, ""], ["field", "text", false, ""], ["value", "text", true, ""]],
+  "o'brien": [["key", "text", false, ""], ["value", "text", false, ""]],
 };
 
 const queryCalls: string[] = [];
@@ -23,7 +24,8 @@ mock.module("../redissql.ts", () => ({
       return {columns: ["COUNT(*)"], typenames: ["bigint"], rows: [[counts[table] ?? 0]]};
     }
     if (q.startsWith("SELECT column_name")) {
-      const table = /table_name = '([^']+)'/.exec(query)?.[1] ?? "";
+      // string literals escape a quote by doubling it
+      const table = (/table_name = '((?:[^']|'')*)'/.exec(query)?.[1] ?? "").replaceAll("''", "'");
       return {
         columns: ["COLUMN_NAME", "COLUMN_TYPE", "IS_NULLABLE = 'YES'", "COLUMN_DEFAULT"],
         typenames: ["text", "text", "boolean", "text"],
@@ -115,6 +117,13 @@ describe("sql_source redis", () => {
     expect(schema.constraints).toEqual([]);
     expect(schema.foreign_keys).toEqual([]);
     expect(schema.indexes).toEqual([]);
+  });
+
+  test("describeTable escapes single quotes in the table name", async () => {
+    queryCalls.length = 0;
+    const schema = await describeTable(source, "o'brien");
+    expect(queryCalls[0]).toContain("table_name = 'o''brien'");
+    expect(schema.columns.map(c => c.name)).toEqual(["key", "value"]);
   });
 
   test("counts rows with backtick quoting", async () => {

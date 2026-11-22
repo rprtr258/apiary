@@ -1,6 +1,13 @@
 import {describe, test, expect} from "bun:test";
-import {parsePlan, columnType, typename, dataTypeColumnType} from "./sql.postgres.ts";
+import {parsePlan, columnType, typename, dataTypeColumnType, quoteIdent} from "./sql.postgres.ts";
 import {ColumnType} from "@/types.ts";
+
+describe("quoteIdent", () => {
+  test("doubles embedded double quotes", () => {
+    expect(quoteIdent("plain")).toBe(`"plain"`);
+    expect(quoteIdent("we\"ird")).toBe(`"we""ird"`);
+  });
+});
 
 describe("postgres oid tables", () => {
   test.each([

@@ -29,7 +29,7 @@ const pool = createClientPool<ClickHouseClient, string>({
 // default on recent versions) parses it as VALUES data.
 const NO_RESULT_SET = /^\s*(INSERT|CREATE|DROP|ALTER|TRUNCATE|RENAME|OPTIMIZE|SET|SYSTEM|GRANT|REVOKE|KILL|ATTACH|DETACH|EXCHANGE|UNDROP|USE)\b/i;
 
-export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
+export async function send(request: t.SQLRequest, params?: Record<string, unknown>): Promise<t.SQLResponse> {
   return await pool.run(request.dsn, async client => {
     const ping = await client.ping();
     if (!ping.success) {
@@ -37,14 +37,14 @@ export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
     }
 
     if (NO_RESULT_SET.test(request.query)) {
-      await client.exec({query: request.query, clickhouse_settings: request.readOnly ?? false ? {readonly: "1"} : {}});
+      await client.exec({query: request.query, query_params: params, clickhouse_settings: request.readOnly ?? false ? {readonly: "1"} : {}});
       return {columns: [], typenames: [], types: [], rows: []};
     }
 
     // Server type names/types ride the two header rows of this format and
     // survive empty result sets, unlike JSONEachRow (no metadata) or value
     // sniffing (all-NULL columns).
-    const resultSet = await client.query({query: request.query, format: "JSONCompactEachRowWithNamesAndTypes", clickhouse_settings: request.readOnly ?? false ? {readonly: "1"} : {}});
+    const resultSet = await client.query({query: request.query, format: "JSONCompactEachRowWithNamesAndTypes", query_params: params, clickhouse_settings: request.readOnly ?? false ? {readonly: "1"} : {}});
     return parseResponse(await resultSet.text());
   });
 }
@@ -99,7 +99,7 @@ export async function describe(request: Omit<t.SQLRequest, "query">, tableName: 
   default_kind != '',
   default_expression
 FROM system.columns
-WHERE database = currentDatabase() AND table = '${tableName}'`});
+WHERE database = currentDatabase() AND table = {table:String}`}, {table: tableName});
   const columns: t.ColumnInfo[] = colResult.rows.map(r => ({
     name: String(r[0]),
     typename: String(r[1]),
@@ -111,7 +111,7 @@ WHERE database = currentDatabase() AND table = '${tableName}'`});
   // MergeTree tables report their key as an ORDER BY prefix expression; plain
   // column names become the PRIMARY KEY constraint, non-column expressions are
   // dropped later by the viewer's PK detection. ClickHouse has no foreign keys.
-  const tablesResult = await send({...request, query: `SELECT primary_key FROM system.tables WHERE database = currentDatabase() AND name = '${tableName}'`});
+  const tablesResult = await send({...request, query: "SELECT primary_key FROM system.tables WHERE database = currentDatabase() AND name = {table:String}"}, {table: tableName});
   const pkRaw = tablesResult.rows[0]?.[0];
   const pk = (typeof pkRaw === "string" ? pkRaw : "").trim();
   const constraints: t.ConstraintInfo[] = pk === "" ? [] : [{
@@ -123,7 +123,7 @@ WHERE database = currentDatabase() AND table = '${tableName}'`});
 
   const idxResult = await send({...request, query: `SELECT name, expr, type, granularity
 FROM system.data_skipping_indices
-WHERE database = currentDatabase() AND table = '${tableName}'`});
+WHERE database = currentDatabase() AND table = {table:String}`}, {table: tableName});
   const indexes: t.IndexInfo[] = idxResult.rows.map(([name, expr, type, granularity]) => ({
     name: String(name),
     definition: `INDEX ${String(name)} ${String(expr)} TYPE ${String(type)} GRANULARITY ${String(granularity)}`,
