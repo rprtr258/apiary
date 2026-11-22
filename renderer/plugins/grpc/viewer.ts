@@ -81,9 +81,9 @@ export default function(
 
     badgeContainer.replaceChildren(responseBadge(response));
     el_view_response_body.update(response.response);
-    tbody.replaceChildren(...response.metadata.map(header => m("tr", {},
-      m("td", {}, header.key),
-      m("td", {}, header.value),
+    tbody.replaceChildren(...response.metadata.map(({key, value}) => m("tr", {},
+      m("td", {}, key),
+      m("td", {}, value),
     )));
 
     if (!tabsReplaced) {

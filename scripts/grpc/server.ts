@@ -6,12 +6,17 @@ import {GreeterService} from "./helloworld_grpc_pb.js";
 
 function sayHello(
   call: grpc.ServerUnaryCall<messages.HelloRequest, messages.HelloReply>,
-  callback: (error: grpc.ServerErrorResponse | null, value?: unknown) => void,
+  callback: grpc.sendUnaryData<messages.HelloReply>,
 ): void {
   console.log(`[INFO] call request=${JSON.stringify(call.request.toObject())} method=SayHello`);
+  const headers = new grpc.Metadata();
+  headers.set("x-served-by", "apiary-test-server");
+  call.sendMetadata(headers);
   const reply = new messages.HelloReply();
   reply.setMessage(`Hello ${call.request.getName()}`);
-  callback(null, reply);
+  const trailers = new grpc.Metadata();
+  trailers.set("x-trace-id", "test-trace");
+  callback(null, reply, trailers);
 }
 
 const _addr = "0.0.0.0:50051";
