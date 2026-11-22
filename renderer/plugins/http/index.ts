@@ -4,6 +4,7 @@ import {api} from "../../api.ts";
 import {NIcon} from "../../components/dataview.ts";
 import {ContentCopyFilled} from "../../components/icons.ts";
 import {MenuOption, Plugin} from "../types.ts";
+import {eyeTabModifier} from "../tab.ts";
 import RequestHTTP from "./viewer.ts";
 
 function httpToCurl({url, method, body, headers}: t.HTTPRequest): string {
@@ -34,6 +35,7 @@ const copyAsCurl = (id: t.RequestID): MenuOption => ({
 export const httpPlugin: Plugin = {
   kind: t.Kind.HTTP,
   frame: args => RequestHTTP(args.el, args.show_request, args.on),
+  tabModifiers: [eyeTabModifier],
   viewers: {},
   menuEntries: id => [copyAsCurl(id)],
   root: () => ({key: "", label: "", badge: {label: "HTTP", color: "var(--green)"}}),

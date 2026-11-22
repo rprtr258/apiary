@@ -1,8 +1,8 @@
 import * as t from "@/types.ts";
 import {get_request} from "../store.ts";
 import {DOMNode, Signal} from "../lib/utils.ts";
-import type {Item} from "./source.ts";
-import type {ComponentContainer} from "../layout/types.ts";
+import {Item} from "./source.ts";
+import {ComponentContainer, Tab} from "../layout/types.ts";
 
 export type ItemBadge = {
   label: string,
@@ -13,7 +13,6 @@ export type ItemBadge = {
 type FrameArgs = {
   el: HTMLElement,
   show_request: Signal<boolean>,
-  eye: HTMLElement,
   on: {
     update: (patch: Partial<t.Request>) => Promise<void>,
     send: () => Promise<void>,
@@ -22,8 +21,8 @@ type FrameArgs = {
 
 // A mounted request pane: what panelkaFactory needs to drive the frame after
 // mounting. Factories mirror the Request<Kind> modules: request kinds toggle
-// their editor via show_request (the eye in the tab); source kinds hide the
-// eye and only take update.
+// their editor via show_request (the eye added by their tabModifiers); source
+// kinds only take update.
 type Frame = {
   loaded(r: get_request): void,
   push_history_entry?(he: t.HistoryEntry): void, // show the performed response
@@ -39,10 +38,23 @@ export type MenuOption = {
   },
 };
 
+// Panelka context handed to tab modifiers; show_request drives the editor
+// pane visibility (request kinds) and is what the shared eye toggles.
+type TabModifierArgs = {
+  show_request: Signal<boolean>,
+};
+
+// Decorates the request tab: called once when the tab attaches, returns
+// cleanup run on pane destroy.
+export type TabModifier = (tab: Tab, args: TabModifierArgs) => () => void;
+
 // Same bivariance reasoning as SourceCache above.
 export type Plugin = {
   kind: t.Kind,
   frame(args: FrameArgs): Frame,
+  // Tab decorations (e.g. the shared eye toggle for performable kinds); a
+  // kind without a tab affordance (source kinds) declares none
+  tabModifiers?: TabModifier[],
   menuEntries?(id: t.RequestID): MenuOption[],
   // Tab variants registered once at init (renderer/App.ts); items pick a
   // variant via its componentType in their onOpen closures

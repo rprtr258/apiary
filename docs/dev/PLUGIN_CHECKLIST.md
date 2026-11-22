@@ -39,8 +39,8 @@
 ## Registration (`renderer/plugins/<name>/`)
 
 - [ ] Wire the UI module into the plugin's `frame` hook:
-  - Performable: `frame: (args) => Request<NAME>(args.el, args.show_request, args.on);`
-  - Source: `frame: (args) => { setDisplay(args.eye, false); return Request<NAME>(args.el, {update: args.on.update}); }`
+  - Performable: `frame: (args) => Request<NAME>(args.el, args.show_request, args.on);` plus `tabModifiers: [eyeTabModifier]` (shared eye toggle, `plugins/tab.ts`)
+  - Source: `frame: (args) => Request<NAME>(args.el, {update: args.on.update});` with no `tabModifiers` (no editor pane to toggle)
 - [ ] Source panes with fetched data: ship the viewer component (shared ones in `renderer/components/`, kind-specific ones colocated in `plugins/<name>/`) and expose it via the plugin's `viewer` hook (no `App.ts` edit — factories come from the registry)
 
 ## Plugin (`renderer/plugins/`, every kind)
