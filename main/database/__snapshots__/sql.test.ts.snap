@@ -16,3 +16,20 @@ exports[`explainSQL sqlite returns raw details and the parsed plan tree 1`] = `
   "raw": "SEARCH users USING INTEGER PRIMARY KEY (rowid=?)",
 }
 `;
+
+exports[`explainSQL sqlite returns raw details and the parsed plan tree 2`] = `
+{
+  "plan": {
+    "root": {
+      "children": [],
+      "details": [],
+      "index": "INTEGER PRIMARY KEY",
+      "kind": "index",
+      "metrics": {},
+      "table": "users",
+      "title": "SEARCH (rowid=?)",
+    },
+  },
+  "raw": "SEARCH users USING INTEGER PRIMARY KEY (rowid=?)",
+}
+`;

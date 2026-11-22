@@ -1,4 +1,4 @@
-import {Database as BunDB} from "bun:sqlite";
+import {Database as BunDB, SQLQueryBindings} from "bun:sqlite";
 
 // better-sqlite3 is not supported in Bun (native addon).
 // Mock it with a thin adapter wrapping bun:sqlite.
@@ -11,8 +11,8 @@ export class BetterLikeDB {
   prepare(sql: string) {
     const stmt = this.#db.query(sql);
     return {
-      all: () => stmt.all() as Record<string, unknown>[],
-      run: () => stmt.run() as {changes: number | bigint, lastInsertRowid: number | bigint},
+      all: (...args: SQLQueryBindings[]) => stmt.all(...args) as Record<string, unknown>[],
+      run: (...args: SQLQueryBindings[]) => stmt.run(...args) as {changes: number | bigint, lastInsertRowid: number | bigint},
       // better-sqlite3 reader: statement returns data (bun:sqlite exposes the
       // same fact as a non-empty columnNames)
       reader: stmt.columnNames.length > 0,
