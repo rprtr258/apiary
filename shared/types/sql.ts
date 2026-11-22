@@ -61,6 +61,9 @@ export type SQLRequest = {
   readOnly?: boolean,
 };
 
+/** Bound value for a query's driver placeholders ($1… on postgres, ? elsewhere). */
+export type SQLParam = string | number | boolean | null;
+
 export type SQLResponse = {
   columns: string[],
   types: ColumnType[],

@@ -286,6 +286,10 @@ describe.if(IS_INTEGRATION)("SQLSource (mysql)", () => {
       {name: "PRIMARY KEY", type: "PRIMARY KEY", definition: "PRIMARY KEY", columns: ["id"]},
     ]);
     expect(schema.foreign_keys).toEqual([]);
+    // The InnoDB primary key appears in statistics alongside declared indexes.
+    expect(schema.indexes).toEqual([
+      {name: "PRIMARY", definition: `CREATE UNIQUE INDEX \`PRIMARY\` ON \`${tableName}\` (id) USING BTREE`},
+    ]);
   });
 
   test("pings with SELECT 1", async () => {

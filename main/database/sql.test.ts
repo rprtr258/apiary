@@ -3,7 +3,7 @@ import {tmpdir} from "os";
 import {join} from "path";
 import {mock, describe, test, expect} from "bun:test";
 import {SQLRequest, ColumnType} from "@/types.ts";
-import {send, sendBatch, explain} from "./sql.ts";
+import {send, sendBatch, explain, describeTable} from "./sql.ts";
 import {BetterLikeDB} from "./mock_better_sqlite3.ts";
 
 mock.module("better-sqlite3", () => ({
@@ -71,6 +71,28 @@ describe("sendSQL sqlite", () => {
       "UPDATE t SET val = 'y' WHERE id = 2",
     ]);
     expect(update.affectedRows).toEqual([2, 1]);
+  });
+});
+
+describe("describeTable sqlite", () => {
+  test("binds table names and returns schema", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sqlite-describe"));
+    const TEST_DB = dir + "/apiary-sql-test.db";
+    await send(req({dsn: TEST_DB, query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"}));
+    await send(req({dsn: TEST_DB, query: "CREATE INDEX users_name_idx ON users (name)"}));
+
+    const schema = await describeTable(req({dsn: TEST_DB}), "users");
+    expect(schema).toEqual({
+      columns: [
+        {name: "id", type: ColumnType.NUMBER, typename: "INTEGER", defaultValue: `""`, nullable: true},
+        {name: "name", type: ColumnType.STRING, typename: "TEXT", defaultValue: `""`, nullable: true},
+      ],
+      constraints: [{name: "PRIMARY KEY", type: "PRIMARY KEY", definition: "PRIMARY KEY", columns: ["id"]}],
+      indexes: [
+        {name: "users_name_idx", definition: JSON.stringify("CREATE INDEX users_name_idx ON users (name)")},
+      ],
+      foreign_keys: [],
+    });
   });
 });
 

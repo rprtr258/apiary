@@ -96,12 +96,12 @@ const pool = createClientPool<Connection, string>({
   close: connection => connection.end(),
 });
 
-export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
+export async function send(request: t.SQLRequest, params?: t.SQLParam[]): Promise<t.SQLResponse> {
   return await pool.run(request.dsn, async connection => {
     try {
       if (request.readOnly ?? false)
         await connection.execute("SET SESSION TRANSACTION READ ONLY");
-      const result = await connection.execute(request.query) as [unknown, Field[] | undefined];
+      const result = await connection.execute(request.query, params) as [unknown, Field[] | undefined];
       if (!Array.isArray(result[0])) {
         // Writes and DDL resolve to a stats packet with no result-set metadata.
         return {columns: [], typenames: [], types: [], rows: []};
@@ -169,8 +169,8 @@ export async function describe(request: Omit<t.SQLRequest, "query">, tableName: 
   is_nullable,
   column_default
 FROM information_schema.columns
-WHERE table_name = '${tableName}' AND table_schema = DATABASE()
-ORDER BY ordinal_position`});
+WHERE table_name = ? AND table_schema = DATABASE()
+ORDER BY ordinal_position`}, [tableName]);
   const columns: t.ColumnInfo[] = colResult.rows.map(([name, typ, nullable, defaultVal]) => ({
     name: name as string,
     typename: typ as string,
@@ -187,8 +187,8 @@ ORDER BY ordinal_position`});
     const conResult = await send({...request, query: `SELECT
   column_name
 FROM information_schema.key_column_usage
-WHERE table_name = '${tableName}' AND table_schema = DATABASE() AND constraint_name = 'PRIMARY'
-ORDER BY ordinal_position`}); // TODO: pass tableName as arg
+WHERE table_name = ? AND table_schema = DATABASE() AND constraint_name = 'PRIMARY'
+ORDER BY ordinal_position`}, [tableName]);
     const pkColumns = conResult.rows.map(r => String(r[0]));
     if (pkColumns.length > 0)
       constraints.push({name: "PRIMARY KEY", type: "PRIMARY KEY", definition: "PRIMARY KEY", columns: pkColumns});
@@ -212,8 +212,8 @@ ORDER BY ordinal_position`}); // TODO: pass tableName as arg
 FROM information_schema.key_column_usage kcu
 JOIN information_schema.referential_constraints rc
   ON rc.constraint_schema = kcu.constraint_schema AND rc.constraint_name = kcu.constraint_name
-WHERE kcu.table_name = '${tableName}' AND kcu.table_schema = DATABASE() AND kcu.referenced_table_name IS NOT NULL
-ORDER BY kcu.constraint_name, kcu.ordinal_position`}); // TODO: pass tableName as arg
+WHERE kcu.table_name = ? AND kcu.table_schema = DATABASE() AND kcu.referenced_table_name IS NOT NULL
+ORDER BY kcu.constraint_name, kcu.ordinal_position`}, [tableName]);
     for (const r of fkResult.rows) {
       foreign_keys.push({
         name: String(r[0]),
@@ -229,8 +229,33 @@ ORDER BY kcu.constraint_name, kcu.ordinal_position`}); // TODO: pass tableName a
     // Foreign keys query is best-effort
   }
 
-  // TODO: Get indexes
-  return {columns, constraints, foreign_keys, indexes: []};
+  // Index definitions are reconstructed from statistics: one row per indexed
+  // column, seq_in_index restores composite order. Functional key parts
+  // (column_name null on MySQL 8+) carry no reconstructable column here.
+  const idxResult = await send({...request, query: `SELECT
+  index_name,
+  non_unique,
+  index_type,
+  column_name,
+  sub_part
+FROM information_schema.statistics
+WHERE table_name = ? AND table_schema = DATABASE()
+ORDER BY index_name, seq_in_index`}, [tableName]);
+  const idxGroups = new Map<string, {unique: boolean, indexType: string, columns: string[]}>();
+  for (const [name, nonUnique, indexType, column, subPart] of idxResult.rows) {
+    const key = String(name);
+    // statistics reports NON_UNIQUE (0 = unique); PRIMARY and other unique
+    // indexes render as CREATE UNIQUE INDEX.
+    const group = idxGroups.get(key) ?? {unique: Number(nonUnique) === 0, indexType: String(indexType), columns: []};
+    group.columns.push(typeof column === "string" ? column + (subPart === null ? "" : `(${Number(subPart)})`) : "?");
+    idxGroups.set(key, group);
+  }
+  const indexes: t.IndexInfo[] = [...idxGroups.entries()].map(([name, group]) => ({
+    name,
+    definition: `CREATE${group.unique ? " UNIQUE" : ""} INDEX ${quoteIdent(name)} ON ${quoteIdent(tableName)} (${group.columns.join(", ")}) USING ${group.indexType}`,
+  }));
+
+  return {columns, constraints, foreign_keys, indexes};
 }
 
 export async function listTables(request: Omit<t.SQLRequest, "query">): Promise<t.TableInfo[]> {
@@ -240,7 +265,7 @@ table_name,
 table_rows,
 data_length + index_length
 FROM information_schema.TABLES
-WHERE table_schema = '${dbName}'`}); // TODO: pass dbname as arg
+WHERE table_schema = ?`}, [dbName]);
   return tablesResult.rows.map(([name, rowCount, sizeBytes]): t.TableInfo => ({name: name as string, rowCount: rowCount as number, sizeBytes: sizeBytes as number}));
 }
 

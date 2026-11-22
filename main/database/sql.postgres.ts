@@ -80,13 +80,13 @@ const pool = createClientPool<pg.Client, string>({
   close: client => client.end(),
 });
 
-export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
+export async function send(request: t.SQLRequest, params?: t.SQLParam[]): Promise<t.SQLResponse> {
   return await pool.run(dsnOf(request.dsn), async client => {
     if (request.readOnly ?? false)
       await client.query("BEGIN READ ONLY");
     let result;
     try {
-      result = await client.query(request.query);
+      result = await client.query(request.query, params);
     } finally {
       if (request.readOnly ?? false)
         await client.query("ROLLBACK").catch(() => undefined); // keep the original error
@@ -194,8 +194,8 @@ export async function describe(request: Omit<t.SQLRequest, "query">, tableName: 
   is_nullable = 'YES',
   column_default
 FROM information_schema.columns
-WHERE table_name = '${tableName}' AND table_schema NOT IN ('pg_catalog', 'information_schema')
-ORDER BY ordinal_position`}); // TODO: pass tableName as arg
+WHERE table_name = $1 AND table_schema NOT IN ('pg_catalog', 'information_schema')
+ORDER BY ordinal_position`}, [tableName]);
   const columns: t.ColumnInfo[] = colResult.rows.map(([name, typ, typename, nullable, defaultVal]) => ({
     name: name as string,
     typename: typename as string,
@@ -217,7 +217,7 @@ ORDER BY ordinal_position`}); // TODO: pass tableName as arg
 FROM pg_constraint con
 JOIN pg_class rel ON rel.oid = con.conrelid
 JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
-WHERE rel.relname = '${tableName}' AND nsp.nspname NOT IN ('pg_catalog', 'information_schema')`}); // TODO: pass tableName as arg
+WHERE rel.relname = $1 AND nsp.nspname NOT IN ('pg_catalog', 'information_schema')`}, [tableName]);
   const constraints: t.ConstraintInfo[] = conResult.rows.map(([name, typ, def]) => ({
     name: name as string,
     type: typ as string,
@@ -227,7 +227,7 @@ WHERE rel.relname = '${tableName}' AND nsp.nspname NOT IN ('pg_catalog', 'inform
 
   const idxResult = await send({...request, query: `SELECT idx.indexname, idx.indexdef
 FROM pg_indexes idx
-WHERE idx.tablename = '${tableName}' AND idx.schemaname NOT IN ('pg_catalog', 'information_schema')`}); // TODO: pass tableName as arg
+WHERE idx.tablename = $1 AND idx.schemaname NOT IN ('pg_catalog', 'information_schema')`}, [tableName]);
   const indexes: t.IndexInfo[] = idxResult.rows.map(([name, def]) => ({
     name: name as string,
     definition: def as string,
@@ -249,7 +249,7 @@ JOIN pg_class rel ON rel.oid = con.conrelid
 JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
 JOIN pg_class ref ON ref.oid = con.confrelid
 JOIN pg_namespace ref_ns ON ref_ns.oid = ref.relnamespace
-WHERE con.contype = 'f' AND rel.relname = '${tableName}' AND nsp.nspname NOT IN ('pg_catalog', 'information_schema')`}); // TODO: pass tableName as arg
+WHERE con.contype = 'f' AND rel.relname = $1 AND nsp.nspname NOT IN ('pg_catalog', 'information_schema')`}, [tableName]);
   const foreignKeys: t.ForeignKey[] = fkResult.rows.map(([name, upd, del, schema, table, def]) => {
     const refPart = String(def).split("REFERENCES")[1] ?? "";
     return {

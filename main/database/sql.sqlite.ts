@@ -42,10 +42,10 @@ const pool = createClientPool<Database.Database, {dsn: string, readonly: boolean
   close: async db => void db.close(), // better-sqlite3's close() returns `this`, discard it
 });
 
-export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
+export async function send(request: t.SQLRequest, params?: t.SQLParam[]): Promise<t.SQLResponse> {
   return await pool.run({dsn: request.dsn, readonly: request.readOnly ?? false}, async db => {
     const stmt = db.prepare(request.query);
-    const rows = stmt.all() as Record<string, unknown>[];
+    const rows = stmt.all(...(params ?? [])) as Record<string, unknown>[];
     const rowValues = rows.map(r => Object.values(r));
     // Statement metadata (names + declared types) is available even for empty
     // result sets; decltype is null for expression columns, which fall back to
@@ -120,8 +120,8 @@ export async function describe(request: Omit<t.SQLRequest, "query">, tableName: 
 
   const idxResult = await send({...request, query: `SELECT name, sql
 FROM sqlite_master
-WHERE type = 'index' AND tbl_name = '${tableName}'
-ORDER BY name`}); // TODO: pass tableName as arg
+WHERE type = 'index' AND tbl_name = ?
+ORDER BY name`}, [tableName]);
   const indexes: t.IndexInfo[] = idxResult.rows.map(r => ({
     name: String(r[0]),
     definition: JSON.stringify(r[1] ?? ""),
