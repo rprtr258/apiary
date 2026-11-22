@@ -12,9 +12,9 @@ contextBridge.exposeInMainWorld("versions", {
 const api: Api = {
   List:      (                               ): Promise<t.ListResponse>          => ipcRenderer.invoke("List"             ),
   Get:       (a1: string                     ): Promise<t.GetResponse>           => ipcRenderer.invoke("Get",       a1    ),
-  Create:    (a1: string, a2: t.Kind         ): Promise<t.RequestID>             => ipcRenderer.invoke("Create",    a1, a2),
+  Create:    (a1: string, a2: t.Kind, a3?: Partial<Request["Data"]>): Promise<t.RequestID> => ipcRenderer.invoke("Create", a1, a2, a3),
   Duplicate: (a1: string                     ): Promise<t.RequestID>             => ipcRenderer.invoke("Duplicate", a1    ),
-  CreateDraft: (a1: t.Kind, a2?: Request["Data"]): Promise<t.RequestID>          => ipcRenderer.invoke("CreateDraft", a1, a2),
+  CreateDraft: (a1: t.Kind, a2?: Partial<Request["Data"]>): Promise<t.RequestID> => ipcRenderer.invoke("CreateDraft", a1, a2),
   Rename:    (a1: string, a2: string         ): Promise<void>                    => ipcRenderer.invoke("Rename",    a1, a2),
   Move:      (a1: t.TreeChild, a2: string, a3: t.TreeChild[]): Promise<void>       => ipcRenderer.invoke("Move",      a1, a2, a3),
   Update:    (a1: string, a2: Request["Data"]): Promise<void>                    => ipcRenderer.invoke("Update",    a1, a2),

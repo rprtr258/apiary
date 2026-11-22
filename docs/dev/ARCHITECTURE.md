@@ -22,6 +22,7 @@ apiary/
 ├── renderer/               # Frontend (vanilla TypeScript, no framework)
 │   ├── App.ts              # Layout mount, command palette, keyboard shortcuts, panelkaFactory
 │   ├── store.ts            # Central state (requests, layoutConfig, activeComponentID)
+│   ├── lastConnection.ts   # Last-used connection fields per kind (localStorage), seeded into new requests
 │   ├── Sidebar.ts          # Sidebar shell
 │   ├── sidebar/            # tree.ts, contextMenu.ts, shared.ts (pure view modules)
 │   ├── plugins/            # Frontend plugin registry: index.ts (registry), source.ts (source Item tree, virtual keys, listing facade), cache.ts (source cache engine), one <kind>/ dir per kind (index.ts registration + viewer.ts frame UI)
@@ -45,7 +46,7 @@ apiary/
 **Contract**: each plugin is a module exporting a `send<Kind>(data)` function plus an `*EmptyRequest` (or default) template.
 
 `main/api.ts` routes kinds:
-- `emptyRequestForKind(kind)` returns the default data used by `Create`
+- `emptyRequestForKind(kind)` returns the default data; `Create(path, kind, data?)` and `CreateDraft(kind, data?)` spread the optional seed fragment (renderer's last-connection record) over it, so fields outside the fragment keep the kind's default
 - `Perform(id)` dispatches to the plugin's `send<Kind>`, then `createResponse` persists the exchange into the entry's response history
 - Source/tool kinds are exposed through dedicated sub-APIs instead of `Perform`: `api.GRPC`, `api.SQLSource`, `api.HTTPSource`, `api.MCP`
 - Mutating entry points serialize one-at-a-time behind a promise queue: `db.ts` persists by whole-file load-modify-save, so concurrent operations would interleave at await boundaries and the last `save()` would silently drop the other's changes. Persistence is debounced: the loaded db stays in memory as the source of truth and near-time mutations coalesce into a single disk write (`save()` schedules one, `flushSave()` forces it on quit); read-only access is unqueued and reads the in-memory state, revalidated against the file mtime so external rewrites of `db.json` (e2e seeding, hand edits) are picked up
@@ -114,6 +115,12 @@ Handles:
 - Layout state (`layoutConfig` (zod-validated, persisted), `activeComponentID`, tab navigation)
 
 All backend access goes through `renderer/api.ts` -> `window.api`.
+
+### Frontend: Last-used connections
+
+**File**: `renderer/lastConnection.ts`
+
+Per-kind localStorage record of the connection fields (HTTP `url`, SQL/SQLSource `dsn`+`database`, Redis `dsn`, gRPC `target`, HTTPSource `serverUrl`) seen at the perform/update call sites in `store.ts`. `createRequest`/`createDraft` read it back and pass the fragment through the optional `Create`/`CreateDraft` data argument, which the main process spreads over `emptyRequestForKind`; kinds without a connection target (MCP, jq, md, diff) are never recorded, and each kind tracks only its own fragment.
 
 ### Frontend: App
 

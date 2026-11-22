@@ -26,8 +26,9 @@ export const api = {
   async requestCreate(
     name: string,
     kind: t.Kind,
+    data?: Partial<Request["Data"]>,
   ): Promise<Result<t.RequestID>> {
-    return await wrap(() => Api.Create(name, kind), {name, kind});
+    return await wrap(() => Api.Create(name, kind, data), {name, kind, data});
   },
 
   async requestDuplicate(
@@ -79,7 +80,7 @@ export const api = {
 
   async createDraft(
     kind: t.Kind,
-    data?: Request["Data"],
+    data?: Partial<Request["Data"]>,
   ): Promise<Result<t.RequestID>> {
     return await wrap(() => Api.CreateDraft(kind, data), {kind, data});
   },
