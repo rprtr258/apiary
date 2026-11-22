@@ -83,15 +83,9 @@ describe("sendDIFF", () => {
     "handles nested objects": {
       left: `{"a": {"b": 1}}`, right: `{"a": {"b": 2}}`,
       leftType: "json", rightType: "json",
-      // TODO: fix
-      //     diff: `{
-      //   "a": {
-      //     ~ "b": 1 → 2,
-      //   }
-      // }`,
       diff: `{
-  {
-    ~ "a.b": 1 → 2,
+  "a": {
+    ~ "b": 1 → 2,
   }
 }`,
       stats: "0 additions, 0 removals, 1 changes",
@@ -99,17 +93,11 @@ describe("sendDIFF", () => {
     "handles arrays": {
       left: "[1, 2, 3]", right: "[1, 4, 3]",
       leftType: "json", rightType: "json",
-      // TODO: fix
-      //     diff: `[
-      //   "0": 1,
-      //   ~ "1": 2 → 4,
-      //   "2": 3,
-      // ]`,
-      diff: `: [
+      diff: `[
   "0": 1,
   ~ "1": 2 → 4,
   "2": 3,
-],`,
+]`,
       stats: "0 additions, 0 removals, 1 changes",
     },
     "handles plain text (not JSON)": {
@@ -117,8 +105,37 @@ describe("sendDIFF", () => {
       leftType: "text", rightType: "text",
       diff: `- hello
 + world`,
-      // TODO: 1 change
-      stats: "1 additions, 1 removals, 0 changes",
+      stats: "0 additions, 0 removals, 1 changes",
+    },
+    "renders blank lines and counts them in stats": {
+      left: "a\n\nb", right: "a\n\nb\n\nc",
+      leftType: "text", rightType: "text",
+      diff: `a
+
+b
++ 
++ c`,
+      stats: "2 additions, 0 removals, 0 changes",
+    },
+    "reports missing EOF newline on the left": {
+      left: "hello", right: "hello\n",
+      leftType: "text", rightType: "text",
+      diff: `hello
+\\ No newline at end of file (left)`,
+      stats: "0 additions, 0 removals, 1 changes",
+    },
+    "reports missing EOF newline on the right": {
+      left: "hello\n", right: "hello",
+      leftType: "text", rightType: "text",
+      diff: `hello
+\\ No newline at end of file (right)`,
+      stats: "0 additions, 0 removals, 1 changes",
+    },
+    "does not report EOF newline for an empty side": {
+      left: "", right: "a\n",
+      leftType: "text", rightType: "text",
+      diff: "+ a",
+      stats: "1 additions, 0 removals, 0 changes",
     },
     "returns stats string": {
       left: `{"a": 1}`, right: `{"b": 2}`,
