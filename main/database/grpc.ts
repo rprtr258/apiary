@@ -6,8 +6,6 @@ import type {JSONValue} from "@/types.ts";
 import descriptorJson from "protobufjs/google/protobuf/descriptor.json" with {type: "json"};
 import reflectionProtoDefinition from "./reflection.proto?raw";
 
-
-
 let reflectionReqType: protobuf.Type | undefined;
 let reflectionRespType: protobuf.Type | undefined;
 
@@ -19,7 +17,6 @@ function ensureReflectionTypes(): void {
   reflectionReqType = root.lookupType("grpc.reflection.v1alpha.ServerReflectionRequest");
   reflectionRespType = root.lookupType("grpc.reflection.v1alpha.ServerReflectionResponse");
 }
-
 
 /**
  * Make a single request to the gRPC reflection service and return the response.
@@ -211,7 +208,8 @@ function newFake(js: JSONSchema): JSONValue {
  *   - TS uses reflection to discover input/output message types, then
  *     uses @grpc/grpc-js Client.makeUnaryRequest with protobufjs
  *     serialization/deserialization
- *   - Captures response trailers (via status event) as metadata
+ *   - Captures initial metadata (headers) and trailers (status event) into the
+ *     response's metadata
  */
 export async function send(request: GRPCRequest): Promise<GRPCResponse> {
   const [serviceFull, methodName] = splitMethodName(request.method);
@@ -292,8 +290,11 @@ export async function send(request: GRPCRequest): Promise<GRPCResponse> {
   const deadline = Date.now() + deadlineMs;
 
   return new Promise<GRPCResponse>((resolve, _reject) => {
-    let statusCode = grpc.status.OK;
-    let responseTrailers: KV[] = [];
+    let initialMetadata: KV[] = [];
+    // grpc-js emits "status" only after the response callback has run, so the
+    // callback just records the response and the promise resolves from the
+    // status handler where trailers are known.
+    let responseStr = "";
 
     client.makeUnaryRequest(
       methodPath,
@@ -314,26 +315,18 @@ export async function send(request: GRPCRequest): Promise<GRPCResponse> {
       {deadline},
       (error, response) => {
         client.close();
-        if (error !== null) {
-          resolve({
-            response: error.details !== "" ? error.details : error.message,
-            code: error.code,
-            metadata: responseTrailers.length > 0 ? responseTrailers : metadataToKV(error.metadata),
-          });
-        } else {
-          const responseStr = response !== undefined ? JSON.stringify(response) : "";
-          resolve({
-            response: responseStr,
-            code: statusCode,
-            metadata: responseTrailers,
-          });
-        }
+        responseStr = error !== null
+          ? (error.details !== "" ? error.details : error.message)
+          : (response !== undefined ? JSON.stringify(response) : "");
       },
-    ).on("metadata", (_md: grpc.Metadata) => {
-      // TODO: Response headers - currently not captured
+    ).on("metadata", (md: grpc.Metadata) => {
+      initialMetadata = metadataToKV(md);
     }).on("status", (status: grpc.StatusObject) => {
-      statusCode = status.code;
-      responseTrailers = metadataToKV(status.metadata);
+      resolve({
+        response: responseStr,
+        code: status.code,
+        metadata: [...initialMetadata, ...metadataToKV(status.metadata)],
+      });
     });
   });
 }
@@ -356,8 +349,10 @@ async function sendGRPCFallback(request: GRPCRequest): Promise<GRPCResponse> {
   const deadline = Date.now() + deadlineMs;
 
   return new Promise<GRPCResponse>((resolve, _reject) => {
-    let statusCode = grpc.status.OK;
-    let responseTrailers: KV[] = [];
+    let initialMetadata: KV[] = [];
+    // Same as send(): resolve from the status handler, which grpc-js emits
+    // after the response callback, so trailers are known at resolve time.
+    let responseStr = "";
 
     client.makeUnaryRequest(
       methodPath,
@@ -368,26 +363,18 @@ async function sendGRPCFallback(request: GRPCRequest): Promise<GRPCResponse> {
       {deadline},
       (error, response) => {
         client.close();
-        if (error !== null) {
-          resolve({
-            response: error.details !== "" ? error.details : error.message,
-            code: error.code,
-            metadata: responseTrailers.length > 0 ? responseTrailers : metadataToKV(error.metadata),
-          });
-        } else {
-          const responseStr = response instanceof Buffer ? response.toString("utf-8") : JSON.stringify(response);
-          resolve({
-            response: responseStr,
-            code: statusCode,
-            metadata: responseTrailers,
-          });
-        }
+        responseStr = error !== null
+          ? (error.details !== "" ? error.details : error.message)
+          : (response instanceof Buffer ? response.toString("utf-8") : JSON.stringify(response));
       },
-    ).on("metadata", (_md: grpc.Metadata) => {
-      // TODO: Response headers - currently not captured
+    ).on("metadata", (md: grpc.Metadata) => {
+      initialMetadata = metadataToKV(md);
     }).on("status", (status: grpc.StatusObject) => {
-      statusCode = status.code;
-      responseTrailers = metadataToKV(status.metadata);
+      resolve({
+        response: responseStr,
+        code: status.code,
+        metadata: [...initialMetadata, ...metadataToKV(status.metadata)],
+      });
     });
   });
 }
