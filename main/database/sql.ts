@@ -6,7 +6,7 @@ import * as clickhouse from "./sql.ch.ts";
 import * as redis from "./sql.redis.ts";
 
 export const EmptyRequest: t.SQLRequest = {
-  dsn: ":memory:", // TODO: insert last dsn used
+  dsn: ":memory:",
   database: "sqlite",
   query: "SELECT 1",
 };

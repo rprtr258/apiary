@@ -1,7 +1,7 @@
 import type {KV, HTTPRequest, HTTPResponse} from "@/types.ts";
 
 export const EmptyRequest: HTTPRequest = {
-  url: "", // TODO: insert last url used
+  url: "",
   method: "GET",
   body: "",
   headers: [],

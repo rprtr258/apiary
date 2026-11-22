@@ -190,10 +190,28 @@ describe("CreateDraft", () => {
     expect(db.requests[id].Data).toEqual(data);
   });
 
+  test("spreads the seed fragment over the empty request", async () => {
+    const id = await CreateDraft(t.Kind.SQL, {dsn: "pq://x", database: "postgres"});
+    const db = await load();
+    expect(db.requests[id].Data).toEqual({dsn: "pq://x", database: "postgres", query: "SELECT 1"});
+  });
+
   test("rejects non-performable kinds", async () => {
     await expect(CreateDraft(t.Kind.SQLSource)).rejects.toThrow("cannot be a draft");
     await expect(CreateDraft(t.Kind.HTTPSource)).rejects.toThrow("cannot be a draft");
     await expect(CreateDraft(t.Kind.MCP)).rejects.toThrow("cannot be a draft");
+  });
+});
+
+describe("Create", () => {
+  beforeEach(() => {
+    files["db.json"] = Buffer.from(JSON.stringify(db_seed));
+  });
+
+  test("spreads the seed fragment over the empty request", async () => {
+    const id = await Create("a/x", t.Kind.HTTP, {url: "http://seeded"});
+    const db = await load();
+    expect(db.requests[id].Data).toEqual({url: "http://seeded", method: "GET", body: "", headers: []});
   });
 });
 

@@ -85,20 +85,26 @@ function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   }
 }
 
-export function Create(path: string, kind: t.Kind): Promise<t.RequestID> {
+// The renderer's last-connection seed (renderer/lastConnection.ts) is a
+// fragment; spreading it over the empty request keeps every other field at the
+// kind's default.
+function seededRequestForKind(kind: t.Kind, data?: Partial<Request["Data"]>): Request["Data"] {
+  return {...emptyRequestForKind(kind), ...(data ?? {})} as Request["Data"];
+}
+
+export function Create(path: string, kind: t.Kind, data?: Partial<Request["Data"]>): Promise<t.RequestID> {
   return serialized(async () => {
     const j = await load();
-    const emptyData = emptyRequestForKind(kind);
-    return await create(j, kind, path, emptyData);
+    return await create(j, kind, path, seededRequestForKind(kind, data));
   });
 }
 
-export function CreateDraft(kind: t.Kind, data?: Request["Data"]): Promise<t.RequestID> {
+export function CreateDraft(kind: t.Kind, data?: Partial<Request["Data"]>): Promise<t.RequestID> {
   return serialized(async () => {
     if (!t.DraftableKinds.has(kind))
       throw new Error(`kind ${kind} cannot be a draft: not a performable kind`);
     const j = await load();
-    return await createDraft(j, kind, data ?? emptyRequestForKind(kind));
+    return await createDraft(j, kind, seededRequestForKind(kind, data));
   });
 }
 

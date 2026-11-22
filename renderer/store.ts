@@ -6,6 +6,7 @@ import layout from "./layout.ts";
 import {ItemConfig, LayoutConfig} from "./layout/types.ts";
 import {ComponentItem, Stack} from "./layout/manager.ts";
 import notification from "./lib/notification.ts";
+import {lastConnectionSeed, recordLastConnection} from "./lastConnection.ts";
 import type {Request} from "../main/db.ts";
 
 /**
@@ -204,7 +205,7 @@ export const store = ((): Store => {
       this.requestsTree.update(() => res.Tree, true);
     },
     async createRequest(id: t.RequestID, kind: t.RequestData["kind"]): Promise<void> {
-      const res = await api.requestCreate(id, kind);
+      const res = await api.requestCreate(id, kind, lastConnectionSeed(kind));
       if (res.kind === "err") {
         notification("error", "Could not create request", {error: res.value});
         return;
@@ -213,7 +214,7 @@ export const store = ((): Store => {
       await this.fetch();
     },
     async createDraft(kind: t.RequestData["kind"], data?: Request["Data"]): Promise<void> {
-      const res = await api.createDraft(kind, data);
+      const res = await api.createDraft(kind, data ?? lastConnectionSeed(kind));
       if (res.kind === "err") {
         notification("error", "Could not create draft", {error: res.value});
         return;
@@ -398,6 +399,8 @@ export const store = ((): Store => {
 })();
 
 export async function send(id: t.RequestID): Promise<t.HistoryEntry | undefined> {
+  const request = store.requests2[id].request;
+  recordLastConnection(request.kind, request);
   const res = await api.requestPerform(id);
   if (res.kind === "err") {
     notification("error", "Could not perform request", {id, error: res.value});
@@ -427,6 +430,7 @@ export async function update_request(id: t.RequestID, patch: Partial<t.Request>)
   const {id: _sid, path: _spath, kind: _skind, ...new_data} = {...old_data, ...patch} as t.Request; // Data-only, sent to backend
   const optimistic = {...old_request, ...patch} as t.Request;
   store.requests2[id].request = optimistic; // NOTE: optimistic update, keeps id/path/kind
+  recordLastConnection(old_request.kind, new_data);
   const res = await api.request_update(id, old_request.kind, new_data);
   if (res.kind === "ok") {
     // Record only successes newer than the last recorded one: an out-of-order success still
