@@ -264,7 +264,7 @@ Rules:
 
 ```bash
 bun run test             # unit + component tests
-bun run test:integration # INTEGRATION=1 bun test integration.test.ts
+bun run test:integration # INTEGRATION=1 bun test main/integration/
 bun run ci               # lint + typecheck
 bun run build
 bun run test:e2e         # builds first, then Playwright (renderer/e2e/)
