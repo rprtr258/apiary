@@ -25,6 +25,7 @@ type FrameArgs = {
 type Frame = {
   loaded(r: t.Request): void,
   push_history_entry?(he: t.HistoryEntry): void, // show the performed response
+  performError?(message: string): void, // show the perform failure
   unmount(): void,
 };
 

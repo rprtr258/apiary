@@ -39,4 +39,13 @@ describe("sendJQ", () => {
     const result = await send(makeRequest({query: ".nonexistent"}));
     expect(result.response).toEqual(["null"]);
   });
+
+  test("transforms every document of a JSONL stream", async () => {
+    const result = await send(makeRequest({json: "{\"a\": 1}\n{\"a\": 2}"}));
+    expect(result.response).toEqual(["1", "2"]);
+  });
+
+  test("rejects on invalid json body", async () => {
+    await expect(send(makeRequest({json: "not json"}))).rejects.toThrow("jq error");
+  });
 });

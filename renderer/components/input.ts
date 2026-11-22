@@ -36,6 +36,12 @@ type NInputProps = {
   disabled?: boolean,
   autofocus?: boolean,
 };
+// Status styling is applied continuously; callers with reactive status re-apply
+// it through this helper on every state change.
+export function setInputStatus(el: HTMLInputElement, status: "success" | "error" | undefined): void {
+  setClass(el, status === "error", inputStyles.error);
+  setClass(el, status === "success", inputStyles.success);
+}
 export function NInput(props: NInputProps) {
   const el = m("input", {
     class: inputBase,
@@ -48,10 +54,7 @@ export function NInput(props: NInputProps) {
     disabled: props.disabled,
   });
 
-  el.addEventListener("focus", () => {
-    setClass(el, props.status === "error", inputStyles.error);
-    setClass(el, props.status === "success", inputStyles.success);
-  });
+  setInputStatus(el, props.status);
 
   if (props.autofocus ?? false) {
     queueMicrotask(() => el.focus());

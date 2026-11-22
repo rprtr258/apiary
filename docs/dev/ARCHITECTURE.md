@@ -77,7 +77,7 @@ function Request<Kind>(
   el: HTMLElement,
   show_request: Signal<boolean>,
   on: {update, send},
-): {loaded, push_history_entry, unmount}
+): {loaded, push_history_entry?, performError?, unmount}
 ```
 
 **Pattern**: These are intentionally separate files despite similar structure. They differ in:

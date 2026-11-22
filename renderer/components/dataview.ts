@@ -370,7 +370,7 @@ export function NTable(props: Record<string, unknown>, children: DOMNode[]) {
 export function NTooltip(
   props: Record<string, unknown> & {show?: boolean, style?: Record<string, unknown>},
   ...children: DOMNode[]
-) : DOMNode {
+) : HTMLElement {
   return m("div", {
     ...props,
     style: {
