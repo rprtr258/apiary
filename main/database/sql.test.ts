@@ -3,7 +3,7 @@ import {tmpdir} from "os";
 import {join} from "path";
 import {mock, describe, test, expect} from "bun:test";
 import {SQLRequest, ColumnType} from "@/types.ts";
-import {send, sendBatch, explain, describeTable} from "./sql.ts";
+import {send, sendBatch, explain, describeTable, listTables} from "./sql.ts";
 import {BetterLikeDB} from "./mock_better_sqlite3.ts";
 
 mock.module("better-sqlite3", () => ({
@@ -71,6 +71,34 @@ describe("sendSQL sqlite", () => {
       "UPDATE t SET val = 'y' WHERE id = 2",
     ]);
     expect(update.affectedRows).toEqual([2, 1]);
+  });
+});
+
+// Identifiers may carry the databases' quote characters: sqlite stores them
+// raw (a backtick inside a double-quoted CREATE doubles it on re-quoting), so
+// describe/list must escape them instead of interpolating verbatim.
+describe("crafted identifiers (sqlite)", () => {
+  test("listTables handles quote characters in table and column names", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sqlite-crafted-list"));
+    const dsn = dir + "/apiary-sql-test.db";
+    await send(req({dsn, query: "CREATE TABLE \"a`b\" (\"c`d\" TEXT)"}));
+    await send(req({dsn, query: "INSERT INTO \"a`b\" VALUES ('xyz')"}));
+
+    const tables = await listTables({database: "sqlite", dsn});
+    expect(tables).toEqual([{name: "a`b", rowCount: 1, sizeBytes: 3}]);
+  });
+
+  test("describeTable handles a single quote in the table name", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sqlite-crafted-describe"));
+    const dsn = dir + "/apiary-sql-test.db";
+    await send(req({dsn, query: `CREATE TABLE "o'brien" (id INTEGER PRIMARY KEY, p INT REFERENCES "o'brien"(id))`}));
+
+    const schema = await describeTable(req({dsn}), "o'brien");
+    expect(schema.columns.map(c => c.name)).toEqual(["id", "p"]);
+    expect(schema.constraints).toEqual([{name: "PRIMARY KEY", type: "PRIMARY KEY", definition: "PRIMARY KEY", columns: ["id"]}]);
+    expect(schema.foreign_keys).toEqual([
+      {name: "", column: "p", schema: "", table: "o'brien", to: "id", onUpdate: "NO ACTION", onDelete: "NO ACTION"},
+    ]);
   });
 });
 

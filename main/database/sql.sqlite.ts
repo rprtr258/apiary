@@ -99,8 +99,9 @@ export async function describe(request: Omit<t.SQLRequest, "query">, tableName: 
   const columns: t.ColumnInfo[] = [];
   const constraints: t.ConstraintInfo[] = [];
 
-  // Get columns via PRAGMA table_info (returns: cid, name, type, notnull, dflt, pk)
-  const colResult = await send({...request, query: `PRAGMA table_info('${tableName}')`});
+  // Get columns via the table-valued pragma (same rows as PRAGMA table_info,
+  // but the table name is bindable): cid, name, type, notnull, dflt, pk.
+  const colResult = await send({...request, query: "SELECT * FROM pragma_table_info(?)"}, [tableName]);
   const pkRows: {name: string, pos: number}[] = [];
   for (const r of colResult.rows) {
     const name = String(r[1]);
@@ -127,12 +128,12 @@ ORDER BY name`}, [tableName]);
     definition: JSON.stringify(r[1] ?? ""),
   }));
 
-  // Get foreign keys via PRAGMA foreign_key_list (returns: id, seq, table, from, to, on_update, on_delete, match).
+  // Get foreign keys via the table-valued pragma (returns: id, seq, table, from, to, on_update, on_delete, match).
   // SQLite FKs are anonymous and resolve within the same database, so name
   // and schema are empty; `to` is null for implicit-PK references.
   let foreign_keys: t.ForeignKey[] = [];
   try {
-    const fkResult = await send({...request, query: `PRAGMA foreign_key_list('${tableName}')`});
+    const fkResult = await send({...request, query: "SELECT * FROM pragma_foreign_key_list(?)"}, [tableName]);
     foreign_keys = fkResult.rows.map(r => ({name: "", column: String(r[3]), schema: "", table: String(r[2]), to: String((r[4] as string | null) ?? ""), onUpdate: String(r[5]), onDelete: String(r[6])}));
   } catch (_e) {
     // Foreign keys query is best-effort
@@ -147,7 +148,9 @@ export async function listTables(request: Omit<t.SQLRequest, "query">): Promise<
   return await pool.run({dsn: request.dsn, readonly: request.readOnly ?? false}, async db => {
     const tableNames = (db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all() as Record<string, unknown>[]).map(r => String(r["name"]));
     return tableNames.map((table): t.TableInfo => {
-      const colNames = (db.prepare(`PRAGMA table_info(${table})`).all() as Record<string, unknown>[]).map(r => String(Object.values(r)[1]));
+      // pragma_table_info(?) rides the bound param: PRAGMA table_info(<name>)
+      // cannot be parameterized and breaks on names carrying quote characters.
+      const colNames = (db.prepare("SELECT name FROM pragma_table_info(?)").all(table) as Record<string, unknown>[]).map(r => String(r["name"]));
       const lengthExpr = colNames.map(c => `COALESCE(LENGTH(${quoteIdent(c)}),0)`).join(" + ");
       const [rowCount, sizeBytes] = (db.prepare(`SELECT COUNT(*), COALESCE(SUM(${lengthExpr}), 0) FROM ${quoteIdent(table)}`).all() as Record<string, unknown>[]).map(r => Object.values(r))[0] ?? [];
       return {name: table, rowCount: Number(rowCount), sizeBytes: Number(sizeBytes)};
@@ -156,7 +159,7 @@ export async function listTables(request: Omit<t.SQLRequest, "query">): Promise<
 }
 
 export function quoteIdent(s: string): string {
-  return "`" + s + "`";
+  return "`" + s.replaceAll("`", "``") + "`";
 }
 
 // One EXPLAIN QUERY PLAN row: `id`, `parent` (0 for roots) and the `detail`

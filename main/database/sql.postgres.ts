@@ -273,7 +273,7 @@ export async function listTables(request: Omit<t.SQLRequest, "query">): Promise<
     format('SELECT count(*) AS c FROM %I.%I', schemaname, tablename),
     false, true, ''
   )))[1]::text::bigint as row_count,
-  pg_total_relation_size(schemaname || '.' || tablename) as size_bytes
+  pg_total_relation_size(format('%I.%I', schemaname, tablename)) as size_bytes
 FROM pg_catalog.pg_tables
 WHERE schemaname NOT IN ('pg_catalog', 'information_schema')`});
   return tablesResult
@@ -286,7 +286,7 @@ WHERE schemaname NOT IN ('pg_catalog', 'information_schema')`});
 }
 
 export function quoteIdent(s: string): string {
-  return `"${s}"`;
+  return `"${s.replaceAll("\"", "\"\"")}"`;
 }
 
 // `EXPLAIN ANALYZE` text: the root line is bare, every other operator is

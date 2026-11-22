@@ -1,6 +1,13 @@
 import {describe, test, expect} from "bun:test";
-import {parsePlan, columnMeta, dataTypeMeta} from "./sql.mysql";
+import {parsePlan, columnMeta, dataTypeMeta, quoteIdent} from "./sql.mysql";
 import {ColumnType} from "@/types.ts";
+
+describe("quoteIdent", () => {
+  test("doubles embedded backticks", () => {
+    expect(quoteIdent("plain")).toBe("`plain`");
+    expect(quoteIdent("we`ird")).toBe("`we``ird`");
+  });
+});
 
 describe("columnMeta (mysql protocol types)", () => {
   test.each([

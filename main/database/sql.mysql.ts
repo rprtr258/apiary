@@ -270,7 +270,7 @@ WHERE table_schema = ?`}, [dbName]);
 }
 
 export function quoteIdent(s: string): string {
-  return "`" + s + "`";
+  return "`" + s.replaceAll("`", "``") + "`";
 }
 
 // `EXPLAIN ANALYZE` tree format: one `->` line per operator, indented a fixed

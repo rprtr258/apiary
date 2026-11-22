@@ -4,7 +4,7 @@ import {join} from "path";
 import {mock, describe, test, expect} from "bun:test";
 import {SQLRequest, TableFilter, TableRead} from "@/types.ts";
 import {describeTable, send, listTables} from "./sql.ts";
-import {buildReadTableQuery, buildFilterCondition, countRowsSQLSource, testSQLSource, updateTableRows} from "./sql_source.ts";
+import {buildReadTableQuery, buildFilterCondition, buildTableUpdateStatements, countRowsSQLSource, testSQLSource, updateTableRows} from "./sql_source.ts";
 import {BetterLikeDB} from "./mock_better_sqlite3.ts";
 
 mock.module("better-sqlite3", () => ({
@@ -77,6 +77,9 @@ describe("updateTableRows (sqlite)", () => {
 describe("buildFilterCondition", () => {
   const pg: Omit<SQLRequest, "query"> = {dsn: "", database: "postgres"};
   const sq: Omit<SQLRequest, "query"> = {dsn: "", database: "sqlite"};
+  const my: Omit<SQLRequest, "query"> = {dsn: "", database: "mysql"};
+  const rd: Omit<SQLRequest, "query"> = {dsn: "", database: "redis"};
+  const ch: Omit<SQLRequest, "query"> = {dsn: "", database: "clickhouse"};
 
   test("simple operators build engine-correct conditions", () => {
     expect(buildFilterCondition(sq, {kind: "simple", column: "age", op: "=", value: "18"})).toBe("`age` = 18");
@@ -102,6 +105,21 @@ describe("buildFilterCondition", () => {
     expect(buildFilterCondition(sq, {kind: "simple", column: "name", op: "=", value: "o'brien"})).toBe("`name` = 'o''brien'");
   });
 
+  // MySQL-family engines and ClickHouse treat \ as an escape character inside
+  // string literals: a trailing value backslash would eat the closing quote.
+  // PostgreSQL (standard_conforming_strings) and SQLite treat it literally.
+  test("escapes backslashes only on engines whose literals honor them", () => {
+    expect(buildFilterCondition(my, {kind: "simple", column: "name", op: "=", value: "a\\"})).toBe("`name` = 'a\\\\'");
+    expect(buildFilterCondition(rd, {kind: "simple", column: "name", op: "=", value: "a\\"})).toBe("`name` = 'a\\\\'");
+    expect(buildFilterCondition(ch, {kind: "simple", column: "name", op: "=", value: "a\\"})).toBe("`name` = 'a\\\\'");
+    expect(buildFilterCondition(pg, {kind: "simple", column: "name", op: "=", value: "a\\"})).toBe(`"name" = 'a\\'`);
+    expect(buildFilterCondition(sq, {kind: "simple", column: "name", op: "=", value: "a\\"})).toBe("`name` = 'a\\'");
+  });
+
+  test("backslash before a quote stays inert", () => {
+    expect(buildFilterCondition(my, {kind: "simple", column: "name", op: "=", value: "a\\'"})).toBe("`name` = 'a\\\\'''");
+  });
+
   test("manual filters are embedded as a parenthesized WHERE condition", () => {
     expect(buildFilterCondition(sq, {kind: "manual", expr: "id >= 2 AND name != 'x'"})).toBe("(id >= 2 AND name != 'x')");
   });
@@ -109,6 +127,20 @@ describe("buildFilterCondition", () => {
   test("value shape must match the operator", () => {
     expect(() => buildFilterCondition(sq, {kind: "simple", column: "id", op: "in", value: " , "})).toThrow();
     expect(() => buildFilterCondition(sq, {kind: "simple", column: "id", op: "=", value: null})).toThrow();
+  });
+});
+
+describe("buildTableUpdateStatements", () => {
+  const my: Omit<SQLRequest, "query"> = {dsn: "", database: "mysql"};
+
+  test("backslash-carrying values are escaped for mysql literals", () => {
+    expect(buildTableUpdateStatements(my, "t", ["id"], [
+      {pkValues: [1], column: "v", value: "a\\"},
+      {pkValues: [2], column: "v", value: "a\\'"},
+    ])).toEqual([
+      "UPDATE `t` SET `v` = 'a\\\\' WHERE `id` = 1",
+      "UPDATE `t` SET `v` = 'a\\\\''' WHERE `id` = 2",
+    ]);
   });
 });
 

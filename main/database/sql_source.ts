@@ -1,4 +1,4 @@
-import {SQLRequest, SQLSourceRequest, TableRead, TableFilter, RowValue, CellUpdate, SQLResponse} from "@/types.ts";
+import {SQLRequest, SQLSourceRequest, TableRead, TableFilter, RowValue, CellUpdate, SQLResponse, Database} from "@/types.ts";
 import {describeTable, quoteIdent, send, sendBatch} from "./sql.ts";
 
 export const EmptyRequest: SQLSourceRequest = {
@@ -7,9 +7,16 @@ export const EmptyRequest: SQLSourceRequest = {
   readOnly: false,
 };
 
+// Databases whose string literals treat \ as an escape character (MySQL and
+// its derivatives by default, ClickHouse); PostgreSQL (standard_conforming
+// _strings) and SQLite treat backslashes literally.
+const BACKSLASH_ESCAPES: ReadonlySet<Database> = new Set(["mysql", "redis", "clickhouse"]);
+
 // SQL literal for a cell value. null → NULL, booleans → TRUE/FALSE, strings
-// and dates quoted with '' escaping.
-function sqlLiteral(v: RowValue): string {
+// and dates quoted with '' escaping. Backslash-escaping engines also double
+// backslashes first — a trailing value backslash would otherwise eat the
+// closing quote, and one before a quote would close the literal early.
+function sqlLiteral(database: Database, v: RowValue): string {
   if (v === null)
     return "NULL";
   if (typeof v === "number")
@@ -17,7 +24,8 @@ function sqlLiteral(v: RowValue): string {
   if (typeof v === "boolean")
     return v ? "TRUE" : "FALSE";
   const s = v instanceof Date ? v.toISOString() : String(v);
-  return `'${s.replaceAll("'", "''")}'`;
+  const escaped = BACKSLASH_ESCAPES.has(database) ? s.replaceAll("\\", "\\\\") : s;
+  return `'${escaped.replaceAll("'", "''")}'`;
 }
 
 // Parse the raw renderer-side filter value into a literal: numbers and
@@ -56,10 +64,10 @@ export function buildFilterCondition(request: Omit<SQLRequest, "query">, filter:
     const values = filter.value.split(",").map(v => v.trim()).filter(v => v !== "");
     if (values.length === 0)
       throw new Error(`filter operator "in" requires at least one value`);
-    return `${column} IN (${values.map(v => sqlLiteral(parseFilterValue(v))).join(", ")})`;
+    return `${column} IN (${values.map(v => sqlLiteral(request.database, parseFilterValue(v))).join(", ")})`;
   }
 
-  const value = sqlLiteral(parseFilterValue(filter.value));
+  const value = sqlLiteral(request.database, parseFilterValue(filter.value));
   const op = {
     "like":     "LIKE",
     "not like": "NOT LIKE",
@@ -104,13 +112,13 @@ export function buildTableUpdateStatements(
   const q = (s: string) => quoteIdent(request.database, s);
   return [...byRow.entries()].map(([key, changes]) => {
     const set = [...changes.entries()]
-      .map(([col, value]) => `${q(col)} = ${sqlLiteral(value)}`)
+      .map(([col, value]) => `${q(col)} = ${sqlLiteral(request.database, value)}`)
       .join(", ");
     const where = pkByKey.get(key)!
       // `= NULL` never matches any row: sqlite permits NULL pk values, so use IS NULL.
       .map((v, i) => v === null
         ? `${q(pkColumns[i])} IS NULL`
-        : `${q(pkColumns[i])} = ${sqlLiteral(v)}`)
+        : `${q(pkColumns[i])} = ${sqlLiteral(request.database, v)}`)
       .join(" AND ");
     return `UPDATE ${q(tableName)} SET ${set} WHERE ${where}`;
   });

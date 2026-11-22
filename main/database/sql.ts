@@ -32,7 +32,7 @@ export async function send(request: t.SQLRequest): Promise<t.SQLResponse> {
   return router[request.database].send(request);
 }
 
-// Identifier quoting rules per database (mirrors the renderer's buildQuery).
+// Identifier quoting rules per database.
 export function quoteIdent(db: t.Database, s: string): string {
   return router[db].quoteIdent(s);
 }
