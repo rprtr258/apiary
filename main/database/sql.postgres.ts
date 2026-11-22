@@ -45,14 +45,126 @@ export function typename(oid: number): string {
   return pg_typenames[oid as TypeId] ?? `${oid}`;
 }
 
-// Normalized connection string used as the pool key: schema-prefixed and
+// Normalized connection string used as the pool key: URI-normalized and
 // carrying the libpq sslmode compatibility flag, so sslmode=require/prefer
 // accept self-signed certs instead of pg's non-standard default that treats
 // them as verify-full.
-// TODO: parse dsn like host=localhost user=postgres password=password port=5432 dbname=postgres sslmode=disable
-function dsnOf(dsn: string): string {
-  const out = dsn.startsWith("postgres://") ? dsn : `postgres://${dsn}`;
+export function dsnOf(dsn: string): string {
+  const out = dsnToUri(dsn);
   return out + (out.includes("?") ? "&" : "?") + "uselibpqcompat=true";
+}
+
+// pg-connection-string only parses URI connection strings (plus its own
+// "/socket/path dbname" shorthand), so libpq keyword/value strings need a URI
+// rewrite; URIs and the pg shorthands pass through (shorthands via the
+// postgres:// prefix, as before). The shorthand's "?query" part precedes any
+// "=", while in keyword/value form a "?" can only appear inside a value, after
+// the pair's own "=" - hence the discriminator.
+function dsnToUri(dsn: string): string {
+  if (dsn.startsWith("/") || /^[a-z][a-z0-9+.-]*:\/\//i.test(dsn))
+    return dsn;
+  const firstEqual = dsn.indexOf("=");
+  const firstQuery = dsn.indexOf("?");
+  if (firstEqual < 0 || (firstQuery >= 0 && firstQuery < firstEqual))
+    return `postgres://${dsn}`;
+  return keywordValueDsnToUri(dsn);
+}
+
+// Rewrites a libpq keyword/value connection string into a URI: user, password,
+// host, port and dbname become URL components, every other keyword a query
+// parameter, so pg-connection-string sees a hand-written URI. pg's client
+// ignores unknown config keys, so libpq keywords it has no notion of
+// (sslcert, connect_timeout, ...) never corrupt the startup packet.
+function keywordValueDsnToUri(dsn: string): string {
+  const entries = new Map(parseKeywordValueDsn(dsn));
+  const take = (keyword: string): string => {
+    const value = entries.get(keyword) ?? "";
+    entries.delete(keyword);
+    return value;
+  };
+  let uri = "postgres://";
+  const user = take("user");
+  const password = take("password");
+  if (user !== "")
+    uri += encodeURIComponent(user);
+  if (password !== "")
+    uri += `:${encodeURIComponent(password)}`;
+  if (user !== "" || password !== "")
+    uri += "@";
+  const host = take("host");
+  if (host !== "")
+    // WHATWG URL only accepts IPv6 inside brackets while libpq keyword/value
+    // allows a bare host=::1; socket paths survive as %2F, which
+    // pg-connection-string decodes back into the host config.
+    uri += host.startsWith("[") ? host : host.includes(":") ? `[${host}]` : encodeURIComponent(host);
+  const port = take("port");
+  if (port !== "") {
+    if (!/^\d+$/.test(port))
+      throw new Error(`malformed postgres DSN: invalid port "${port}"`);
+    uri += `:${port}`;
+  }
+  const dbname = take("dbname");
+  uri += "/" + (dbname !== "" ? encodeURIComponent(dbname) : "");
+  for (const [keyword, value] of entries)
+    uri += `${uri.includes("?") ? "&" : "?"}${encodeURIComponent(keyword)}=${encodeURIComponent(value)}`;
+  return uri;
+}
+
+// libpq conninfo_parse grammar: whitespace-separated keyword=value pairs with
+// optional spaces around "=", later pairs overriding earlier ones; values run
+// to the next whitespace unless single-quoted, and a backslash escapes the
+// next character in both quoted and unquoted values.
+function* parseKeywordValueDsn(dsn: string): Generator<[string, string]> {
+  let i = 0;
+  const skipSpace = () => {
+    while (i < dsn.length && /\s/.test(dsn[i]))
+      i++;
+  };
+  while (true) {
+    skipSpace();
+    if (i >= dsn.length)
+      return;
+    const keywordStart = i;
+    while (i < dsn.length && dsn[i] !== "=" && !/\s/.test(dsn[i]))
+      i++;
+    const keyword = dsn.slice(keywordStart, i);
+    if (keyword === "")
+      throw new Error(`malformed postgres DSN: missing keyword before "="`);
+    if (dsn[i] !== "=") {
+      skipSpace();
+      if (dsn[i] !== "=")
+        throw new Error(`malformed postgres DSN: missing "=" after "${keyword}"`);
+    }
+    i++;
+    skipSpace();
+    let value = "";
+    if (dsn[i] === "'") {
+      i++;
+      while (dsn[i] !== "'") {
+        if (i >= dsn.length)
+          throw new Error(`malformed postgres DSN: unterminated quoted string`);
+        if (dsn[i] === "\\") {
+          i++;
+          if (i >= dsn.length)
+            throw new Error(`malformed postgres DSN: unterminated quoted string`);
+        }
+        value += dsn[i];
+        i++;
+      }
+      i++;
+    } else {
+      while (i < dsn.length && !/\s/.test(dsn[i])) {
+        if (dsn[i] === "\\") {
+          i++;
+          if (i >= dsn.length)
+            break; // trailing backslash, like libpq: dropped
+        }
+        value += dsn[i];
+        i++;
+      }
+    }
+    yield [keyword, value];
+  }
 }
 
 // Opens a fresh connection; shared by the pool and by sendBatch, which
