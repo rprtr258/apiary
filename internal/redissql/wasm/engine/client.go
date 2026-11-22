@@ -14,6 +14,9 @@ type Client interface {
 	// DBIndex is the redis logical db number, used for the SQL database name "db%d".
 	DBIndex() int
 	Type(ctx context.Context, key string) (string, error)
+	// KeyLen reports the key's element count: string length in bytes,
+	// collection cardinality otherwise; missing keys count as 0.
+	KeyLen(ctx context.Context, key, typ string) (uint64, error)
 	// ExpireTime reports the key's remaining time to live in milliseconds
 	// (PTTL), or -1 when there is none (no expiry or missing key).
 	ExpireTime(ctx context.Context, key string) (time.Duration, error)

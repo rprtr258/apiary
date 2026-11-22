@@ -2,11 +2,19 @@ package engine
 
 import (
 	"io"
+	"slices"
 	"time"
 
 	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/dolthub/go-mysql-server/sql/types"
 )
+
+// rkeyTypes are the redis types rkey exposes; other TYPE replies leave the
+// len column null.
+var rkeyTypes = []string{
+	"string", "list", "set", "zset", "hash",
+	"stream", "vectorset",
+}
 
 var _ sql.RowIter = (*rkeyRowIter)(nil)
 
@@ -56,14 +64,16 @@ func (i *rkeyRowIter) Next(ctx *sql.Context) (sql.Row, error) {
 			expAt = time.Unix(0, 0).Add(exp)
 		}
 
-		return sql.Row{
-			key,
-			typ,
-			expAt,
-			// 0,   // TODO: fill?
-			// 0,   // TODO: fill?
-			// nil, // TODO: fill?
-		}, nil
+		var length any
+		if slices.Contains(rkeyTypes, typ) {
+			n, err := i.rdb.KeyLen(ctx, key, typ)
+			if err != nil {
+				return nil, err
+			}
+			length = n
+		}
+
+		return sql.Row{key, typ, expAt, length}, nil
 	}
 }
 
@@ -87,10 +97,7 @@ func (t *rkeyTable) Schema() sql.Schema {
 		},
 		{
 			Name: "type",
-			Type: types.MustCreateEnumType([]string{
-				"string", "list", "set", "zset", "hash",
-				"stream", "vectorset",
-			}, sql.Collation_Default),
+			Type: types.MustCreateEnumType(rkeyTypes, sql.Collation_Default),
 			Source: t.Name(),
 		},
 		{
@@ -100,12 +107,13 @@ func (t *rkeyTable) Schema() sql.Schema {
 			Comment:  "expiration timestamp in unix milliseconds",
 			Source:   t.Name(),
 		},
-		// {
-		// 	Name: "len",
-		// 	Type: types.Uint64,
-		// 	Nullable: true,
-		// 	Comment: "number of child elements",
-		// },
+		{
+			Name:     "len",
+			Type:     types.Uint64,
+			Nullable: true,
+			Comment:  "number of child elements (string: length in bytes)",
+			Source:   t.Name(),
+		},
 	}
 }
 
