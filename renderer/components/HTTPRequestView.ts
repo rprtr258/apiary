@@ -8,7 +8,7 @@ import {NInputGroup, NInput} from "./input.ts";
 import {NTabs, NSplit} from "./layout.ts";
 import {NTag, NTable, NEmpty, tagColors} from "./dataview.ts";
 import EditorJSON from "./EditorJSON.ts";
-import type {JSONSchema7} from "json-schema";
+import {JSONSchema7} from "json-schema";
 import ViewJSON from "./ViewJSON.ts";
 import ParamsList from "./ParamsList.ts";
 

@@ -1,6 +1,6 @@
 import {marked} from "marked";
 import sanitizeHtml from "sanitize-html";
-import type {MDRequest, MDResponse} from "@/types.ts";
+import {MDRequest, MDResponse} from "@/types.ts";
 import txt from "./default.md?raw";
 
 export const EmptyRequest: MDRequest = {data: txt};

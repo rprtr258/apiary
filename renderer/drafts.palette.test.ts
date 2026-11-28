@@ -1,6 +1,6 @@
 import {describe, expect, test, mock, beforeEach} from "bun:test";
 import {ok} from "@/result.ts";
-import {Kind, type ListResponse, type requestPreview} from "@/types.ts";
+import {Kind, ListResponse, requestPreview} from "@/types.ts";
 import {getCommandPaletteItems, getOpenRequestItems} from "./App.ts";
 import {store} from "./store.ts";
 

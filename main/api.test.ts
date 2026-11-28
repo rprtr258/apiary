@@ -2,7 +2,7 @@ import {describe, test, expect, mock, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
 import {Create, CreateDraft, Delete, DeleteDir, Duplicate, HTTPSource, List, Move, Rename, resolveSQLRequest} from "./api.ts";
 import {load, setDBPath, flushSave} from "./db.ts";
-import type v2 from "./db.v2.ts";
+import v2 from "./db.v2.ts";
 
 // In-memory filesystem so load()/save() round-trip without touching disk.
 // Bun runs each test file in its own module graph, so this mock is isolated from db.test.ts.

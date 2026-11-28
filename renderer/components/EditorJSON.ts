@@ -1,9 +1,9 @@
-import {EditorState, type Extension} from "@codemirror/state";
+import {EditorState, Extension} from "@codemirror/state";
 import {EditorView} from "@codemirror/view";
 import {json, jsonLanguage} from "@codemirror/lang-json";
-import type {CompletionSource} from "@codemirror/autocomplete";
+import {CompletionSource} from "@codemirror/autocomplete";
 import {jsonSchema} from "codemirror-json-schema";
-import type {JSONSchema7} from "json-schema";
+import {JSONSchema7} from "json-schema";
 import {defaultEditorExtensions, defaultExtensions} from "./editor.ts";
 import {m} from "../lib/utils.ts";
 

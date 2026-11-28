@@ -1,6 +1,6 @@
 import {contextBridge, ipcRenderer} from "electron/renderer";
 import * as t from "@/types.ts";
-import {type Api, type Versions} from "./global.ts";
+import {Api, Versions} from "./global.ts";
 
 const versions: Versions = {
   node: () => process.versions.node,

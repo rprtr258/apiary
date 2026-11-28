@@ -2,7 +2,7 @@
 // clients; here it runs over fake clients with counted connect/close).
 import {describe, expect, test, afterEach} from "bun:test";
 
-import {createClientPool, type ClientPool} from "./connection_pool.ts";
+import {createClientPool, ClientPool} from "./connection_pool.ts";
 
 // Every pool carries a periodic sweep timer; without disposal the timers of
 // finished tests (and of previous --rerun-each repetitions, which re-run the

@@ -1,4 +1,4 @@
-import type {KV, HTTPRequest, HTTPResponse} from "@/types.ts";
+import {KV, HTTPRequest, HTTPResponse} from "@/types.ts";
 
 export const EmptyRequest: HTTPRequest = {
   url: "",

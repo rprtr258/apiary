@@ -1,8 +1,8 @@
 import {RequestID} from "@/types.ts";
-import type {Result} from "@/result.ts";
+import {Result} from "@/result.ts";
 import {signal} from "../lib/utils.ts";
 import notification from "../lib/notification.ts";
-import type {Item} from "./source.ts";
+import {Item} from "./source.ts";
 
 export const STALE_AFTER = 1000*60*5;
 
