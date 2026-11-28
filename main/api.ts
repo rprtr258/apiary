@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {childrenBuckets, create, createDraft, extractSubKind, generateID, load, move as dbMove, save, takeDBNotice, Delete as remove, DeleteDir as removeDir, rename, update, Request, serialized} from "./db.ts";
+import {childrenBuckets, create, createDraft, extractSubKind, generateID, load, move as dbMove, save, takeDBNotice, Delete as remove, DeleteDir as removeDir, rename, update, Request, RequestFor, serialized} from "./db.ts";
 import * as http from "./database/http.ts";
 import * as jq from "./database/jq.ts";
 import * as md from "./database/md.ts";
@@ -16,6 +16,18 @@ async function get(id: t.RequestID): Promise<Request> {
   if (!(id in j.requests))
     throw new Error(`request ${id} not found`);
   return j.requests[id];
+}
+
+// Kind-specific methods all start by fetching the request and asserting its
+// kind; this returns the request narrowed to that kind's member of the
+// storage envelope, so req.Data comes back typed without a local guard.
+async function getOfKind<K extends t.Kind>(id: t.RequestID, kind: K): Promise<RequestFor<K>> {
+  const req = await get(id);
+  if (req.Kind !== kind)
+    throw new Error(`request ${id} kind is ${req.Kind}, expected ${kind}`);
+  // The guard above is the runtime proof of the cast; TS cannot narrow a union
+  // by a generic discriminant value.
+  return req as RequestFor<K>;
 }
 
 export async function List(): Promise<t.ListResponse> {
@@ -77,10 +89,10 @@ function emptyRequestForKind(kind: t.Kind): Request["Data"] {
   case t.Kind.JQ:         return jq.EmptyRequest;
   case t.Kind.MD:         return md.EmptyRequest;
   case t.Kind.REDIS:      return redis.EmptyRequest;
-  case t.Kind.GRPC:       return {target: "", method: "", payload: "", metadata: []};
+  case t.Kind.GRPC:       return grpc.EmptyRequest;
   case t.Kind.DIFF:       return diff.EmptyRequest;
   case t.Kind.SQLSource:  return sql_source.EmptyRequest;
-  case t.Kind.HTTPSource: return {serverUrl: "", specSource: "url", specData: "", auth: {type: "none"}};
+  case t.Kind.HTTPSource: return http_source.EmptyRequest;
   case t.Kind.MCP:        return mcp.EmptyRequest;
   }
 }
@@ -171,6 +183,18 @@ type PerformResponse = {
   response:    unknown,
 };
 
+// received_at is taken when the helper runs: callers construct it immediately
+// after the awaited send, which is exactly what the field measures.
+function performResponse(id: t.RequestID, sent_at: Date, request: unknown, response: unknown): PerformResponse {
+  return {
+    RequestId:   id,
+    sent_at:     sent_at.toISOString(),
+    received_at: new Date().toISOString(),
+    request,
+    response,
+  };
+}
+
 // SQL request's dsn can store a SQLSource request id (selected via SelectInput in the UI);
 // resolve it to the source's dsn, otherwise use the value as-is.
 export function resolveSQLRequest(j: Record<t.RequestID, Request>, data: t.SQLRequest): string {
@@ -218,23 +242,13 @@ export function Perform(id: t.RequestID): Promise<PerformResponse> {
     default:
       throw new Error(`Perform not yet implemented for kind ${req.Kind}`);
     }
-    const received_at = new Date();
-
-    return {
-      RequestId:   id,
-      sent_at:     sent_at.toISOString(),
-      received_at: received_at.toISOString(),
-      request:     req.Data,
-      response:    response,
-    };
+    return performResponse(id, sent_at, req.Data, response);
   });
 }
 
 export const GRPC = {
   async Methods(id: t.RequestID): Promise<Record<string, string[]>> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.GRPC)
-      throw new Error(`query kind is ${req.Kind}, expected grpc`);
+    const req = await getOfKind(id, t.Kind.GRPC);
     return await grpc.grpcMethods(req.Data.target);
   },
 
@@ -250,11 +264,7 @@ export const GRPC = {
 
 export const SQLSource = {
   async Perform(id: t.RequestID, read: t.TableRead): Promise<PerformResponse> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.SQLSource)
-      throw new Error(`request ${id} is not SQLSource`);
-
-    const sourceRequest = req.Data;
+    const sourceRequest = (await getOfKind(id, t.Kind.SQLSource)).Data;
     const sent_at = new Date();
     const sqlRequest: t.SQLRequest = {
       dsn: sourceRequest.dsn,
@@ -263,61 +273,36 @@ export const SQLSource = {
       readOnly: sourceRequest.readOnly,
     };
     const result = await sql.send(sqlRequest);
-    const received_at = new Date();
-    return {
-      RequestId:   id,
-      sent_at:     sent_at.toISOString(),
-      received_at: received_at.toISOString(),
-      request:     sqlRequest,
-      response:    result,
-    };
+    return performResponse(id, sent_at, sqlRequest, result);
   },
 
   async Test(id: t.RequestID): Promise<void> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.SQLSource)
-      throw new Error(`request ${id} is not SQLSource`);
-    const {dsn, database, readOnly} = req.Data;
+    const {dsn, database, readOnly} = (await getOfKind(id, t.Kind.SQLSource)).Data;
     await sql_source.testSQLSource({dsn, database, readOnly});
   },
 
   async ListTables(id: t.RequestID): Promise<t.TableInfo[]> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.SQLSource)
-      throw new Error(`request ${id} is not SQLSource`);
-    const {dsn, database} = req.Data;
+    const {dsn, database} = (await getOfKind(id, t.Kind.SQLSource)).Data;
     return await sql.listTables({dsn, database});
   },
 
   async DescribeTable(id: t.RequestID, tableName: string): Promise<t.TableSchema> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.SQLSource)
-      throw new Error(`request ${id} is not SQLSource`);
-    const {dsn, database} = req.Data;
+    const {dsn, database} = (await getOfKind(id, t.Kind.SQLSource)).Data;
     return await sql.describeTable({dsn, database}, tableName);
   },
 
   async CountRows(id: t.RequestID, tableName: string, filter: t.TableFilter): Promise<number> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.SQLSource)
-      throw new Error(`request ${id} is not SQLSource`);
-    const {dsn, database} = req.Data;
+    const {dsn, database} = (await getOfKind(id, t.Kind.SQLSource)).Data;
     return await sql_source.countRowsSQLSource({dsn, database}, tableName, filter);
   },
 
   async UpdateTableRows(id: t.RequestID, tableName: string, pkColumns: string[], updates: t.CellUpdate[]): Promise<t.SQLResponse> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.SQLSource)
-      throw new Error(`request ${id} is not SQLSource`);
-    const {dsn, database, readOnly} = req.Data;
+    const {dsn, database, readOnly} = (await getOfKind(id, t.Kind.SQLSource)).Data;
     return await sql_source.updateTableRows({dsn, database, readOnly}, tableName, pkColumns, updates);
   },
 
   async BuildTableUpdate(id: t.RequestID, tableName: string, pkColumns: string[], updates: t.CellUpdate[]): Promise<string> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.SQLSource)
-      throw new Error(`request ${id} is not SQLSource`);
-    const {dsn, database, readOnly} = req.Data;
+    const {dsn, database, readOnly} = (await getOfKind(id, t.Kind.SQLSource)).Data;
     return sql_source.buildTableUpdateScript({dsn, database, readOnly}, tableName, pkColumns, updates);
   },
 };
@@ -332,7 +317,7 @@ export const SQL = {
       throw new Error(`request ${id} not found`);
     const req = j.requests[id];
     if (req.Kind !== t.Kind.SQL)
-      throw new Error(`request ${id} is not SQL`);
+      throw new Error(`request ${id} kind is ${req.Kind}, expected ${t.Kind.SQL}`);
     // SQL request's dsn can store a SQLSource request id; resolve it like Perform does.
     return await sql.explain({...req.Data, dsn: resolveSQLRequest(j.requests, req.Data)});
   },
@@ -340,20 +325,13 @@ export const SQL = {
 
 export const HTTPSource = {
   async ListEndpoints(id: t.RequestID): Promise<t.EndpointInfo[]> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.HTTPSource)
-      throw new Error(`request ${id} is not HTTPSource`);
-    const sourceRequest = req.Data;
+    const sourceRequest = (await getOfKind(id, t.Kind.HTTPSource)).Data;
     const specData = await http_source.fetchSpec(sourceRequest);
     return await http_source.parseSpec(specData);
   },
 
   async GenerateExampleRequest(id: t.RequestID, key: t.EndpointKey): Promise<t.HTTPRequest> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.HTTPSource)
-      throw new Error(`request ${id} is not HTTPSource`);
-
-    const sourceRequest = req.Data;
+    const sourceRequest = (await getOfKind(id, t.Kind.HTTPSource)).Data;
     const spec = await http_source.fetchSpec(sourceRequest);
     const endpoints = await http_source.parseSpec(spec);
     const endpoint = endpoints.find(e => e.method === key.method && e.path === key.path);
@@ -375,21 +353,11 @@ export const HTTPSource = {
 
     const sent_at = new Date();
     const result = await http.send(finalRequest);
-    const received_at = new Date();
-    return {
-      RequestId:   id,
-      sent_at:     sent_at.toISOString(),
-      received_at: received_at.toISOString(),
-      request:     finalRequest,
-      response:    result,
-    };
+    return performResponse(id, sent_at, finalRequest, result);
   },
 
   async Test(id: t.RequestID): Promise<void> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.HTTPSource)
-      throw new Error(`request ${id} is not HTTPSource`);
-    const sourceRequest = req.Data;
+    const sourceRequest = (await getOfKind(id, t.Kind.HTTPSource)).Data;
     const specData = await http_source.fetchSpec(sourceRequest);
     void(await http_source.parseSpec(specData)); // TODO: use/return?
   },
@@ -397,9 +365,7 @@ export const HTTPSource = {
 
 export const MCP = {
   async ListItems(id: t.RequestID): Promise<t.MCPListItems> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.MCP)
-      throw new Error(`request ${id} is not MCP`);
+    const req = await getOfKind(id, t.Kind.MCP);
     const [tools, prompts, resources] = await Promise.all([
       mcp.listTools(req.Data),
       mcp.listPrompts(req.Data),
@@ -409,30 +375,22 @@ export const MCP = {
   },
 
   async ReadResource(id: t.RequestID, uri: string): Promise<t.MCPReadResource> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.MCP)
-      throw new Error(`request ${id} is not MCP`);
+    const req = await getOfKind(id, t.Kind.MCP);
     return await mcp.readResource(req.Data, uri);
   },
 
   async CallTool(id: t.RequestID, toolName: string, args: t.JSONValue): Promise<unknown> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.MCP)
-      throw new Error(`request ${id} is not MCP`);
+    const req = await getOfKind(id, t.Kind.MCP);
     return await mcp.callTool(req.Data, toolName, args);
   },
 
   async CallPrompt(id: t.RequestID, promptName: string, args: t.JSONValue): Promise<unknown> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.MCP)
-      throw new Error(`request ${id} is not MCP`);
+    const req = await getOfKind(id, t.Kind.MCP);
     return await mcp.callPrompt(req.Data, promptName, args);
   },
 
   async Complete(id: t.RequestID, params: t.MCPCompleteParams): Promise<t.MCPCompletion> {
-    const req = await get(id);
-    if (req.Kind !== t.Kind.MCP)
-      throw new Error(`request ${id} is not MCP`);
+    const req = await getOfKind(id, t.Kind.MCP);
     return await mcp.complete(req.Data, params);
   },
 };

@@ -12,6 +12,8 @@ type MediaTypeObject   = /*OpenAPIV2.MediaTypeObject  |*/ OpenAPIV3.MediaTypeObj
 type ResponsesObject   = /*OpenAPIV2.ResponsesObject  |*/ OpenAPIV3.ResponsesObject   | OpenAPIV3_1.ResponsesObject;
 type ReferenceObject   =   OpenAPIV2.ReferenceObject  |   OpenAPIV3.ReferenceObject   | OpenAPIV3_1.ReferenceObject;
 
+export const EmptyRequest: HTTPSourceRequest = {serverUrl: "", specSource: "url", specData: "", auth: {type: "none"}};
+
 export async function fetchSpec(sourceRequest: HTTPSourceRequest): Promise<OpenAPI.Document> {
   switch (sourceRequest.specSource) {
   case "url":

@@ -29,9 +29,13 @@ type RequestEnvelope = {
 }[t.Kind];
 
 export type Request = {
-  ID:        t.RequestID,
-  Path:      string,
+  ID:   t.RequestID,
+  Path: string,
 } & RequestEnvelope;
+
+// Single envelope member for a given kind; get() callers asserting a kind use
+// this instead of hand-narrowing the union.
+export type RequestFor<K extends t.Kind> = Request & {Kind: K};
 
 export type DB = {
   requests: Record<t.RequestID, Request>,
