@@ -50,7 +50,6 @@
   "ignoreDependencies": ["github-markdown-css", "protoc-gen-ts"],
   // CWD-relative spawn argument in scripts/build.ts ("bun
   // scripts/build-wasm.ts" run from the repo root), not an import
-  // specifier; ./global.ts resolves to global.d.ts via TS bundler-mode
-  // declaration fallback, which knip's resolver does not attempt
-  "ignoreUnresolved": ["scripts/build-wasm.ts", "./global.ts"]
+  // specifier
+  "ignoreUnresolved": ["scripts/build-wasm.ts"]
 }
