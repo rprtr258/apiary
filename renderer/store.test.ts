@@ -7,7 +7,7 @@ import {update_request, store, PersistRevertedError} from "./store.ts";
 // succeeds late (after a newer one started), so the next full-Data persist cannot drop it.
 let resolvePersist: ((res: {kind: string, value: unknown}) => void)[] = [];
 mock.module("./api.ts", () => ({api: {
-  request_update: () => new Promise(resolve => {resolvePersist.push(resolve);}),
+  requestUpdate: () => new Promise(resolve => {resolvePersist.push(resolve);}),
 }}));
 
 const base: Request = {

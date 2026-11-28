@@ -3,7 +3,7 @@ import * as t from "@/types.ts";
 // Last-used connection fields per request kind, kept in renderer localStorage
 // (deliberately not db.json: no new persistence, values survive restarts and
 // are only lost when renderer storage is cleared). store.ts records a fragment
-// from its requestPerform/request_update call sites; creation paths seed it
+// from its requestPerform/requestUpdate call sites; creation paths seed it
 // back through the optional Create/CreateDraft data argument, which the main
 // process spreads over emptyRequestForKind so every other field keeps the
 // kind's default. SQL keeps dsn+database as a pair, since a bare dsn could be

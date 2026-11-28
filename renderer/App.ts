@@ -1,4 +1,4 @@
-import {ComponentContainer, LayoutConfig, Tab} from "./layout/types.ts";
+import {ComponentContainer, LayoutConfig, REQUEST_TAB, Tab} from "./layout/types.ts";
 import * as t from "@/types.ts";
 import {Kinds, Request} from "@/types.ts";
 import {clamp, m, setDisplay, signal} from "./lib/utils.ts";
@@ -415,7 +415,7 @@ function stripStaleTabs(config: LayoutConfig, validIds: Set<string>): void {
 // component) reference their source request by sourceID.
 function isComponentValid(node: LayoutConfigNode, validIds: Set<string>): boolean {
   const state = node.componentState;
-  if (node.componentType === "MyComponent")
+  if (node.componentType === REQUEST_TAB)
     return state === undefined || validIds.has(String(state["id"]));
   return state !== undefined && validIds.has(String(state["sourceID"]));
 }
@@ -475,7 +475,7 @@ function preApp(root: HTMLElement, store: Store) {
   stripStaleTabs(store.layoutConfig, new Set(Object.keys(store.requests)));
 
   layout.init(el_layout, store.layoutConfig, {
-    "MyComponent": (container, state) => panelkaFactory(container, state as StateRequest),
+    [REQUEST_TAB]: (container, state) => panelkaFactory(container, state as StateRequest),
     ...Object.fromEntries(plugins.flatMap(plugin => Object.entries(plugin.viewers))),
   }, () => {
     update_empty_state();
@@ -486,7 +486,7 @@ function preApp(root: HTMLElement, store: Store) {
   // swept by store.cleanupDrafts right below
   const restoredDraftIDs = Array
     .from(layout.instance?.tabs() ?? [])
-    .filter(item => item.componentType === "MyComponent")
+    .filter(item => item.componentType === REQUEST_TAB)
     .map(item => (item.toConfig().componentState as StateRequest).id)
     .filter(id => store.isDraft(id));
   store.cleanupDrafts(restoredDraftIDs);
@@ -680,7 +680,7 @@ function preApp(root: HTMLElement, store: Store) {
       }
       // Same contract as the tab close button: closing a focused draft deletes it
       const focused = layout.instance?.focusedComponentItem;
-      if (focused !== undefined && focused.isSome() && focused.value.componentType === "MyComponent") {
+      if (focused !== undefined && focused.isSome() && focused.value.componentType === REQUEST_TAB) {
         const {id} = focused.value.toConfig().componentState as StateRequest;
         if (store.isDraft(id)) {
           store.deleteRequest(id).catch(err => console.error(`Failed to delete draft ${id}`, err));

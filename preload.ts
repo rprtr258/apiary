@@ -1,6 +1,5 @@
 import {contextBridge, ipcRenderer} from "electron/renderer";
 import * as t from "@/types.ts";
-import {Request} from "./main/db.ts";
 import {type Api} from "./global.ts";
 
 contextBridge.exposeInMainWorld("versions", {
@@ -12,15 +11,15 @@ contextBridge.exposeInMainWorld("versions", {
 const api: Api = {
   List:      (                               ): Promise<t.ListResponse>          => ipcRenderer.invoke("List"             ),
   Get:       (a1: string                     ): Promise<t.GetResponse>           => ipcRenderer.invoke("Get",       a1    ),
-  Create:    (a1: string, a2: t.Kind, a3?: Partial<Request["Data"]>): Promise<t.RequestID> => ipcRenderer.invoke("Create", a1, a2, a3),
+  Create:    (a1: string, a2: t.Kind, a3?: Partial<t.RequestPayload>): Promise<t.RequestID> => ipcRenderer.invoke("Create", a1, a2, a3),
   Duplicate: (a1: string                     ): Promise<t.RequestID>             => ipcRenderer.invoke("Duplicate", a1    ),
-  CreateDraft: (a1: t.Kind, a2?: Partial<Request["Data"]>): Promise<t.RequestID> => ipcRenderer.invoke("CreateDraft", a1, a2),
+  CreateDraft: (a1: t.Kind, a2?: Partial<t.RequestPayload>): Promise<t.RequestID> => ipcRenderer.invoke("CreateDraft", a1, a2),
   Rename:    (a1: string, a2: string         ): Promise<void>                    => ipcRenderer.invoke("Rename",    a1, a2),
   Move:      (a1: t.TreeChild, a2: string, a3: t.TreeChild[]): Promise<void>       => ipcRenderer.invoke("Move",      a1, a2, a3),
-  Update:    (a1: string, a2: Request["Data"]): Promise<void>                    => ipcRenderer.invoke("Update",    a1, a2),
+  Update:    (a1: string, a2: t.RequestPayload): Promise<void>                   => ipcRenderer.invoke("Update",    a1, a2),
   Delete:    (a1: string                     ): Promise<void>                    => ipcRenderer.invoke("Delete",    a1    ),
   DeleteDir: (a1: string                     ): Promise<void>                    => ipcRenderer.invoke("DeleteDir", a1    ),
-  Perform:   (a1: string                     ): Promise<Record<string, unknown>> => ipcRenderer.invoke("Perform",   a1    ),
+  Perform:   (a1: string                     ): Promise<t.HistoryEntry>          => ipcRenderer.invoke("Perform",   a1    ),
   GRPC: {
     Methods:       (a1: string                        ): Promise<Record<string, string[]>> => ipcRenderer.invoke("GRPC.Methods",       a1        ),
     QueryFake:     (a1: string, a2: string            ): Promise<string>                   => ipcRenderer.invoke("GRPC.QueryFake",     a1, a2    ),
@@ -30,7 +29,7 @@ const api: Api = {
     Explain: (a1: string): Promise<t.SQLExplain> => ipcRenderer.invoke("SQL.Explain", a1),
   },
   SQLSource: {
-    Perform:       (a1: string, a2: t.TableRead): Promise<Record<string, unknown>> => ipcRenderer.invoke("SQLSource.Perform",       a1, a2),
+    Perform:       (a1: string, a2: t.TableRead): Promise<t.HistoryEntry> => ipcRenderer.invoke("SQLSource.Perform",       a1, a2),
     Test:          (a1: string            ): Promise<void>                    => ipcRenderer.invoke("SQLSource.Test",          a1    ),
     ListTables:    (a1: string            ): Promise<t.TableInfo[]>           => ipcRenderer.invoke("SQLSource.ListTables",    a1    ),
     DescribeTable: (a1: string, a2: string): Promise<t.TableSchema>           => ipcRenderer.invoke("SQLSource.DescribeTable", a1, a2),
@@ -41,7 +40,7 @@ const api: Api = {
   HTTPSource: {
     ListEndpoints:          (a1: string                               ): Promise<t.EndpointInfo[]>        => ipcRenderer.invoke("HTTPSource.ListEndpoints",          a1        ),
     GenerateExampleRequest: (a1: string, a2: t.EndpointKey              ): Promise<t.HTTPRequest>           => ipcRenderer.invoke("HTTPSource.GenerateExampleRequest", a1, a2    ),
-    PerformVirtualEndpoint: (a1: string, a2: t.EndpointKey, a3: t.HTTPRequest): Promise<Record<string, unknown>> => ipcRenderer.invoke("HTTPSource.PerformVirtualEndpoint", a1, a2, a3),
+    PerformVirtualEndpoint: (a1: string, a2: t.EndpointKey, a3: t.HTTPRequest): Promise<t.HistoryEntry> => ipcRenderer.invoke("HTTPSource.PerformVirtualEndpoint", a1, a2, a3),
     Test:                   (a1: string                               ): Promise<void>                    => ipcRenderer.invoke("HTTPSource.Test",                   a1        ),
   },
   MCP: {

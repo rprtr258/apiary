@@ -53,3 +53,7 @@ export type Tab = {
   readonly componentItem: ComponentItem,
   setTitle(title: string): void,
 };
+
+// componentType of the built-in request tab. The value is persisted in saved
+// layouts (localStorage), so renaming it would orphan restored tabs.
+export const REQUEST_TAB = "MyComponent";
