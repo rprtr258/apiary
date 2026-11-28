@@ -4,7 +4,7 @@ import {Kinds, Request} from "@/types.ts";
 import {clamp, m, setDisplay, signal} from "./lib/utils.ts";
 import notification from "./lib/notification.ts";
 import {
-  get_request, updateLocalstorage, update_request, send,
+  loadRequest, updateLocalstorage, update_request, send,
   StateRequest, Store, store,
 } from "./store.ts";
 import layout from "./layout.ts";
@@ -115,11 +115,11 @@ export function getCommandPaletteItems(): Item[] {
             isDraft ? {
               label: "Duplicate current draft",
               perform: () => {
-                if (!(currentID in store.requests2)) {
+                if (!(currentID in store.loadedRequests)) {
                   notification("error", "Duplicate failed", {content: "Draft data is not loaded"});
                   return;
                 }
-                const req = store.requests2[currentID].request;
+                const req = store.loadedRequests[currentID];
                 const {id: _id, path: _path, kind: _kind, ...data} = req;
                 store.createDraft(req.kind, data);
               },
@@ -380,12 +380,12 @@ const panelkaFactory = (
     },
   });
   const frame_unsub = () => frame.unmount();
-  get_request(id).then(r => {
+  loadRequest(id).then(r => {
     if (r === null) {
       activeTab?.componentItem.close();
       return;
     }
-    activeTab?.setTitle(r.request.path); // TODO: remove, create with ready title straightaway
+    activeTab?.setTitle(r.path); // TODO: remove, create with ready title straightaway
     frame.loaded(r);
   });
   return {el};

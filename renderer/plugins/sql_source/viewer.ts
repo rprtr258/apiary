@@ -1,6 +1,5 @@
 import * as t from "@/types.ts";
 import {api} from "../../api.ts";
-import {get_request} from "../../store.ts";
 import {m} from "../../lib/utils.ts";
 import {NEmpty, StatusLabel} from "../../components/dataview.ts";
 import {NSelect} from "../../components/input_select.ts";
@@ -16,7 +15,7 @@ export default function(
     update: (patch: Partial<Request>) => Promise<void>,
   },
 ): {
-  loaded: (r: get_request) => void,
+  loaded: (r: t.Request) => void,
   unmount(): void,
 } {
   // let query = ""; // TODO: query datasource/scratch request?
@@ -25,9 +24,9 @@ export default function(
   const unmounts: (() => void)[] = [];
 
   return {
-    loaded: (r: get_request): void => {
-      const requestID = r.request.id;
-      const request = r.request as Request;
+    loaded: (r: t.Request): void => {
+      const requestID = r.id;
+      const request = r as Request;
       const statusLabel = StatusLabel();
 
       async function updateConnectionStatus(): Promise<void> {

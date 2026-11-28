@@ -7,7 +7,7 @@ import {ItemConfig, LayoutConfig} from "./layout/types.ts";
 import {ComponentItem, Stack} from "./layout/manager.ts";
 import notification from "./lib/notification.ts";
 import {lastConnectionSeed, recordLastConnection} from "./lastConnection.ts";
-import type {Request} from "../main/db.ts";
+
 
 /**
  * Thrown by the persistence layer when a persist failed and it already reverted its own state;
@@ -101,17 +101,14 @@ function findExistingTab<T>(
     .find(t => predicate?.(t.toConfig().componentState as T) ?? true);
 }
 
-export type get_request = {
-  request: t.Request,
-};
-
 export type Store = {
   requestsTree : Signal<t.Tree>,
   requests : Record<string, t.requestPreview>,
   // id -> draft number, from ListResponse.Drafts; the source of truth for
   // draft-ness in the renderer
   drafts: Record<string, number>,
-  requests2: Record<string, get_request>,
+  // Requests loaded from the backend (Get), keyed by id
+  loadedRequests: Record<t.RequestID, t.Request>,
   layoutConfig: LayoutConfig,
   get activeComponentID(): string | null,
   set activeComponentID(value: string | null),
@@ -120,7 +117,7 @@ export type Store = {
   selectRequest(id: t.RequestID): void,
   fetch(): Promise<void>,
   createRequest(id: t.RequestID, kind: t.RequestData["kind"]): Promise<void>,
-  createDraft(kind: t.RequestData["kind"], data?: Request["Data"]): Promise<void>,
+  createDraft(kind: t.Kind, data?: t.RequestPayload): Promise<void>,
   cleanupDrafts(ids: t.RequestID[]): Promise<void>,
   duplicate(id: t.RequestID): Promise<void>,
   deleteRequest(id: t.RequestID): Promise<void>,
@@ -152,7 +149,7 @@ export const store = ((): Store => {
     requestsTree : signal({entries: []}),
     requests : {},
     drafts: {},
-    requests2: {},
+    loadedRequests: {},
     layoutConfig,
     get activeComponentID(): string | null {
       return activeComponentID;
@@ -213,7 +210,7 @@ export const store = ((): Store => {
 
       await this.fetch();
     },
-    async createDraft(kind: t.RequestData["kind"], data?: Request["Data"]): Promise<void> {
+    async createDraft(kind: t.Kind, data?: t.RequestPayload): Promise<void> {
       const res = await api.createDraft(kind, data ?? lastConnectionSeed(kind));
       if (res.kind === "err") {
         notification("error", "Could not create draft", {error: res.value});
@@ -264,8 +261,8 @@ export const store = ((): Store => {
       if (id in this.requests) {
         delete this.requests[id];
       }
-      if (id in this.requests2) {
-        delete this.requests2[id];
+      if (id in this.loadedRequests) {
+        delete this.loadedRequests[id];
       }
       lastPersisted.delete(id); // no in-flight persist can own a deleted request's state anymore
       await this.fetch();
@@ -284,7 +281,7 @@ export const store = ((): Store => {
         if (!this.requests[id].path.startsWith(dir))
           continue;
         delete this.requests[id];
-        delete this.requests2[id];
+        delete this.loadedRequests[id];
         lastPersisted.delete(id);
       }
       await this.fetch();
@@ -399,7 +396,7 @@ export const store = ((): Store => {
 })();
 
 export async function send(id: t.RequestID): Promise<t.HistoryEntry | undefined> {
-  const request = store.requests2[id].request;
+  const request = store.loadedRequests[id];
   recordLastConnection(request.kind, request);
   const res = await api.requestPerform(id);
   if (res.kind === "err") {
@@ -420,7 +417,7 @@ const lastPersisted = new Map<string, {seq: number, request: t.Request}>();
 export async function update_request(id: t.RequestID, patch: Partial<t.Request>): Promise<void> {
   persistSeq++;
   const seq = persistSeq;
-  const old_request = store.requests2[id].request;
+  const old_request = store.loadedRequests[id];
   if (!lastPersisted.has(id)) {
     lastPersisted.set(id, {seq: 0, request: old_request}); // the pre-branch state is by definition the last persisted one
   }
@@ -429,7 +426,7 @@ export async function update_request(id: t.RequestID, patch: Partial<t.Request>)
   // result too, otherwise they leak into the persisted Data and break Duplicate/Rename.
   const {id: _sid, path: _spath, kind: _skind, ...new_data} = {...old_data, ...patch} as t.Request; // Data-only, sent to backend
   const optimistic = {...old_request, ...patch} as t.Request;
-  store.requests2[id].request = optimistic; // NOTE: optimistic update, keeps id/path/kind
+  store.loadedRequests[id] = optimistic; // NOTE: optimistic update, keeps id/path/kind
   recordLastConnection(old_request.kind, new_data);
   const res = await api.request_update(id, old_request.kind, new_data);
   if (res.kind === "ok") {
@@ -443,7 +440,7 @@ export async function update_request(id: t.RequestID, patch: Partial<t.Request>)
     return;
   }
 
-  if (!(id in store.requests2)) {
+  if (!(id in store.loadedRequests)) {
     // Request deleted while the persist IPC was in flight: nothing to roll back.
     notification("error", "Could not save current request", {error: res.value});
     throw new PersistRevertedError(`Could not save current request: ${res.value}`, old_request);
@@ -452,9 +449,9 @@ export async function update_request(id: t.RequestID, patch: Partial<t.Request>)
   // Revert only if no newer persist (or fetch/rename) has replaced the state since (identity
   // check) — and to the last persisted state, never to a never-persisted optimistic patch.
   const recorded = lastPersisted.get(id)!;
-  const is_current = store.requests2[id].request === optimistic;
+  const is_current = store.loadedRequests[id] === optimistic;
   if (is_current) {
-    store.requests2[id].request = recorded.request;
+    store.loadedRequests[id] = recorded.request;
   }
   notification("error", "Could not save current request", {error: res.value});
   // Surface the failure plus the state the store reverted to, so useRequest rolls its
@@ -462,13 +459,13 @@ export async function update_request(id: t.RequestID, patch: Partial<t.Request>)
   // (which can be an older in-flight persist's never-persisted optimistic state).
   throw new PersistRevertedError(
     `Could not save current request: ${res.value}`,
-    is_current ? recorded.request : store.requests2[id].request,
+    is_current ? recorded.request : store.loadedRequests[id],
   );
 }
 
-export async function get_request(request_id: t.RequestID): Promise<get_request | null> {
-  if (request_id in store.requests2) {
-    return store.requests2[request_id];
+export async function loadRequest(request_id: t.RequestID): Promise<t.Request | null> {
+  if (request_id in store.loadedRequests) {
+    return store.loadedRequests[request_id];
   }
 
   const res = await api.get(request_id);
@@ -477,22 +474,9 @@ export async function get_request(request_id: t.RequestID): Promise<get_request 
     return null;
   }
 
-  // Reshape raw IPC response into frontend types
-  // The IPC Get function returns types.ts shapes ({ID, Path, Data}),
-  // but components expect the flattened types.ts Request ({id, path, kind, ...fields})
-  const raw = res.value;
-  const kind = store.requests[request_id].kind;
-  const requestData = raw.Request.Data;
-
-  const request = {
-    id: raw.Request.ID,
-    path: raw.Request.Path,
-    kind,
-    ...(requestData as Omit<t.Request, "id" | "path" | "kind">),
-  } as t.Request;
-
-  store.requests2[request_id] = {request};
-  return store.requests2[request_id];
+  // Get returns the shared flattened Request ({id, path, kind, ...data}) directly.
+  store.loadedRequests[request_id] = res.value.Request;
+  return store.loadedRequests[request_id];
 }
 
 store.requestsTree.sub(function*() {

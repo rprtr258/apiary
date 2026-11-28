@@ -5,7 +5,6 @@ import {NEmpty} from "../../components/dataview.ts";
 import ViewJSON from "../../components/ViewJSON.ts";
 import EditorJSON from "../../components/EditorJSON.ts";
 import {NSplit} from "../../components/layout.ts";
-import {get_request} from "../../store.ts";
 import {m, setDisplay, Signal} from "../../lib/utils.ts";
 
 type Request = {kind: t.Kind.JQ} & t.JQRequest;
@@ -18,7 +17,7 @@ export default function(
     send: () => Promise<void>,
   },
 ): {
-  loaded(r: get_request): void,
+  loaded(r: t.Request): void,
   push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 } {
@@ -65,8 +64,8 @@ export default function(
   }}, el_query_input, el_send.el);
 
   return {
-    loaded: (r: get_request) => {
-      const request = r.request as Request;
+    loaded: (r: t.Request) => {
+      const request = r as Request;
       el_query_input.value = request.query;
 
       const {el: el_editor_json, destroy} = EditorJSON({

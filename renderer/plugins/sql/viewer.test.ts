@@ -2,7 +2,6 @@ import {describe, test, expect, mock} from "bun:test";
 import * as t from "@/types.ts";
 import {Result, ok, err} from "@/result.ts";
 import {signal} from "../../lib/utils.ts";
-import {get_request} from "../../store.ts";
 
 // Hoisted by bun to run before the viewer import below.
 const explainCalls: string[] = [];
@@ -29,15 +28,13 @@ mock.module("../../api.ts", () => ({
 
 import RequestSQL from "./viewer.ts";
 
-const mockRequest: get_request = {
-  request: {
-    id: "test-id",
-    path: "",
-    kind: t.Kind.SQL,
-    database: "postgres",
-    dsn: "test-dsn",
-    query: "SELECT * FROM test",
-  },
+const mockRequest: t.Request = {
+  id: "test-id",
+  path: "",
+  kind: t.Kind.SQL,
+  database: "postgres",
+  dsn: "test-dsn",
+  query: "SELECT * FROM test",
 };
 
 const sqlResponse = (rows: unknown[][]): t.HistoryEntry => ({
@@ -107,7 +104,7 @@ describe("RequestSQL", () => {
       update: mock(() => Promise.resolve()),
       send: mock(() => Promise.resolve()),
     });
-    component.loaded({...mockRequest, request: {...mockRequest.request, kind: t.Kind.SQL, database: "sqlite"} as t.Request});
+    component.loaded({...mockRequest, kind: t.Kind.SQL, database: "sqlite"});
 
     const tabButton = (name: string) => [...el.querySelectorAll("button")].find(b => b.textContent === name)!;
     expect(tabButton("Plan")).toBeDefined();
@@ -145,7 +142,7 @@ describe("RequestSQL", () => {
       update: mock(() => Promise.resolve()),
       send: mock(() => Promise.resolve()),
     });
-    component.loaded({...mockRequest, request: {...mockRequest.request, kind: t.Kind.SQL, database: "sqlite"} as t.Request});
+    component.loaded({...mockRequest, kind: t.Kind.SQL, database: "sqlite"});
 
     const tabButton = (name: string) => [...el.querySelectorAll("button")].find(b => b.textContent === name)!;
     tabButton("Plan").click();
@@ -163,7 +160,7 @@ describe("RequestSQL", () => {
       update: mock(() => Promise.resolve()),
       send: mock(() => Promise.resolve()),
     });
-    component.loaded({...mockRequest, request: {...mockRequest.request, kind: t.Kind.SQL, database: "sqlite"} as t.Request});
+    component.loaded({...mockRequest, kind: t.Kind.SQL, database: "sqlite"});
 
     const tabButton = (name: string) => [...el.querySelectorAll("button")].find(b => b.textContent === name)!;
     tabButton("Plan").click();
@@ -180,7 +177,7 @@ describe("RequestSQL", () => {
     expect(el.querySelector("#plan-nodes")?.textContent).toContain("Seq Scan on users");
 
     // Switching to a different request fetches its own plan.
-    component.loaded({...mockRequest, request: {...mockRequest.request, id: "other-id", kind: t.Kind.SQL, database: "sqlite"} as t.Request});
+    component.loaded({...mockRequest, id: "other-id", kind: t.Kind.SQL, database: "sqlite"});
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(explainCalls).toEqual(["test-id", "test-id", "other-id"]);
   });

@@ -70,7 +70,7 @@ describe("drafts store", () => {
     drafts = {};
     store.requests = {};
     store.drafts = {};
-    store.requests2 = {};
+    store.loadedRequests = {};
     store.activeComponentID = null;
     nextDraftID = "draft-new";
     draftResult = "ok";
@@ -147,7 +147,7 @@ describe("drafts store", () => {
     drafts = {d1: 1, d2: 2};
     store.requests = {...previews};
     store.drafts = {...drafts};
-    store.requests2 = {d2: {request: {id: "d2", path: "draft 2", kind: Kind.SQL, dsn: "", database: "postgres", query: ""}}};
+    store.loadedRequests = {d2: {id: "d2", path: "draft 2", kind: Kind.SQL, dsn: "", database: "postgres", query: ""}};
 
     await store.cleanupDrafts(["d1"]);
 
@@ -155,7 +155,7 @@ describe("drafts store", () => {
     expect(store.requests["d2"]).toBeUndefined();
     expect(store.requests["d1"]).toBeDefined();
     expect(store.requests["s1"]).toBeDefined();
-    expect(store.requests2["d2"]).toBeUndefined();
+    expect(store.loadedRequests["d2"]).toBeUndefined();
     expect(store.drafts["d2"]).toBeUndefined();
     expect(store.drafts["d1"]).toBe(1);
   });

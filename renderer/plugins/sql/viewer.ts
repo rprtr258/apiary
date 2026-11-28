@@ -1,7 +1,7 @@
 import * as t from "@/types.ts";
 import {m, setDisplay, Signal} from "../../lib/utils.ts";
 import {api} from "../../api.ts";
-import {get_request, store} from "../../store.ts";
+import {store} from "../../store.ts";
 import {NEmpty} from "../../components/dataview.ts";
 import NButton from "../../components/button.ts";
 import {NSelect, NSelectInput} from "../../components/input_select.ts";
@@ -41,7 +41,7 @@ export default function(
     send: () => Promise<void>,
   },
 ): {
-  loaded(r: get_request): void,
+  loaded(r: t.Request): void,
   push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 } {
@@ -64,7 +64,7 @@ export default function(
   // stored in history. "Plan" draws the parsed unified-format tree;
   // "Plan (raw)" shows the backend's own EXPLAIN text. One EXPLAIN round trip
   // feeds both (EXPLAIN ANALYZE actually executes the query on some backends).
-  let current: get_request | null = null;
+  let current: t.Request | null = null;
   let plan_shown = false;
   let plan_key: string | null = null;
   let plan_state: PlanState = {kind: "idle"};
@@ -97,7 +97,7 @@ export default function(
   async function fetch_plan(): Promise<void> {
     if (current === null)
       return;
-    const request = current.request as Request;
+    const request = current as Request;
     const key = requestKey(request);
     // NTabs fires onSelect only on tab change, so reaching here after a
     // failed fetch means the tab was hidden and shown again - retry it.
@@ -107,7 +107,7 @@ export default function(
     plan_state = {kind: "loading"};
     render_plan();
     const fetched = current;
-    const res = await api.requestExplainSQL(current.request.id);
+    const res = await api.requestExplainSQL(current.id);
     if (current !== fetched) // request switched while fetching
       return;
     plan_state = res.kind === "ok" ?
@@ -133,7 +133,7 @@ export default function(
   });
 
   return {
-    loaded: (r: get_request): void => {
+    loaded: (r: t.Request): void => {
       current = r;
       plan_key = null;
       plan_state = {kind: "idle"};
@@ -142,7 +142,7 @@ export default function(
         fetch_plan();
       el_response.replaceChildren(tabs);
 
-      const request = r.request as Request;
+      const request = r as Request;
       const el_run = NButton({
         primary: true,
         on: {click: async () => {
@@ -162,7 +162,7 @@ export default function(
         on: {update: (database: string) => {
           // DSN options list only sources of the chosen database, so a chosen source cannot be kept.
           const patch: Partial<Request> = {database: database as t.Database};
-          const current = r.request as Request; // live request, the captured `request` is stale after updates
+          const current = r as Request; // live request, the captured `request` is stale after updates
           if (current.dsn in store.requests && store.requests[current.dsn].kind === t.Kind.SQLSource && store.requests[current.dsn].subKind !== database) {
             patch.dsn = "";
           }
@@ -172,7 +172,7 @@ export default function(
       const dsn_select = NSelectInput({
         placeholder: "DSN",
         options: () => Object.entries(store.requests)
-          .filter(([, source]) => source.kind === t.Kind.SQLSource && source.subKind === (r.request as Request).database)
+          .filter(([, source]) => source.kind === t.Kind.SQLSource && source.subKind === (r as Request).database)
           .map(([id, source]) => ({label: source.path, value: id})),
         value: request.dsn,
         on: {update: (dsn: string) => update_request({dsn})},

@@ -2,16 +2,13 @@ import {describe, test, expect, mock} from "bun:test";
 import RequestDIFF from "./viewer.ts";
 import {signal} from "../../lib/utils.ts";
 import * as t from "@/types.ts";
-import {get_request} from "../../store.ts";
 
-const mockRequest: get_request = {
-  request: {
-    id: "test-id",
-    path: "",
-    kind: t.Kind.DIFF,
-    left: "Hello\nWorld",
-    right: "Hello\nWorld\n!",
-  },
+const mockRequest: t.Request = {
+  id: "test-id",
+  path: "",
+  kind: t.Kind.DIFF,
+  left: "Hello\nWorld",
+  right: "Hello\nWorld\n!",
 };
 
 describe("RequestDIFF", () => {
@@ -57,14 +54,12 @@ describe("RequestDIFF", () => {
       send: mock(() => Promise.resolve()),
     };
 
-    const emptyRequest: get_request = {
-      request: {
-        id: "test-id-2",
-        path: "",
-        kind: t.Kind.DIFF,
-        left: "",
-        right: "",
-      },
+    const emptyRequest: t.Request = {
+      id: "test-id-2",
+      path: "",
+      kind: t.Kind.DIFF,
+      left: "",
+      right: "",
     };
 
     const component = RequestDIFF(el, show_request, on);
@@ -83,14 +78,12 @@ describe("RequestDIFF", () => {
       send: mock(() => Promise.resolve()),
     };
 
-    const jsonRequest: get_request = {
-      request: {
-        id: "test-id-3",
-        path: "",
-        kind: t.Kind.DIFF,
-        left: "{\"name\": \"John\", \"age\": 30}",
-        right: "{\"name\": \"Jane\", \"age\": 30}",
-      },
+    const jsonRequest: t.Request = {
+      id: "test-id-3",
+      path: "",
+      kind: t.Kind.DIFF,
+      left: "{\"name\": \"John\", \"age\": 30}",
+      right: "{\"name\": \"Jane\", \"age\": 30}",
     };
 
     const component = RequestDIFF(el, show_request, on);

@@ -30,8 +30,8 @@ function setupPreviews(draft: number | undefined): void {
   };
   store.requests = previews;
   store.drafts = draft !== undefined ? {d1: draft} : {};
-  store.requests2 = {
-    d1: {request: {id: "d1", path: "draft 1", kind: Kind.HTTP, ...httpData}},
+  store.loadedRequests = {
+    d1: {id: "d1", path: "draft 1", kind: Kind.HTTP, ...httpData},
   };
   store.activeComponentID = "d1";
 }
@@ -41,7 +41,7 @@ describe("draft palette", () => {
     mock.clearAllMocks();
     store.requests = {};
     store.drafts = {};
-    store.requests2 = {};
+    store.loadedRequests = {};
     store.activeComponentID = null;
   });
 
@@ -87,7 +87,7 @@ describe("draft palette", () => {
 
   test("Duplicate current draft without loaded data notifies instead of silently doing nothing", () => {
     setupPreviews(1);
-    store.requests2 = {};
+    store.loadedRequests = {};
     const item = getCommandPaletteItems().find(item => item.label === "Duplicate current draft");
     item?.perform();
     expect(createDraft).not.toHaveBeenCalled();

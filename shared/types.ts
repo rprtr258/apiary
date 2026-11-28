@@ -65,11 +65,6 @@ export type Request = {
   id: RequestID,
   path: string,
 } & RequestData;
-type Request2 = {
-  ID: RequestID,
-  Path: string,
-  Data: unknown,
-};
 
 // Authoritative Kind -> wire-type mapping. RequestData, HistoryEntry and the
 // db storage envelope are all derived from this table; adding a kind means
@@ -88,6 +83,10 @@ export type KindTypes = {
   [Kind.HTTPSource]: {request: HTTPSourceRequest},
   [Kind.MCP]:        {request: MCPRequest},
 };
+
+// The same per-kind data without the kind discriminant: what db sections
+// store and what Create/Update accept. RequestData adds `kind` on top of it.
+export type RequestPayload = KindTypes[Kind]["request"];
 
 export type RequestData = {
   [K in Kind]: {kind: K} & KindTypes[K]["request"]
@@ -111,5 +110,5 @@ export type HistoryEntry = {
 }[DraftableKind];
 
 export type GetResponse = {
-  Request: Request2,
+  Request: Request,
 };

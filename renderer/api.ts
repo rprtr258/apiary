@@ -1,6 +1,5 @@
 import * as t from "@/types.ts";
 import {Result, try_} from "@/result.ts";
-import {Request} from "../main/db.ts";
 
 const Api = window.api;
 
@@ -26,7 +25,7 @@ export const api = {
   async requestCreate(
     name: string,
     kind: t.Kind,
-    data?: Partial<Request["Data"]>,
+    data?: Partial<t.RequestPayload>,
   ): Promise<Result<t.RequestID>> {
     return await wrap(() => Api.Create(name, kind, data), {name, kind, data});
   },
@@ -40,7 +39,7 @@ export const api = {
   async request_update(
     id: t.RequestID,
     kind: t.Kind,
-    req: Request["Data"],
+    req: t.RequestPayload,
   ): Promise<Result<void>> {
     return await wrap(() => Api.Update(id, req), {reqId: id, kind, req});
   },
@@ -80,7 +79,7 @@ export const api = {
 
   async createDraft(
     kind: t.Kind,
-    data?: Partial<Request["Data"]>,
+    data?: Partial<t.RequestPayload>,
   ): Promise<Result<t.RequestID>> {
     return await wrap(() => Api.CreateDraft(kind, data), {kind, data});
   },

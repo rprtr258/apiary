@@ -74,15 +74,19 @@ export async function List(): Promise<t.ListResponse> {
 export async function Get(id: t.RequestID): Promise<t.GetResponse> {
   const entry = await get(id);
   return {
+    // Flattened wire shape (shared t.Request). The cast is the one boundary
+    // where the envelope's per-kind Data is spread under its own kind; TS
+    // cannot verify the spread aligns the discriminant per union member.
     Request: {
-      ID: id,
-      Path: entry.Path,
-      Data: entry.Data,
-    },
+      id,
+      path: entry.Path,
+      kind: entry.Kind,
+      ...entry.Data,
+    } as t.Request,
   };
 }
 
-function emptyRequestForKind(kind: t.Kind): Request["Data"] {
+function emptyRequestForKind(kind: t.Kind): t.RequestPayload {
   switch (kind) {
   case t.Kind.HTTP:       return http.EmptyRequest;
   case t.Kind.SQL:        return sql.EmptyRequest;
@@ -100,18 +104,18 @@ function emptyRequestForKind(kind: t.Kind): Request["Data"] {
 // The renderer's last-connection seed (renderer/lastConnection.ts) is a
 // fragment; spreading it over the empty request keeps every other field at the
 // kind's default.
-function seededRequestForKind(kind: t.Kind, data?: Partial<Request["Data"]>): Request["Data"] {
-  return {...emptyRequestForKind(kind), ...(data ?? {})} as Request["Data"];
+function seededRequestForKind(kind: t.Kind, data?: Partial<t.RequestPayload>): t.RequestPayload {
+  return {...emptyRequestForKind(kind), ...(data ?? {})} as t.RequestPayload;
 }
 
-export function Create(path: string, kind: t.Kind, data?: Partial<Request["Data"]>): Promise<t.RequestID> {
+export function Create(path: string, kind: t.Kind, data?: Partial<t.RequestPayload>): Promise<t.RequestID> {
   return serialized(async () => {
     const j = await load();
     return await create(j, kind, path, seededRequestForKind(kind, data));
   });
 }
 
-export function CreateDraft(kind: t.Kind, data?: Partial<Request["Data"]>): Promise<t.RequestID> {
+export function CreateDraft(kind: t.Kind, data?: Partial<t.RequestPayload>): Promise<t.RequestID> {
   return serialized(async () => {
     if (!t.DraftableKinds.has(kind))
       throw new Error(`kind ${kind} cannot be a draft: not a performable kind`);
@@ -168,7 +172,7 @@ export function Move(drag: t.TreeChild, toDir: string, order: t.TreeChild[]): Pr
   });
 }
 
-export function Update(id: t.RequestID, data: Request["Data"]): Promise<void> {
+export function Update(id: t.RequestID, data: t.RequestPayload): Promise<void> {
   return serialized(async () => {
     const j = await load();
     await update(j, id, data);

@@ -5,7 +5,6 @@ import * as t from "@/types.ts";
 import {NEmpty} from "../../components/dataview.ts";
 import {NSplit} from "../../components/layout.ts";
 import {defaultEditorExtensions, defaultExtensions} from "../../components/editor.ts";
-import {get_request} from "../../store.ts";
 import {api} from "../../api.ts";
 import {m, Signal} from "../../lib/utils.ts";
 
@@ -57,7 +56,7 @@ export default function(
     send: () => Promise<void>,
   },
 ): {
-  loaded(r: get_request & {request: Request}): void,
+  loaded(r: t.Request): void,
   push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 } {
@@ -108,9 +107,9 @@ export default function(
   };
 
   return {
-    loaded: (r: get_request & {request: Request}) => {
-      const request = r.request;
-      id = r.request.id;
+    loaded: (r: t.Request) => {
+      const request = r as t.MDRequest;
+      id = r.id;
 
       update_response();
 

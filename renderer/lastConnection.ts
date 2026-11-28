@@ -1,5 +1,4 @@
 import * as t from "@/types.ts";
-import type {Request} from "../main/db.ts";
 
 // Last-used connection fields per request kind, kept in renderer localStorage
 // (deliberately not db.json: no new persistence, values survive restarts and
@@ -14,7 +13,7 @@ import type {Request} from "../main/db.ts";
 // and vice versa).
 const localStorageKey = "last-connection";
 
-type Fragments = Partial<Record<t.Kind, Partial<Request["Data"]>>>;
+type Fragments = Partial<Record<t.Kind, Partial<t.RequestPayload>>>;
 
 function readAll(): Fragments {
   try {
@@ -25,14 +24,14 @@ function readAll(): Fragments {
   }
 }
 
-export function lastConnectionSeed(kind: t.Kind): Partial<Request["Data"]> | undefined {
+export function lastConnectionSeed(kind: t.Kind): Partial<t.RequestPayload> | undefined {
   return readAll()[kind];
 }
 
-export function recordLastConnection(kind: t.Kind, data: Request["Data"]): void {
+export function recordLastConnection(kind: t.Kind, data: t.RequestPayload): void {
   // data arrives untagged (Data-only from store.ts); re-tag it to narrow per kind
   const tagged = {...data, kind} as t.RequestData;
-  const fragment = ((): Partial<Request["Data"]> | undefined => {
+  const fragment = ((): Partial<t.RequestPayload> | undefined => {
     switch (tagged.kind) {
     case t.Kind.HTTP:       return {url: tagged.url};
     case t.Kind.SQL:        return {dsn: tagged.dsn, database: tagged.database};

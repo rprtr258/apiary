@@ -1,5 +1,4 @@
 import * as t from "@/types.ts";
-import {get_request} from "../../store.ts";
 import {m, setDisplay, Signal} from "../../lib/utils.ts";
 import ParamsList from "../../components/ParamsList.ts";
 import NButton from "../../components/button.ts";
@@ -32,7 +31,7 @@ export default function(
     send: () => Promise<void>,
   },
 ): {
-  loaded(r: get_request): void,
+  loaded(r: t.Request): void,
   push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 } {
@@ -127,13 +126,13 @@ export default function(
   }
 
   return {
-    loaded: (r: get_request): void => {
-      const request = r.request as Request;
+    loaded: (r: t.Request): void => {
+      const request = r as Request;
       method_select.set(request.method);
       targetInput.value = request.target;
 
       loading_methods = true;
-      api.grpcMethods(r.request.id).then(res => {
+      api.grpcMethods(r.id).then(res => {
         loading_methods = false;
         if (res.kind === "err") {
           notification("error", "Error fetching GRPC methods", {content: res.value});
