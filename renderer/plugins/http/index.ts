@@ -25,7 +25,11 @@ const copyAsCurl = (id: t.RequestID): MenuOption => ({
           return;
         }
 
-        const req = r.value.Request as unknown as t.HTTPRequest; // TODO: remove unknown cast
+        const req = r.value.Request;
+        if (req.kind !== t.Kind.HTTP) {
+          notification("error", "Error", {content: `Request ${id} is not an HTTP request`});
+          return;
+        }
         navigator.clipboard.writeText(httpToCurl(req));
       });
     },
