@@ -58,6 +58,9 @@ async function main() {
     runCommand(["bun", "run", "typecheck"]),
     runCommand(["bun", "run", "lint"]),
     runCommand(["bun", "run", "check:deps"]),
+    // knip's cycles rule is a no-op on this graph (verified by injecting a
+    // cycle it failed to report), so the structural check is this script.
+    runCommand(["bun", "scripts/check-cycles.ts"]),
     runCommand(["bun", "run", "build"]),
     runDesignLint(),
   ]);
