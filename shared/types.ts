@@ -71,37 +71,44 @@ type Request2 = {
   Data: unknown,
 };
 
-export type RequestData =
-  | {kind: Kind.HTTP      } & HTTPRequest
-  | {kind: Kind.SQL       } & SQLRequest
-  | {kind: Kind.GRPC      } & GRPCRequest
-  | {kind: Kind.JQ        } & JQRequest
-  | {kind: Kind.REDIS     } & RedisRequest
-  | {kind: Kind.MD        } & MDRequest
-  | {kind: Kind.DIFF      } & DiffRequest
-  | {kind: Kind.SQLSource } & SQLSourceRequest
-  | {kind: Kind.HTTPSource} & HTTPSourceRequest
-  | {kind: Kind.MCP       } & MCPRequest
-;
+// Authoritative Kind -> wire-type mapping. RequestData, HistoryEntry and the
+// db storage envelope are all derived from this table; adding a kind means
+// adding a row here (plus the enum member), never a parallel union elsewhere.
+// Rows without a response are kinds Perform does not dispatch (sources and
+// MCP); only rows with one can be drafts.
+type KindTypes = {
+  [Kind.HTTP]:       {request: HTTPRequest,  response: HTTPResponse},
+  [Kind.SQL]:        {request: SQLRequest,   response: SQLResponse},
+  [Kind.GRPC]:       {request: GRPCRequest,  response: GRPCResponse},
+  [Kind.JQ]:         {request: JQRequest,    response: JQResponse},
+  [Kind.REDIS]:      {request: RedisRequest, response: RedisResponse},
+  [Kind.MD]:         {request: MDRequest,    response: MDResponse},
+  [Kind.DIFF]:       {request: DiffRequest,  response: DiffResponse},
+  [Kind.SQLSource]:  {request: SQLSourceRequest},
+  [Kind.HTTPSource]: {request: HTTPSourceRequest},
+  [Kind.MCP]:        {request: MCPRequest},
+};
+
+export type RequestData = {
+  [K in Kind]: {kind: K} & KindTypes[K]["request"]
+}[Kind];
 
 export const Kinds = Object.values(Kind);
 
 // Kinds Perform dispatches; only these can be drafts (sources and MCP cannot be
 // performed and therefore cannot be drafts).
-export const DraftableKinds: ReadonlySet<Kind> = new Set([Kind.HTTP, Kind.SQL, Kind.JQ, Kind.MD, Kind.REDIS, Kind.GRPC, Kind.DIFF]);
+type DraftableKind = {
+  [K in Kind]: KindTypes[K] extends {response: unknown} ? K : never
+}[Kind];
+const draftableKinds: readonly DraftableKind[] = [Kind.HTTP, Kind.SQL, Kind.JQ, Kind.MD, Kind.REDIS, Kind.GRPC, Kind.DIFF];
+export const DraftableKinds: ReadonlySet<Kind> = new Set(draftableKinds);
 
 export type HistoryEntry = {
   sent_at: Date,
   received_at: Date,
-} & (
-  {kind: Kind.HTTP,  request:  HTTPRequest, response:  HTTPResponse} |
-  {kind: Kind.SQL,   request:   SQLRequest, response:   SQLResponse} |
-  {kind: Kind.GRPC,  request:  GRPCRequest, response:  GRPCResponse} |
-  {kind: Kind.JQ,    request:    JQRequest, response:    JQResponse} |
-  {kind: Kind.REDIS, request: RedisRequest, response: RedisResponse} |
-  {kind: Kind.MD,    request:    MDRequest, response:    MDResponse} |
-  {kind: Kind.DIFF,  request:  DiffRequest, response:  DiffResponse}
-);
+} & {
+  [K in DraftableKind]: {kind: K} & KindTypes[K]
+}[DraftableKind];
 
 export type GetResponse = {
   Request: Request2,
