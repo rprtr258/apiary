@@ -1,5 +1,5 @@
 import {describe, test, expect, afterAll} from "bun:test";
-import type {RedisRequest} from "@/types.ts";
+import {RedisRequest} from "@/types.ts";
 import * as redis from "../database/redis.ts";
 
 const IS_INTEGRATION = Boolean(process.env["INTEGRATION"]);

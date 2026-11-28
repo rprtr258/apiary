@@ -1,7 +1,7 @@
 import {describe, test, expect} from "bun:test";
 import {existsSync} from "node:fs";
 import path from "node:path";
-import type {SQLRequest, RedisRequest} from "@/types.ts";
+import {SQLRequest, RedisRequest} from "@/types.ts";
 import * as sql from "../database/sql.ts";
 import * as redis from "../database/redis.ts";
 

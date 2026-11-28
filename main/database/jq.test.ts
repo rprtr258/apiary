@@ -1,7 +1,7 @@
 import {describe, test, expect, mock} from "bun:test";
 import {raw} from "jq-wasm";
 import {send} from "./jq.ts";
-import type {JQRequest} from "@/types.ts";
+import {JQRequest} from "@/types.ts";
 
 mock.module("jq-wasm", () => ({
   raw: mock(async (_json: string, _query: string, _flags?: string[]) => {

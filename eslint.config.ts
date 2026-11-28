@@ -57,6 +57,12 @@ export default defineConfig([
       }, {
         selector: "AssignmentExpression:not(ExpressionStatement > AssignmentExpression):not(ForStatement > AssignmentExpression)",
         message: "Assignment inside an expression is prohibited.",
+      }, {
+        selector: "ImportDeclaration[importKind='type']",
+        message: "import type statements are prohibited. Import types just by name.",
+      }, {
+        selector: "ImportSpecifier[importKind='type']",
+        message: "Inline type imports are prohibited. Import types just by name.",
       }],
       "local/no-boolean-literal-compare": "error",
       "local/no-restating-comments": "error",

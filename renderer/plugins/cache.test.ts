@@ -1,6 +1,6 @@
 import {RequestID} from "@/types.ts";
 import {describe, test, expect} from "bun:test";
-import type {Result} from "@/result.ts";
+import {Result} from "@/result.ts";
 import {ok, err} from "@/result.ts";
 import {STALE_AFTER, createSourceCache, isStale, listChildren} from "./cache.ts";
 

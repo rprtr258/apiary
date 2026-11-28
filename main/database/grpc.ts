@@ -1,8 +1,8 @@
 import * as grpc from "@grpc/grpc-js";
 import protobuf from "protobufjs";
 import "protobufjs/ext/descriptor/index.js";
-import type {GRPCRequest, GRPCResponse, JSONSchema, KV} from "@/types.ts";
-import type {JSONValue} from "@/types.ts";
+import {GRPCRequest, GRPCResponse, JSONSchema, KV} from "@/types.ts";
+import {JSONValue} from "@/types.ts";
 import descriptorJson from "protobufjs/google/protobuf/descriptor.json" with {type: "json"};
 import reflectionProtoDefinition from "./reflection.proto?raw";
 

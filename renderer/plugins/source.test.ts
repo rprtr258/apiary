@@ -1,7 +1,7 @@
 import {describe, test, expect, mock} from "bun:test";
-import {Kind, type TableInfo, type MCPTool, type MCPPrompt, type MCPResource, type MCPListItems} from "@/types.ts";
-import {ok, type Result} from "@/result.ts";
-import type {Item} from "./source.ts";
+import {Kind, TableInfo, MCPTool, MCPPrompt, MCPResource, MCPListItems} from "@/types.ts";
+import {ok, Result} from "@/result.ts";
+import {Item} from "./source.ts";
 
 // Tests below drive the store-backed module chain (source.ts -> store.ts ->
 // api.ts); bun runs without the Electron bridge and api.ts captures window.api

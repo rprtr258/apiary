@@ -1,7 +1,7 @@
 import {expect} from "@playwright/test";
-import type {Page} from "@playwright/test";
+import {Page} from "@playwright/test";
 import http from "node:http";
-import type {AddressInfo} from "node:net";
+import {AddressInfo} from "node:net";
 import {pressWith, test as base} from "./launch.ts";
 
 type Fixtures = {

@@ -1,4 +1,4 @@
-import {createClient, type ClickHouseClient} from "@clickhouse/client";
+import {createClient, ClickHouseClient} from "@clickhouse/client";
 import {createClientPool} from "./connection_pool.ts";
 import * as t from "@/types.ts";
 import {buildTree, node, PlanLine} from "./sql_plan.ts";

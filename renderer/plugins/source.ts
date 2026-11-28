@@ -1,7 +1,7 @@
 import * as t from "@/types.ts";
 import {store} from "../store.ts";
 import {pluginsByKind} from "./index.ts";
-import type {TreeOption} from "../components/dataview.ts";
+import {TreeOption} from "../components/dataview.ts";
 import {ItemBadge, Plugin} from "./types.ts";
 import {none, Option, some} from "@/option.ts";
 

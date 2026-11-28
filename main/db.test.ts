@@ -1,7 +1,7 @@
 import {describe, test, expect, mock, expectTypeOf, beforeEach} from "bun:test";
 import * as t from "@/types.ts";
-import {type DB, type Request, generateID, load, create, createDraft, Delete, DeleteDir, move, rename, update, serialized, save, setDBPath, flushSave, takeDBNotice} from "./db.ts";
-import type v2 from "./db.v2.ts";
+import {DB, Request, generateID, load, create, createDraft, Delete, DeleteDir, move, rename, update, serialized, save, setDBPath, flushSave, takeDBNotice} from "./db.ts";
+import v2 from "./db.v2.ts";
 
 // Controllable mock: by default readFile succeeds with "{}"
 // Set mockReadFileErr to throw ENOENT for a specific test

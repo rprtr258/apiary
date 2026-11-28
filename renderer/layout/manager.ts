@@ -1,7 +1,7 @@
 import {none, Option, some} from "@/option.ts";
 import {clamp, m, setDisplay} from "../lib/utils.ts";
 import {JSONValue} from "@/types.ts";
-import type {ComponentContainer, ItemConfig, LayoutConfig, Tab} from "./types.ts";
+import {ComponentContainer, ItemConfig, LayoutConfig, Tab} from "./types.ts";
 import {cls} from "./styles.ts";
 
 type Hit =

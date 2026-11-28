@@ -1,7 +1,7 @@
-import type {CompletionContext, CompletionResult, CompletionSource} from "@codemirror/autocomplete";
+import {CompletionContext, CompletionResult, CompletionSource} from "@codemirror/autocomplete";
 import {ensureSyntaxTree, syntaxTree} from "@codemirror/language";
-import type {EditorState} from "@codemirror/state";
-import type {SyntaxNode} from "@lezer/common";
+import {EditorState} from "@codemirror/state";
+import {SyntaxNode} from "@lezer/common";
 import * as t from "@/types.ts";
 import {none, Option, some} from "@/option.ts";
 import {generateExampleFromSchema} from "@/example.ts";
@@ -15,7 +15,7 @@ import {Modal, NSplit} from "../../components/layout.ts";
 import {ComponentContainer} from "../../layout/types.ts";
 import {NIcon} from "../../components/dataview.ts";
 import {QuestionCircleOutlined} from "../../components/icons.ts";
-import {type StateMCPItem} from "./item.ts";
+import {StateMCPItem} from "./item.ts";
 
 // Prompt arguments as a synthetic JSON schema so the editor gets the same
 // hints and example generation as tool input schemas

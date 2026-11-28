@@ -2,7 +2,7 @@ import {writeFile} from "fs/promises";
 import {DatabaseSync} from "node:sqlite";
 import path from "path";
 import {expect} from "@playwright/test";
-import {test as base, type Fixtures} from "./launch.ts";
+import {test as base, Fixtures} from "./launch.ts";
 
 // SQLite fixture can't use better-sqlite3: node_modules was rebuilt for the
 // Electron ABI, so it only loads inside the app. node:sqlite ships with the

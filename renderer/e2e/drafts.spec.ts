@@ -1,11 +1,11 @@
 import {_electron as electron, expect} from "@playwright/test";
-import type {Locator, Page} from "@playwright/test";
+import {Locator, Page} from "@playwright/test";
 import {readFile, writeFile} from "fs/promises";
 import http from "node:http";
 import {DatabaseSync} from "node:sqlite";
 import path from "path";
-import type {AddressInfo} from "node:net";
-import {pressWith, test as base, type Fixtures} from "./launch.ts";
+import {AddressInfo} from "node:net";
+import {pressWith, test as base, Fixtures} from "./launch.ts";
 import v2 from "../../main/db.v2.ts";
 
 const MAIN = path.join(process.cwd(), "dist-electron", "main.js");

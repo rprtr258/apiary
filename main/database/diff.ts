@@ -1,6 +1,6 @@
 import {diffLines} from "diff";
-import type {DiffRequest, DiffResponse} from "@/types.ts";
-import {type JSONValue} from "@/types.ts";
+import {DiffRequest, DiffResponse} from "@/types.ts";
+import {JSONValue} from "@/types.ts";
 
 type Stats = {
   added: number,
