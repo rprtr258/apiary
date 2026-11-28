@@ -1,5 +1,6 @@
 import {z} from "zod";
 import * as t from "@/types.ts";
+import {Result} from "@/result.ts";
 import {api} from "./api.ts";
 import {signal, Signal} from "./lib/utils.ts";
 import layout from "./layout.ts";
@@ -395,16 +396,15 @@ export const store = ((): Store => {
   };
 })();
 
-export async function send(id: t.RequestID): Promise<t.HistoryEntry | undefined> {
+export async function send(id: t.RequestID): Promise<Result<t.HistoryEntry>> {
   const request = store.loadedRequests[id];
   recordLastConnection(request.kind, request);
   const res = await api.requestPerform(id);
   if (res.kind === "err") {
     notification("error", "Could not perform request", {id, error: res.value});
-    return undefined;
   }
 
-  return res.value;
+  return res;
 }
 
 // Last state known to have landed on the backend, per request, with the persist seq that

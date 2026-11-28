@@ -1,8 +1,8 @@
 import {EditorState} from "@codemirror/state";
 import {EditorView} from "@codemirror/view";
 import {json} from "@codemirror/lang-json";
-import {m, transform} from "../lib/utils.ts";
-import {NInput} from "./input.ts";
+import {m, signal, transform} from "../lib/utils.ts";
+import {NInput, setInputStatus} from "./input.ts";
 import {NTooltip} from "./dataview.ts";
 import {defaultExtensions} from "./editor.ts";
 
@@ -10,8 +10,8 @@ export default function(init_value: string) {
   const state = {
     value: "",
     query: ".",
-    jqerror: undefined as  string | undefined,
   };
+  const jqerror = signal<string | undefined>(undefined);
 
   function update(value?: string) {
     if (value !== undefined) {
@@ -20,17 +20,17 @@ export default function(init_value: string) {
         changes: {from: 0, to: editor.state.doc.length, insert: state.value},
       });
     }
-    transform(state.value, state.query) // TODO: can't transform if body is stream of jsons
+    transform(state.value, state.query)
       .then(v => {
         switch (v.kind) {
         case "ok":
           editor.dispatch({
             changes: {from: 0, to: editor.state.doc.length, insert: v.value},
           });
-          state.jqerror = undefined;
+          jqerror.value = undefined;
           break;
         case "err":
-          state.jqerror = v.value;
+          jqerror.value = v.value;
           break;
         }
       });
@@ -48,6 +48,41 @@ export default function(init_value: string) {
       ],
     }),
   });
+
+  const el_input = NInput({
+    placeholder: "JQ query",
+    on: {update: (v: string) => {
+      state.query = v;
+      update(state.value);
+    }},
+  });
+  const el_tooltip = NTooltip({style: {
+    position: "absolute",
+    bottom: "calc(100% + 4px)",
+    left: "0",
+    maxWidth: "100%",
+    width: "max-content",
+    background: "var(--bg2)",
+    color: "var(--err)",
+    border: "1px solid var(--err)",
+    padding: "4px 8px",
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
+    zIndex: "10",
+  }}, "");
+  const el_input_area = m("div", {style: {position: "relative", flexShrink: "0", display: "grid", gridTemplateColumns: "1fr"}}, el_input, el_tooltip);
+
+  const unsub_jqerror = jqerror.sub(function*() {
+    while (true) {
+      const err = yield;
+      setInputStatus(el_input, err !== undefined ? "error" : "success");
+      el_tooltip.replaceChildren(err ?? "");
+      // setDisplay would restore the "none" NTooltip initialized with as the
+      // "original" display, so the tooltip is driven directly.
+      el_tooltip.style.display = err !== undefined ? "block" : "none";
+    }
+  }());
+
   update(init_value);
 
   return {
@@ -56,23 +91,12 @@ export default function(init_value: string) {
       display: "flex",
       flexDirection: "column",
     }},
-      // TODO: put input under editor
-      NInput({
-        placeholder: "JQ query",
-        status: state.jqerror !== undefined ? "error" : "success", // TODO: update
-        on: {update: (v: string) => {
-          state.query = v;
-          update(state.value);
-        }},
-      }),
-      NTooltip({ // TODO: show over input
-        show: state.jqerror !== undefined,
-        placement: "bottom",
-      }, state.jqerror ?? ""),
       el,
+      el_input_area,
     ),
     update,
     unmount() {
+      unsub_jqerror();
       editor.destroy();
     },
   };
