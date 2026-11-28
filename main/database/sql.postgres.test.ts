@@ -1,6 +1,6 @@
 import {describe, test, expect} from "bun:test";
 import {parsePlan, columnType, typename, dataTypeColumnType, quoteIdent, dsnOf} from "./sql.postgres.ts";
-import {parse, type ConnectionOptions} from "pg-connection-string";
+import {parse, ConnectionOptions} from "pg-connection-string";
 import {ColumnType} from "@/types.ts";
 
 describe("quoteIdent", () => {

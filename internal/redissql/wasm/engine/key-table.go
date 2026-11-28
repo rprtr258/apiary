@@ -96,8 +96,8 @@ func (t *rkeyTable) Schema() sql.Schema {
 			Source:     t.Name(),
 		},
 		{
-			Name: "type",
-			Type: types.MustCreateEnumType(rkeyTypes, sql.Collation_Default),
+			Name:   "type",
+			Type:   types.MustCreateEnumType(rkeyTypes, sql.Collation_Default),
 			Source: t.Name(),
 		},
 		{
@@ -117,7 +117,6 @@ func (t *rkeyTable) Schema() sql.Schema {
 	}
 }
 
-// TODO: partitions by types ?
 func (t *rkeyTable) Partitions(*sql.Context) (sql.PartitionIter, error) {
 	return &partitionIter{}, nil
 }

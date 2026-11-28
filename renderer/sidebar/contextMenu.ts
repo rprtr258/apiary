@@ -27,7 +27,6 @@ function renderOption(opt: MenuOption): HTMLDivElement {
       gap: "8px",
       color: "var(--ink)",
     },
-    // TODO: remove, put to styles
     onmouseover: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "var(--sel)";},
     onmouseout: (e: Event) => {(e.currentTarget as HTMLElement).style.background = "";},
     onclick: () => {

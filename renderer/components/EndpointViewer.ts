@@ -1,7 +1,7 @@
 import * as t from "@/types.ts";
 import {api} from "../api.ts";
 import HTTPRequestView, {HTTPRequestViewResult} from "./HTTPRequestView.ts";
-import type {JSONSchema7} from "json-schema";
+import {JSONSchema7} from "json-schema";
 import {m, signal} from "../lib/utils.ts";
 import {NEmpty} from "./dataview.ts";
 import {ComponentContainer} from "../layout/types.ts";

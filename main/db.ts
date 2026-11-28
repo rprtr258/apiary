@@ -59,7 +59,6 @@ export function extractSubKind(
       return entry.Data.database;
     case t.Kind.SQLSource:
       return entry.Data.database;
-    // case t.Kind.HTTPSource: // TODO: swagger version
     case t.Kind.MCP:
       return entry.Data.transport;
     default:

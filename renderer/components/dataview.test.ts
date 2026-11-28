@@ -1,7 +1,7 @@
 import {describe, test, expect} from "bun:test";
 import {m} from "../lib/utils.ts";
 import {NTree, NTag, NEmpty, NList, NListItem, Json, TagType, tagColors} from "./dataview.ts";
-import type {TreeOption} from "./dataview.ts";
+import {TreeOption} from "./dataview.ts";
 
 // NTree renders one flat row element per visible option; happy-dom has no
 // layout, so each row is pinned to a 30px band to make the dragover

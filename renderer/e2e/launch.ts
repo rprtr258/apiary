@@ -2,7 +2,7 @@ import {mkdtemp, rm, writeFile} from "fs/promises";
 import {tmpdir} from "os";
 import path from "path";
 import {_electron as electron} from "@playwright/test";
-import type {ElectronApplication, Page} from "@playwright/test";
+import {ElectronApplication, Page} from "@playwright/test";
 import {test as base} from "@playwright/test";
 
 // Electron runs the built app from dist/ (renderer) + dist-electron/ (main + preload).

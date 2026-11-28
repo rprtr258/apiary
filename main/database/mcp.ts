@@ -3,10 +3,10 @@ import {StdioClientTransport} from "@modelcontextprotocol/sdk/client/stdio.js";
 import {StreamableHTTPClientTransport} from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import {SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js";
 import {Agent} from "undici";
-import type {Transport} from "@modelcontextprotocol/sdk/shared/transport.js";
+import {Transport} from "@modelcontextprotocol/sdk/shared/transport.js";
 
 import {createClientPool} from "./connection_pool.ts";
-import type {MCPRequest, MCPTool, MCPPrompt, MCPResource, MCPReadResource, JSONSchema, JSONValue, MCPCompleteParams, MCPCompletion} from "@/types.ts";
+import {MCPRequest, MCPTool, MCPPrompt, MCPResource, MCPReadResource, JSONSchema, JSONValue, MCPCompleteParams, MCPCompletion} from "@/types.ts";
 
 export const EmptyRequest: MCPRequest = {
   transport: "stdio",
@@ -219,7 +219,7 @@ export async function readResource(req: MCPRequest, uri: string): Promise<MCPRea
 
 export async function callTool(req: MCPRequest, toolName: string, args: JSONValue): Promise<unknown> {
   return await withClient(req, async (client) => {
-    return await client.callTool({ // TODO: is result always is content[] ? render nicely if so
+    return await client.callTool({
       name: toolName,
       arguments: args as Record<string, unknown> | undefined,
     });

@@ -23,7 +23,6 @@ function create() {
   const name = newRequestName.value!;
   store.createRequest(name, kind);
   createCancel();
-  // TODO: show new request in list
 }
 function createCancel() {
   newRequestKind.value = undefined;
@@ -77,9 +76,7 @@ export function getCommandPaletteItems(): Item[] {
         },
         {
           label: "Create new directory",
-          perform: () => {
-            // TODO: implement
-          },
+          perform: () => {},
         },
         {
           label: "New draft",
@@ -222,9 +219,7 @@ export function getCommandPaletteItems(): Item[] {
         {
           label: "Command Palette",
           shortcut: ["Ctrl", "Shift", "P"],
-          perform: () => {
-            // TODO: implement
-          },
+          perform: () => {},
         },
       ],
     },
@@ -281,7 +276,7 @@ export const getOpenRequestItems = (): Item[] => Object
   .filter(([id]) => !store.isDraft(id))
   .map(([id, preview]) => [id, preview, sourceBadge(id)] as const)
   .map(([id, preview, tag]) => ({
-    label: preview.path, // TODO: preload store.loadedRequests, fix ebanij rot kazino
+    label: preview.path,
     group: preview.kind,
     prefix: NTag({
       label: tag.label,
@@ -385,7 +380,7 @@ const panelkaFactory = (
       activeTab?.componentItem.close();
       return;
     }
-    activeTab?.setTitle(r.path); // TODO: remove, create with ready title straightaway
+    activeTab?.setTitle(r.path);
     frame.loaded(r);
   });
   return {el};
@@ -394,7 +389,7 @@ const panelkaFactory = (
 // Local type for layout config items with mutable content.
 type LayoutConfigNode = {
   type: string,
-  content?: LayoutConfigNode[], // TODO: remove this kostyl and do filtering before giving shit to the layout
+  content?: LayoutConfigNode[],
   componentType?: string,
   componentState?: Record<string, unknown>,
   activeItemIndex?: number,
@@ -457,7 +452,7 @@ function preApp(root: HTMLElement, store: Store) {
     style: {
       color: "var(--ink)",
       backgroundColor: "var(--bg)",
-      overflow: "hidden", // TODO: fix hiding layout element
+      overflow: "hidden",
     }}, [
       el_empty_state,
       el_layout,

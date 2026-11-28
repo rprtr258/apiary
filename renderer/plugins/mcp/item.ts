@@ -1,9 +1,9 @@
 import * as t from "@/types.ts";
-import type {Result} from "@/result.ts";
+import {Result} from "@/result.ts";
 import {api} from "../../api.ts";
 import {createSourceCache, listChildren} from "../cache.ts";
 import {store} from "../../store.ts";
-import type {Item} from "../source.ts";
+import {Item} from "../source.ts";
 import {componentType as resourceComponentType} from "./resource.ts";
 
 export const componentType = "ToolViewer";

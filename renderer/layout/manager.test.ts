@@ -3,8 +3,8 @@ import {MouseEvent} from "happy-dom";
 import {ComponentItem, LayoutManager, RowCol} from "./manager.ts";
 import {Stack} from "./manager.ts";
 import {cls} from "./styles.ts";
-import type {ItemConfig} from "./types.ts";
-import type {Option} from "@/option.ts";
+import {ItemConfig} from "./types.ts";
+import {Option} from "@/option.ts";
 
 const OPEN = "MyComponent";
 

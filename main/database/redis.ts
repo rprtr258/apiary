@@ -1,5 +1,5 @@
 import {createClient} from "redis";
-import type {RedisRequest, RedisResponse} from "@/types.ts";
+import {RedisRequest, RedisResponse} from "@/types.ts";
 import {createClientPool} from "./connection_pool.ts";
 
 export const EmptyRequest: RedisRequest = {

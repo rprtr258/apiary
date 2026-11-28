@@ -2,7 +2,6 @@ import {Database as BunDB, SQLQueryBindings} from "bun:sqlite";
 
 // better-sqlite3 is not supported in Bun (native addon).
 // Mock it with a thin adapter wrapping bun:sqlite.
-// TODO: remove after https://github.com/oven-sh/bun/issues/4290 is fixed
 export class BetterLikeDB {
   #db: BunDB;
   constructor(path: string) {

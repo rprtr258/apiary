@@ -1,5 +1,5 @@
-import type {requestPreview, RequestID, Tree, TreeChild, TreeEntry} from "@/types.ts";
-import type {TreeOption} from "../components/dataview.ts";
+import {requestPreview, RequestID, Tree, TreeChild, TreeEntry} from "@/types.ts";
+import {TreeOption} from "../components/dataview.ts";
 
 const joinDir = (dir: string, name: string): string => dir === "" ? name : dir + "/" + name;
 

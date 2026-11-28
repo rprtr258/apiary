@@ -1,5 +1,5 @@
 import {describe, expect, test, mock, beforeEach} from "bun:test";
-import {Kind, type HTTPRequest, type Request} from "@/types.ts";
+import {Kind, HTTPRequest, Request} from "@/types.ts";
 import {update_request, store, PersistRevertedError} from "./store.ts";
 
 // Store-level regression for the lastPersisted staleness rules: update_request

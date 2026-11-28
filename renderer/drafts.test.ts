@@ -1,6 +1,6 @@
 import {describe, expect, test, mock, beforeEach} from "bun:test";
 import {ok, err} from "@/result.ts";
-import {Kind, type ListResponse, type requestPreview} from "@/types.ts";
+import {Kind, ListResponse, requestPreview} from "@/types.ts";
 import {store} from "./store.ts";
 
 let nextDraftID = "draft-new";

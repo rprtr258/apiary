@@ -1,6 +1,6 @@
 import {marked} from "marked";
 import sanitizeHtml from "sanitize-html";
-import type {MDRequest, MDResponse} from "@/types.ts";
+import {MDRequest, MDResponse} from "@/types.ts";
 import txt from "./default.md?raw";
 
 export const EmptyRequest: MDRequest = {data: txt};
@@ -21,9 +21,6 @@ export async function send(request: MDRequest): Promise<MDResponse> {
         // extension.Footnote,
         // emoji.Emoji,
         // extension.Typographer,
-        // &mermaid.Extender{ // TODO: not working
-        //   RenderMode: mermaid.RenderModeClient,
-        // },
         // highlighting.NewHighlighting(
         //   highlighting.WithStyle("catppuccin-mocha"),
         // ),

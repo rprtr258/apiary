@@ -18,7 +18,6 @@ export default function(
   loaded: (r: t.Request) => void,
   unmount(): void,
 } {
-  // let query = ""; // TODO: query datasource/scratch request?
 
   el.replaceChildren(NEmpty({description: "Loading source..."}));
   const unmounts: (() => void)[] = [];
@@ -71,7 +70,6 @@ export default function(
             value: request.dsn,
             on: {update: (newValue: string) => update_request({dsn: newValue})},
           }),
-          // TODO: file picker for sqlite
           // m("button", {
           //   style: {
           //     border: "2px",

@@ -57,6 +57,12 @@ export default defineConfig([
       }, {
         selector: "AssignmentExpression:not(ExpressionStatement > AssignmentExpression):not(ForStatement > AssignmentExpression)",
         message: "Assignment inside an expression is prohibited.",
+      }, {
+        selector: "ImportDeclaration[importKind='type']",
+        message: "import type statements are prohibited. Import types just by name.",
+      }, {
+        selector: "ImportSpecifier[importKind='type']",
+        message: "Inline type imports are prohibited. Import types just by name.",
       }],
       "local/no-boolean-literal-compare": "error",
       "local/no-restating-comments": "error",
@@ -71,7 +77,7 @@ export default defineConfig([
       "import/extensions": ["error", "ignorePackages"],
       "@typescript-eslint/no-floating-promises": ["off"],
       "@typescript-eslint/no-misused-promises": ["off"],
-      "@typescript-eslint/no-unused-vars": ["off"/*"error", {argsIgnorePattern: "^_"}*/], // TODO: get back
+      "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/strict-boolean-expressions": ["error", {
         allowNumber: false,
         allowString: false,
@@ -83,7 +89,6 @@ export default defineConfig([
         allowNullableString: false,
       }],
       "@typescript-eslint/no-unnecessary-condition": ["error", {"allowConstantLoopConditions": true}],
-      // "@typescript-eslint/no-non-null-assertion": "error", // TODO: get back maybe
       "@typescript-eslint/restrict-plus-operands": ["error", {
         allowAny: false,
         allowBoolean: false,

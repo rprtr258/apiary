@@ -284,7 +284,7 @@ jobs:
             echo "Windows artifact NOT found"
             WINDOWS_FOUND=false
           fi
-          export WINDOWS_FOUND # TODO: unused
+          export WINDOWS_FOUND
 
           # Require at least Linux and macOS artifacts
           if [[ "$LINUX_FOUND" == "true" ]] && [[ "$MACOS_FOUND" == "true" ]]; then
@@ -313,7 +313,6 @@ jobs:
             echo "tag_name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           fi
 
-      # TODO: remove *.blockmap and *.yml THAT ARE FUCKING PUBLISHED FOR SOME FUCKING REASON FUCK YOU GITHUB
       - name: Create Release
         if: steps.check-artifacts.outputs.artifacts_ok == 'true'
         uses: softprops/action-gh-release@v3

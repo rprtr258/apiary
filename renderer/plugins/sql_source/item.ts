@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import type {Item} from "../source.ts";
+import {Item} from "../source.ts";
 import {api} from "../../api.ts";
 import {formatSize} from "../../lib/utils.ts";
 import {createSourceCache, listChildren} from "../cache.ts";

@@ -1,4 +1,4 @@
-import mysql, {type Connection, type ResultSetHeader} from "mysql2/promise.js";
+import mysql, {Connection, ResultSetHeader} from "mysql2/promise.js";
 import {createClientPool} from "./connection_pool.ts";
 import * as t from "@/types.ts";
 import {buildTree, metricsFromGroups, node, PlanLine, splitMetricGroups} from "./sql_plan.ts";

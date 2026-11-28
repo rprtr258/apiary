@@ -1,7 +1,7 @@
 import {describe, test, expect} from "bun:test";
-import {Kind, type Tree} from "@/types.ts";
-import {dropToMove, type Drop} from "./drop.ts";
-import type {TreeOption} from "../components/dataview.ts";
+import {Kind, Tree} from "@/types.ts";
+import {dropToMove, Drop} from "./drop.ts";
+import {TreeOption} from "../components/dataview.ts";
 
 // drop.ts is type-only in its imports, so this file loads no DOM/store chain.
 
