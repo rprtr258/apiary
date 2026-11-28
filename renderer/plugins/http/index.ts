@@ -3,7 +3,7 @@ import notification from "../../lib/notification.ts";
 import {api} from "../../api.ts";
 import {NIcon} from "../../components/dataview.ts";
 import {ContentCopyFilled} from "../../components/icons.ts";
-import {MenuOption, Plugin} from "../types.ts";
+import type {MenuOption, Plugin} from "../types.ts";
 import {eyeTabModifier} from "../tab.ts";
 import RequestHTTP from "./viewer.ts";
 

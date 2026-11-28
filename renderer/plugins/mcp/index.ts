@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {Plugin} from "../types.ts";
+import type {Plugin} from "../types.ts";
 import ToolViewer from "./tool.ts";
 import RequestMCP from "./viewer.ts";
 import ResourceViewer, {componentType as resourceComponentType, StateMCPResource} from "./resource.ts";

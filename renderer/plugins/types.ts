@@ -1,6 +1,6 @@
 import * as t from "@/types.ts";
 import {DOMNode, Signal} from "../lib/utils.ts";
-import {Item} from "./source.ts";
+import type {Item} from "./source.ts";
 import {ComponentContainer, Tab} from "../layout/types.ts";
 
 export type ItemBadge = {

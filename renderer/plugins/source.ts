@@ -2,7 +2,7 @@ import * as t from "@/types.ts";
 import {store} from "../store.ts";
 import {pluginsByKind} from "./index.ts";
 import type {TreeOption} from "../components/dataview.ts";
-import {ItemBadge, Plugin} from "./types.ts";
+import type {ItemBadge, Plugin} from "./types.ts";
 import {none, Option, some} from "@/option.ts";
 
 // A node of the sidebar source subtree returned by Plugin.root(id). The root

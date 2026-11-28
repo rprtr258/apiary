@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {ItemBadge} from "../types.ts";
+import type {ItemBadge} from "../types.ts";
 import type {Item} from "../source.ts";
 import {createSourceCache, listChildren} from "../cache.ts";
 import {api} from "../../api.ts";
