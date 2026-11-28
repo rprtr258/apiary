@@ -6,6 +6,8 @@ import type {JSONValue} from "@/types.ts";
 import descriptorJson from "protobufjs/google/protobuf/descriptor.json" with {type: "json"};
 import reflectionProtoDefinition from "./reflection.proto?raw";
 
+export const EmptyRequest: GRPCRequest = {target: "", method: "", payload: "", metadata: []};
+
 let reflectionReqType: protobuf.Type | undefined;
 let reflectionRespType: protobuf.Type | undefined;
 
