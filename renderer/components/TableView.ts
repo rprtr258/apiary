@@ -816,7 +816,11 @@ export default function(
       // Commit the page only on success, so pagination stays consistent with
       // the data still on screen after a failed load.
       currentPage.value = page;
-      const data = res.value.response as t.SQLResponse;
+      // A source perform is a SQL perform: the entry's kind is the underlying
+      // SQL request's, so the response narrows without a cast.
+      if (res.value.kind !== t.Kind.SQL)
+        throw new Error(`unexpected perform kind ${res.value.kind}`);
+      const data = res.value.response;
       dataTable.update({
         columns: data.columns,
         rows: data.rows as t.RowValue[][],

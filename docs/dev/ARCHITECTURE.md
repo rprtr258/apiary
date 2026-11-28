@@ -65,7 +65,7 @@ apiary/
 | HTTPSource | http_source.ts | `api.HTTPSource.*`         | No (on demand)   |
 | MCP        | mcp.ts         | `api.MCP.*`                | No (on demand)   |
 
-Kind identifiers are defined by the `Kind` enum in `shared/types.ts`; request data shapes are members of the `RequestData` union in the same file.
+Kind identifiers are defined by the `Kind` enum in `shared/types.ts`. The `KindRequest`/`KindResponse` tables in the same file are the single source of truth mapping a kind to its wire types: `RequestData` (the tagged request union), `HistoryEntry` (the perform result), `DraftableKind` and the db storage envelope (`main/db.ts` `Request`) are all derived from them - adding a kind means adding a row here, never a parallel union elsewhere. Untagged per-kind data (what db sections store and what Create/Update accept) is `RequestPayload`.
 
 ### Frontend: Request UI Modules
 
@@ -111,7 +111,7 @@ Adding a new kind means adding one `renderer/plugins/<kind>/` (an `index.ts` wit
 **File**: `renderer/store.ts`
 
 Handles:
-- Request state (`requests`, `requests2`)
+- Request state (`requests`, `loadedRequests`)
 - Layout state (`layoutConfig` (zod-validated, persisted), `activeComponentID`, tab navigation)
 
 All backend access goes through `renderer/api.ts` -> `window.api`.
@@ -150,17 +150,17 @@ Directories are implicit: they exist only as path prefixes of request records. T
 
 ### Draft requests
 
-A draft is a real `db.json` record of a performable kind (`shared/types.ts` `DraftableKinds`) that is a member of the dedicated `drafts` section (`[{id, n}]` on disk; in memory `load()` returns a `DB` struct carrying it as `drafts: Record<RequestID, number>` next to `requests`). Drafts never appear in the sidebar tree or the Open palette; their open tab is the only referent, and its lifetime bounds the record's: closing a draft tab (close button or Ctrl+W) deletes the record via `Delete`, saving a draft is `Rename` to a real path (which also removes it from the drafts section), duplicating a draft creates a new draft. The record's `Path` holds the cosmetic tab title (`draft N`, `n` allocated by max-scan over live drafts), and `Responses` is ordinary persisted history. Backend surface: `CreateDraft(kind, data?)` (validates the kind, defaults via `emptyRequestForKind`). `List` returns live drafts as a separate `Drafts` map (id -> n); the renderer keeps it as `store.drafts` and detects drafts through `store.isDraft`, styles their tab titles pale gray, and keys tab liveness in the previews watcher (not the tree) so draft tabs survive tree refreshes. There is no dedicated sweep IPC: after tab restore the renderer sweeps orphaned drafts (live drafts whose tab did not restore) itself, deleting each through the regular `Delete` path.
+A draft is a real `db.json` record of a performable kind (`shared/types.ts` `DraftableKinds`) that is a member of the dedicated `drafts` section (`[{id, n}]` on disk; in memory `load()` returns a `DB` struct carrying it as `drafts: Record<RequestID, number>` next to `requests`). Drafts never appear in the sidebar tree or the Open palette; their open tab is the only referent, and its lifetime bounds the record's: closing a draft tab (close button or Ctrl+W) deletes the record via `Delete`, saving a draft is `Rename` to a real path (which also removes it from the drafts section), duplicating a draft creates a new draft. The record's `Path` holds the cosmetic tab title (`draft N`, `n` allocated by max-scan over live drafts). Backend surface: `CreateDraft(kind, data?)` (validates the kind, defaults via `emptyRequestForKind`). `List` returns live drafts as a separate `Drafts` map (id -> n); the renderer keeps it as `store.drafts` and detects drafts through `store.isDraft`, styles their tab titles pale gray, and keys tab liveness in the previews watcher (not the tree) so draft tabs survive tree refreshes. There is no dedicated sweep IPC: after tab restore the renderer sweeps orphaned drafts (live drafts whose tab did not restore) itself, deleting each through the regular `Delete` path.
 
 ### Electron IPC (`main.ts` + `preload.ts` + `global.d.ts`)
 
 - `main.ts`: one `ipcMain.handle()` per channel - entry CRUD (`List`, `Get`, `Create`, `Duplicate`, `Read`, `Rename`, `Move`, `Update`, `Delete`, `DeleteDir`), `Perform`, and namespaced channels (`GRPC.*`, `SQL.*`, `SQLSource.*`, `HTTPSource.*`, `MCP.*`)
 - `preload.ts`: `contextBridge.exposeInMainWorld("api", api)` mirrors every channel (plus `versions`)
-- `global.d.ts`: the `Api` interface - the single source of truth for the IPC surface
+- `global.d.ts`: the `Api` interface - the declared IPC contract. Note `skipLibCheck` leaves `.d.ts` internals unchecked by both `bun check` and `tsc`; the compile-checked binding is `preload.ts`'s `const api: Api` assignment, which mirrors every signature.
 
 ## Data Flow
 
-User -> renderer state (store/signals) -> `window.api` (IPC invoke) -> `main.ts` handler -> `main/api.ts` -> plugin `send*` -> response -> `createResponse` history in `db.json` -> renderer DOM update.
+User -> renderer state (store/signals) -> `window.api` (IPC invoke) -> `main.ts` handler -> `main/api.ts` -> plugin `send*` -> response (`t.HistoryEntry`: timestamps, kind, request, response) -> renderer DOM update. Perform history is renderer-side and transient (per open tab); `db.json` stores only request records.
 
 ## Seams
 
@@ -187,7 +187,7 @@ Tests cross at the interface, not past it.
 
 ## Adding New Plugins
 
-1. `shared/types.ts`: add a `Kind` value and a `RequestData` member.
+1. `shared/types.ts`: add a `Kind` value and a `KindRequest` row (plus a `KindResponse` row for performable kinds); `RequestData`, `HistoryEntry` and the db envelope derive from the tables.
 2. `main/database/<kind>.ts`: implement `send<Kind>` + `*EmptyRequest`, add a unit test.
 3. `main/api.ts`: add a case in `emptyRequestForKind`, dispatch in `Perform` (performable kinds) or a dedicated sub-API (source kinds).
 4. `main.ts` + `preload.ts` + `global.d.ts`: expose new channels through the typed IPC surface.
