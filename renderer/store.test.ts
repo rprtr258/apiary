@@ -23,7 +23,7 @@ const base: Request = {
 describe("update_request rollback target", () => {
   beforeEach(() => {
     resolvePersist = [];
-    store.requests2 = {r1: {request: {...base}}};
+    store.loadedRequests = {r1: {...base}};
   });
 
   test("late success of an older persist becomes the rollback target of a newer failure", async () => {
@@ -37,7 +37,7 @@ describe("update_request rollback target", () => {
     // Newer persist fails: must roll back to the last *persisted* state (base+a), not pre-patch.
     resolvePersist[1]({kind: "err", value: "boom"});
     expect(await p2.then(() => null, (e: unknown) => e)).toBeInstanceOf(PersistRevertedError);
-    expect((store.requests2["r1"].request as HTTPRequest).url).toBe("http://a");
+    expect((store.loadedRequests["r1"] as HTTPRequest).url).toBe("http://a");
   });
 
   test("out-of-order success below the recorded one does not regress the rollback target", async () => {
@@ -47,16 +47,16 @@ describe("update_request rollback target", () => {
     // Newer persist succeeds first: backend truth is base+ab.
     resolvePersist[1]({kind: "ok", value: {}});
     await p2;
-    expect((store.requests2["r1"].request as HTTPRequest).url).toBe("http://ab");
+    expect((store.loadedRequests["r1"] as HTTPRequest).url).toBe("http://ab");
 
     // Older success arrives late: must not regress the undo target below base+ab.
     resolvePersist[0]({kind: "ok", value: {}});
     await p1;
-    expect((store.requests2["r1"].request as HTTPRequest).url).toBe("http://ab");
+    expect((store.loadedRequests["r1"] as HTTPRequest).url).toBe("http://ab");
 
     const p3 = update_request("r1", {url: "http://abc"});
     resolvePersist[2]({kind: "err", value: "boom"});
     expect(await p3.then(() => null, (e: unknown) => e)).toBeInstanceOf(PersistRevertedError);
-    expect((store.requests2["r1"].request as HTTPRequest).url).toBe("http://ab");
+    expect((store.loadedRequests["r1"] as HTTPRequest).url).toBe("http://ab");
   });
 });

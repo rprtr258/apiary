@@ -1,5 +1,4 @@
 import * as t from "@/types.ts";
-import {get_request} from "../store.ts";
 import {DOMNode, Signal} from "../lib/utils.ts";
 import {Item} from "./source.ts";
 import {ComponentContainer, Tab} from "../layout/types.ts";
@@ -24,7 +23,7 @@ type FrameArgs = {
 // their editor via show_request (the eye added by their tabModifiers); source
 // kinds only take update.
 type Frame = {
-  loaded(r: get_request): void,
+  loaded(r: t.Request): void,
   push_history_entry?(he: t.HistoryEntry): void, // show the performed response
   unmount(): void,
 };

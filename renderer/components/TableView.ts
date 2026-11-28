@@ -792,7 +792,7 @@ export default function(
     const res = await api.get(sourceID);
     if (res.kind === "err")
       return;
-    readOnly.value = (res.value.Request.Data as t.SQLSourceRequest).readOnly;
+    readOnly.value = (res.value.Request as t.SQLSourceRequest).readOnly;
     syncEditing();
   })();
 

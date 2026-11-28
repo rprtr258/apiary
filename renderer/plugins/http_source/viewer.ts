@@ -1,7 +1,6 @@
 import * as t from "@/types.ts";
 import {m} from "../../lib/utils.ts";
 import {api} from "../../api.ts";
-import {get_request} from "../../store.ts";
 import {NEmpty, StatusLabel} from "../../components/dataview.ts";
 import {NSelect} from "../../components/input_select.ts";
 import {NInput, NInputGroup} from "../../components/input.ts";
@@ -68,16 +67,16 @@ export default function(
     update: (patch: Partial<Request>) => Promise<void>,
   },
 ): {
-  loaded: (r: get_request) => void,
+  loaded: (r: t.Request) => void,
   unmount(): void,
 } {
   el.replaceChildren(NEmpty({description: "Loading source..."}));
   const unmounts: (() => void)[] = [];
 
   return {
-    loaded: (r: get_request): void => {
-      const requestID = r.request.id;
-      const request = r.request as Request;
+    loaded: (r: t.Request): void => {
+      const requestID = r.id;
+      const request = r as Request;
       const statusLabel = StatusLabel();
 
       const updateConnectionStatus = async (): Promise<void> => {

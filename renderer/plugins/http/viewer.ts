@@ -1,5 +1,4 @@
 import * as t from "@/types.ts";
-import {type get_request} from "../../store.ts";
 import {Signal} from "../../lib/utils.ts";
 import HTTPRequestView, {HTTPRequestViewResult} from "../../components/HTTPRequestView.ts";
 
@@ -13,7 +12,7 @@ export default function(
     send: () => Promise<void>,
   },
 ): {
-  loaded(r: get_request): void,
+  loaded(r: t.Request): void,
   push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 } {
@@ -34,10 +33,10 @@ export default function(
   };
 
   return {
-    loaded(r: get_request) {
-      currentRequestID = r.request.id;
+    loaded(r: t.Request) {
+      currentRequestID = r.id;
 
-      const request = r.request as Request;
+      const request = r as Request;
       httpRequestView = HTTPRequestView(el, {
         initialRequest: request,
         showRequest: show_request,

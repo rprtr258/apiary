@@ -5,7 +5,6 @@ import * as t from "@/types.ts";
 import {NEmpty} from "../../components/dataview.ts";
 import {NSplit} from "../../components/layout.ts";
 import {defaultEditorExtensions, defaultExtensions} from "../../components/editor.ts";
-import {get_request} from "../../store.ts";
 import {api} from "../../api.ts";
 import {m, Signal} from "../../lib/utils.ts";
 import {css} from "../../lib/styles.ts";
@@ -115,7 +114,7 @@ export default function(
     send: () => Promise<void>,
   },
 ): {
-  loaded(r: get_request): void,
+  loaded(r: t.Request): void,
   push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 } {
@@ -171,9 +170,9 @@ export default function(
   };
 
   return {
-    loaded: (r: get_request) => {
-      const request = r.request as Request;
-      id = r.request.id;
+    loaded: (r: t.Request) => {
+      const request = r as Request;
+      id = r.id;
 
       const {el: el_editor_left, editor: editor_left} = EditorDiff({
         value: request.left,
