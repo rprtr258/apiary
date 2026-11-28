@@ -1,7 +1,7 @@
 import {m} from "../lib/utils.ts";
 import {NIcon} from "../components/dataview.ts";
 import {Eye, EyeClosed} from "../components/icons.ts";
-import {TabModifier} from "./types.ts";
+import type {TabModifier} from "./types.ts";
 
 // Eye toggle in the tab: shows/hides the editor pane via show_request.
 export const eyeTabModifier: TabModifier = (tab, {show_request}) => {

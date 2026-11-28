@@ -1,6 +1,6 @@
 import {css} from "../lib/styles.ts";
 import {clone, m, DOMNode} from "../lib/utils.ts";
-import {ItemBadge} from "../plugins/types.ts";
+import type {ItemBadge} from "../plugins/types.ts";
 import {ResultInfo, FolderOpenOutlined, FolderOutlined} from "./icons.ts";
 
 export function Json<T>(data: T) {

@@ -281,7 +281,7 @@ export const getOpenRequestItems = (): Item[] => Object
   .filter(([id]) => !store.isDraft(id))
   .map(([id, preview]) => [id, preview, sourceBadge(id)] as const)
   .map(([id, preview, tag]) => ({
-    label: preview.path, // TODO: preload store.requests2, fix ebanij rot kazino
+    label: preview.path, // TODO: preload store.loadedRequests, fix ebanij rot kazino
     group: preview.kind,
     prefix: NTag({
       label: tag.label,

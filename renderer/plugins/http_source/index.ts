@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {Plugin} from "../types.ts";
+import type {Plugin} from "../types.ts";
 import EndpointViewer from "../../components/EndpointViewer.ts";
 import RequestHTTPSource from "./viewer.ts";
 import {root, componentType, StateHTTPSourceEndpoint} from "./item.ts";

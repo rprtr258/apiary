@@ -1,6 +1,6 @@
 import * as t from "@/types.ts";
 import {store} from "../../store.ts";
-import {Plugin} from "../types.ts";
+import type {Plugin} from "../types.ts";
 import {root, componentType, StateSQLSourceTable} from "./item.ts";
 import RequestTableViewer from "../../components/TableView.ts";
 import RequestSQLSource from "./viewer.ts";

@@ -4,8 +4,8 @@
 
 - [ ] Add `Kind<NAME> = "<name>"` to the `Kind` enum
 - [ ] Add `<NAME>Request` and `<NAME>Response` types
-- [ ] Add member to `RequestData` union: `| {kind: Kind.<NAME>} & <NAME>Request`
-- [ ] If performable: add to `ResponseData` and `HistoryEntry` unions
+- [ ] Add a row to the `KindRequest` table: `[Kind.<NAME>]: <NAME>Request`
+- [ ] If performable: add a row to the `KindResponse` table (`RequestData`, `HistoryEntry`, `DraftableKind` and the db envelope derive from the tables)
 
 ## Backend (`main/database/`)
 
@@ -17,7 +17,7 @@
 ## Dispatch (`main/api.ts`)
 
 - [ ] Add case to `emptyRequestForKind(kind)` returning the empty request
-- [ ] Performable kind: add case to `Perform(id)` calling `send<NAME>` (response history is persisted automatically via `createResponse`)
+- [ ] Performable kind: add case to `Perform(id)` calling `send<NAME>` and wrapping the result with the shared `historyEntry()` helper (the wire object is the shared `t.HistoryEntry`; history is renderer-side and transient)
 - [ ] Source kind: add a sub-API namespace instead (pattern: `export const GRPC` / `SQLSource` / `HTTPSource` / `MCP`)
 
 ## IPC Surface
@@ -73,8 +73,8 @@ bun run dist             # package the app
 ## Quick Reference
 
 ### Plugin Types
-- **Performable kind**: dispatched in `Perform`, response persisted via `createResponse` (all current kinds: HTTP, SQL, GRPC, JQ, Redis, MD, DIFF)
-- **Source kind**: no `Perform`; dedicated IPC sub-API queried on demand (SQLSource, HTTPSource, MCP); `RequestData` member only
+- **Performable kind**: dispatched in `Perform`, result wrapped with the shared `historyEntry()` helper (wire object = `t.HistoryEntry`; history is renderer-side and transient; all current kinds: HTTP, SQL, GRPC, JQ, Redis, MD, DIFF)
+- **Source kind**: no `Perform`; dedicated IPC sub-API queried on demand (SQLSource, HTTPSource, MCP); `KindRequest` row only
 
 ### Key Decisions
 1. **Performable or source?** Has a one-shot execute action → `Perform`. Exposes browsing/querying of an external system → sub-API namespace.

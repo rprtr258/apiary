@@ -3,7 +3,7 @@ import notification from "../../lib/notification.ts";
 import {api} from "../../api.ts";
 import {NIcon} from "../../components/dataview.ts";
 import {ContentCopyFilled} from "../../components/icons.ts";
-import {MenuOption, Plugin} from "../types.ts";
+import type {MenuOption, Plugin} from "../types.ts";
 import {eyeTabModifier} from "../tab.ts";
 import RequestHTTP from "./viewer.ts";
 
@@ -25,7 +25,11 @@ const copyAsCurl = (id: t.RequestID): MenuOption => ({
           return;
         }
 
-        const req = r.value.Request as unknown as t.HTTPRequest; // TODO: remove unknown cast
+        const req = r.value.Request;
+        if (req.kind !== t.Kind.HTTP) {
+          notification("error", "Error", {content: `Request ${id} is not an HTTP request`});
+          return;
+        }
         navigator.clipboard.writeText(httpToCurl(req));
       });
     },

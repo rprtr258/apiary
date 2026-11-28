@@ -14,7 +14,7 @@ The two halves connect through the typed IPC surface: `main.ts` (handlers) → `
 ## Where Things Live
 
 ```
-shared/types.ts               # Kind enum, <Kind>Request / <Kind>Response types, RequestData / ResponseData / HistoryEntry unions
+shared/types.ts               # Kind enum, <Kind>Request / <Kind>Response types, KindRequest / KindResponse tables (derived unions)
 main/database/<kind>.ts       # Plugin implementation: send<Kind> + EmptyRequest
 main/database/<kind>.test.ts  # Plugin unit tests
 main/api.ts                   # emptyRequestForKind + Perform dispatch (or a sub-API namespace)
@@ -55,7 +55,7 @@ export type RequestData =
 ;
 ```
 
-If the kind is performable (it has a `Perform` action), also add `ExampleResponse` to the `ResponseData` and `HistoryEntry` unions in the same file. Source kinds (like SQLSource, HTTPSource, MCP) have a `RequestData` member only — their data is fetched on demand through dedicated IPC endpoints, not through response history, and they expose their browsable items through their plugin (step 7).
+If the kind is performable (it has a `Perform` action), also add `ExampleResponse` to the `KindResponse` table in the same file (`RequestData`, `HistoryEntry` and the draftable set derive from the tables). Source kinds (like SQLSource, HTTPSource, MCP) have a `KindRequest` row only — their data is fetched on demand through dedicated IPC endpoints, and they expose their browsable items through their plugin (step 7).
 
 ### 2. Backend Plugin (`main/database/example.ts`)
 
@@ -81,8 +81,8 @@ export async function sendJQ({json, query}: JQRequest): Promise<JQResponse> {
 
 **Performable kinds** — add a case in both switches:
 
-- `emptyRequestForKind(kind)`: return the empty request. Import the plugin's `EmptyRequest` if it has meaningful defaults (HTTP, SQL, JQ, MD, REDIS, MCP, SQLSource), or return an inline object for trivially-structured kinds (GRPC, DIFF, HTTPSource).
-- `Perform(id)`: call `await sendExample(req.Data)`. After the switch, `createResponse(j, id, {SentAt, ReceivedAt, Response})` persists the exchange into the entry's response history automatically for every dispatched kind.
+- `emptyRequestForKind(kind)`: return the plugin's `EmptyRequest` constant (every plugin exports one).
+- `Perform(id)`: call `await sendExample(req.Data)` and wrap the result with the shared `historyEntry(kind, sent_at, req.Data, response)` helper - the perform wire object is the shared `t.HistoryEntry`; nothing else is persisted.
 
 **Source kinds** — skip `Perform` and add a dedicated sub-API namespace instead, mirroring `export const GRPC = {...}` / `SQLSource` / `HTTPSource` / `MCP` in `main/api.ts`:
 
@@ -282,7 +282,7 @@ Manual end-to-end:
 
 The DIFF kind is a good end-to-end reference:
 
-- `shared/types.ts`: `Kind.DIFF = "diff"`, `DIFFRequest {left, right}`, `DIFFResponse {diff, stats, leftType, rightType}`, plus `ResponseData`/`HistoryEntry` members.
+- `shared/types.ts`: `Kind.DIFF = "diff"`, `DIFFRequest {left, right}`, `DIFFResponse {diff, stats, leftType, rightType}`, plus `KindRequest`/`KindResponse` table rows.
 - `main/database/diff.ts`: sync `sendDIFF` (JSON structural diff or line diff via the `diff` package) + `diff.test.ts`.
 - `main/api.ts`: inline `emptyRequestForKind` case `{left: "", right: ""}` and a `Perform` case.
 - `renderer/plugins/diff/viewer.ts`: default-export factory, split panes, 500ms debounced auto-perform, error banner above content.

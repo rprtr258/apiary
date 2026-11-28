@@ -1,5 +1,5 @@
 import * as t from "@/types.ts";
-import {Plugin} from "../types.ts";
+import type {Plugin} from "../types.ts";
 import {eyeTabModifier} from "../tab.ts";
 import RequestGRPC from "./viewer.ts";
 

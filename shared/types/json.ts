@@ -1,4 +1,4 @@
-import {JSONValue} from "@/types.ts";
+import type {JSONValue} from "@/types.ts";
 
 export type KV = {
   key: string,

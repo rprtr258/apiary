@@ -179,24 +179,19 @@ export function Update(id: t.RequestID, data: t.RequestPayload): Promise<void> {
   });
 }
 
-type PerformResponse = {
-  RequestId:   t.RequestID,
-  sent_at:     string, // TODO: Date
-  received_at: string, // TODO: Date
-  request:     unknown,
-  response:    unknown,
-};
-
-// received_at is taken when the helper runs: callers construct it immediately
-// after the awaited send, which is exactly what the field measures.
-function performResponse(id: t.RequestID, sent_at: Date, request: unknown, response: unknown): PerformResponse {
+// The perform wire object is the shared HistoryEntry: real Date timestamps
+// survive the IPC structured clone, and `kind` is what lets viewers dispatch
+// on the entry. The cast is the single point attaching a dispatch result to
+// its kind's member of the union; callers pass correlated pairs the switch
+// has already narrowed, but TS cannot carry that through the dispatch.
+function historyEntry(kind: t.Kind, sent_at: Date, request: t.RequestPayload, response: unknown): t.HistoryEntry {
   return {
-    RequestId:   id,
-    sent_at:     sent_at.toISOString(),
-    received_at: new Date().toISOString(),
+    sent_at,
+    received_at: new Date(),
+    kind,
     request,
     response,
-  };
+  } as t.HistoryEntry;
 }
 
 // SQL request's dsn can store a SQLSource request id (selected via SelectInput in the UI);
@@ -211,7 +206,7 @@ export function resolveSQLRequest(j: Record<t.RequestID, Request>, data: t.SQLRe
 // The send runs inside the queue so it cannot interleave with another
 // mutation (e.g. the request being deleted mid-perform): the whole perform
 // is one serialized read.
-export function Perform(id: t.RequestID): Promise<PerformResponse> {
+export function Perform(id: t.RequestID): Promise<t.HistoryEntry> {
   return serialized(async () => {
     const j = await load();
     if (!(id in j.requests))
@@ -246,7 +241,7 @@ export function Perform(id: t.RequestID): Promise<PerformResponse> {
     default:
       throw new Error(`Perform not yet implemented for kind ${req.Kind}`);
     }
-    return performResponse(id, sent_at, req.Data, response);
+    return historyEntry(req.Kind, sent_at, req.Data, response);
   });
 }
 
@@ -267,7 +262,7 @@ export const GRPC = {
 };
 
 export const SQLSource = {
-  async Perform(id: t.RequestID, read: t.TableRead): Promise<PerformResponse> {
+  async Perform(id: t.RequestID, read: t.TableRead): Promise<t.HistoryEntry> {
     const sourceRequest = (await getOfKind(id, t.Kind.SQLSource)).Data;
     const sent_at = new Date();
     const sqlRequest: t.SQLRequest = {
@@ -277,7 +272,7 @@ export const SQLSource = {
       readOnly: sourceRequest.readOnly,
     };
     const result = await sql.send(sqlRequest);
-    return performResponse(id, sent_at, sqlRequest, result);
+    return historyEntry(t.Kind.SQL, sent_at, sqlRequest, result);
   },
 
   async Test(id: t.RequestID): Promise<void> {
@@ -357,7 +352,7 @@ export const HTTPSource = {
 
     const sent_at = new Date();
     const result = await http.send(finalRequest);
-    return performResponse(id, sent_at, finalRequest, result);
+    return historyEntry(t.Kind.HTTP, sent_at, finalRequest, result);
   },
 
   async Test(id: t.RequestID): Promise<void> {
