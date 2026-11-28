@@ -36,7 +36,7 @@ export const api = {
     return await wrap(() => Api.Duplicate(name), {name});
   },
 
-  async request_update(
+  async requestUpdate(
     id: t.RequestID,
     kind: t.Kind,
     req: t.RequestPayload,
@@ -62,7 +62,7 @@ export const api = {
   async requestPerform(
     id: t.RequestID,
   ): Promise<Result<t.HistoryEntry>> {
-    return await wrap(() => Api.Perform(id), {reqId: id}) as Result<t.HistoryEntry>;
+    return await wrap(() => Api.Perform(id), {reqId: id});
   },
 
   async requestDelete(
@@ -84,8 +84,8 @@ export const api = {
     return await wrap(() => Api.CreateDraft(kind, data), {kind, data});
   },
 
-  async grpcMethods(target: string): Promise<Result<Record<string, string[]>>> {
-    return await wrap(() => Api.GRPC.Methods(target), {target});
+  async grpcMethods(id: string): Promise<Result<Record<string, string[]>>> {
+    return await wrap(() => Api.GRPC.Methods(id), {id});
   },
 
   async requestExplainSQL(id: t.RequestID): Promise<Result<t.SQLExplain>> {
@@ -96,7 +96,7 @@ export const api = {
     id: t.RequestID,
     read: t.TableRead,
   ): Promise<Result<t.HistoryEntry>> {
-    return await wrap(() => Api.SQLSource.Perform(id, read), {reqId: id, table: read.table}) as Result<t.HistoryEntry>;
+    return await wrap(() => Api.SQLSource.Perform(id, read), {reqId: id, table: read.table});
   },
 
   async requestTestSQLSource(
@@ -165,7 +165,7 @@ export const api = {
     // The Go function expects *t.HTTPRequest (pointer) which can be nil
     // The TypeScript definition doesn't reflect this, so we need to cast
     return await wrap(() => Api.HTTPSource.PerformVirtualEndpoint(sourceID, key, request),
-      {sourceID, key, request}) as Result<t.HistoryEntry>;
+      {sourceID, key, request});
   },
 
   async requestTestHTTPSource(

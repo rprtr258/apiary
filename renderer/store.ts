@@ -3,7 +3,7 @@ import * as t from "@/types.ts";
 import {api} from "./api.ts";
 import {signal, Signal} from "./lib/utils.ts";
 import layout from "./layout.ts";
-import {ItemConfig, LayoutConfig} from "./layout/types.ts";
+import {ItemConfig, LayoutConfig, REQUEST_TAB} from "./layout/types.ts";
 import {ComponentItem, Stack} from "./layout/manager.ts";
 import notification from "./lib/notification.ts";
 import {lastConnectionSeed, recordLastConnection} from "./lastConnection.ts";
@@ -143,7 +143,7 @@ export const store = ((): Store => {
     const activeID = activeComponentID;
     if (activeID === null) return undefined;
 
-    return findExistingTab<StateRequest>("MyComponent", t => t.id === activeID);
+    return findExistingTab<StateRequest>(REQUEST_TAB, t => t.id === activeID);
   }
   return {
     requestsTree : signal({entries: []}),
@@ -161,16 +161,16 @@ export const store = ((): Store => {
       if (this.activeComponentID !== null)
         return this.activeComponentID;
 
-      const c = findExistingTab("MyComponent")?.toConfig().componentState;
+      const c = findExistingTab(REQUEST_TAB)?.toConfig().componentState;
       return (c as StateRequest | undefined)?.id ?? null;
     },
     selectRequest(id: t.RequestID): void {
-      const tab = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
+      const tab = findExistingTab<StateRequest>(REQUEST_TAB, t => t.id === id);
       if (tab !== undefined) {
         activateTab({id, item: tab});
         return;
       }
-      layout.instance?.addItem(id, "MyComponent", {id});
+      layout.instance?.addItem(id, REQUEST_TAB, {id});
       this.fetch().catch(e => notification("error", "Failed to fetch requests", {error: e}));
     },
     async fetch(): Promise<void> {
@@ -221,12 +221,12 @@ export const store = ((): Store => {
       // the request kind from this.requests
       await this.fetch();
       const id = res.value;
-      const tab = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
+      const tab = findExistingTab<StateRequest>(REQUEST_TAB, t => t.id === id);
       if (tab !== undefined) {
         activateTab({id, item: tab});
         return;
       }
-      layout.instance?.addItem(id, "MyComponent", {id});
+      layout.instance?.addItem(id, REQUEST_TAB, {id});
     },
     isDraft(id: t.RequestID): boolean {
       return id in this.drafts;
@@ -293,7 +293,7 @@ export const store = ((): Store => {
         return;
       }
 
-      const component = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
+      const component = findExistingTab<StateRequest>(REQUEST_TAB, t => t.id === id);
       component?.tab.setTitle(newName);
       await this.fetch();
     },
@@ -305,7 +305,7 @@ export const store = ((): Store => {
       }
 
       for (const [id, newPath] of Object.entries(renames)) {
-        const component = findExistingTab<StateRequest>("MyComponent", t => t.id === id);
+        const component = findExistingTab<StateRequest>(REQUEST_TAB, t => t.id === id);
         component?.tab.setTitle(newPath);
       }
       await this.fetch();
@@ -428,7 +428,7 @@ export async function update_request(id: t.RequestID, patch: Partial<t.Request>)
   const optimistic = {...old_request, ...patch} as t.Request;
   store.loadedRequests[id] = optimistic; // NOTE: optimistic update, keeps id/path/kind
   recordLastConnection(old_request.kind, new_data);
-  const res = await api.request_update(id, old_request.kind, new_data);
+  const res = await api.requestUpdate(id, old_request.kind, new_data);
   if (res.kind === "ok") {
     // Record only successes newer than the last recorded one: an out-of-order success still
     // becomes backend truth (the newer persist may still fail and roll back to it), but never
@@ -485,7 +485,7 @@ store.requestsTree.sub(function*() {
   while (true) {
     yield;
     const openTabIds = new Map<string, ComponentItem>();
-    for (const c of (layout.instance?.tabs() ?? []).filter(c => c.componentType === "MyComponent"))
+    for (const c of (layout.instance?.tabs() ?? []).filter(c => c.componentType === REQUEST_TAB))
       openTabIds.set((c.toConfig().componentState as StateRequest).id, c);
 
     // Liveness is decided by the previews map, not the tree: draft requests stay

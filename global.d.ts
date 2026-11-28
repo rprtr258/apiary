@@ -1,4 +1,3 @@
-import {Request} from "./main/db.ts";
 import * as t from "@/types.ts";
 
 type Versions = {
@@ -11,15 +10,15 @@ type Versions = {
 export type Api = {
   List:      (                               ) => Promise<t.ListResponse>,
   Get:       (_1: string                     ) => Promise<t.GetResponse>,
-  Create:    (_1: string, _2: t.Kind, _3?: Partial<Request["Data"]>) => Promise<t.ResponseNewRequest>,
-  Duplicate: (_1: string                     ) => Promise<t.ResponseNewRequest>,
-  CreateDraft: (_1: t.Kind, _2?: Partial<Request["Data"]>) => Promise<t.RequestID>,
+  Create:    (_1: string, _2: t.Kind, _3?: Partial<t.RequestPayload>) => Promise<t.RequestID>,
+  Duplicate: (_1: string                     ) => Promise<t.RequestID>,
+  CreateDraft: (_1: t.Kind, _2?: Partial<t.RequestPayload>) => Promise<t.RequestID>,
   Rename:    (_1: string, _2: string         ) => Promise<void>,
   Move:      (_1: t.TreeChild, _2: string, _3: t.TreeChild[]) => Promise<void>,
-  Update:    (_1: string, _2: Request["Data"]) => Promise<void>,
+  Update:    (_1: string, _2: t.RequestPayload) => Promise<void>,
   Delete:    (_1: string                     ) => Promise<void>,
   DeleteDir: (_1: string                     ) => Promise<void>,
-  Perform:   (_1: string                     ) => Promise<Record<string, unknown>>,
+  Perform:   (_1: string                     ) => Promise<t.HistoryEntry>,
   GRPC: {
     Methods:       (_1: string                        ) => Promise<Record<string, string[]>>,
     QueryFake:     (_1: string, _2: string            ) => Promise<string>,
@@ -29,7 +28,7 @@ export type Api = {
     Explain: (_1: string) => Promise<t.SQLExplain>,
   },
   SQLSource: {
-    Perform:       (_1: string, _2: t.TableRead) => Promise<Record<string, unknown>>,
+    Perform:       (_1: string, _2: t.TableRead) => Promise<t.HistoryEntry>,
     Test:          (_1: string            ) => Promise<void>,
     ListTables:    (_1: string            ) => Promise<t.TableInfo[]>,
     DescribeTable: (_1: string, _2: string) => Promise<t.TableSchema>,
@@ -40,7 +39,7 @@ export type Api = {
   HTTPSource: {
     ListEndpoints:          (_1: string                               ) => Promise<t.EndpointInfo[]>,
     GenerateExampleRequest: (_1: string, _2: t.EndpointKey            ) => Promise<t.HTTPRequest>,
-    PerformVirtualEndpoint: (_1: string, _2: t.EndpointKey, _3: t.HTTPRequest) => Promise<Record<string, unknown>>,
+    PerformVirtualEndpoint: (_1: string, _2: t.EndpointKey, _3: t.HTTPRequest) => Promise<t.HistoryEntry>,
     Test:                   (_1: string                               ) => Promise<void>,
   },
   MCP: {
