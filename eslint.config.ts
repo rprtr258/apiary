@@ -95,6 +95,54 @@ export default defineConfig([
       "@typescript-eslint/require-await": "off",
     },
   },
+  // Layering: renderer must not reach into the main
+  // process and vice versa; shared/ is the only cross-layer module. The
+  // e2e specs reseed db.json behind the running app, so they get a narrow
+  // exception for the db file-format modules (renderer/e2e override below).
+  {
+    files: ["shared/**"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          group: ["**/main/**", "**/renderer/**", "main/**", "renderer/**"],
+          message: "shared/ must not import from main/ or renderer/",
+        }],
+      }],
+    },
+  },
+  {
+    files: ["renderer/**"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          group: ["**/main/**", "main/**"],
+          message: "renderer must not import from main/; share types via shared/",
+        }],
+      }],
+    },
+  },
+  {
+    files: ["main/**", "main.ts", "preload.ts"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          group: ["**/renderer/**", "renderer/**"],
+          message: "main must not import from renderer/; share types via shared/",
+        }],
+      }],
+    },
+  },
+  {
+    files: ["renderer/e2e/**"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          group: ["**/main/**", "!**/main/db.v*.ts"],
+          message: "e2e may import only the db file-format modules (db.v*.ts) for reseeding",
+        }],
+      }],
+    },
+  },
   {
     files: ["**/*.test.ts"],
     plugins: {jest},
