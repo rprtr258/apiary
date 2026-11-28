@@ -1,12 +1,13 @@
 import {contextBridge, ipcRenderer} from "electron/renderer";
 import * as t from "@/types.ts";
-import {type Api} from "./global.ts";
+import {type Api, type Versions} from "./global.ts";
 
-contextBridge.exposeInMainWorld("versions", {
+const versions: Versions = {
   node: () => process.versions.node,
   chrome: () => process.versions.chrome,
   electron: () => process.versions.electron,
-});
+};
+contextBridge.exposeInMainWorld("versions", versions);
 
 const api: Api = {
   List:      (                               ): Promise<t.ListResponse>          => ipcRenderer.invoke("List"             ),

@@ -6,7 +6,11 @@ type Versions = {
   electron: () => string,
 };
 
-/** @public — imported by preload.ts via "./global.ts" (declaration fallback) */
+export type {Versions};
+
+// The declared IPC contract. As a checked .ts module (not a .d.ts, which
+// skipLibCheck hides from both bun check and tsc) drift here fails the build
+// through preload.ts's `const api: Api` assignment below it.
 export type Api = {
   List:      (                               ) => Promise<t.ListResponse>,
   Get:       (_1: string                     ) => Promise<t.GetResponse>,
