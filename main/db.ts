@@ -47,6 +47,11 @@ export type DB = {
   tree: Record<string, t.TreeChild[]>,
 };
 
+// Per-kind short tag on requestPreview.subKind. Despite the name it is not
+// a sidebar badge (badges come from the plugins' root Items) - it is the
+// data channel the SQL-family source items read back (sql_source's item
+// resolves its Database from it; sql/viewer filters sources by it). Kinds
+// whose items don't need it return "".
 export function extractSubKind(
   j: DB,
   id: t.RequestID,
@@ -59,7 +64,6 @@ export function extractSubKind(
       return entry.Data.database;
     case t.Kind.SQLSource:
       return entry.Data.database;
-    // case t.Kind.HTTPSource: // TODO: swagger version
     case t.Kind.MCP:
       return entry.Data.transport;
     default:
