@@ -1,8 +1,8 @@
 {
-  // Rule set ported from ../ef/knip.json: everything at "error" except
-  // cycles, which ef disables for its deliberate compiler cycles
-  // (eval⇄builtins, parser→types→analysis). This repo has known import
-  // cycles too (e.g. renderer plugins ↔ store), so cycles stays off.
+  // Rule set ported from ../ef/knip.json: everything at "error".
+  // "cycles" stays off because knip's cycle check is a no-op here (an
+  // injected runtime cycle goes unreported); scripts/check-cycles.ts, run
+  // by CI, is the working structural gate.
   "rules": {
     "files": "error",
     "dependencies": "error",
