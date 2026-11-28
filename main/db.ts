@@ -22,7 +22,7 @@ export function generateID(): t.RequestID {
   return nanoid();
 }
 
-// Storage envelope over the shared KindRequest table: one {Kind, Data} member
+// Storage envelope over the shared KindTypes table: one {Kind, Data} member
 // per kind, derived from the single Kind->type mapping in shared/types.ts.
 type RequestEnvelope = {
   [K in t.Kind]: {Kind: K, Data: t.KindTypes[K]["request"]}

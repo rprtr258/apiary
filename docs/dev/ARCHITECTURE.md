@@ -43,29 +43,29 @@ apiary/
 
 ### Backend: Plugin Modules (`main/database/`)
 
-**Contract**: each plugin is a module exporting a `send<Kind>(data)` function plus an `*EmptyRequest` (or default) template.
+**Contract**: each plugin is a module exporting a `send(data)` function plus an `EmptyRequest` template.
 
 `main/api.ts` routes kinds:
 - `emptyRequestForKind(kind)` returns the default data; `Create(path, kind, data?)` and `CreateDraft(kind, data?)` spread the optional seed fragment (renderer's last-connection record) over it, so fields outside the fragment keep the kind's default
-- `Perform(id)` dispatches to the plugin's `send<Kind>`, then `createResponse` persists the exchange into the entry's response history
+- `Perform(id)` dispatches to the plugin module's `send` and returns the shared `t.HistoryEntry` (timestamps, kind, request, response) to the renderer; history is per-tab and transient, never persisted to `db.json`
 - Source/tool kinds are exposed through dedicated sub-APIs instead of `Perform`: `api.GRPC`, `api.SQLSource`, `api.HTTPSource`, `api.MCP`
 - Mutating entry points serialize one-at-a-time behind a promise queue: `db.ts` persists by whole-file load-modify-save, so concurrent operations would interleave at await boundaries and the last `save()` would silently drop the other's changes. Persistence is debounced: the loaded db stays in memory as the source of truth and near-time mutations coalesce into a single disk write (`save()` schedules one, `flushSave()` forces it on quit); read-only access is unqueued and reads the in-memory state, revalidated against the file mtime so external rewrites of `db.json` (e2e seeding, hand edits) are picked up
 
 **Plugins**:
 | Kind       | File           | Executed by                | Response history |
 |------------|----------------|----------------------------|------------------|
-| HTTP       | http.ts        | `Perform` -> `sendHTTP`    | Yes              |
-| SQL        | sql.ts         | `Perform` -> `sendSQL`     | Yes              |
-| GRPC       | grpc.ts        | `Perform` -> `sendGRPC`    | Yes              |
-| JQ         | jq.ts          | `Perform` -> `sendJQ`      | Yes              |
-| Redis      | redis.ts       | `Perform` -> `sendRedis`   | Yes              |
-| MD         | md.ts          | `Perform` -> `sendMD`      | Yes              |
-| DIFF       | diff.ts        | `Perform` -> `sendDIFF`    | Yes              |
+| HTTP       | http.ts        | `Perform` -> `send`        | Yes              |
+| SQL        | sql.ts         | `Perform` -> `send`        | Yes              |
+| GRPC       | grpc.ts        | `Perform` -> `send`        | Yes              |
+| JQ         | jq.ts          | `Perform` -> `send`        | Yes              |
+| Redis      | redis.ts       | `Perform` -> `send`        | Yes              |
+| MD         | md.ts          | `Perform` -> `send`        | Yes              |
+| DIFF       | diff.ts        | `Perform` -> `send`        | Yes              |
 | SQLSource  | sql_source.ts  | `api.SQLSource.*`          | No (on demand)   |
 | HTTPSource | http_source.ts | `api.HTTPSource.*`         | No (on demand)   |
 | MCP        | mcp.ts         | `api.MCP.*`                | No (on demand)   |
 
-Kind identifiers are defined by the `Kind` enum in `shared/types.ts`. The `KindRequest`/`KindResponse` tables in the same file are the single source of truth mapping a kind to its wire types: `RequestData` (the tagged request union), `HistoryEntry` (the perform result), `DraftableKind` and the db storage envelope (`main/db.ts` `Request`) are all derived from them - adding a kind means adding a row here, never a parallel union elsewhere. Untagged per-kind data (what db sections store and what Create/Update accept) is `RequestPayload`.
+Kind identifiers are defined by the `Kind` enum in `shared/types.ts`. The `KindTypes` table in the same file is the single source of truth mapping a kind to its wire types: `RequestData` (the tagged request union), `HistoryEntry` (the perform result), `DraftableKind` and the db storage envelope (`main/db.ts` `Request`) are all derived from it - adding a kind means adding a row here, never a parallel union elsewhere. Untagged per-kind data (what db sections store and what Create/Update accept) is `RequestPayload`.
 
 ### Frontend: Request UI Modules
 
@@ -86,7 +86,7 @@ function Request<Kind>(
 
 The deletion test: these are pass-throughs but that's OK - they're UI adapters, not shallow logic.
 
-`panelkaFactory` in `renderer/App.ts` dispatches kind -> module via the plugin registry's `frame` hooks and is registered as the layout component factory for request panes. Source panes get their viewer components (shared ones from `renderer/components/`, kind-specific ones colocated in the plugin dir) from the plugin registry's `viewers` lists, which `App.ts` turns into layout factories.
+`panelkaFactory` in `renderer/App.ts` dispatches kind -> module via the plugin registry's `frame` hooks and is registered as the layout component factory for request panes. Source panes get their viewer components (shared ones from `renderer/components/`, kind-specific ones colocated in the plugin dir) from the plugin registry's `viewers` records, which `App.ts` turns into layout factories.
 
 ### Frontend: Sidebar + Source Items
 
@@ -99,10 +99,10 @@ The deletion test: these are pass-throughs but that's OK - they're UI adapters, 
 
 Every request kind is also a frontend plugin. The registry drives everything that is "data about a kind" in the sidebar, context menu and command palette:
 
-- `renderer/plugins/cache.ts` - shared engine, no registry/store imports: `createSourceCache<Entry>({fetcher, errorTitle})` (flat `Entry[]` cache with a staleness window `STALE_AFTER`, a `changed` version signal, `fetch`/`ensureFresh`/`invalidate`/`seed`/`get`) plus `listChildren` (listing-thunk body: serves current entries as `Item`s, fetches fire-and-forget when stale) and `isStale`
+- `renderer/plugins/cache.ts` - shared engine, no registry/store imports: `createSourceCache<Entry>(fetcher, errorTitle)` (flat `Entry[]` cache with a staleness window `STALE_AFTER`, a `changed` version signal, `fetch`/`ensureFresh`/`invalidate`/`seed`/`get`) plus `listChildren` (listing-thunk body: serves current entries as `Item`s, fetches fire-and-forget when stale) and `isStale`
 - `renderer/plugins/source.ts` - the source-item seam in one module, and the single one the sidebar consumes. Item side: the `Item` node type, the virtual-key codec (`composeVirtualKey`/`parseVirtualKey` with `:` escaping, so item keys like HTTP `GET /user/:id` round-trip), materialization of a root `Item` into `TreeOption`s gated by the expanded-key set (collapsed folders are never fetched; empty listings become disabled "Loading..."/"(None)" placeholders; "/"-containing item keys nest into virtual folder chains), and click resolution (`resolveIn`). Facade side: `sourceBadge(id)` (the kind badge, carried by the kind's root item), `sourceChildren(id, expanded)`, `sourceResolve(sourceID, segments)`, `sourceRefreshable`/`sourceRefresh`/`sourceIsLoading`, resolving the kind's `Plugin.root(id)` via the registry and store
 - `renderer/plugins/index.ts` - explicit central registry: `plugins` array (one `Plugin` per kind) and the `pluginsByKind` map
-- `renderer/plugins/<kind>/index.ts` - one module per kind: always `{kind, frame, root}` (`frame` mounts the kind's `viewer.ts` UI factory into a pane; performable kinds add the shared eye toggle via `tabModifiers: [eyeTabModifier]` from `plugins/tab.ts`, source kinds take only `update` and declare no `tabModifiers`, hence no eye; `root(id): RootItem` returns the kind's invisible root carrying the kind badge — the facade renders it on sidebar request rows and the command palette; kinds with sidebar source listings give the root pure-factory `children` thunks serving items from kind-private caches (fire staleness-guarded fetches; MCP eagerly fetches all three listings on row expansion, tools/prompts/resources in three separate caches fed by one deduped IPC call), other kinds a badge-only root); optionally `menuEntries` (context-menu entries, e.g. "Copy as curl") and `viewers` (`{componentType, factory}` lists for item viewer panes, deduped and titled via `store.openViewer`). The dir holds the registration plus the kind's UI: `viewer.ts` (the frame factory), optionally extra viewer components (e.g. `mcp/tool.ts`, `mcp/resource.ts`), kind-private source caches (e.g. `mcp/source.ts`) and colocated tests
+- `renderer/plugins/<kind>/index.ts` - one module per kind: always `{kind, frame, root, viewers}` (`frame` mounts the kind's `viewer.ts` UI factory into a pane; performable kinds add the shared eye toggle via `tabModifiers: [eyeTabModifier]` from `plugins/tab.ts`, source kinds take only `update` and declare no `tabModifiers`, hence no eye; `root(id): RootItem` returns the kind's invisible root carrying the kind badge — the facade renders it on sidebar request rows and the command palette; kinds with sidebar source listings give the root pure-factory `children` thunks serving items from kind-private caches (fire staleness-guarded fetches; MCP eagerly fetches all three listings on row expansion, tools/prompts/resources in three separate caches fed by one deduped IPC call), other kinds a badge-only root; `viewers` maps `componentType` -> factory for item viewer panes, empty for kinds without them, deduped and titled via `store.openViewer`); optionally `menuEntries` (context-menu entries, e.g. "Copy as curl"). The dir holds the registration plus the kind's UI: `viewer.ts` (the frame factory), optionally extra viewer components (e.g. `mcp/tool.ts`, `mcp/resource.ts`), kind-private source caches (e.g. `mcp/item.ts`) and colocated tests
 
 Adding a new kind means adding one `renderer/plugins/<kind>/` (an `index.ts` with the `Plugin` object plus a `viewer.ts` UI factory) and registering it in `renderer/plugins/index.ts`; no `switch (kind)` edits anywhere else.
 
@@ -187,23 +187,25 @@ Tests cross at the interface, not past it.
 
 ## Adding New Plugins
 
-1. `shared/types.ts`: add a `Kind` value and a `KindRequest` row (plus a `KindResponse` row for performable kinds); `RequestData`, `HistoryEntry` and the db envelope derive from the tables.
-2. `main/database/<kind>.ts`: implement `send<Kind>` + `*EmptyRequest`, add a unit test.
+1. `shared/types.ts`: add a `Kind` value and a `KindTypes` row (the `response` field only for performable kinds); `RequestData`, `HistoryEntry` and the db envelope derive from the table.
+2. `main/database/<kind>.ts`: implement `send` + `EmptyRequest`, add a unit test.
 3. `main/api.ts`: add a case in `emptyRequestForKind`, dispatch in `Perform` (performable kinds) or a dedicated sub-API (source kinds).
 4. `main.ts` + `preload.ts` + `global.d.ts`: expose new channels through the typed IPC surface.
 5. `renderer/plugins/<kind>/viewer.ts`: UI factory.
-6. `renderer/plugins/<kind>/index.ts`: `{kind, frame, root}` (root returns the invisible `RootItem` carrying the kind badge) plus any `menuEntries` / `viewers` hooks; register the plugin in `renderer/plugins/index.ts` (kind badge, context-menu entries, source listings, pane factories and viewer panes then come from the registry - no further `switch (kind)` edits). Source listings give the root `children` serving `Item` nodes from a kind-private `createSourceCache`; sidebar projection, virtual keys, placeholders and click resolution come from the facade (`renderer/plugins/source.ts`).
+6. `renderer/plugins/<kind>/index.ts`: `{kind, frame, root, viewers}` (root returns the invisible `RootItem` carrying the kind badge; `viewers` may be empty) plus optional `menuEntries` / `tabModifiers` hooks; register the plugin in `renderer/plugins/index.ts` (kind badge, context-menu entries, source listings, pane factories and viewer panes then come from the registry - no further `switch (kind)` edits). Source listings give the root `children` serving `Item` nodes from a kind-private `createSourceCache`; sidebar projection, virtual keys, placeholders and click resolution come from the facade (`renderer/plugins/source.ts`).
 
 ## Architecture Decisions (ADRs)
 
 - **Plugin per request type**: Each request kind is a separate backend module (`main/database/`) and a separate frontend plugin directory (`renderer/plugins/<kind>/`, `index.ts` + `viewer.ts`). Adding a new kind touches both sides plus the typed IPC surface.
-- **All performable kinds persist response history**: `Perform` calls `createResponse` for every dispatched kind (including MD and DIFF).
+- **Perform results are renderer-side, transient**: `Perform` returns the shared `t.HistoryEntry` (real Date timestamps, kind tag, request, response) over IPC; there is no history persistence in `db.json` and no `createResponse` step. Each open tab keeps its own history list; closing it drops the history.
 - **Source kinds are queried on demand**: SQLSource/HTTPSource/MCP have dedicated IPC endpoints instead of `Perform`; listings are cached client-side through a generic `createSourceCache` engine in `renderer/plugins/cache.ts`, one private cache (or three, for MCP's tools/prompts/resources) per source kind. The sidebar never sees the caches: it consumes the `renderer/plugins/source.ts` facade over each kind's `root(id): Item` tree, materialized lazily along expanded paths.
 - **Backend connections are pooled process-wide**: `main/database/connection_pool.ts` provides a `createClientPool` engine (generic over the client and key types) that caches clients by connection config, dedupes concurrent connects and closes clients idle for more than 5 minutes (`DEFAULT_TTL`); broken connections evict themselves (death events and per-operation errors), so the next request reconnects. `main/database/mcp.ts` keys it by the canonical MCP connection config (`connectionKey`: transport + command/args/env or url/headers); `redis.ts` by the normalized DSN URL; the SQL backends by DSN (postgres normalized + libpq-compat flag, sqlite plus its readonly flag). Transactional SQL batches (`sendBatch` in sql.postgres.ts / sql.mysql.ts) deliberately keep dedicated connections so concurrent batches cannot interleave inside one transaction.
 - **Frontend plugin registry**: kind-specific sidebar/context-menu/command-palette data (badges, menu entries, source item rendering, staleness caching) lives in `renderer/plugins/` as an explicit registry instead of scattered `switch (kind)` statements.
 - **Drafts are DB-backed, not in-memory**: a draft is an ordinary request record plus membership in the `drafts` db.json section — the marker is section membership, not a `Path` sentinel — so `Perform`, `Update` and history work unchanged and drafts survive restarts while their tab exists. The tab is the only referent: closing it deletes the record, and a renderer-side startup sweep deletes drafts left without tabs (e.g. lost layout config) through the regular `Delete` IPC.
 - **Custom layout manager**: `renderer/layout/` implements panes/stacks/tabs/splitters directly instead of depending on a layout library.
-- **Typed IPC contract**: the `Api` interface in `global.d.ts` is the single seam between preload and renderer.
+- **Kind-to-wire-type table is the type SSOT**: `shared/types.ts` `KindTypes` maps every `Kind` to its request/response types; `RequestData`, `HistoryEntry`, `DraftableKind` and the db storage envelope are derived from it, so a new kind adds a table row instead of editing parallel unions. Untagged per-kind data (db sections, Create/Update payloads) is `RequestPayload`.
+- **One flattened Request across the IPC Get wire**: `GetResponse.Request` is the shared flattened `Request` (`{id, path, kind, ...data}`) built once in `main/api.ts`; the renderer consumes it without reshaping, and no renderer file imports types from `main/`.
+- **Typed IPC contract**: the `Api` interface in `global.d.ts` is the single seam between preload and renderer. `skipLibCheck` leaves `.d.ts` internals unchecked by both `bun check` and `tsc`, so the compile-checked binding is `preload.ts`'s `const api: Api = {...}` — its per-method annotations must mirror the declarations and are what actually gate drift.
 - **LocalStorage at seam**: Extracted to `renderer/lib/localStorage.ts` for testability.
 
 ## Known Complexity

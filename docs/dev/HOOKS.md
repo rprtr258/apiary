@@ -49,13 +49,13 @@ Used by `renderer/sidebar/tree.ts` (persisting expanded tree keys) and `renderer
 Source metadata (SQL tables, OpenAPI endpoints, MCP tools) is fetched on demand and cached with a staleness window so the sidebar doesn't re-query the backend on every render:
 
 ```typescript
-// createSourceCache<Item>({fetcher, errorTitle}) builds a flat Item[] cache:
+// createSourceCache<Entry>(fetcher, errorTitle) builds a flat Entry[] cache:
 // - fetch once per entry, invalidate after a staleness window (STALE_AFTER)
 // - a `changed` version signal bumps when a cache mutates, and subscribers re-render on it
 // - ensureFresh(ids) fetches only entries that are stale or missing (in-flight entries are skipped)
 ```
 
-Each source plugin (`renderer/plugins/<kind>/index.ts`) owns one cache; adding a new source kind with browsable metadata means adding a plugin with `cache` + `itemKey`/`label`/`tag`/`onOpen`/`viewer` hooks and registering it in `renderer/plugins/index.ts`.
+Each source kind owns its cache (kind-private, in `renderer/plugins/<kind>/item.ts` — MCP has three) and serves it to the sidebar through its root item's `children: () => listChildren(cache, id, toItem)` thunk; adding a new source kind with browsable metadata means adding a plugin whose `root` returns such a listing and registering it in `renderer/plugins/index.ts` (see `docs/dev/ADDING_NEW_PLUGINS.md` step 7).
 
 ## Debounced auto-update
 
@@ -77,7 +77,7 @@ export default function(
   show_request: Signal<boolean>,
   on: {update: (patch: Partial<Request>) => Promise<void>, send: () => Promise<void>},
 ): {
-  loaded(r: get_request): void,
+  loaded(r: t.Request): void,
   push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 }

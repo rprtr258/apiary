@@ -6,7 +6,7 @@ This guide explains how to add a new request kind plugin to apiary.
 
 Every request kind (HTTP, SQL, gRPC, Redis, JQ, Markdown, DIFF, MCP, SQLSource, HTTPSource) is a *plugin* with two halves:
 
-- **Backend** (`main/database/<kind>.ts`): a `send<Kind>` function plus an `EmptyRequest` template, dispatched from `main/api.ts`.
+- **Backend** (`main/database/<kind>.ts`): a `send` function plus an `EmptyRequest` template, dispatched from `main/api.ts`.
 - **Frontend** (`renderer/plugins/<kind>/viewer.ts`): a UI factory, wired into the kind's plugin via the `frame` hook in `renderer/plugins/<kind>/index.ts`.
 
 The two halves connect through the typed IPC surface: `main.ts` (handlers) → `preload.ts` (bridge) → `global.d.ts` (`Api` interface).
@@ -14,8 +14,8 @@ The two halves connect through the typed IPC surface: `main.ts` (handlers) → `
 ## Where Things Live
 
 ```
-shared/types.ts               # Kind enum, <Kind>Request / <Kind>Response types, RequestData / ResponseData / HistoryEntry unions
-main/database/<kind>.ts       # Plugin implementation: send<Kind> + EmptyRequest
+shared/types.ts               # Kind enum, <Kind>Request / <Kind>Response types, KindTypes table (derived unions)
+main/database/<kind>.ts       # Plugin implementation: send + EmptyRequest
 main/database/<kind>.test.ts  # Plugin unit tests
 main/api.ts                   # emptyRequestForKind + Perform dispatch (or a sub-API namespace)
 main/db.ts                    # JSON DB — no changes needed for new kinds (see step 6)
@@ -49,17 +49,17 @@ export type ExampleResponse = {
   result: string,
 };
 
-export type RequestData =
-  // ... existing members
-  | {kind: Kind.Example} & ExampleRequest
-;
+export type KindTypes = {
+  // ... existing rows
+  [Kind.Example]: {request: ExampleRequest, response: ExampleResponse},
+};
 ```
 
-If the kind is performable (it has a `Perform` action), also add `ExampleResponse` to the `ResponseData` and `HistoryEntry` unions in the same file. Source kinds (like SQLSource, HTTPSource, MCP) have a `RequestData` member only — their data is fetched on demand through dedicated IPC endpoints, not through response history, and they expose their browsable items through their plugin (step 7).
+The `response` field is what makes a kind performable and draftable: `RequestData`, `HistoryEntry`, `DraftableKind` and the db storage envelope all derive from the `KindTypes` table. Source kinds (like SQLSource, HTTPSource, MCP) have a row without `response` — their data is fetched on demand through dedicated IPC endpoints, and they expose their browsable items through their plugin (step 7).
 
 ### 2. Backend Plugin (`main/database/example.ts`)
 
-Each plugin is a module exporting an `EmptyRequest` constant and a `send<Kind>` function. Minimal real example (`main/database/jq.ts`):
+Each plugin is a module exporting an `EmptyRequest` constant and a `send` function. Minimal real example (`main/database/jq.ts`):
 
 ```typescript
 import type {JQRequest, JQResponse} from "@/types.ts";
@@ -70,19 +70,19 @@ export const EmptyRequest: JQRequest = {
   json: `{ ... }`,
 };
 
-export async function sendJQ({json, query}: JQRequest): Promise<JQResponse> {
+export async function send({json, query}: JQRequest): Promise<JQResponse> {
   return {response: await jq(json, query)};
 }
 ```
 
-`send<Kind>` may be sync (e.g. `sendDIFF` returns `DIFFResponse` directly) or async. Add unit tests in `main/database/example.test.ts` next to the module (see `main/database/jq.test.ts` for the pattern: `bun:test` with `mock.module` for external dependencies).
+`send` may be sync (e.g. `diff.ts`'s returns `DiffResponse` directly) or async. Add unit tests in `main/database/example.test.ts` next to the module (see `main/database/jq.test.ts` for the pattern: `bun:test` with `mock.module` for external dependencies).
 
 ### 3. Dispatch (`main/api.ts`)
 
 **Performable kinds** — add a case in both switches:
 
-- `emptyRequestForKind(kind)`: return the empty request. Import the plugin's `EmptyRequest` if it has meaningful defaults (HTTP, SQL, JQ, MD, REDIS, MCP, SQLSource), or return an inline object for trivially-structured kinds (GRPC, DIFF, HTTPSource).
-- `Perform(id)`: call `await sendExample(req.Data)`. After the switch, `createResponse(j, id, {SentAt, ReceivedAt, Response})` persists the exchange into the entry's response history automatically for every dispatched kind.
+- `emptyRequestForKind(kind)`: return the plugin's `EmptyRequest` constant (every plugin exports one).
+- `Perform(id)`: call `await example.send(req.Data)` (the plugin module imported as `import * as example from "./database/example.ts"`) and wrap the result with the shared `historyEntry(kind, sent_at, req.Data, response)` helper - the perform wire object is the shared `t.HistoryEntry`; nothing else is persisted.
 
 **Source kinds** — skip `Perform` and add a dedicated sub-API namespace instead, mirroring `export const GRPC = {...}` / `SQLSource` / `HTTPSource` / `MCP` in `main/api.ts`:
 
@@ -131,7 +131,7 @@ export default function(
     send: () => Promise<void>,
   },
 ): {
-  loaded(r: get_request): void,
+  loaded(r: t.Request): void,
   push_history_entry(he: t.HistoryEntry): void,
   unmount(): void,
 } {
@@ -165,9 +165,7 @@ frame: (args) => RequestExample(args.el, {update: args.on.update}),
 ```
 
 Performable plugins add the shared eye toggle via `tabModifiers: [eyeTabModifier]` (from `plugins/tab.ts`); source plugins declare no `tabModifiers`, so their tabs carry no eye.
-```
-
-Source panes that display fetched data also ship a viewer component and expose it through the plugin's `viewer` hook — shared viewers stay in `renderer/components/` (e.g. `TableView.ts`, `EndpointViewer.ts`), kind-specific ones colocate in the plugin dir (e.g. `plugins/mcp/tool.ts`). `App.ts` builds the layout factories from the registry, so no per-viewer edit is needed there.
+Source panes that display fetched data also ship a viewer component and expose it through the plugin's `viewers` hook — shared viewers stay in `renderer/components/` (e.g. `TableView.ts`, `EndpointViewer.ts`), kind-specific ones colocate in the plugin dir (e.g. `plugins/mcp/tool.ts`). `App.ts` builds the layout factories from the registry, so no per-viewer edit is needed there.
 
 **No `main/db.ts` changes are needed**: the v1 migration switch in `db.ts` only handles kinds that existed in v1 databases; new kinds never appear there (`Create` writes the current format directly).
 
@@ -179,85 +177,116 @@ Plain (performable) kind — `renderer/plugins/http/index.ts`:
 
 ```typescript
 import * as t from "@/types.ts";
-import type {Plugin} from "../cache.ts";
+import {Plugin} from "../types.ts";
+import {eyeTabModifier} from "../tab.ts";
 import RequestHTTP from "./viewer.ts";
 
 export const httpPlugin: Plugin = {
   kind: t.Kind.HTTP,
-  root: () => ({key: "", label: "", badge: {text: "HTTP", color: "lime", type: "success"}}),
-  frame: (args) => RequestHTTP(args.el, args.show_request, args.on),
-  menuEntries: (id) => [copyAsCurl(id)],   // optional per-kind context-menu entries
+  frame: args => RequestHTTP(args.el, args.show_request, args.on),
+  tabModifiers: [eyeTabModifier],   // shared eye toggle (performable kinds)
+  viewers: {},
+  menuEntries: id => [copyAsCurl(id)],   // optional per-kind context-menu entries
+  root: () => ({key: "", label: "", badge: {label: "HTTP", color: "var(--green)"}}),
 };
 ```
 
-Source kind — `renderer/plugins/sql_source/index.ts` (adds the cache, item hooks and viewer):
+Source kind — `renderer/plugins/sql_source/` (adds the listing and the item viewer):
+
+`index.ts`:
 
 ```typescript
 import * as t from "@/types.ts";
-import {createSourceCache, type Plugin} from "../cache.ts";
+import {store} from "../../store.ts";
+import {Plugin} from "../types.ts";
+import {root, componentType, StateSQLSourceTable} from "./item.ts";
+import RequestTableViewer from "../../components/TableView.ts";
+import RequestSQLSource from "./viewer.ts";
+
+export const sqlSourcePlugin: Plugin = {
+  kind: t.Kind.SQLSource,
+  frame: args => RequestSQLSource(args.el, {update: args.on.update}),
+  viewers: {
+    [componentType]: (container, state) => RequestTableViewer(container, state as StateSQLSourceTable),
+  },
+  menuEntries: id => [/* e.g. "New draft query" */],
+  root,   // from item.ts below
+};
+```
+
+`item.ts` (the sidebar listing):
+
+```typescript
+import * as t from "@/types.ts";
+import type {Item} from "../source.ts";
 import {api} from "../../api.ts";
 import {store} from "../../store.ts";
-import RequestSQLSource from "./viewer.ts";
-import RequestTableViewer from "../../components/TableView.ts";
+import {createSourceCache, listChildren} from "../cache.ts";
 
-const componentType = "TableViewer";
-type StateSQLSourceTable = {
+export const componentType = "TableViewer";
+export type StateSQLSourceTable = {
   sourceID: string,
   itemKey: string,
   tableName: string,
   tableInfo: t.TableInfo,
 };
 
-export const sqlSourcePlugin: Plugin<t.TableInfo> = {
-  kind: t.Kind.SQLSource,
-  root: id => ({key: "", label: "", badge: {text: "SQL*", color: "#70a0e8"}, /* + listing thunks */ }),
-  frame: (args) => RequestSQLSource(args.el, {update: args.on.update}),
-  cache: createSourceCache<t.TableInfo>({
-    fetcher: id => api.requestListTablesSQLSource(id),   // Promise<Result<TableInfo[]>>
-    errorTitle: "Could not fetch tables",
-  }),
-  itemKey: table => table.name,
-  label: table => formatTableLabel(table),
-  tag: () => ({text: "TBL", type: "info"}),
-  viewer: {
-    componentType,
-    factory: (container, state) => RequestTableViewer(container, state as StateSQLSourceTable),
-  },
-  onOpen: (id, table, itemKey) =>
-    store.openViewer(componentType, itemKey, {sourceID: id, itemKey, tableName: itemKey, tableInfo: table}),
-};
+const tablesCache = createSourceCache<t.TableInfo>(
+  id => api.requestListTablesSQLSource(id),   // Promise<Result<TableInfo[]>>
+  "Could not fetch tables",
+);
+
+function toTableItem(id: string, table: t.TableInfo): Item {
+  return {
+    key: table.name,
+    label: formatTableLabel(table),
+    badge: {label: "TBL", color: "var(--accent)"},
+    onOpen: () => store.openViewer(table.name, componentType, {
+      sourceID: id,
+      itemKey: table.name,
+      tableName: table.name,
+      tableInfo: table,
+    }),
+  };
+}
+
+export function root(id: t.RequestID): Item {
+  return {
+    key: "",
+    label: "",
+    badge: {label: "SQL*", color: "var(--accent)"},
+    children: () => listChildren(tablesCache, id, t => toTableItem(id, t)),
+    loading: () => tablesCache.get(id)?.loading ?? false,
+    refresh: () => tablesCache.fetch(id),
+  };
+}
 ```
 
 Register it — the only sidebar-related edit outside `renderer/plugins/`:
 
 ```typescript
 // renderer/plugins/index.ts
-import {httpPlugin} from "./http";
+import {httpPlugin} from "./http/index.ts";
 // ...
-export const plugins = [httpPlugin, /* ... */ sqlSourcePlugin, httpSourcePlugin, mcpPlugin];
+export const plugins: Plugin[] = [httpPlugin, /* ... */ sqlSourcePlugin, httpSourcePlugin, mcpPlugin];
 ```
 
 Contract:
 
 | Field | Applies to | Required | Meaning |
 |-------|-----------|----------|---------|
-| `kind` | all kinds | yes | Registry key (the `t.Kind` value); also the virtual-key segment: `virtual:<kind>:<sourceID>:<itemKey>` |
-| `root` | all kinds | yes | Invisible `RootItem` carrying the kind badge `{text, color, type?}`; source kinds give it `children`/`loading`/`refresh` listing thunks |
+| `kind` | all kinds | yes | Registry key (the `t.Kind` value); also the virtual-key segment: `virtual:<kind>:<sourceID>:...` |
+| `frame` | all kinds | yes | Mounts the kind's `viewer.ts` factory into the request pane; source kinds receive only `{update}` (no `show_request`, no eye toggle) |
+| `viewers` | all kinds | yes (may be empty) | `componentType` -> factory record for item viewer panes; deduped and titled via `store.openViewer`, which also composes the `sourceName/` title prefix. `App.ts` derives all viewer factories from the registry |
+| `root` | all kinds | yes | Invisible `Item` carrying the kind badge `{label, color, background?}`; source kinds give it `children`/`loading`/`refresh` listing thunks |
+| `tabModifiers` | performable kinds | no | Tab decorations; the shared eye toggle is `tabModifiers: [eyeTabModifier]` from `plugins/tab.ts` |
 | `menuEntries` | all kinds | no | Per-kind context-menu entries (e.g. HTTP → Copy as curl) |
-| `cache` | source kinds | no | `SourceCache<T>` built by `createSourceCache(fetcher, errorTitle)`; its presence enables tree children and the Refresh entry |
-| `fetcher` / `errorTitle` | source kinds | via `createSourceCache` | IPC call returning `Result<Item[]>`; notification title on fetch failure |
-| `itemKey` | source kinds | with cache | Unique key per item among its siblings (name; or index when items are unkeyed) |
-| `label` | source kinds | with cache | Display label (plain string, no DOM) |
-| `tag` | source kinds | with cache | Per-item tag data `{text, type, style?}` rendered by the generic tree row |
-| `onOpen` | source kinds | no | Click action for leaf items, called as `(id, item, itemKey)` (the `itemKey` carries the index for unkeyed items). Group nodes omit it |
-| `viewer` | source kinds | no | `{componentType, factory}` — mounts the item's viewer pane. `componentType` is the layout component name persisted in saved layouts (dedup key together with `{sourceID, itemKey}`, see `store.openViewer`, which also composes the `sourceName/` title prefix); `factory(container, state)` builds the component. `App.ts` derives all viewer factories from the registry |
-| `childrenOf` | source kinds | no | `(item) => Promise<Item[]>` — children of a group item; absent/empty → leaf. Enables nesting (e.g. source → tables/views groups → concrete items) |
 
 Rules:
 
-- `itemKey`, `label`, `tag` are **sync** mappings over data already in the cache — for anything async, fetch into the cache and bump the `changed` signal; never make these hooks async.
-- The cache stores a flat `Item[]`; grouping and nesting are `childrenOf`'s job.
-- Virtual keys are path-joined (`virtual:<kind>:<sourceID>:<groupKey>:<itemKey>`) and are only safe to rename while virtual nodes are leaves (leaves are not persisted in `localStorage("expanded-keys")`).
+- `key`/`label`/`badge` in `toNode` are **sync** mappings over data already in the cache — for anything async, fetch into the cache (the cache's `changed` signal drives the re-render); never make these mappings async.
+- The cache stores a flat `Entry[]` of domain data; `listChildren(cache, id, toItem)` serves the entries as `Item`s. Group nodes are plain `Item`s with their own `children` thunks; "/"-containing item keys nest into virtual folder chains.
+- Virtual keys are `virtual:<kind>:<sourceID>:<segments>` (`composeVirtualKey`, with `:` escaping per segment so item keys like HTTP `GET /user/:id` round-trip) and are only safe to rename while virtual nodes are leaves (leaves are not persisted in `localStorage("expanded-keys")`).
 - Do not edit `renderer/sidebar/` when adding a kind — nothing there references individual kinds.
 
 ### 8. Post-Implementation Checks
@@ -282,9 +311,9 @@ Manual end-to-end:
 
 The DIFF kind is a good end-to-end reference:
 
-- `shared/types.ts`: `Kind.DIFF = "diff"`, `DIFFRequest {left, right}`, `DIFFResponse {diff, stats, leftType, rightType}`, plus `ResponseData`/`HistoryEntry` members.
-- `main/database/diff.ts`: sync `sendDIFF` (JSON structural diff or line diff via the `diff` package) + `diff.test.ts`.
-- `main/api.ts`: inline `emptyRequestForKind` case `{left: "", right: ""}` and a `Perform` case.
+- `shared/types.ts`: `Kind.DIFF = "diff"`, `DiffRequest {left, right}`, `DiffResponse {diff, stats, leftType, rightType}`, plus a `KindTypes` table row.
+- `main/database/diff.ts`: sync `send` (JSON structural diff or line diff via the `diff` package) + `diff.test.ts`.
+- `main/api.ts`: `emptyRequestForKind` case returning `diff.EmptyRequest` and a `Perform` case (`response = diff.send(req.Data)`).
 - `renderer/plugins/diff/viewer.ts`: default-export factory, split panes, 500ms debounced auto-perform, error banner above content.
 - `renderer/plugins/diff/index.ts` + registration in `renderer/plugins/index.ts`: `frame` dispatch (no `App.ts` edit — `panelkaFactory` routes via the registry).
 
