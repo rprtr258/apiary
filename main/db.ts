@@ -1,49 +1,37 @@
 import {readFile, rename as renameFile, stat, writeFile} from "fs/promises";
 import {nanoid} from "nanoid";
 import * as t from "@/types.ts";
-import v1, {KindEntry} from "./db.v1.ts";
+import v1 from "./db.v1.ts";
 import v2, {migration_v1_v2} from "./db.v2.ts";
 import v3, {migration_v2_v3} from "./db.v3.ts";
+
+// v1-v3 persist one section per kind, keyed by the kind value. This is the
+// canonical serialization order of those sections (saveNow key order) and the
+// wrapper shape split: performable kinds wrap their data in a {request: Data}
+// entry (a v1 relic kept for file-format compatibility), sources and MCP store
+// their data directly.
+const wrappedKinds: ReadonlySet<t.Kind> = new Set([
+  t.Kind.HTTP, t.Kind.SQL, t.Kind.JQ, t.Kind.MD, t.Kind.REDIS, t.Kind.GRPC, t.Kind.DIFF,
+]);
+const kindSections: ReadonlySet<t.Kind> = new Set([
+  ...wrappedKinds,
+  t.Kind.HTTPSource, t.Kind.SQLSource, t.Kind.MCP,
+]);
 
 export function generateID(): t.RequestID {
   return nanoid();
 }
 
+// Storage envelope over the shared KindRequest table: one {Kind, Data} member
+// per kind, derived from the single Kind->type mapping in shared/types.ts.
+type RequestEnvelope = {
+  [K in t.Kind]: {Kind: K, Data: t.KindTypes[K]["request"]}
+}[t.Kind];
+
 export type Request = {
   ID:        t.RequestID,
   Path:      string,
-} & (
-  | {Kind: t.Kind.HTTP} & {
-    Data: t.HTTPRequest,
-  }
-  | {Kind: t.Kind.SQL} & {
-    Data: t.SQLRequest,
-  }
-  | {Kind: t.Kind.JQ} & {
-    Data: t.JQRequest,
-  }
-  | {Kind: t.Kind.MD} & {
-    Data: t.MDRequest,
-  }
-  | {Kind: t.Kind.REDIS} & {
-    Data: t.RedisRequest,
-  }
-  | {Kind: t.Kind.GRPC} & {
-    Data: t.GRPCRequest,
-  }
-  | {Kind: t.Kind.DIFF} & {
-    Data: t.DiffRequest,
-  }
-  | {Kind: t.Kind.SQLSource} & {
-    Data: t.SQLSourceRequest,
-  }
-  | {Kind: t.Kind.HTTPSource} & {
-    Data: t.HTTPSourceRequest,
-  }
-  | {Kind: t.Kind.MCP} & {
-    Data: t.MCPRequest,
-  }
-);
+} & RequestEnvelope;
 
 export type DB = {
   requests: Record<t.RequestID, Request>,
@@ -156,8 +144,8 @@ async function loadParsed(raw: Record<string, unknown>): Promise<LAST_V> {
     throw new Error(`db.json was written by a newer apiary version ($version ${version}, this build understands up to ${LAST_VERSION})`);
   }
   let migrated: Record<string, unknown> = raw;
-  if (version === 1) migrated = migration_v1_v2(migrated as unknown as v1);
-  if (version <= 2) migrated = migration_v2_v3(migrated as unknown as v2);
+  if (version === 1) migrated = migration_v1_v2(migrated as v1);
+  if (version <= 2) migrated = migration_v2_v3(migrated as v2);
 
   return migrated as LAST_V;
 }
@@ -178,7 +166,7 @@ export async function load(): Promise<DB> {
   let b: Buffer;
   try {
     b = await readFile(dbPath);
-  } catch (err: unknown) {
+  } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
       cached = {requests: {}, drafts: {}, tree: {}};
       cachedMtimeMs = null;
@@ -190,7 +178,7 @@ export async function load(): Promise<DB> {
   let db: DB;
   try {
     db = await parseDB(b);
-  } catch (err: unknown) {
+  } catch (err) {
     // The file body is unusable (torn write, hand edit, newer $version):
     // quarantine it so no later write can clobber the recoverable bytes, then
     // continue from an empty DB; takeDBNotice carries the backup path to the
@@ -217,59 +205,24 @@ export async function load(): Promise<DB> {
 async function parseDB(b: Buffer): Promise<DB> {
   const raw = await loadParsed(JSON.parse(b.toString()) as Record<string, unknown>);
   const requests = Object.fromEntries((raw.request ?? []).map(r => [r.id, (() => {
-    const kind: Pick<Request, "Data"> = (() => {
-      switch (r.kind) {
-      case t.Kind.HTTP:
-        const req = raw[r.kind][r.id];
-        return {
-          Data: req.request,
-        };
-      case t.Kind.SQL:
-        return {
-          Data: raw[r.kind][r.id].request,
-        };
-      case t.Kind.JQ:
-        return {
-          Data: raw[r.kind][r.id].request,
-        };
-      case t.Kind.MD:
-        return {
-          Data: raw[r.kind][r.id].request,
-        };
-      case t.Kind.REDIS:
-        return {
-          Data: raw[r.kind][r.id].request,
-        };
-      case t.Kind.GRPC:
-        return {
-          Data: raw[r.kind][r.id].request,
-        };
-      case t.Kind.DIFF:
-        return {
-          Data: raw[r.kind][r.id].request,
-        };
-      case t.Kind.SQLSource: {
-        const src = raw[r.kind][r.id] as unknown as {database: t.Database, dsn: string, readOnly?: boolean};
-        return {
-          Data: {...src, readOnly: src.readOnly ?? false},
-        };
-      }
-      case t.Kind.HTTPSource:
-        return {
-          Data: raw[r.kind][r.id],
-        };
-      case t.Kind.MCP:
-        return {
-          Data: raw[r.kind][r.id],
-        };
-      }
-    })();
+    if (!kindSections.has(r.kind))
+      throw new Error(`request ${r.id} has unknown kind "${String(r.kind)}"`);
+    // Performable kinds persist {request: Data} wrappers (a v1 relic kept for
+    // file-format compatibility); sources and MCP store their data directly.
+    const section = raw[r.kind] as Record<t.RequestID, unknown>;
+    const stored = section[r.id];
+    const data = wrappedKinds.has(r.kind) ? (stored as {request: unknown}).request : stored;
+    // v2 files lack SQLSource.readOnly; absence means read-write (the canonical
+    // type carries the normalized required field).
+    const sqlData = r.kind === t.Kind.SQLSource
+      ? {...(data as {database: t.Database, dsn: string, readOnly?: boolean}), readOnly: (data as {readOnly?: boolean}).readOnly ?? false}
+      : data;
 
     return {
       ID: r.id,
       Path: r.path,
       Kind: r.kind,
-      ...kind,
+      Data: sqlData,
     } as Request;
   })()]));
   // Drop section entries whose record vanished (hand-edited files); the section is
@@ -384,37 +337,13 @@ async function saveNow(j: DB): Promise<void> {
       path: r.Path,
     })),
     drafts: Object.entries(j.drafts).map(([id, n]) => ({id, n})),
-    http: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.HTTP).map(([id, r]) => [id, {
-      request: r.Data,
-    } as KindEntry<t.HTTPRequest>])),
-    sql: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.SQL).map(([id, r]) => [id, {
-      request: r.Data,
-    } as KindEntry<t.SQLRequest>])),
-    jq: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.JQ).map(([id, r]) => [id, {
-      request: r.Data,
-    } as KindEntry<t.JQRequest>])),
-    md: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.MD).map(([id, r]) => [id, {
-      request: r.Data,
-    } as KindEntry<t.MDRequest>])),
-    redis: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.REDIS).map(([id, r]) => [id, {
-      request: r.Data,
-    } as KindEntry<t.RedisRequest>])),
-    grpc: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.GRPC).map(([id, r]) => [id, {
-      request: r.Data,
-    } as KindEntry<t.GRPCRequest>])),
-    diff: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.DIFF).map(([id, r]) => [id, {
-      request: r.Data,
-    } as KindEntry<t.DiffRequest>])),
-    "http-source": Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.HTTPSource).map(([id, r]) => [id,
-      r.Data as t.HTTPSourceRequest,
-    ])),
-    "sql-source": Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.SQLSource).map(([id, r]) => [id,
-      r.Data as t.SQLSourceRequest,
-    ])),
-    mcp: Object.fromEntries(Object.entries(j.requests).filter(([_id, r]) => r.Kind === t.Kind.MCP).map(([id, r]) => [id,
-      r.Data as t.MCPRequest,
-    ])),
-  };
+    ...Object.fromEntries([...kindSections].map(kind => [kind, Object.fromEntries(Object.values(j.requests).filter(r => r.Kind === kind).map(r => [
+      r.ID,
+      // Performable kinds persist {request: Data} wrappers (see parseDB); the
+      // rest store their data directly.
+      wrappedKinds.has(kind) ? {request: r.Data} : r.Data,
+    ] as const))] as const)),
+  } as v3;
   // writeFile truncates its target at open, so a concurrent reader (e2e tests
   // poll db.json while the app writes) can observe a torn file; write to a tmp
   // sibling and rename over the target instead - rename is atomic, readers only
@@ -462,7 +391,7 @@ export async function createDraft(
 ): Promise<t.RequestID> {
   const id = generateID();
   const n = Object.values(j.drafts).reduce((max, n) => Math.max(max, n), 0) + 1;
-  j.requests[id] = {ID: id, Path: `draft ${n}`, Kind: kind, Data: data, Responses: []} as Request;
+  j.requests[id] = {ID: id, Path: `draft ${n}`, Kind: kind, Data: data} as Request;
   j.drafts[id] = n;
   await save(j);
   return id;
