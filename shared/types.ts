@@ -76,7 +76,7 @@ type Request2 = {
 // adding a row here (plus the enum member), never a parallel union elsewhere.
 // Rows without a response are kinds Perform does not dispatch (sources and
 // MCP); only rows with one can be drafts.
-type KindTypes = {
+export type KindTypes = {
   [Kind.HTTP]:       {request: HTTPRequest,  response: HTTPResponse},
   [Kind.SQL]:        {request: SQLRequest,   response: SQLResponse},
   [Kind.GRPC]:       {request: GRPCRequest,  response: GRPCResponse},
