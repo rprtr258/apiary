@@ -4,12 +4,12 @@
 
 - [ ] Add `Kind<NAME> = "<name>"` to the `Kind` enum
 - [ ] Add `<NAME>Request` and `<NAME>Response` types
-- [ ] Add member to `RequestData` union: `| {kind: Kind.<NAME>} & <NAME>Request`
-- [ ] If performable: add to `ResponseData` and `HistoryEntry` unions
+- [ ] Add a row to the `KindTypes` table: `[Kind.<NAME>]: {request: <NAME>Request, response: <NAME>Response}`
+- [ ] Source kinds: omit the `response` field (`RequestData`, `HistoryEntry`, `DraftableKind` and the db envelope derive from the table)
 
 ## Backend (`main/database/`)
 
-- [ ] Create `<name>.ts` with `EmptyRequest: <NAME>Request` constant and `send<NAME>(data: <NAME>Request): Promise<<NAME>Response>` (sync is fine for compute-only kinds)
+- [ ] Create `<name>.ts` with `EmptyRequest: <NAME>Request` constant and `send(data: <NAME>Request): Promise<<NAME>Response>` (sync is fine for compute-only kinds)
 - [ ] No Electron imports in the plugin module (keeps it unit-testable)
 - [ ] Create `<name>.test.ts` with `bun:test`, mocking external dependencies via `mock.module`
 - [ ] Exact equality assertions, not substring contains
@@ -17,7 +17,7 @@
 ## Dispatch (`main/api.ts`)
 
 - [ ] Add case to `emptyRequestForKind(kind)` returning the empty request
-- [ ] Performable kind: add case to `Perform(id)` calling `send<NAME>` (response history is persisted automatically via `createResponse`)
+- [ ] Performable kind: add case to `Perform(id)` calling the plugin module's `send` and wrapping the result with the shared `historyEntry()` helper (the wire object is the shared `t.HistoryEntry`; history is renderer-side and transient)
 - [ ] Source kind: add a sub-API namespace instead (pattern: `export const GRPC` / `SQLSource` / `HTTPSource` / `MCP`)
 
 ## IPC Surface
@@ -41,13 +41,13 @@
 - [ ] Wire the UI module into the plugin's `frame` hook:
   - Performable: `frame: (args) => Request<NAME>(args.el, args.show_request, args.on);` plus `tabModifiers: [eyeTabModifier]` (shared eye toggle, `plugins/tab.ts`)
   - Source: `frame: (args) => Request<NAME>(args.el, {update: args.on.update});` with no `tabModifiers` (no editor pane to toggle)
-- [ ] Source panes with fetched data: ship the viewer component (shared ones in `renderer/components/`, kind-specific ones colocated in `plugins/<name>/`) and expose it via the plugin's `viewer` hook (no `App.ts` edit — factories come from the registry)
+- [ ] Source panes with fetched data: ship the viewer component (shared ones in `renderer/components/`, kind-specific ones colocated in `plugins/<name>/`) and expose it via the plugin's `viewers` hook (no `App.ts` edit — factories come from the registry)
 
 ## Plugin (`renderer/plugins/`, every kind)
 
-- [ ] Create `plugins/<name>/index.ts` exporting a `Plugin` (the UI factory lives in the sibling `viewer.ts`): `kind` + `frame` + `root` (invisible `RootItem` carrying the kind badge) for every kind; optional `menuEntries` for per-kind context-menu entries
-- [ ] Source kinds: add `cache` (via `createSourceCache({fetcher, errorTitle})`), `itemKey`, `label`, `tag`, optional `onOpen` (called as `(id, item, itemKey)`, opens the pane via `store.openViewer`) and `childrenOf` (`(item) => Promise<Item[]>` for group items); add `viewer` (`{componentType, factory}`) when items have a viewer pane
-- [ ] `itemKey`/`label`/`tag` are sync mappings over cached data — async work belongs to the fetcher
+- [ ] Create `plugins/<name>/index.ts` exporting a `Plugin` (the UI factory lives in the sibling `viewer.ts`): `kind` + `frame` + `root` (invisible root item carrying the kind badge) + `viewers` (empty record when unused) for every kind; optional `tabModifiers` / `menuEntries` for tab and context-menu entries
+- [ ] Source kinds: implement the root item's listing in `<name>/item.ts` — a kind-private `createSourceCache(fetcher, errorTitle)` cache and a `root(id): Item` with `children: () => listChildren(cache, id, toItem)` (plus `loading`/`refresh`) thunks; per-item `onOpen` opens the viewer pane via `store.openViewer(title, componentType, state)`
+- [ ] Item labels/badges are sync mappings over cached data — async work belongs to the fetcher
 - [ ] Add one line to `plugins` in `renderer/plugins/index.ts`
 - [ ] No edits in `renderer/sidebar/` — tree children, click handling, tags, the Refresh entry, and staleness are registry-driven
 
@@ -68,13 +68,13 @@ bun run dist             # package the app
 
 - [ ] Create a new request of the new kind
 - [ ] Perform it; response appears and lands in history
-- [ ] Restart the app; request and history persist (`db.json`)
+- [ ] Restart the app; the request persists (`db.json`); the tab's history does not (renderer-side, transient)
 
 ## Quick Reference
 
 ### Plugin Types
-- **Performable kind**: dispatched in `Perform`, response persisted via `createResponse` (all current kinds: HTTP, SQL, GRPC, JQ, Redis, MD, DIFF)
-- **Source kind**: no `Perform`; dedicated IPC sub-API queried on demand (SQLSource, HTTPSource, MCP); `RequestData` member only
+- **Performable kind**: dispatched in `Perform`, result wrapped with the shared `historyEntry()` helper (wire object = `t.HistoryEntry`; history is renderer-side and transient; all current kinds: HTTP, SQL, GRPC, JQ, Redis, MD, DIFF)
+- **Source kind**: no `Perform`; dedicated IPC sub-API queried on demand (SQLSource, HTTPSource, MCP); a `KindTypes` row without `response`
 
 ### Key Decisions
 1. **Performable or source?** Has a one-shot execute action → `Perform`. Exposes browsing/querying of an external system → sub-API namespace.
